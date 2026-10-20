@@ -304,10 +304,13 @@ class _ConfirmHandler(_Handler):
             )
         result = confirmation.respond(state, arguments.answer, context.turn_id)
         if isinstance(result, Err):
+            advice = {
+                "same_turn": "The candidate has not answered yet. Reply with nothing and wait.",
+                "nothing_pending": "Continue.",
+            }.get(result.error, "Present it again.")
             return self._refuse(
                 f"confirmation_refused:{result.error}",
-                f"No {self.kind} read-back can be answered now ({result.error}). "
-                + ("Present it again." if result.error != "nothing_pending" else "Continue."),
+                f"No {self.kind} read-back can be answered now ({result.error}). {advice}",
             )
         resolved = result.value
         candidate = state.candidate

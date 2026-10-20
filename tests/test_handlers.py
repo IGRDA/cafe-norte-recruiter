@@ -265,6 +265,16 @@ async def test_a_note_after_the_confirmed_brief_keeps_it_confirmed() -> None:
     assert state.pending_confirmation.status == "confirmed"
 
 
+async def test_the_model_cannot_answer_a_read_back_in_the_turn_it_was_presented() -> None:
+    w = await World(full_record()).open()
+    await w.present(context("t1"), args("present_confirmation", target="brief"))
+    await w.deliver()
+    same_turn = await w.confirm_brief(context("t1"), args("confirm_brief", answer="affirm"))
+    assert not same_turn.ok and same_turn.summary == "confirmation_refused:same_turn"
+    assert "wait" in same_turn.model_text.lower()
+    assert (await w.current()).pending_confirmation.status == "pending"  # type: ignore[union-attr]
+
+
 async def test_affirming_a_field_readback_confirms_the_field_without_a_new_revision() -> None:
     w = await World(full_record()).open()
     await w.present(
@@ -306,12 +316,12 @@ async def test_end_session_sets_lifecycle_and_outcome_once() -> None:
     w = await World(full_record()).open()
     await w.present(context(), args("present_confirmation", target="brief"))
     await w.deliver()
-    await w.confirm_brief(context(), args("confirm_brief", answer="affirm"))
-    done = await w.end(context(), args("end_session", reason="candidate_done"))
+    await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+    done = await w.end(context("t3"), args("end_session", reason="candidate_done"))
     assert done.ok and isinstance(done.events[0], StateUpdated)
     state = await w.current()
     assert (state.lifecycle, state.outcome) == ("completed", "brief_only")
-    again = await w.end(context("t2"), args("end_session", reason="candidate_done"))
+    again = await w.end(context("t4"), args("end_session", reason="candidate_done"))
     assert not again.ok and again.summary == "lifecycle_refused:completed"
 
 

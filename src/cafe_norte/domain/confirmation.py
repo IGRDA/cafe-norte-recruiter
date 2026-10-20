@@ -26,6 +26,7 @@ ConfirmationRefusal = Literal[
     "stale_revision",
     "wrong_target",
     "already_answered",
+    "same_turn",  # answered in the turn that presented it: only the candidate may answer
 ]
 
 
@@ -56,12 +57,15 @@ def respond(
 
     ``affirm`` succeeds only if the confirmation is pending, was fully delivered and its target
     revision is still the record's revision. ``correct`` and ``deny`` mark it rejected.
-    ``unrelated`` changes nothing and is reported as ``wrong_target``."""
+    ``unrelated`` changes nothing and is reported as ``wrong_target``. Any answer in the same
+    turn that presented it is ``same_turn``: the candidate has not spoken yet."""
     pending = state.pending_confirmation
     if pending is None:
         return Err("nothing_pending")
     if pending.status != "pending":
         return Err("already_answered")
+    if pending.presented_turn_id == response_turn_id:
+        return Err("same_turn")
     if answer == "unrelated":
         return Err("wrong_target")
     if answer == "affirm":

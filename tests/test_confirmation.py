@@ -59,6 +59,12 @@ def test_affirm_confirms_only_a_delivered_pending_confirmation_at_the_current_re
     assert respond(state(answered), "affirm", T3) == Err("already_answered")
 
 
+def test_a_confirmation_cannot_be_answered_in_the_turn_that_presented_it() -> None:
+    """Live: the model affirmed its own read-back before the candidate spoke."""
+    assert respond(state(pending_brief()), "affirm", T1) == Err("same_turn")
+    assert respond(state(pending_brief()), "deny", T1) == Err("same_turn")
+
+
 def test_deny_and_correct_reject_and_unrelated_changes_nothing() -> None:
     for answer in ("deny", "correct"):
         result = respond(state(pending_brief()), answer, T2)

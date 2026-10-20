@@ -92,20 +92,23 @@ class _Handler:
         return ToolOutcome(ok=False, model_text=model_text, summary=summary)
 
 
+def _brief_confirmed(state: SessionState) -> bool:
+    pending = state.pending_confirmation
+    return (
+        pending is not None
+        and pending.status == "confirmed"
+        and isinstance(pending.target, BriefTarget)
+        and pending.target.revision == state.candidate.revision
+    )
+
+
 def _next_question(state: SessionState) -> str:
     """What the model should do after a save: one field, the brief, or the interview."""
     missing = unfinished_fields(state.candidate)
     if missing:
         # Name only the next field: listing them all made the model ask them all at once.
         return f"Now ask about {missing[0]} only, in one short sentence, and end your turn."
-    pending = state.pending_confirmation
-    if (
-        pending is not None
-        and pending.status == "confirmed"
-        and isinstance(pending.target, BriefTarget)
-    ):
-        return NEXT_STEP["interview"]
-    return NEXT_STEP["brief"]
+    return NEXT_STEP["interview"] if _brief_confirmed(state) else NEXT_STEP["brief"]
 
 
 class UpdateCandidateHandler(_Handler):
@@ -146,15 +149,27 @@ class UpdateCandidateHandler(_Handler):
                 ReviewFlag(kind="work_authorization", turn_id=context.turn_id, note=note),
             )
         pending = confirmation.invalidated_by_patch(state, candidate.revision, changed)
+        spoken = ""
+        readback = next((f for f in READBACK_FIELDS if f in changed), None)
+        if readback is not None:
+            # Phone and date are read back the moment they are saved; no model step between.
+            value = fields.value_of(getattr(candidate, readback))
+            spoken = field_readback(readback, value, configuration)
+            pending = confirmation.present(
+                state,
+                FieldTarget(field=readback, revision=candidate.revision),
+                spoken,
+                context.turn_id,
+                ConfirmationId(uuid.uuid4().hex),
+            )
         new_state = state.model_copy(
             update={"candidate": candidate, "review_flags": flags, "pending_confirmation": pending}
         )
         await self._save(new_state, expected_revision=state.candidate.revision)
 
         saved = ", ".join(changed) or "note"
-        readback = next((f for f in READBACK_FIELDS if f in changed), None)
-        if readback is not None:
-            step = f"Read it back: call present_confirmation(target=field, field={readback}) now."
+        if spoken:
+            step = "The read-back was already spoken. Reply with nothing and wait."
         elif pending is not None and pending.status == "invalidated":
             step = "The pending read-back is void; present the brief again when ready."
         else:
@@ -164,6 +179,7 @@ class UpdateCandidateHandler(_Handler):
             model_text=f"Saved: {saved}. {step}",
             summary=f"captured:{saved}",
             events=(self._updated(new_state),),
+            spoken=spoken,
         )
 
 
@@ -189,6 +205,17 @@ class PresentConfirmationHandler(_Handler):
                 return self._refuse(
                     f"brief_not_ready:{first}",
                     f"The brief needs every field settled; ask about {first} first.",
+                )
+            waiting = state.pending_confirmation
+            if (
+                waiting is not None
+                and waiting.status == "pending"
+                and isinstance(waiting.target, FieldTarget)
+            ):
+                return self._refuse(
+                    f"readback_pending:{waiting.target.field}",
+                    f"The {waiting.target.field} read-back is unanswered; "
+                    "call confirm_field with the candidate's answer first.",
                 )
             target: FieldTarget | BriefTarget = BriefTarget(revision=revision)
             text = render_brief_es(state.candidate, configuration)
@@ -295,6 +322,12 @@ class EndSessionHandler(_Handler):
         state = await self._state(context)
         if state is None:
             return self._refuse("not_found", "Session not found.")
+        if arguments.reason == "candidate_done" and not _brief_confirmed(state):
+            return self._refuse(
+                "brief_not_confirmed",
+                "The brief is not confirmed at the current revision; "
+                "call present_confirmation(target=brief) and wait for the answer.",
+            )
         result = transition(state, self.EVENTS[arguments.reason])
         if isinstance(result, Err):
             return self._refuse(

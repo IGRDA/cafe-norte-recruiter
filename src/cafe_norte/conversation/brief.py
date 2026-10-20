@@ -38,7 +38,7 @@ def render_brief_es(record: CandidateRecord, configuration: StoreConfiguration) 
     parts += _fact(
         record, "earliest_start_date", lambda v: t["earliest_start_date"].format(value=_date(v))
     )
-    parts += _fact(record, "experience", lambda v: t["experience"].format(value=v))
+    parts += _fact(record, "experience", lambda v: t["experience"].format(value=str(v).rstrip(".")))
     if value_of(record.contact_phone) is not None:
         parts += _fact(
             record, "contact_phone", lambda v: t["contact_phone"].format(value=_phone(v))

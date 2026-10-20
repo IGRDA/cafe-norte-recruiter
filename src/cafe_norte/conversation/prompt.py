@@ -2,7 +2,7 @@
 
 import json
 import re
-from datetime import date
+from datetime import date, timedelta
 
 from cafe_norte.conversation import prompts
 from cafe_norte.domain.candidate import VALUE_FIELDS, unfinished_fields
@@ -26,6 +26,10 @@ def system_message(
 ) -> ModelMessage:
     facts = {
         "today": {"date": today.isoformat(), "weekday": WEEKDAYS[today.weekday()]},
+        "next_days": {
+            WEEKDAYS[(today + timedelta(days=n)).weekday()]: (today + timedelta(days=n)).isoformat()
+            for n in range(1, 7)
+        },
         "store": {
             "name": configuration.store_name,
             "city": configuration.city,

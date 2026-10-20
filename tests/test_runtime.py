@@ -242,7 +242,11 @@ async def test_the_prompt_carries_todays_date_in_madrid_and_the_weekday() -> Non
     h = Harness([says("Vale.")])
     await h.open_session()
     await h.run("Hola")
-    assert '"today": {"date": "2026-10-20", "weekday": "martes"}' in h.model.calls[0][0].content
+    content = h.model.calls[0][0].content
+    assert '"today": {"date": "2026-10-20", "weekday": "martes"}' in content
+    # A lookup table for relative dates, so the model never does weekday arithmetic.
+    assert '"next_days": {"miércoles": "2026-10-21"' in content
+    assert '"lunes": "2026-10-26"' in content and '"martes": "2026-10-27"' not in content
 
 
 async def test_doubtful_work_authorization_raises_a_review_flag_without_blocking() -> None:

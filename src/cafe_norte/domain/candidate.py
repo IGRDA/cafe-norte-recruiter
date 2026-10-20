@@ -82,7 +82,8 @@ def apply_patch(
         updates[name] = mark_unknown(current, attempts).model_dump()
     if patch.note is not None:
         updates["notes"] = (*record.notes, patch.note)
-    updates["revision"] = record.revision + 1
+    if changed_fields(patch):
+        updates["revision"] = record.revision + 1  # a note alone is not a new version of the facts
     # Re-validated so each field is the parametrized ``Captured[T]`` the record declares.
     return CandidateRecord.model_validate({**record.model_dump(), **updates})
 

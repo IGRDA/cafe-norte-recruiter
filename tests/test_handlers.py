@@ -23,6 +23,7 @@ from cafe_norte.domain.contracts import (
     CandidateRecord,
     ConfigId,
     Evidence,
+    FieldTarget,
     SessionId,
     SessionState,
     TurnId,
@@ -145,7 +146,8 @@ async def test_a_correction_after_the_brief_invalidates_it() -> None:
     assert "present the brief again" in outcome.model_text
 
 
-async def test_capturing_a_date_or_phone_tells_the_model_to_read_it_back() -> None:
+async def test_capturing_a_date_or_phone_speaks_the_read_back_itself() -> None:
+    """No model decision in between: the read-back is pending the moment the value is saved."""
     w = await World().open()
     outcome = await w.update(
         context(),
@@ -155,12 +157,55 @@ async def test_capturing_a_date_or_phone_tells_the_model_to_read_it_back() -> No
             evidence_text="Ane, el lunes que viene",
         ),
     )
-    assert outcome.model_text.startswith("Saved: name, earliest_start_date.")
-    assert "present_confirmation(target=field, field=earliest_start_date)" in outcome.model_text
-    readback = await w.present(
+    assert outcome.ok
+    assert outcome.spoken == field_readback("earliest_start_date", date(2026, 10, 26), CONFIG)
+    assert "already spoken" in outcome.model_text
+    state = await w.current()
+    pending = state.pending_confirmation
+    assert pending is not None and pending.status == "pending"
+    assert isinstance(pending.target, FieldTarget)
+    assert pending.target.field == "earliest_start_date"
+    assert outcome.events[0].pending_confirmation == pending  # type: ignore[union-attr]
+
+
+async def test_the_brief_waits_for_an_unanswered_field_read_back() -> None:
+    w = await World(full_record()).open()
+    await w.present(
         context(), args("present_confirmation", target="field", field="earliest_start_date")
     )
-    assert readback.spoken == field_readback("earliest_start_date", date(2026, 10, 26), CONFIG)
+    await w.deliver()
+    outcome = await w.present(context("t2"), args("present_confirmation", target="brief"))
+    assert not outcome.ok and outcome.summary == "readback_pending:earliest_start_date"
+    assert "confirm_field" in outcome.model_text
+
+
+async def test_candidate_done_needs_the_brief_confirmed_at_the_current_revision() -> None:
+    w = await World(full_record()).open()
+    refused = await w.end(context(), args("end_session", reason="candidate_done"))
+    assert not refused.ok and refused.summary == "brief_not_confirmed"
+    assert "present_confirmation(target=brief)" in refused.model_text
+    await w.present(context(), args("present_confirmation", target="brief"))
+    await w.deliver()
+    await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+    done = await w.end(context("t3"), args("end_session", reason="candidate_done"))
+    assert done.ok
+    assert (await w.current()).outcome == "brief_only"
+
+
+async def test_a_note_after_the_confirmed_brief_keeps_it_confirmed() -> None:
+    w = await World(full_record()).open()
+    await w.present(context(), args("present_confirmation", target="brief"))
+    await w.deliver()
+    await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+    outcome = await w.update(
+        context("t3"),
+        args("update_candidate", patch={"note": "quiere entrevista"}, evidence_text="sí"),
+    )
+    assert outcome.ok and outcome.summary == "captured:note"
+    state = await w.current()
+    assert state.candidate.revision == 1 and state.candidate.notes == ("quiere entrevista",)
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "confirmed"
 
 
 async def test_affirming_a_field_readback_confirms_the_field_without_a_new_revision() -> None:
@@ -202,6 +247,9 @@ async def test_affirming_the_brief_leads_to_the_interview_question() -> None:
 
 async def test_end_session_sets_lifecycle_and_outcome_once() -> None:
     w = await World(full_record()).open()
+    await w.present(context(), args("present_confirmation", target="brief"))
+    await w.deliver()
+    await w.confirm_brief(context(), args("confirm_brief", answer="affirm"))
     done = await w.end(context(), args("end_session", reason="candidate_done"))
     assert done.ok and isinstance(done.events[0], StateUpdated)
     state = await w.current()

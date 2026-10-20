@@ -61,6 +61,11 @@ def test_unknown_and_declined_fields_stay_visible_and_optional_phone_is_omitted(
     assert text.endswith("¿Es todo correcto?")
 
 
+def test_an_experience_ending_in_a_period_does_not_double_it() -> None:
+    text = render_brief_es(record(name="Ane", experience="He trabajado dos años."), CONFIG)
+    assert "Experiencia: He trabajado dos años." in text and ".." not in text
+
+
 def test_field_readbacks_for_phone_and_date() -> None:
     assert field_readback("contact_phone", "+34612345678", CONFIG) == (
         "He apuntado el teléfono +34 612 345 678. ¿Es correcto?"

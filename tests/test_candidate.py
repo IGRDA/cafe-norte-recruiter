@@ -71,6 +71,13 @@ def test_apply_captures_values_marks_declined_and_unknown_and_bumps_revision() -
     assert CandidateRecord.model_validate_json(again.model_dump_json()) == again
 
 
+def test_a_note_alone_does_not_bump_the_revision() -> None:
+    record = apply_patch(CandidateRecord(), CandidatePatch(name="Lucía"), EVIDENCE)
+    noted = apply_patch(record, CandidatePatch(note="quiere entrevista"), EVIDENCE)
+    assert noted.revision == record.revision == 1
+    assert noted.notes == ("quiere entrevista",)
+
+
 def test_changed_and_unfinished_fields() -> None:
     patch = CandidatePatch(name="Lucía", declined=frozenset({"experience"}))
     assert changed_fields(patch) == ("name", "experience")

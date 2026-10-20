@@ -98,8 +98,7 @@ FULL_SCRIPT: list[list[ModelEvent]] = [
     update(
         "c3", LINES[3], earliest_start_date="2026-10-26", experience="dos años en una cafetería"
     ),
-    tool("p1", "present_confirmation", target="field", field="earliest_start_date"),
-    says(""),
+    says(""),  # the date read-back was spoken by update_candidate itself
     # "Sí, todo correcto."  → the date read-back; then nothing is left: the brief
     tool("f1", "confirm_field", answer="affirm"),
     tool("p2", "present_confirmation", target="brief"),
@@ -157,7 +156,7 @@ async def test_s01_runs_to_a_confirmed_brief_and_a_completed_session() -> None:
 
 async def test_a_correction_after_the_brief_invalidates_it_and_it_is_presented_again() -> None:
     script: list[list[ModelEvent]] = [
-        *FULL_SCRIPT[:11],  # up to and including the brief presented on turn 5
+        *FULL_SCRIPT[:10],  # up to and including the brief presented on turn 5
         # "Perdona, son 25 horas." → corrected, the brief is void, presented again
         update("c5", "Perdona, son 25 horas.", hours_per_week=25),
         tool("p3", "present_confirmation", target="brief"),

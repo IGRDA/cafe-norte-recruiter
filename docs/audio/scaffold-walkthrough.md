@@ -1,7 +1,7 @@
 # Scaffold walkthrough (audio script)
 
-Spoken version: `scaffold-walkthrough.m4a`, generated with macOS `say` from this text. About
-ten minutes. It covers the decisions and their trade-offs, then every package and the
+The spoken version (mp4, generated with macOS `say` from this text) is attached to the pull
+request that introduced the scaffold, not committed here. About twelve minutes. It covers the decisions and their trade-offs, then every package and the
 interfaces it exposes, then evaluation and infrastructure.
 
 ---

@@ -9,3 +9,4 @@
 | `runbook.md` | Operations |
 | `production.md` | Production discussion: scaling, replicas, telephony, speech-to-speech |
 | `evaluation-report.md` | Measured results; written at the evaluation stage |
+| `audio/` | Spoken walkthrough of the scaffold decisions and interfaces, with its script |

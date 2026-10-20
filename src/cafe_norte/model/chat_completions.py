@@ -1,6 +1,8 @@
 """Streaming Chat Completions adapter (Groq): luzia's wire parsing, plus several calls per turn."""
 
+import asyncio
 import json
+import re
 from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -20,6 +22,10 @@ from cafe_norte.model.contracts import (
 )
 
 MAX_ARGUMENTS_BYTES = 16 * 1024
+MAX_RETRY_WAIT_SECONDS = 8.0
+_RETRY_HINT = re.compile(r"try again in ([0-9.]+)\s*s", re.IGNORECASE)
+MAX_RETRY_WAIT_SECONDS = 8.0
+_RETRY_HINT = re.compile(r"try again in ([0-9.]+)\s*s", re.IGNORECASE)
 _FINISH: dict[str, Literal["stop", "tool_calls", "length"]] = {
     "stop": "stop",
     "tool_calls": "tool_calls",
@@ -78,20 +84,28 @@ class ChatCompletionsModel:
         known = {t.name for t in tools}
         client = self._client or httpx.AsyncClient()
         try:
-            async with client.stream(
-                "POST", self._base_url, json=body, headers=headers, timeout=timeout
-            ) as response:
-                if response.status_code != 200:
+            for attempt in (1, 2):
+                async with client.stream(
+                    "POST", self._base_url, json=body, headers=headers, timeout=timeout
+                ) as response:
+                    if response.status_code == 200:
+                        async for event in _parse(response.aiter_lines(), known):
+                            yield event
+                        return
                     await response.aread()
+                    detail = response.text[:300].replace("\n", " ")
+                    if response.status_code == 429 and attempt == 1:
+                        # Rate limited: wait what the provider asks, once, then retry.
+                        await asyncio.sleep(_retry_wait(detail))
+                        continue
                     code: ErrorCode = (
-                        "provider_rejected"
+                        "busy"
+                        if response.status_code == 429
+                        else "provider_rejected"
                         if response.status_code < 500
                         else "provider_unavailable"
                     )
-                    detail = response.text[:300].replace("\n", " ")
                     raise ModelError(f"HTTP {response.status_code}: {detail}", code=code)
-                async for event in _parse(response.aiter_lines(), known):
-                    yield event
         except httpx.TimeoutException as error:
             raise ModelError("provider timeout", code="timeout") from error
         except httpx.HTTPError as error:
@@ -162,6 +176,12 @@ async def _parse(
     if reason is None:
         raise ModelError(f"finish_reason {finish!r}", code="invalid_response")
     yield ModelFinished(reason=reason)
+
+
+def _retry_wait(detail: str) -> float:
+    match = _RETRY_HINT.search(detail)
+    hinted = float(match.group(1)) if match else 1.0
+    return min(max(hinted, 0.05), MAX_RETRY_WAIT_SECONDS)
 
 
 def _error_detail(error: Any) -> str:

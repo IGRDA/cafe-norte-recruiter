@@ -1,6 +1,7 @@
 """The Groq adapter against a scripted HTTP transport: wire format in, typed events out."""
 
 import json
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -172,6 +173,37 @@ async def test_a_provider_error_event_keeps_its_code_and_message() -> None:
     with pytest.raises(ModelError) as raised:
         await run(GROQ_TOOL_USE_FAILED)
     assert "tool_use_failed" in str(raised.value) and "/patch/name" in str(raised.value)
+
+
+async def test_a_rate_limit_is_retried_once_after_the_providers_hint() -> None:
+    attempts: list[float] = []
+    body_429 = '{"error": {"message": "Rate limit reached. Please try again in 0.05s."}}'
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts.append(time.monotonic())
+        if len(attempts) == 1:
+            return httpx.Response(429, text=body_429)
+        return httpx.Response(200, text=sse(delta(content="Hola."), finish("stop")))
+
+    model = ChatCompletionsModel(model_id="m", base_url=URL, api_key="k")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        model.bind_client(client)
+        deadline = datetime.now(UTC) + DEADLINE
+        events = [e async for e in model.stream((), (), deadline=deadline)]
+    assert events == [ModelText(text="Hola."), ModelFinished(reason="stop")]
+    assert len(attempts) == 2 and attempts[1] - attempts[0] >= 0.05
+
+
+async def test_a_second_rate_limit_is_busy_not_rejected() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, text='{"error": {"message": "try again in 0.01s"}}')
+
+    model = ChatCompletionsModel(model_id="m", base_url=URL, api_key="k")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        model.bind_client(client)
+        with pytest.raises(ModelError) as raised:
+            _ = [e async for e in model.stream((), (), deadline=datetime.now(UTC) + DEADLINE)]
+    assert raised.value.code == "busy"
 
 
 async def test_a_transport_timeout_is_a_timeout() -> None:

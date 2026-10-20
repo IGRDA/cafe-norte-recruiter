@@ -281,6 +281,28 @@ async def test_a_runaway_answer_is_cut_and_the_turn_still_finishes() -> None:
     assert isinstance(events[-1], TurnFinished)
 
 
+async def test_the_tool_result_tells_the_model_what_was_already_said_this_turn() -> None:
+    h = Harness([[ModelText(text="¿Cómo te llamas? "), name_call(), WANTS_TOOLS], says("")])
+    await h.open_session()
+    await h.run("Hola")
+    tool_message = h.model.calls[1][-1]
+    assert tool_message.role == "tool"
+    assert "Already said to the candidate this turn: ¿Cómo te llamas?" in tool_message.content
+    assert "Do not repeat or rephrase it" in tool_message.content
+
+
+async def test_stage_directions_and_dot_runs_are_never_spoken() -> None:
+    h = Harness(
+        [says("¿Qué fecha podrías empezar?............ ", "(Esperando respuesta.) ", "Vale.")]
+    )
+    await h.open_session()
+    events = await h.run("Hola")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == [
+        "¿Qué fecha podrías empezar?",
+        "Vale.",
+    ]
+
+
 async def test_an_unknown_session_fails_with_not_found() -> None:
     h = Harness([])
     events = await h.run("Hola")

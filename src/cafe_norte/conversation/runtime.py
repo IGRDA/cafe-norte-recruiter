@@ -23,7 +23,12 @@ from cafe_norte.conversation.contracts import (
     TurnInput,
     TurnStarted,
 )
-from cafe_norte.conversation.prompt import HISTORY_TURNS, build_messages, split_sentences
+from cafe_norte.conversation.prompt import (
+    HISTORY_TURNS,
+    build_messages,
+    clean_sentence,
+    split_sentences,
+)
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.domain.contracts import (
     ConfigId,
@@ -314,8 +319,9 @@ class Runtime:
                     run.count(event)
         finally:
             await stream.aclose()
-        if buffer.strip() and self._say_once(run, said, buffer.strip()):
-            yield await self._emit(run, _say(buffer.strip()))
+        tail = clean_sentence(buffer)
+        if tail and self._say_once(run, said, tail):
+            yield await self._emit(run, _say(tail))
         run.spoken.extend(said)
         if run.calls:
             run.messages.append(
@@ -377,7 +383,11 @@ class Runtime:
                 run, ToolFinished(name=call.name, ok=outcome.ok, summary=outcome.summary)
             )
             run.messages.append(
-                ModelMessage(role="tool", content=outcome.model_text, tool_call_id=call.call_id)
+                ModelMessage(
+                    role="tool",
+                    content=_tool_message(outcome.model_text, run.spoken),
+                    tool_call_id=call.call_id,
+                )
             )
 
     # ---- the journal -----------------------------------------------------------------------------
@@ -407,6 +417,18 @@ class Runtime:
 
 
 _NOT_FOUND = TurnFailed(turn_id=TurnId(""), code="not_found", message=MESSAGES["es"]["not_found"])
+
+
+def _tool_message(model_text: str, spoken: list[str]) -> str:
+    """The tool result plus what the candidate has already heard this turn, so the model
+    continues instead of asking again in other words."""
+    if not spoken:
+        return model_text
+    said = " ".join(spoken)
+    return (
+        f"{model_text} Already said to the candidate this turn: {said} "
+        "Do not repeat or rephrase it; continue, or reply with nothing if it is enough."
+    )
 
 
 def _say(sentence: str) -> AssistantText:

@@ -181,6 +181,30 @@ def test_validation_errors_never_echo_the_input(client: TestClient) -> None:
     assert "aaaa" not in response.text
 
 
+def test_a_turn_after_the_session_ended_fails_on_the_stream_with_session_ended() -> None:
+    end = ToolCall(call_id="e1", name="end_session", arguments_json='{"reason": "not_interested"}')
+    model = FakeModel(
+        [
+            [end, ModelFinished(reason="tool_calls")],
+            [ModelText(text="Adiós."), ModelFinished(reason="stop")],
+        ]
+    )
+    with TestClient(build_test_app(model=model)) as client:
+        session_id = create_session(client)
+        client.post(
+            f"/api/sessions/{session_id}/turns", json={"input_id": "a", "text": "no me interesa"}
+        )
+        ended = read_turn(client, session_id, after=OPENING_EVENTS)
+        assert ended[-1]["type"] == "turn_finished"
+        state = next(e for e in ended if e["type"] == "state_updated")["data"]["payload"]
+        assert (state["lifecycle"], state["outcome"]) == ("stopped", "incomplete")
+        client.post(f"/api/sessions/{session_id}/turns", json={"input_id": "b", "text": "hola?"})
+        refused = read_turn(client, session_id, after=ended[-1]["seq"])
+        assert [e["type"] for e in refused] == ["turn_failed"]
+        assert refused[0]["data"]["payload"]["code"] == "session_ended"
+        assert refused[0]["data"]["payload"]["message"] == "Esta conversación ha terminado."
+
+
 def test_the_page_and_health_are_served(client: TestClient) -> None:
     assert client.get("/health/live").status_code == 200
     page = client.get("/")

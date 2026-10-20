@@ -10,7 +10,6 @@ const state = {
   status: "Conectando…",
   turns: new Map(), // turn_id -> { role, sentences: [] }
   order: [],
-  pendingUser: [], // user texts acknowledged by the server, shown before their turn_started
   candidate: null,
   voiceOn: false,
 };
@@ -85,8 +84,8 @@ function handle(event) {
   const payload = event.payload;
   switch (payload.type) {
     case "turn_started": {
-      const userText = state.pendingUser.shift();
-      if (userText !== undefined) addTurn(`${event.turn_id}:user`, "user", [userText]);
+      // The stream carries the user's words: bubbles never depend on the POST reply's timing.
+      if (payload.text) addTurn(`${event.turn_id}:user`, "user", [payload.text]);
       addTurn(event.turn_id, "assistant", []);
       setStatus("Ana está pensando…");
       break;
@@ -145,7 +144,6 @@ async function submitTurn(text) {
       showError(body.message ?? "No se pudo enviar el mensaje.");
       return;
     }
-    state.pendingUser.push(trimmed);
     el.text.value = "";
     setStatus("Enviado…");
   } catch {

@@ -229,7 +229,9 @@ class Runtime:
             except ServiceError as error:  # a second opening for the same session
                 yield await self._emit(run, run.failed(error.code))
                 return
-            yield await self._emit(run, TurnStarted(turn_id=run.turn_id, language=state.language))
+            yield await self._emit(
+                run, TurnStarted(turn_id=run.turn_id, language=state.language, text="")
+            )
             yield await self._emit(run, _say(greeting))
             yield await self._emit(
                 run, TurnFinished(turn_id=run.turn_id, interrupted=False, usage=(), timings=())
@@ -250,7 +252,10 @@ class Runtime:
             await self._store.turns.append(
                 tx, run.record("user", run.input.text, run.input.received_at)
             )
-        yield await self._emit(run, TurnStarted(turn_id=run.turn_id, language=run.state.language))
+        yield await self._emit(
+            run,
+            TurnStarted(turn_id=run.turn_id, language=run.state.language, text=run.input.text),
+        )
 
         history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
         configuration = self._configurations[run.state.config_id]

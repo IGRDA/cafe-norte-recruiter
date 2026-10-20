@@ -41,9 +41,14 @@ class TurnInput(Frozen):
 
 
 class TurnStarted(Frozen):
+    """Opens a turn. ``text`` is the finalized user input the turn answers (persisted before
+    this is emitted), empty for Ana's opening; the browser renders the user bubble from it so
+    the transcript comes from the stream alone, replay included."""
+
     type: Literal["turn_started"] = "turn_started"
     turn_id: TurnId
     language: Language
+    text: str
 
 
 class AssistantText(Frozen):

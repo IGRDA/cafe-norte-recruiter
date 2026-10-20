@@ -76,6 +76,7 @@ def create_session(client: TestClient) -> str:
     session_id = str(response.json()["session_id"])
     opening = read_turn(client, session_id)
     assert [e["type"] for e in opening] == ["turn_started", "assistant_text", "turn_finished"]
+    assert opening[0]["data"]["payload"]["text"] == ""  # Ana opens; nobody spoke yet
     assert opening[1]["data"]["payload"]["text"].startswith("Hola, soy Ana, la asistente de IA")
     return session_id
 
@@ -106,6 +107,8 @@ def test_a_name_is_captured_persisted_and_then_announced(
         "turn_finished",
     ]
     assert [e["seq"] for e in events] == list(range(OPENING_EVENTS + 1, OPENING_EVENTS + 8))
+    # The stream carries the user's words, so the page renders from the stream alone.
+    assert events[0]["data"]["payload"]["text"] == "Me llamo Lucía Marín"
 
     state = events[2]["data"]["payload"]
     assert state["revision"] == 1

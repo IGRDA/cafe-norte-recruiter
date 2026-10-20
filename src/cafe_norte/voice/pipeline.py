@@ -12,21 +12,21 @@ from datetime import datetime
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.pipeline.pipeline import Pipeline
-from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregator,
     LLMUserAggregatorParams,
 )
-from pipecat.services.deepgram.stt import DeepgramSTTService, LiveOptions
-from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
+from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
+from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.turns.user_start.vad_user_turn_start_strategy import VADUserTurnStartStrategy
 from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import (
     SpeechTimeoutUserTurnStopStrategy,
 )
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
+from pipecat.workers.runner import WorkerRunner
 
 from cafe_norte.domain.contracts import SessionId
 from cafe_norte.errors import ServiceError
@@ -64,10 +64,10 @@ class PipecatVoiceController:
         self._observed: dict[SessionId, list[VoiceTiming]] = {}
 
     async def start(self, session_id: SessionId, room: Room) -> None:
-        """Returns once the bot has joined; a failure leaves no task behind."""
+        """Returns once the bot has joined; a failure leaves no task, room slot or session."""
         live = self.build(session_id, room)
         self._sessions[session_id] = live
-        live.task = asyncio.create_task(live.runner.run(live.pipeline_task))
+        live.task = asyncio.create_task(_run(live))
         try:
             await asyncio.wait_for(live.joined.wait(), JOIN_TIMEOUT_SECONDS)
         except TimeoutError as error:
@@ -75,9 +75,11 @@ class PipecatVoiceController:
             raise ServiceError(
                 "the bot did not join the room", code="provider_unavailable"
             ) from error
-        if live.task.done() and live.task.exception() is not None:
-            self._sessions.pop(session_id, None)
-            raise ServiceError("voice pipeline failed to start", code="provider_unavailable")
+        failed = live.task.done() and live.task.exception() is not None
+        if live.error is not None or failed:
+            detail = live.error or "voice pipeline failed to start"
+            await self.stop(session_id, reason="start_failed")
+            raise ServiceError(f"daily: {detail}", code="provider_unavailable")
 
     async def stop(self, session_id: SessionId, *, reason: str) -> None:
         live = self._sessions.pop(session_id, None)
@@ -112,10 +114,13 @@ class PipecatVoiceController:
         )
         stt = DeepgramSTTService(
             api_key=self._deepgram_api_key,
-            live_options=LiveOptions(model="nova-3", language="es", interim_results=True),
+            settings=DeepgramSTTSettings(model="nova-3", language="es", interim_results=True),
         )
         tts = ElevenLabsTTSService(
-            api_key=self._elevenlabs_api_key, voice_id=self._voice_id, model="eleven_flash_v2_5"
+            api_key=self._elevenlabs_api_key,
+            settings=ElevenLabsTTSSettings(
+                model="eleven_flash_v2_5", voice=self._voice_id, language="es"
+            ),
         )
         turns = LLMUserAggregator(
             LLMContext(),
@@ -159,10 +164,15 @@ class PipecatVoiceController:
             ]
         )
         pipeline_task = PipelineTask(pipeline, params=PipelineParams(enable_metrics=False))
-        joined = asyncio.Event()
+        live = _Live(session=session, pipeline_task=pipeline_task)
 
         async def on_joined(_transport: object, _data: object) -> None:
-            joined.set()
+            live.joined.set()
+
+        async def on_error(_transport: object, message: object) -> None:
+            # A join failure is reported here; fail fast instead of waiting for the timeout.
+            live.error = str(message)
+            live.joined.set()
 
         async def on_first_participant_joined(_transport: object, _participant: object) -> None:
             await session.joined()
@@ -171,28 +181,22 @@ class PipecatVoiceController:
             await pipeline_task.cancel()
 
         transport.add_event_handler("on_joined", on_joined)
+        transport.add_event_handler("on_error", on_error)
         transport.add_event_handler("on_first_participant_joined", on_first_participant_joined)
         transport.add_event_handler("on_participant_left", on_participant_left)
+        return live
 
-        return _Live(
-            session=session,
-            pipeline_task=pipeline_task,
-            runner=PipelineRunner(handle_sigint=False),
-            joined=joined,
-        )
+
+async def _run(live: "_Live") -> None:
+    runner = WorkerRunner(handle_sigint=False)
+    await runner.add_workers(live.pipeline_task)
+    await runner.run()
 
 
 class _Live:
-    def __init__(
-        self,
-        *,
-        session: VoiceSession,
-        pipeline_task: PipelineTask,
-        runner: PipelineRunner,
-        joined: asyncio.Event,
-    ) -> None:
+    def __init__(self, *, session: VoiceSession, pipeline_task: PipelineTask) -> None:
         self.session = session
         self.pipeline_task = pipeline_task
-        self.runner = runner
-        self.joined = joined
+        self.joined = asyncio.Event()
+        self.error: str | None = None
         self.task: asyncio.Task[None] | None = None

@@ -26,8 +26,7 @@ jobs:
           enable-cache: true
       - run: make setup
       - run: make check
-      - run: make evals ARGS="--suite scenarios --mode fake"
-        continue-on-error: true  # until the runner exists; flip to a hard gate with the runtime
+      - run: make evals ARGS="--suite scenarios --mode fake"  # same replay make check runs; printed as a table
 
   postgres:
     runs-on: ubuntu-24.04

@@ -17,6 +17,31 @@ make compare ARGS="--models groq/openai/gpt-oss-120b groq/openai/gpt-oss-20b --r
 uv run python -m evals.run --list
 ```
 
+## What runs today
+
+Scenarios in fake mode. `S01`–`S03` replay against the real runtime, handlers, domain and
+memory store with the scripted `FakeModel`; `tests/test_scenarios.py` parametrizes over the
+files, so `make check` and CI fail on a broken scenario with the check named. `make evals
+ARGS="--suite scenarios --mode fake"` is the same replay printed as a table. Live mode, the
+retrieval and comparison suites, the judge, the simulator and the export document arrive with
+their stages (the CLI says so and exits 2).
+
+### Adding a scenario
+
+One file `evals/cases/scenarios/Snn.yaml`:
+
+- `scripted_turns`: the candidate's lines, in order.
+- `fake_script`: one list per line with what a well-behaved model does: `{tool: name, args:
+  {...}}` rounds, then `{say: "…"}` to end the turn (`say: ""` when the system speaks, as after
+  a read-back or the brief). One model round per step.
+- `checks`: names from `evals/scorers.py` (`field_equals`, `field_status`, `brief_confirmed`,
+  `lifecycle_is`, `outcome_is`, `no_fabricated_confirmed_values`, `max_repeated_questions`;
+  the rest raise until their stage).
+- `today`: the fake clock's date, so relative dates in the script stay fixed.
+
+Checks run over `SessionResult` (final state, transcript, what Ana said per turn) until
+`build_export` lands; the same checks will then read the export (D21).
+
 ## How it fits together
 
 - `contracts.py`: `Scenario`, `RetrievalCase`, `ComparisonCase`, `Check`, `RunRecord`, `Report`, and the `Scorer` and `CandidateSimulator` ports.

@@ -1,12 +1,14 @@
 """Evaluation types and ports."""
 
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
-from cafe_norte.domain.contracts import ConfigId
+from cafe_norte.conversation.tools import ToolName
+from cafe_norte.domain.contracts import ConfigId, SessionState
 from cafe_norte.errors import Language
 from cafe_norte.observability.contracts import VersionStamp
+from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.persistence.export import ExportDocument
 
 
@@ -31,15 +33,50 @@ class Check(Frozen):
     args: dict[str, str] = {}
 
 
+class Step(Frozen):
+    """One model round in a scripted turn: a tool call, or the sentence that ends the turn."""
+
+    tool: ToolName | None = None
+    args: dict[str, Any] = {}
+    say: str | None = None
+
+    @model_validator(mode="after")
+    def _one_of(self) -> "Step":
+        if (self.tool is None) == (self.say is None):
+            raise ValueError("a step is either {tool, args} or {say}")
+        return self
+
+
 class Scenario(Frozen):
     id: str  # S01..S18
     title: str
     config_id: ConfigId
     language: Language
-    scripted_turns: tuple[str, ...]  # fake mode
+    today: str = "2026-10-20"  # the fake clock's date, so relative dates in the script are fixed
+    scripted_turns: tuple[str, ...]  # fake mode: the candidate's lines
+    fake_script: tuple[tuple[Step, ...], ...] = ()  # one tuple of steps per candidate line
     persona: Persona  # live mode
     checks: tuple[Check, ...]
     rubric: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _script_matches_lines(self) -> "Scenario":
+        if self.fake_script and len(self.fake_script) != len(self.scripted_turns):
+            raise ValueError("fake_script needs exactly one entry per scripted turn")
+        return self
+
+
+class SessionResult(Frozen):
+    """What the checks see after a fake run: the final state, the transcript, and what Ana
+    said in each turn. The export document plugs in here at the export stage."""
+
+    state: SessionState
+    turns: tuple[TurnRecord, ...]
+    spoken_by_turn: tuple[tuple[str, ...], ...]
+
+    @property
+    def candidate_lines(self) -> frozenset[str]:
+        return frozenset(t.text for t in self.turns if t.role == "user")
 
 
 class RetrievalCase(Frozen):
@@ -85,7 +122,7 @@ class Report(Frozen):
 
 
 class Scorer(Protocol):
-    def __call__(self, export: ExportDocument, check: Check) -> CheckResult: ...
+    def __call__(self, result: SessionResult, check: Check) -> CheckResult: ...
 
 
 class CandidateSimulator(Protocol):

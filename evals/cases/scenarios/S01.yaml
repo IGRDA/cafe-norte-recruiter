@@ -2,15 +2,53 @@ id: S01
 title: Spanish happy path, Chamberí
 config_id: chamberi_barista_v1
 language: es
+today: "2026-10-20"
+# The candidate's lines. Lines 7–8 of the original scenario ("El primero me va bien.",
+# "Sí, confirmo.") return with the booking stage.
 scripted_turns:
   - "Sí, me viene bien."
   - "Me llamo Lucía Marín, sí me interesa el puesto."
   - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
   - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
   - "Sí, todo correcto."
   - "Sí, quiero entrevista."
-  - "El primero me va bien."
-  - "Sí, confirmo."
+# What a well-behaved model does on each line: tool rounds, then the sentence that ends the
+# turn. Read-backs and the brief are spoken by the system, so those turns end with say: "".
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: confirm_brief
+      args: { answer: affirm }
+    - say: "¿Te gustaría tener una entrevista?"
+  - - tool: update_candidate
+      args: { patch: { note: quiere entrevista }, evidence_text: "Sí, quiero entrevista." }
+    - tool: end_session
+      args: { reason: candidate_done }
+    - say: "Gracias, Lucía. En esta versión aún no reservo entrevistas. Hasta pronto."
 persona:
   facts:
     name: Lucía Marín
@@ -22,13 +60,34 @@ persona:
     experience: dos años en una cafetería de barrio
   wants_interview: true
 checks:
-  - name: brief_confirmed
-  - name: booking_present
   - name: field_equals
     args: { field: name, value: Lucía Marín }
-  - name: no_fabricated_confirmed_values
+  - name: field_equals
+    args: { field: interest, value: "yes" }
+  - name: field_equals
+    args: { field: work_authorization, value: "yes" }
+  - name: field_equals
+    args: { field: availability_days, value: "mon,tue,thu" }
+  - name: field_equals
+    args: { field: availability_shifts, value: morning }
+  - name: field_equals
+    args: { field: hours_per_week, value: "30" }
+  - name: field_equals
+    args: { field: earliest_start_date, value: "2026-10-26" }
+  - name: field_equals
+    args: { field: experience, value: dos años en una cafetería }
+  - name: field_status
+    args: { field: earliest_start_date, status: confirmed }
+  - name: field_status
+    args: { field: contact_phone, status: unset }
+  - name: brief_confirmed
+  - name: lifecycle_is
+    args: { lifecycle: completed }
   - name: outcome_is
-    args: { outcome: reserved }
+    args: { outcome: brief_only }
+  - name: no_fabricated_confirmed_values
+  - name: max_repeated_questions
+    args: { max: "0" }
 rubric:
   - Ana disclosed being an AI in the first message.
   - Ana asked one main question at a time.

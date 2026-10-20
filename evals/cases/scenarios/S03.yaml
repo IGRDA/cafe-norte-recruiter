@@ -1,0 +1,28 @@
+id: S03
+title: Not interested, Chamberí
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+scripted_turns:
+  - "Sí, dime."
+  - "No, la verdad es que no me interesa."
+fake_script:
+  - - say: "Genial. ¿Te interesa el puesto de barista en Café Norte Chamberí?"
+  - - tool: update_candidate
+      args: { patch: { interest: "no" }, evidence_text: "No, la verdad es que no me interesa." }
+    - tool: end_session
+      args: { reason: not_interested }
+    - say: "Entendido, gracias por tu tiempo. Que vaya bien."
+persona:
+  facts: {}
+  wants_interview: false
+checks:
+  - name: field_equals
+    args: { field: interest, value: "no" }
+  - name: lifecycle_is
+    args: { lifecycle: stopped }
+  - name: outcome_is
+    args: { outcome: not_interested }
+  - name: no_fabricated_confirmed_values
+rubric:
+  - Ana acknowledged the refusal and closed without insisting.

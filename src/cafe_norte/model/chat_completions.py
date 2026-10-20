@@ -1,11 +1,30 @@
 """Streaming Chat Completions adapter (Groq): luzia's wire parsing, plus several calls per turn."""
 
+import json
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 import httpx
 
-from cafe_norte.model.contracts import ModelEvent, ModelMessage, ToolSchema
+from cafe_norte.errors import ErrorCode
+from cafe_norte.model.contracts import (
+    ModelError,
+    ModelEvent,
+    ModelFinished,
+    ModelMessage,
+    ModelText,
+    ModelUsage,
+    ToolCall,
+    ToolSchema,
+)
+
+MAX_ARGUMENTS_BYTES = 16 * 1024
+_FINISH: dict[str, Literal["stop", "tool_calls", "length"]] = {
+    "stop": "stop",
+    "tool_calls": "tool_calls",
+    "length": "length",
+}
 
 
 class ChatCompletionsModel:
@@ -13,23 +32,145 @@ class ChatCompletionsModel:
 
     The HTTP client is bound for the application lifespan. Unknown tools, oversized arguments,
     malformed chunks and EOF before completion raise ``ModelError``. The provider's own tools
-    are never requested."""
+    are never requested. Reasoning deltas are ignored; their tokens show up in usage."""
 
     def __init__(self, *, model_id: str, base_url: str, api_key: str) -> None:
-        raise NotImplementedError
+        self._model_id = model_id
+        self._base_url = base_url
+        self._api_key = api_key
+        self._client: httpx.AsyncClient | None = None
 
     def bind_client(self, client: httpx.AsyncClient | None) -> None:
-        raise NotImplementedError
+        self._client = client
 
     @property
     def model_id(self) -> str:
-        raise NotImplementedError
+        return self._model_id
 
-    def stream(
+    async def stream(
         self,
         messages: tuple[ModelMessage, ...],
         tools: tuple[ToolSchema, ...],
         *,
         deadline: datetime,
     ) -> AsyncIterator[ModelEvent]:
-        raise NotImplementedError
+        timeout = max((deadline - datetime.now(UTC)).total_seconds(), 0.1)
+        body: dict[str, Any] = {
+            "model": self._model_id,
+            "messages": [_wire(m) for m in messages],
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if tools:
+            body["tools"] = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": t.name,
+                        "description": t.description,
+                        "parameters": t.parameters,
+                    },
+                }
+                for t in tools
+            ]
+            body["tool_choice"] = "auto"
+        headers = {"Authorization": f"Bearer {self._api_key}", "Accept": "text/event-stream"}
+        known = {t.name for t in tools}
+        client = self._client or httpx.AsyncClient()
+        try:
+            async with client.stream(
+                "POST", self._base_url, json=body, headers=headers, timeout=timeout
+            ) as response:
+                if response.status_code != 200:
+                    await response.aread()
+                    code: ErrorCode = (
+                        "provider_rejected"
+                        if response.status_code < 500
+                        else "provider_unavailable"
+                    )
+                    raise ModelError(f"HTTP {response.status_code}", code=code)
+                async for event in _parse(response.aiter_lines(), known):
+                    yield event
+        except httpx.TimeoutException as error:
+            raise ModelError("provider timeout", code="timeout") from error
+        except httpx.HTTPError as error:
+            raise ModelError(
+                f"transport: {type(error).__name__}", code="provider_unavailable"
+            ) from error
+        finally:
+            if client is not self._client:
+                await client.aclose()
+
+
+async def _parse(lines: AsyncIterator[str], known_tools: set[str]) -> AsyncIterator[ModelEvent]:
+    pending: dict[int, dict[str, str]] = {}
+    finish: str | None = None
+    usage: ModelUsage | None = None
+    async for line in lines:
+        if not line.startswith("data:"):
+            continue
+        data = line[5:].strip()
+        if data == "[DONE]":
+            break
+        try:
+            chunk = json.loads(data)
+        except json.JSONDecodeError as error:
+            raise ModelError("malformed chunk", code="invalid_response") from error
+        raw_usage = chunk.get("usage") or chunk.get("x_groq", {}).get("usage")
+        if raw_usage:
+            usage = ModelUsage(
+                input_tokens=int(raw_usage.get("prompt_tokens", 0)),
+                output_tokens=int(raw_usage.get("completion_tokens", 0)),
+                model_id=str(chunk.get("model", "")),
+            )
+        for choice in chunk.get("choices", []):
+            delta = choice.get("delta") or {}
+            content = delta.get("content")
+            if content:
+                yield ModelText(text=content)
+            for call in delta.get("tool_calls") or []:
+                entry = pending.setdefault(
+                    int(call.get("index", 0)), {"id": "", "name": "", "arguments": ""}
+                )
+                entry["id"] = call.get("id") or entry["id"]
+                function = call.get("function") or {}
+                entry["name"] = function.get("name") or entry["name"]
+                entry["arguments"] += function.get("arguments") or ""
+                if len(entry["arguments"]) > MAX_ARGUMENTS_BYTES:
+                    raise ModelError("tool arguments too large", code="invalid_response")
+            if choice.get("finish_reason"):
+                finish = str(choice["finish_reason"])
+    if finish is None:
+        raise ModelError("stream ended before finish_reason", code="invalid_response")
+    for index in sorted(pending):
+        entry = pending[index]
+        if entry["name"] not in known_tools:
+            raise ModelError(f"unknown tool {entry['name']!r}", code="invalid_response")
+        yield ToolCall(
+            call_id=entry["id"] or f"call_{index}",
+            name=entry["name"],
+            arguments_json=entry["arguments"] or "{}",
+        )
+    if usage is not None:
+        yield usage
+    reason = _FINISH.get(finish)
+    if reason is None:
+        raise ModelError(f"finish_reason {finish!r}", code="invalid_response")
+    yield ModelFinished(reason=reason)
+
+
+def _wire(message: ModelMessage) -> dict[str, Any]:
+    wire: dict[str, Any] = {"role": message.role, "content": message.content}
+    if message.tool_calls:
+        wire["content"] = message.content or None
+        wire["tool_calls"] = [
+            {
+                "id": c.call_id,
+                "type": "function",
+                "function": {"name": c.name, "arguments": c.arguments_json},
+            }
+            for c in message.tool_calls
+        ]
+    if message.role == "tool":
+        wire["tool_call_id"] = message.tool_call_id
+    return wire

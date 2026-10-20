@@ -35,13 +35,19 @@ class CreateSessionRequest(Frozen):
 
 class CreateSessionResponse(Frozen):
     session_id: SessionId
-    resume_url: str  # token in the fragment; shown once
+    resume_url: str | None  # token in the fragment; shown once; None until resume links ship
 
 
 class TurnRequest(Frozen):
     input_id: InputId
     text: str = Field(min_length=1, max_length=2000)
     expected_revision: int | None = None
+
+
+class TurnAccepted(Frozen):
+    """The turn is queued; its events arrive on the session stream."""
+
+    input_id: InputId
 
 
 class ConfirmationAnswer(Frozen):

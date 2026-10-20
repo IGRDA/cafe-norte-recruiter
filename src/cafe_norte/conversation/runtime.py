@@ -394,10 +394,13 @@ class Runtime:
             for extra in outcome.events:
                 yield await self._emit(run, extra)
             if outcome.spoken:
-                # A read-back: said verbatim, then recorded as delivered (text channel).
+                # A read-back is authoritative: said in full even if the model already asked
+                # something this turn, then recorded as delivered (text channel).
+                run.asked = False
                 for sentence in _sentences(outcome.spoken):
                     if self._say_once(run, run.spoken, sentence):
                         yield await self._emit(run, _say(sentence))
+                run.asked = True
                 await self._mark_delivered(run)
             yield await self._emit(
                 run, ToolFinished(name=call.name, ok=outcome.ok, summary=outcome.summary)

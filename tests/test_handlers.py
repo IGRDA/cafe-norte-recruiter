@@ -207,6 +207,24 @@ async def test_resending_a_confirmed_value_keeps_it_confirmed() -> None:
     assert state.candidate.revision == 1
 
 
+async def test_presenting_the_same_pending_read_back_again_is_a_no_op() -> None:
+    """Live: the model re-presented the date read-back and it was spoken twice."""
+    w = await World(full_record()).open()
+    first = await w.present(
+        context(), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    await w.deliver()
+    again = await w.present(
+        context("t2"), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    assert again.ok and again.spoken == "" and again.summary == "already_pending:field"
+    assert "confirm_field" in again.model_text
+    state = await w.current()
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.presented_turn_id == TurnId("t1")
+    assert state.pending_confirmation.presentation_text == first.spoken
+
+
 async def test_the_brief_waits_for_an_unanswered_field_read_back() -> None:
     w = await World(full_record()).open()
     await w.present(

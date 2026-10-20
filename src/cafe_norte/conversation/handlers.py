@@ -262,6 +262,15 @@ class PresentConfirmationHandler(_Handler):
                 "Only contact_phone, earliest_start_date and the brief are read back.",
             )
 
+        current = state.pending_confirmation
+        if current is not None and current.status == "pending" and current.target == target:
+            # Already presented and still unanswered: do not say it twice.
+            tool = "confirm_field" if target.kind == "field" else "confirm_brief"
+            return ToolOutcome(
+                ok=True,
+                model_text=f"That read-back is already pending; call {tool} with the answer.",
+                summary=f"already_pending:{target.kind}",
+            )
         pending = confirmation.present(
             state, target, text, context.turn_id, ConfirmationId(uuid.uuid4().hex)
         )

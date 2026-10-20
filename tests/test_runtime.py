@@ -389,6 +389,18 @@ async def test_a_presentation_is_spoken_verbatim_before_tool_finished_and_marked
     assert state.pending_confirmation.presentation_text == " ".join(spoken)
 
 
+async def test_a_presentation_is_spoken_in_full_even_after_the_model_asked_something() -> None:
+    """The one-question rule bounds the model's own text; a read-back is authoritative."""
+    h = Harness([[ModelText(text="¿Lo repaso? "), present_brief(), WANTS_TOOLS], says("¿Vale?")])
+    await h.open_session()
+    await fill_record(h)
+    events = await h.run("ya está")
+    spoken = [e.text for e in events if isinstance(e, AssistantText)]
+    assert spoken[0] == "¿Lo repaso?"
+    assert "Te resumo lo que tengo." in spoken and spoken[-1] == "¿Es todo correcto?"
+    assert "¿Vale?" not in spoken
+
+
 async def test_a_turn_on_an_ended_session_fails_with_session_ended_and_persists_nothing() -> None:
     h = Harness([says("Hola.")])
     await h.open_session()

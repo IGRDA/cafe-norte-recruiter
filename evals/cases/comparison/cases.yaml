@@ -1,0 +1,7 @@
+# Six ComparisonCase entries, each pointing at a scenario and the behaviour it stresses.
+- { id: C1, scenario_id: S04, emphasis: correction }
+- { id: C2, scenario_id: S05, emphasis: rag_detour }
+- { id: C3, scenario_id: S07, emphasis: language_switch }
+- { id: C4, scenario_id: S11, emphasis: refusal }
+- { id: C5, scenario_id: S01, emphasis: booking }
+- { id: C6, scenario_id: S06, emphasis: unsupported }

@@ -1,0 +1,34 @@
+id: S01
+title: Spanish happy path, Chamberí
+config_id: chamberi_barista_v1
+language: es
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, todo correcto."
+  - "Sí, quiero entrevista."
+  - "El primero me va bien."
+  - "Sí, confirmo."
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: next monday
+    experience: dos años en una cafetería de barrio
+  wants_interview: true
+checks:
+  - name: brief_confirmed
+  - name: booking_present
+  - name: field_equals
+    args: { field: name, value: Lucía Marín }
+  - name: no_fabricated_confirmed_values
+  - name: outcome_is
+    args: { outcome: reserved }
+rubric:
+  - Ana disclosed being an AI in the first message.
+  - Ana asked one main question at a time.

@@ -1,0 +1,1804 @@
+{
+  "$defs": {
+    "Booking": {
+      "additionalProperties": false,
+      "description": "A committed simulated reservation. Exists only after the database transaction commits.",
+      "properties": {
+        "slot_id": {
+          "title": "Slot Id",
+          "type": "string"
+        },
+        "config_id": {
+          "title": "Config Id",
+          "type": "string"
+        },
+        "starts_at_utc": {
+          "format": "date-time",
+          "title": "Starts At Utc",
+          "type": "string"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "committed_at": {
+          "format": "date-time",
+          "title": "Committed At",
+          "type": "string"
+        },
+        "simulated": {
+          "const": true,
+          "default": true,
+          "title": "Simulated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "slot_id",
+        "config_id",
+        "starts_at_utc",
+        "confirmation_id",
+        "idempotency_key",
+        "committed_at"
+      ],
+      "title": "Booking",
+      "type": "object"
+    },
+    "BriefTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "brief",
+          "default": "brief",
+          "title": "Kind",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "revision"
+      ],
+      "title": "BriefTarget",
+      "type": "object"
+    },
+    "CandidateRecord": {
+      "additionalProperties": false,
+      "description": "Server-held candidate facts. ``preferred_language`` is a preference, not a collected fact.",
+      "properties": {
+        "revision": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "name": {
+          "default": {
+            "status": "unset"
+          },
+          "discriminator": {
+            "mapping": {
+              "captured": "#/$defs/cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____1",
+              "confirmed": "#/$defs/cafe_norte__domain__contracts__Confirmed_Annotated_str__StringConstraints____1",
+              "declined": "#/$defs/Declined",
+              "unknown": "#/$defs/Unknown",
+              "unset": "#/$defs/Unset"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Unset"
+            },
+            {
+              "$ref": "#/$defs/cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____1"
+            },
+            {
+              "$ref": "#/$defs/cafe_norte__domain__contracts__Confirmed_Annotated_str__StringConstraints____1"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            },
+            {
+              "$ref": "#/$defs/Declined"
+            }
+          ],
+          "title": "Name"
+        },
+        "contact_phone": {
+          "default": {
+            "status": "unset"
+          },
+          "discriminator": {
+            "mapping": {
+              "captured": "#/$defs/cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____2",
+              "confirmed": "#/$defs/cafe_norte__domain__contracts__Confirmed_Annotated_str__StringConstraints____2",
+              "declined": "#/$defs/Declined",
+              "unknown": "#/$defs/Unknown",
+              "unset": "#/$defs/Unset"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Unset"
+            },
+            {
+              "$ref": "#/$defs/cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____2"
+            },
+            {
+              "$ref": "#/$defs/cafe_norte__domain__contracts__Confirmed_Annotated_str__StringConstraints____2"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            },
+            {
+              "$ref": "#/$defs/Declined"
+            }
+          ],
+          "title": "Contact Phone"
+        },
+        "interest": {
+          "default": {
+            "status": "unset"
+          },
+          "discriminator": {
+            "mapping": {
+              "captured": "#/$defs/Captured_Literal__yes____unsure____no___",
+              "confirmed": "#/$defs/Confirmed_Literal__yes____unsure____no___",
+              "declined": "#/$defs/Declined",
+              "unknown": "#/$defs/Unknown",
+              "unset": "#/$defs/Unset"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Unset"
+            },
+            {
+              "$ref": "#/$defs/Captured_Literal__yes____unsure____no___"
+            },
+            {
+              "$ref": "#/$defs/Confirmed_Literal__yes____unsure____no___"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            },
+            {
+              "$ref": "#/$defs/Declined"
+            }
+          ],
+          "title": "Interest"
+        },
+        "work_authorization": {
+          "default": {
+            "status": "unset"
+          },
+          "discriminator": {
+            "mapping": {
+              "captured": "#/$defs/Captured_Literal__yes____unsure____no___",
+              "confirmed": "#/$defs/Confirmed_Literal__yes____unsure____no___",
+              "declined": "#/$defs/Declined",
+              "unknown": "#/$defs/Unknown",
+              "unset": "#/$defs/Unset"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Unset"
+            },
+            {
+              "$ref": "#/$defs/Captured_Literal__yes____unsure____no___"
+            },
+            {
+              "$ref": "#/$defs/Confirmed_Literal__yes____unsure____no___"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            },
+            {
+              "$ref": "#/$defs/Declined"
+            }
+          ],
+          "title": "Work Authorization"
+        },
+        "availability_days": {
+          "default": {
+            "status": "unset"
+          },
+          "discriminator": {
+            "mapping": {
+              "captured": "#/$defs/Captured_frozenset_Literal__mon____tue____wed____thu____fri____sat____sun____",
+              "confirmed": "#/$defs/Confirmed_frozenset_Literal__mon____tue____wed____thu____fri____sat____sun____",
+              "declined": "#/$defs/Declined",
+              "unknown": "#/$defs/Unknown",
+              "unset": "#/$defs/Unset"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Unset"
+            },
+            {
+              "$ref": "#/$defs/Captured_frozenset_Literal__mon____tue____wed____thu____fri____sat____sun____"
+            },
+            {
+              "$ref": "#/$defs/Confirmed_frozenset_Literal__mon____tue____wed____thu____fri____sat____sun____"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            },
+            {
+              "$ref": "#/$defs/Declined"
+            }
+          ],
+          "title": "Availability Days"
+        },
+        "availability_shifts": {
+          "default": {
+            "status": "unset"
+          },
+          "discriminator": {
+            "mapping": {
+              "captured": "#/$defs/Captured_frozenset_NewType__",
+              "confirmed": "#/$defs/Confirmed_frozenset_NewType__",
+              "declined": "#/$defs/Declined",
+              "unknown": "#/$defs/Unknown",
+              "unset": "#/$defs/Unset"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Unset"
+            },
+            {
+              "$ref": "#/$defs/Captured_frozenset_NewType__"
+            },
+            {
+              "$ref": "#/$defs/Confirmed_frozenset_NewType__"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            },
+            {
+              "$ref": "#/$defs/Declined"
+            }
+          ],
+          "title": "Availability Shifts"
+        },
+        "hours_per_week": {
+          "default": {
+            "status": "unset"
+          },
+          "discriminator": {
+            "mapping": {
+              "captured": "#/$defs/Captured_Annotated_int__FieldInfo_annotation_NoneType__required_True__metadata__Ge_ge_1___Le_le_60_____",
+              "confirmed": "#/$defs/Confirmed_Annotated_int__FieldInfo_annotation_NoneType__required_True__metadata__Ge_ge_1___Le_le_60_____",
+              "declined": "#/$defs/Declined",
+              "unknown": "#/$defs/Unknown",
+              "unset": "#/$defs/Unset"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Unset"
+            },
+            {
+              "$ref": "#/$defs/Captured_Annotated_int__FieldInfo_annotation_NoneType__required_True__metadata__Ge_ge_1___Le_le_60_____"
+            },
+            {
+              "$ref": "#/$defs/Confirmed_Annotated_int__FieldInfo_annotation_NoneType__required_True__metadata__Ge_ge_1___Le_le_60_____"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            },
+            {
+              "$ref": "#/$defs/Declined"
+            }
+          ],
+          "title": "Hours Per Week"
+        },
+        "earliest_start_date": {
+          "default": {
+            "status": "unset"
+          },
+          "discriminator": {
+            "mapping": {
+              "captured": "#/$defs/Captured_date_",
+              "confirmed": "#/$defs/Confirmed_date_",
+              "declined": "#/$defs/Declined",
+              "unknown": "#/$defs/Unknown",
+              "unset": "#/$defs/Unset"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Unset"
+            },
+            {
+              "$ref": "#/$defs/Captured_date_"
+            },
+            {
+              "$ref": "#/$defs/Confirmed_date_"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            },
+            {
+              "$ref": "#/$defs/Declined"
+            }
+          ],
+          "title": "Earliest Start Date"
+        },
+        "experience": {
+          "default": {
+            "status": "unset"
+          },
+          "discriminator": {
+            "mapping": {
+              "captured": "#/$defs/cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____3",
+              "confirmed": "#/$defs/cafe_norte__domain__contracts__Confirmed_Annotated_str__StringConstraints____3",
+              "declined": "#/$defs/Declined",
+              "unknown": "#/$defs/Unknown",
+              "unset": "#/$defs/Unset"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Unset"
+            },
+            {
+              "$ref": "#/$defs/cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____3"
+            },
+            {
+              "$ref": "#/$defs/cafe_norte__domain__contracts__Confirmed_Annotated_str__StringConstraints____3"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            },
+            {
+              "$ref": "#/$defs/Declined"
+            }
+          ],
+          "title": "Experience"
+        },
+        "preferred_language": {
+          "default": "es",
+          "enum": [
+            "es",
+            "en"
+          ],
+          "title": "Preferred Language",
+          "type": "string"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        }
+      },
+      "title": "CandidateRecord",
+      "type": "object"
+    },
+    "Captured_Annotated_int__FieldInfo_annotation_NoneType__required_True__metadata__Ge_ge_1___Le_le_60_____": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "captured",
+          "default": "captured",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Value",
+          "type": "integer"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "title": "Captured[Annotated[int, FieldInfo(annotation=NoneType, required=True, metadata=[Ge(ge=1), Le(le=60)])]]",
+      "type": "object"
+    },
+    "Captured_Literal__yes____unsure____no___": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "captured",
+          "default": "captured",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "enum": [
+            "yes",
+            "unsure",
+            "no"
+          ],
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "title": "Captured[Literal['yes', 'unsure', 'no']]",
+      "type": "object"
+    },
+    "Captured_date_": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "captured",
+          "default": "captured",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "format": "date",
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "title": "Captured[date]",
+      "type": "object"
+    },
+    "Captured_frozenset_Literal__mon____tue____wed____thu____fri____sat____sun____": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "captured",
+          "default": "captured",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "items": {
+            "enum": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat",
+              "sun"
+            ],
+            "type": "string"
+          },
+          "title": "Value",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "title": "Captured[frozenset[Literal['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']]]",
+      "type": "object"
+    },
+    "Captured_frozenset_NewType__": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "captured",
+          "default": "captured",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Value",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "title": "Captured[frozenset[NewType]]",
+      "type": "object"
+    },
+    "Confirmation": {
+      "additionalProperties": false,
+      "description": "One read-back and its answer. A bare \"yes\" only means something against the pending one.",
+      "properties": {
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        },
+        "target": {
+          "discriminator": {
+            "mapping": {
+              "brief": "#/$defs/BriefTarget",
+              "field": "#/$defs/FieldTarget",
+              "slot": "#/$defs/SlotTarget"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/FieldTarget"
+            },
+            {
+              "$ref": "#/$defs/BriefTarget"
+            },
+            {
+              "$ref": "#/$defs/SlotTarget"
+            }
+          ],
+          "title": "Target"
+        },
+        "presentation_text": {
+          "title": "Presentation Text",
+          "type": "string"
+        },
+        "presented_turn_id": {
+          "title": "Presented Turn Id",
+          "type": "string"
+        },
+        "fully_delivered": {
+          "default": false,
+          "title": "Fully Delivered",
+          "type": "boolean"
+        },
+        "response_turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response Turn Id"
+        },
+        "status": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "confirmed",
+            "rejected",
+            "invalidated",
+            "expired"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "source": {
+          "default": "model",
+          "enum": [
+            "model",
+            "ui"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmation_id",
+        "target",
+        "presentation_text",
+        "presented_turn_id"
+      ],
+      "title": "Confirmation",
+      "type": "object"
+    },
+    "Confirmed_Annotated_int__FieldInfo_annotation_NoneType__required_True__metadata__Ge_ge_1___Le_le_60_____": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "confirmed",
+          "default": "confirmed",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Value",
+          "type": "integer"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "evidence",
+        "confirmation_id"
+      ],
+      "title": "Confirmed[Annotated[int, FieldInfo(annotation=NoneType, required=True, metadata=[Ge(ge=1), Le(le=60)])]]",
+      "type": "object"
+    },
+    "Confirmed_Literal__yes____unsure____no___": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "confirmed",
+          "default": "confirmed",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "enum": [
+            "yes",
+            "unsure",
+            "no"
+          ],
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "evidence",
+        "confirmation_id"
+      ],
+      "title": "Confirmed[Literal['yes', 'unsure', 'no']]",
+      "type": "object"
+    },
+    "Confirmed_date_": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "confirmed",
+          "default": "confirmed",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "format": "date",
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "evidence",
+        "confirmation_id"
+      ],
+      "title": "Confirmed[date]",
+      "type": "object"
+    },
+    "Confirmed_frozenset_Literal__mon____tue____wed____thu____fri____sat____sun____": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "confirmed",
+          "default": "confirmed",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "items": {
+            "enum": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat",
+              "sun"
+            ],
+            "type": "string"
+          },
+          "title": "Value",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "evidence",
+        "confirmation_id"
+      ],
+      "title": "Confirmed[frozenset[Literal['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']]]",
+      "type": "object"
+    },
+    "Confirmed_frozenset_NewType__": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "confirmed",
+          "default": "confirmed",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Value",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "evidence",
+        "confirmation_id"
+      ],
+      "title": "Confirmed[frozenset[NewType]]",
+      "type": "object"
+    },
+    "Declined": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "declined",
+          "default": "declined",
+          "title": "Status",
+          "type": "string"
+        },
+        "source_turn_id": {
+          "title": "Source Turn Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_turn_id"
+      ],
+      "title": "Declined",
+      "type": "object"
+    },
+    "EventRecord": {
+      "additionalProperties": false,
+      "description": "Validation results, tool results, retrieval sources, signals, timings: the reviewer panel.",
+      "properties": {
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Turn Id"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload_json": {
+          "title": "Payload Json",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id",
+        "turn_id",
+        "seq",
+        "kind",
+        "payload_json",
+        "at"
+      ],
+      "title": "EventRecord",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "Where a value came from: finalized user text of one turn, never an STT interim.",
+      "properties": {
+        "source_turn_id": {
+          "title": "Source Turn Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_turn_id",
+        "text"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "FieldTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "field",
+          "default": "field",
+          "title": "Kind",
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "name",
+            "contact_phone",
+            "interest",
+            "work_authorization",
+            "availability_days",
+            "availability_shifts",
+            "hours_per_week",
+            "earliest_start_date",
+            "experience"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "field",
+        "revision"
+      ],
+      "title": "FieldTarget",
+      "type": "object"
+    },
+    "Metrics": {
+      "additionalProperties": false,
+      "properties": {
+        "turns": {
+          "title": "Turns",
+          "type": "integer"
+        },
+        "timings": {
+          "items": {
+            "$ref": "#/$defs/StageTiming"
+          },
+          "title": "Timings",
+          "type": "array"
+        },
+        "usage": {
+          "items": {
+            "$ref": "#/$defs/UsageRecord"
+          },
+          "title": "Usage",
+          "type": "array"
+        },
+        "estimated_marginal_cost_eur": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Estimated Marginal Cost Eur"
+        },
+        "cost_is_partial": {
+          "title": "Cost Is Partial",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "turns",
+        "timings",
+        "usage",
+        "estimated_marginal_cost_eur",
+        "cost_is_partial"
+      ],
+      "title": "Metrics",
+      "type": "object"
+    },
+    "RetrievalEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "answered": {
+          "title": "Answered",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "turn_id",
+        "question",
+        "sources",
+        "answered"
+      ],
+      "title": "RetrievalEvent",
+      "type": "object"
+    },
+    "ReviewFlag": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "work_authorization",
+            "human_followup",
+            "unsupported_question",
+            "reschedule_request",
+            "other"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        },
+        "note": {
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "turn_id",
+        "note"
+      ],
+      "title": "ReviewFlag",
+      "type": "object"
+    },
+    "SessionExport": {
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "config_id": {
+          "title": "Config Id",
+          "type": "string"
+        },
+        "config_version": {
+          "title": "Config Version",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "channel": {
+          "title": "Channel",
+          "type": "string"
+        },
+        "lifecycle": {
+          "enum": [
+            "active",
+            "paused",
+            "completed",
+            "stopped",
+            "abandoned",
+            "failed"
+          ],
+          "title": "Lifecycle",
+          "type": "string"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "enum": [
+                "reserved",
+                "brief_only",
+                "not_interested",
+                "human_followup_requested",
+                "incomplete"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Outcome"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ended At"
+        },
+        "active_seconds": {
+          "title": "Active Seconds",
+          "type": "number"
+        },
+        "simulated_reservation_notice": {
+          "const": "Simulated reservation — no real appointment created",
+          "title": "Simulated Reservation Notice",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id",
+        "config_id",
+        "config_version",
+        "language",
+        "channel",
+        "lifecycle",
+        "outcome",
+        "created_at",
+        "ended_at",
+        "active_seconds",
+        "simulated_reservation_notice"
+      ],
+      "title": "SessionExport",
+      "type": "object"
+    },
+    "Signal": {
+      "additionalProperties": false,
+      "description": "Conversational signal attached to the turn it came from; never a hiring input.",
+      "properties": {
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        },
+        "sentiment": {
+          "enum": [
+            "neutral",
+            "positive",
+            "frustrated",
+            "uncertain"
+          ],
+          "title": "Sentiment",
+          "type": "string"
+        },
+        "explicit_human_request": {
+          "title": "Explicit Human Request",
+          "type": "boolean"
+        },
+        "explicit_stop": {
+          "title": "Explicit Stop",
+          "type": "boolean"
+        },
+        "language_switch_to": {
+          "anyOf": [
+            {
+              "enum": [
+                "es",
+                "en"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Language Switch To"
+        },
+        "evidence_text": {
+          "title": "Evidence Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "sentiment",
+        "explicit_human_request",
+        "explicit_stop",
+        "language_switch_to",
+        "evidence_text"
+      ],
+      "title": "Signal",
+      "type": "object"
+    },
+    "SlotTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "slot",
+          "default": "slot",
+          "title": "Kind",
+          "type": "string"
+        },
+        "slot_id": {
+          "title": "Slot Id",
+          "type": "string"
+        },
+        "brief_revision": {
+          "title": "Brief Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "slot_id",
+        "brief_revision"
+      ],
+      "title": "SlotTarget",
+      "type": "object"
+    },
+    "StageTiming": {
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        },
+        "stage": {
+          "enum": [
+            "speech_end_to_transcript",
+            "llm_first_output",
+            "llm_total",
+            "tool",
+            "tts_first_audio",
+            "useful_answer",
+            "barge_in_to_stop",
+            "text_first_token",
+            "text_total"
+          ],
+          "title": "Stage",
+          "type": "string"
+        },
+        "milliseconds": {
+          "title": "Milliseconds",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "server",
+            "browser",
+            "server_proxy"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "tool_name": {
+          "default": "",
+          "title": "Tool Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id",
+        "turn_id",
+        "stage",
+        "milliseconds",
+        "source"
+      ],
+      "title": "StageTiming",
+      "type": "object"
+    },
+    "Summary": {
+      "additionalProperties": false,
+      "properties": {
+        "brief": {
+          "title": "Brief",
+          "type": "string"
+        },
+        "narrative": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Narrative"
+        },
+        "narrative_status": {
+          "enum": [
+            "pending",
+            "done",
+            "failed",
+            "skipped"
+          ],
+          "title": "Narrative Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "brief",
+        "narrative",
+        "narrative_status"
+      ],
+      "title": "Summary",
+      "type": "object"
+    },
+    "TurnRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "input_id": {
+          "title": "Input Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "user",
+            "assistant"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "channel": {
+          "enum": [
+            "voice",
+            "text"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "language": {
+          "enum": [
+            "es",
+            "en"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "delivered_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delivered Text"
+        },
+        "interrupted": {
+          "default": false,
+          "title": "Interrupted",
+          "type": "boolean"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        }
+      },
+      "required": [
+        "turn_id",
+        "session_id",
+        "input_id",
+        "role",
+        "channel",
+        "language",
+        "text",
+        "started_at"
+      ],
+      "title": "TurnRecord",
+      "type": "object"
+    },
+    "Unknown": {
+      "additionalProperties": false,
+      "description": "Two failed clarification attempts, or the candidate does not know.",
+      "properties": {
+        "status": {
+          "const": "unknown",
+          "default": "unknown",
+          "title": "Status",
+          "type": "string"
+        },
+        "attempts": {
+          "minimum": 0,
+          "title": "Attempts",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attempts"
+      ],
+      "title": "Unknown",
+      "type": "object"
+    },
+    "Unset": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "unset",
+          "default": "unset",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "Unset",
+      "type": "object"
+    },
+    "UsageRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Turn Id"
+        },
+        "kind": {
+          "enum": [
+            "llm_tokens",
+            "tts_characters",
+            "stt_seconds",
+            "media_participant_minutes"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "quantity": {
+          "title": "Quantity",
+          "type": "number"
+        },
+        "unit_detail": {
+          "title": "Unit Detail",
+          "type": "string"
+        },
+        "estimated": {
+          "title": "Estimated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "session_id",
+        "turn_id",
+        "kind",
+        "quantity",
+        "unit_detail",
+        "estimated"
+      ],
+      "title": "UsageRecord",
+      "type": "object"
+    },
+    "VersionStamp": {
+      "additionalProperties": false,
+      "description": "Attached to every session and evaluation run.",
+      "properties": {
+        "config_id": {
+          "title": "Config Id",
+          "type": "string"
+        },
+        "config_version": {
+          "title": "Config Version",
+          "type": "string"
+        },
+        "kb_version": {
+          "title": "Kb Version",
+          "type": "string"
+        },
+        "prompt_version": {
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "stt_model": {
+          "default": "",
+          "title": "Stt Model",
+          "type": "string"
+        },
+        "tts_model": {
+          "default": "",
+          "title": "Tts Model",
+          "type": "string"
+        },
+        "voice_id": {
+          "default": "",
+          "title": "Voice Id",
+          "type": "string"
+        },
+        "commit_sha": {
+          "title": "Commit Sha",
+          "type": "string"
+        }
+      },
+      "required": [
+        "config_id",
+        "config_version",
+        "kb_version",
+        "prompt_version",
+        "schema_version",
+        "model_id",
+        "commit_sha"
+      ],
+      "title": "VersionStamp",
+      "type": "object"
+    },
+    "cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____1": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "captured",
+          "default": "captured",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "title": "Captured[Annotated[str, StringConstraints]]",
+      "type": "object"
+    },
+    "cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____2": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "captured",
+          "default": "captured",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "pattern": "^\\+[1-9]\\d{6,14}$",
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "title": "Captured[Annotated[str, StringConstraints]]",
+      "type": "object"
+    },
+    "cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____3": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "captured",
+          "default": "captured",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 500,
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "title": "Captured[Annotated[str, StringConstraints]]",
+      "type": "object"
+    },
+    "cafe_norte__domain__contracts__Confirmed_Annotated_str__StringConstraints____1": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "confirmed",
+          "default": "confirmed",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "evidence",
+        "confirmation_id"
+      ],
+      "title": "Confirmed[Annotated[str, StringConstraints]]",
+      "type": "object"
+    },
+    "cafe_norte__domain__contracts__Confirmed_Annotated_str__StringConstraints____2": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "confirmed",
+          "default": "confirmed",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "pattern": "^\\+[1-9]\\d{6,14}$",
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "evidence",
+        "confirmation_id"
+      ],
+      "title": "Confirmed[Annotated[str, StringConstraints]]",
+      "type": "object"
+    },
+    "cafe_norte__domain__contracts__Confirmed_Annotated_str__StringConstraints____3": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "confirmed",
+          "default": "confirmed",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 500,
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "evidence",
+        "confirmation_id"
+      ],
+      "title": "Confirmed[Annotated[str, StringConstraints]]",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Never contains access codes, credentials, resume tokens or audio.",
+  "properties": {
+    "schema_version": {
+      "const": "1",
+      "default": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "session": {
+      "$ref": "#/$defs/SessionExport"
+    },
+    "candidate": {
+      "$ref": "#/$defs/CandidateRecord"
+    },
+    "transcript": {
+      "items": {
+        "$ref": "#/$defs/TurnRecord"
+      },
+      "title": "Transcript",
+      "type": "array"
+    },
+    "confirmations": {
+      "items": {
+        "$ref": "#/$defs/Confirmation"
+      },
+      "title": "Confirmations",
+      "type": "array"
+    },
+    "booking": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Booking"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "review_flags": {
+      "items": {
+        "$ref": "#/$defs/ReviewFlag"
+      },
+      "title": "Review Flags",
+      "type": "array"
+    },
+    "retrieval_events": {
+      "items": {
+        "$ref": "#/$defs/RetrievalEvent"
+      },
+      "title": "Retrieval Events",
+      "type": "array"
+    },
+    "signals": {
+      "items": {
+        "$ref": "#/$defs/Signal"
+      },
+      "title": "Signals",
+      "type": "array"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/EventRecord"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "summary": {
+      "$ref": "#/$defs/Summary"
+    },
+    "metrics": {
+      "$ref": "#/$defs/Metrics"
+    },
+    "versions": {
+      "$ref": "#/$defs/VersionStamp"
+    }
+  },
+  "required": [
+    "session",
+    "candidate",
+    "transcript",
+    "confirmations",
+    "booking",
+    "review_flags",
+    "retrieval_events",
+    "signals",
+    "events",
+    "summary",
+    "metrics",
+    "versions"
+  ],
+  "title": "ExportDocument",
+  "type": "object"
+}

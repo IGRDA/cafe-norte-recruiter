@@ -1,0 +1,26 @@
+-- 0001_initial: outline of the schema. Filled in with the Postgres adapter.
+--
+-- schema_migrations   (name PK, applied_at)
+-- sessions            (session_id PK, config_id, config_version, lifecycle, outcome, language,
+--                      channel, revision, state_json JSONB, access_hash, created_at, updated_at,
+--                      active_seconds)
+-- turns               (turn_id PK, session_id FK, input_id, role, channel, language, text,
+--                      delivered_text, interrupted, started_at, finished_at,
+--                      UNIQUE (session_id, input_id))
+-- events              (session_id FK, seq, turn_id, kind, payload JSONB, at,
+--                      PRIMARY KEY (session_id, seq))
+-- confirmations       (confirmation_id PK, session_id FK, target JSONB, status, presented_turn_id,
+--                      response_turn_id, fully_delivered, source)
+-- interview_slots     (slot_id PK, config_id, starts_at_utc, duration_minutes, status)
+-- bookings            (session_id PK, slot_id UNIQUE, confirmation_id, idempotency_key UNIQUE,
+--                      committed_at)
+-- leases              (session_id PK, owner, generation, expires_at)
+-- admission           (session_id PK, reserved_eur, actual_eur, acquired_at, released_at)
+-- summary_jobs        (session_id PK, status, attempts, claimed_by, updated_at)
+-- resume_tokens       (token_hash PK, session_id FK, expires_at, redeemed_at)
+-- exports             (session_id PK, schema_version, snapshot JSONB, taken_at)
+-- usage               (session_id FK, turn_id, kind, quantity, unit_detail, estimated, at)
+-- timings             (session_id FK, turn_id, stage, milliseconds, source, tool_name, at)
+--
+-- Enforce foreign keys and uniqueness here, not in Python.
+SELECT 1;

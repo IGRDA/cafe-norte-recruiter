@@ -1,0 +1,2 @@
+bucket = "cafe-norte-demo-tfstate"
+prefix = "app"

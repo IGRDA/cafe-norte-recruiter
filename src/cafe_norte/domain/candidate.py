@@ -17,7 +17,6 @@ from cafe_norte.domain.contracts import (
 )
 from cafe_norte.domain.fields import capture, decline, mark_unknown
 from cafe_norte.domain.result import Err, Ok, Result
-from cafe_norte.errors import Language
 
 VALUE_FIELDS: tuple[CandidateFieldName, ...] = (
     "name",
@@ -83,7 +82,8 @@ def apply_patch(
         updates[name] = mark_unknown(current, attempts).model_dump()
     if patch.note is not None:
         updates["notes"] = (*record.notes, patch.note)
-    updates["revision"] = record.revision + 1
+    if changed_fields(patch):
+        updates["revision"] = record.revision + 1  # a note alone is not a new version of the facts
     # Re-validated so each field is the parametrized ``Captured[T]`` the record declares.
     return CandidateRecord.model_validate({**record.model_dump(), **updates})
 
@@ -105,15 +105,6 @@ def unfinished_fields(record: CandidateRecord) -> tuple[CandidateFieldName, ...]
 def ready_for_brief(record: CandidateRecord) -> bool:
     """Every requested field is captured, confirmed, unknown or declined."""
     return not unfinished_fields(record)
-
-
-def render_brief(
-    record: CandidateRecord, configuration: StoreConfiguration, language: Language
-) -> str:
-    """Deterministic factual brief in the candidate's language. Unknown and declined fields
-    stay visible. This is the text a brief confirmation presents, and the fallback when the
-    narrative summary fails."""
-    raise NotImplementedError
 
 
 def _field(record: CandidateRecord, name: CandidateFieldName) -> FieldState[object]:

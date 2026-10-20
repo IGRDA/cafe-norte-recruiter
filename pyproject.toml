@@ -78,4 +78,5 @@ source = ["src/cafe_norte", "evals"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-# No floor yet: the scaffold is interfaces. Set one (target 90) when the first deep module lands.
+# Floor over the whole package, stubs at 0% included; raise it as stages land (target 90).
+fail_under = 80

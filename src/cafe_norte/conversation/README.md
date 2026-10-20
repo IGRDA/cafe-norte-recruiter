@@ -10,7 +10,8 @@ its own.
 | `contracts.py` | `TurnInput`, the `RuntimeEvent` union, `ToolContext`, `ToolOutcome`, ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
-| `handlers.py` | Tool handlers; `UpdateCandidateHandler` reads state, lets the domain decide, commits, announces |
+| `handlers.py` | `all_handlers()`: update, present (read-backs and the brief), confirm field/brief, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
+| `brief.py` | The deterministic brief and the phone/date read-backs, filled from `prompts/brief.md`; spoken verbatim by the runtime (D20) |
 | `prompt.py` | System message from the versioned prompt plus session facts as JSON; history window; sentence splitting |
 | `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines. Cancellation and repair counting: later stages |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |

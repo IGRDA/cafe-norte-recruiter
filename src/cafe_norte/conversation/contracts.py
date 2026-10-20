@@ -163,6 +163,7 @@ class ToolOutcome(Frozen):
     model_text: str  # content the model reads next; short, factual, in the session language
     summary: str  # content-free note for the reviewer panel
     events: tuple[StateUpdated | SourcesShown, ...] = ()
+    spoken: str = ""  # text the runtime says verbatim (read-backs): shown == spoken == pending
 
 
 class ToolHandler(Protocol):

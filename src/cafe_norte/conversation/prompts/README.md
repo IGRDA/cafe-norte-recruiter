@@ -7,6 +7,7 @@ configuration and the knowledge base, which are their single source.
 | File | Purpose |
 | --- | --- |
 | `system.md` | Ana's role, disclosure, one-question-at-a-time rules, confirmation discipline, language policy, what she must never infer |
+| `fake_model.md` | The one sentence the fake model says in `make run` without a real model |
 | `brief.md` | Template for the deterministic brief, both languages |
 | `summary.md` | Post-session narrative summary (structured generation, optional) |
 | `classifier.md` | Sentiment and explicit-request classification |

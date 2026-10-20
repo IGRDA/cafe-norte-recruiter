@@ -8,9 +8,10 @@ complete JSON record of the conversation, and evidence of how the system behaved
 This repository is a take-home assessment. Everything in it is fictional: the company, the
 stores, the pay, the candidates. No real hiring decision is made or suggested.
 
-> **Status: scaffold.** Contracts, module boundaries, fakes' signatures, tests of the pure
-> domain, documentation and infrastructure outlines. Deep modules land stage by stage
-> ([docs/SPEC.md §16](docs/SPEC.md)). Nothing here serves a conversation yet.
+> **Status: tracer bullet** ([D18](docs/DECISIONS.md)). One text turn runs end to end:
+> browser, API, runtime, the `update_candidate` tool, domain validation, in-memory store,
+> SSE back to the page. Voice is the browser's own speech recognition and synthesis on the
+> same path. Everything else keeps its contract and raises `NotImplementedError`.
 
 ## Run and test
 
@@ -20,12 +21,14 @@ Install [uv](https://docs.astral.sh/uv/); it installs Python 3.12 if needed.
 make setup      # locked dependencies, every extra
 make check      # ruff, strict mypy, offline tests
 make test-db    # Postgres-backed tests (starts compose)
-make run        # http://localhost:8000 with fakes, once main.py is wired
+make run        # http://localhost:8000 with fakes; GROQ_API_KEY + CAFE_NORTE_MODEL in .env for a real model
 ```
 
-With no `.env`, the model is a scripted fake, the store is in memory, retrieval is canned and
-voice is off: no credentials, no Docker, no network after installation. Copy `.env.example` to
-`.env` to use Groq, Postgres, the hybrid index, Pipecat voice and Langfuse tracing.
+With no `.env`, the model is a fake that answers every turn with one fixed sentence, the store
+is in memory, retrieval is canned and hosted voice is off: no credentials, no Docker, no network
+after installation. Copy `.env.example` to `.env` and set `CAFE_NORTE_MODEL=groq/openai/gpt-oss-120b`
+with `GROQ_API_KEY` to talk to Ana for real; press **Hablar** in Chrome, Edge or Safari to use
+the browser's speech recognition and synthesis.
 
 ## How it is built
 

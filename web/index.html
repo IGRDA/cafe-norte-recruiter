@@ -9,7 +9,35 @@
 </head>
 <body>
   <main id="app">
-    <p>Demostración ficticia de selección. Usa datos inventados. Se guardan los textos y transcripciones; no se graba audio.</p>
+    <header>
+      <h1>Ana · Café Norte Chamberí</h1>
+      <p class="notice">Demostración ficticia de selección. Usa datos inventados. Se guardan los textos y transcripciones; no se graba audio.</p>
+      <p class="status" id="status" aria-live="polite">Conectando…</p>
+    </header>
+
+    <section class="layout">
+      <div class="conversation">
+        <ol id="transcript" class="transcript" aria-label="Conversación"></ol>
+        <p id="interim" class="interim" aria-live="polite"></p>
+        <form id="composer" class="composer" autocomplete="off">
+          <label for="text" class="visually-hidden">Tu mensaje</label>
+          <input id="text" name="text" maxlength="2000" placeholder="Escribe a Ana… (saluda para empezar)" required>
+          <button type="submit" id="send">Enviar</button>
+          <button type="button" id="talk" aria-pressed="false">🎙 Hablar</button>
+        </form>
+        <p id="error" class="error" role="alert" hidden></p>
+      </div>
+
+      <aside class="panel">
+        <h2>Ficha del candidato</h2>
+        <dl id="candidate">
+          <dt>Nombre</dt><dd data-field="name">—</dd>
+          <dt>Revisión</dt><dd data-field="revision">0</dd>
+        </dl>
+        <h2>Panel de revisión</h2>
+        <ul id="review" class="review" aria-label="Eventos técnicos"></ul>
+      </aside>
+    </section>
     <noscript>Esta demo necesita JavaScript.</noscript>
   </main>
   <script type="module" src="/assets/app.js"></script>

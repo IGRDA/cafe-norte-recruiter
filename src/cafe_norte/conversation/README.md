@@ -8,8 +8,10 @@ its own.
 | --- | --- |
 | `contracts.py` | `TurnInput`, the `RuntimeEvent` union, `ToolContext`, `ToolOutcome`, ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
-| `registry.py` | `ToolRegistry`: name to handler, argument validation, one repair attempt per malformed call |
-| `runtime.py` | `Runtime`: history window, prompt assembly, bounded tool loop (four rounds), deadlines, cancellation, persistence before announcement |
+| `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
+| `handlers.py` | Tool handlers; `UpdateCandidateHandler` reads state, lets the domain decide, commits, announces |
+| `prompt.py` | System message from the versioned prompt plus session facts as JSON; history window; sentence splitting |
+| `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines. Cancellation and repair counting: later stages |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |
 | `signals.py` | Synchronous stop/human/language fast path and the asynchronous sentiment classifier port |
 

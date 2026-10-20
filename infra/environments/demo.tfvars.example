@@ -1,0 +1,8 @@
+project_id      = "cafe-norte-demo"
+region          = "europe-west1"
+billing_account = "000000-000000-000000"
+image_digest    = "europe-west1-docker.pkg.dev/cafe-norte-demo/app/cafe-norte@sha256:replace"
+min_instances   = 1
+max_instances   = 1
+budget_eur      = 30
+demo_end_date   = "2026-11-10"

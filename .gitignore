@@ -1,0 +1,28 @@
+# Local environments, secrets, caches, generated artifacts and Terraform state stay out of Git.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.coverage
+htmlcov/
+.env
+.env.*
+!.env.example
+data/
+evals/results/*
+!evals/results/README.md
+kb/index/
+infra/**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+*.backend.hcl
+!*.backend.hcl.example
+.DS_Store
+# The original, unsanitised specification stays private; docs/SPEC.md is the public copy.
+specs.md

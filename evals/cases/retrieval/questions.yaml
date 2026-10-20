@@ -1,0 +1,11 @@
+# 24 RetrievalCase entries: 16 answerable (balanced es/en × chamberi/arganzuela), 4 unsupported,
+# 4 leakage. Filled in with the knowledge base. Template:
+#
+# - id: R01
+#   question: "¿Cuántas horas semanales son en Chamberí?"
+#   config_id: chamberi_barista_v1
+#   language: es
+#   kind: answerable
+#   expected_sections: ["offer_chamberi#horas"]
+#   expected_facts: ["35 horas"]
+[]

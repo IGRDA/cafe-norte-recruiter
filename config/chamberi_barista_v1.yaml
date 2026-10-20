@@ -1,0 +1,20 @@
+config_id: chamberi_barista_v1
+version: "1"
+store_name: Café Norte Chamberí
+city: Madrid
+address: Calle Ficticia 12, 28010 Madrid (fictional)
+timezone: Europe/Madrid
+hours_per_week: 35
+shifts:
+  - shift_id: morning
+    label: { es: Mañana, en: Morning }
+    starts: "07:00"
+    ends: "14:00"
+    days: [mon, tue, wed, thu, fri, sat]
+  - shift_id: afternoon
+    label: { es: Tarde, en: Afternoon }
+    starts: "14:00"
+    ends: "21:00"
+    days: [mon, tue, wed, thu, fri, sat]
+kb_version: "1"
+kb_doc_ids: [company, barista_role, offer_chamberi, store_chamberi, training, uniform, benefits, interview_process, faq, unknown_policy]

@@ -1,0 +1,20 @@
+config_id: arganzuela_barista_v1
+version: "1"
+store_name: Café Norte Arganzuela
+city: Madrid
+address: Paseo Imaginario 45, 28045 Madrid (fictional)
+timezone: Europe/Madrid
+hours_per_week: 20
+shifts:
+  - shift_id: afternoon
+    label: { es: Tarde, en: Afternoon }
+    starts: "15:00"
+    ends: "21:00"
+    days: [mon, tue, wed, thu, fri]
+  - shift_id: weekend
+    label: { es: Fin de semana, en: Weekend }
+    starts: "09:00"
+    ends: "17:00"
+    days: [sat, sun]
+kb_version: "1"
+kb_doc_ids: [company, barista_role, offer_arganzuela, store_arganzuela, training, uniform, benefits, interview_process, faq, unknown_policy]

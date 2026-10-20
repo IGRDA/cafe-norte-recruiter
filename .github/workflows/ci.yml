@@ -1,0 +1,63 @@
+# Quality gate for pull requests: the same `make check` developers run, plus the Postgres-backed
+# tests against a service container and Terraform formatting/validation. No paid provider call
+# ever runs here; the evaluation suite runs in fake mode only.
+name: CI
+
+on:
+  pull_request:
+    paths-ignore:
+      - "**.md"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: make setup
+      - run: make check
+      - run: make evals ARGS="--suite scenarios --mode fake"
+        continue-on-error: true  # until the runner exists; flip to a hard gate with the runtime
+
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cafe
+          POSTGRES_PASSWORD: cafe
+          POSTGRES_DB: cafe_norte_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cafe" --health-interval 2s --health-timeout 2s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: make setup
+      - run: uv run pytest -m postgres
+        env:
+          CAFE_NORTE_TEST_DATABASE_URL: postgresql://cafe:cafe@localhost:5432/cafe_norte_test
+
+  infra:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+      - run: make infra-check

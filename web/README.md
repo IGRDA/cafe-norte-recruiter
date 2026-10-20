@@ -8,7 +8,7 @@ voice status; one POST per text turn.
 | --- | --- |
 | `index.html` | Entry: demo disclosure, status line, transcript, composer with Enviar/Hablar, candidate card, reviewer panel. Access code, store and language choice: later |
 | `assets/app.js` | State store, SSE client with `Last-Event-ID`, turn submission with `input_id`, renderers |
-| `assets/voice.js` | Today (D18): Web Speech recognition in, `speechSynthesis` out, microphone only after **Hablar**. Later: Daily join, barge-in and timing events |
+| `assets/voice.js` | Today (D18): Web Speech recognition in, `speechSynthesis` out with the best installed Spanish voice, microphone only after **Hablar**; finals under 0.6 confidence or 3 characters are discarded as background speech. Later: Daily join, barge-in and timing events |
 | `assets/app.css` | Compact responsive layout, readable contrast, visible errors |
 | `vendor/` | Pinned third-party scripts with their version and hash recorded in `vendor/README.md` |
 

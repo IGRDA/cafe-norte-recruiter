@@ -37,6 +37,7 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 | Recent turns in the prompt | 20 |
 | Tool arguments from the model | 16 KiB |
 | SSE heartbeat while idle | 15 s |
+| Browser speech final accepted (D18 path) | confidence ≥ 0.6, ≥ 3 characters |
 | Malformed-call repairs per turn | 1 |
 | LLM first output | 6 s |
 | External tool | 10 s |

@@ -101,7 +101,7 @@ def split_sentences(buffer: str) -> tuple[list[str], str]:
 
 def clean_sentence(text: str) -> str:
     """What is safe to say aloud from one sentence; empty when nothing is."""
-    sentence = _DOT_RUN.sub("", text.strip()).strip()
+    sentence = _DOT_RUN.sub(".", text.strip()).strip()  # "Vale........" -> "Vale."
     if not sentence or _STAGE_DIRECTION.match(sentence):
         return ""
     return sentence

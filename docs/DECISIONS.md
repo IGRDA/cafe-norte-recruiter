@@ -297,6 +297,24 @@ _Added 20 October 2026, with the confirmation stage._
 - Work-permit `no` keeps the spec's rule: a review flag, nothing blocked, nothing ended.
 - Coverage floor `fail_under = 80` over the whole package; raised as stubs fill.
 
+## D21 · Scenarios are data and the gate lives in `make check`
+
+_Added 20 October 2026._
+
+**Decisions.**
+- A scenario is one YAML file: the candidate's lines, the fake model's script (`fake_script`,
+  one list of `{tool, args}` / `{say}` steps per line) and the checks. `tests/test_scenarios.py`
+  replays every file through the real runtime with `FakeModel` and `MemoryStore`, so the gate
+  is part of `make check` and the CI `check` job; `make evals --mode fake` is the same replay
+  printed for humans. Zero tokens, under a second per scenario.
+- Checks run over the final `SessionState`, the transcript and what Ana said per turn
+  (`SessionResult`). `build_export` stays a stub: it needs a confirmation history, a version
+  stamp and a brief the persistence layer may not render. The checks keep their names so they
+  move to the export document unchanged when it lands.
+- `max_repeated_questions` ignores the system's own read-back questions, which repeat by
+  design when a brief is presented again after a correction.
+- Live mode, the judge and the simulator stay manual and arrive with the evaluation stage.
+
 ## Assumptions recorded without a question
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.

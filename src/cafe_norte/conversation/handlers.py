@@ -30,6 +30,8 @@ from cafe_norte.domain.candidate import (
 )
 from cafe_norte.domain.contracts import (
     BriefTarget,
+    CandidatePatch,
+    CandidateRecord,
     ConfigId,
     ConfirmationId,
     Evidence,
@@ -102,8 +104,25 @@ def _brief_confirmed(state: SessionState) -> bool:
     )
 
 
+def _without_known_values(patch: CandidatePatch, candidate: CandidateRecord) -> CandidatePatch:
+    """The patch minus values equal to what the record already holds; a repeat is not a change
+    and must not re-capture a confirmed field or trigger a second read-back."""
+    repeated: dict[str, None] = {
+        name: None
+        for name in changed_fields(patch)
+        if getattr(patch, name) is not None
+        and fields.value_of(getattr(candidate, name)) == getattr(patch, name)
+    }
+    return patch.model_copy(update=repeated) if repeated else patch
+
+
 def _next_question(state: SessionState) -> str:
-    """What the model should do after a save: one field, the brief, or the interview."""
+    """What the model should do after a save: answer a pending read-back, one field, the
+    brief, or the interview."""
+    pending = state.pending_confirmation
+    if pending is not None and pending.status == "pending":
+        tool = "confirm_field" if isinstance(pending.target, FieldTarget) else "confirm_brief"
+        return f"A read-back is unanswered; call {tool} with the candidate's answer."
     missing = unfinished_fields(state.candidate)
     if missing:
         # Name only the next field: listing them all made the model ask them all at once.
@@ -135,15 +154,24 @@ class UpdateCandidateHandler(_Handler):
                 f"Rejected field {error.field}: {error.reason} {error.detail}".strip()
                 + ". Nothing was saved; ask the candidate again.",
             )
-        changed = changed_fields(result.value)
-        if not changed and result.value.note is None:
+        patch = _without_known_values(result.value, state.candidate)
+        changed = changed_fields(patch)
+        if not changed and patch.note is None:
+            if changed_fields(result.value):
+                # The model re-sent facts it already saved (often instead of answering a
+                # read-back): nothing changes, and it is told what to do instead.
+                return ToolOutcome(
+                    ok=True,
+                    model_text=f"Nothing changed. {_next_question(state)}",
+                    summary="unchanged",
+                )
             return self._refuse("empty_patch", "Nothing to save; call only with stated facts.")
 
         evidence = Evidence(source_turn_id=context.turn_id, text=arguments.evidence_text)
-        candidate = apply_patch(state.candidate, result.value, evidence)
+        candidate = apply_patch(state.candidate, patch, evidence)
         flags = state.review_flags
-        if result.value.work_authorization in {"no", "unsure"}:
-            note = f"self-reported {result.value.work_authorization}"
+        if patch.work_authorization in {"no", "unsure"}:
+            note = f"self-reported {patch.work_authorization}"
             flags = (
                 *flags,
                 ReviewFlag(kind="work_authorization", turn_id=context.turn_id, note=note),

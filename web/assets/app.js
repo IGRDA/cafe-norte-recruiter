@@ -12,6 +12,7 @@ const state = {
   order: [],
   candidate: null,
   voiceOn: false,
+  ended: false,
 };
 
 const el = {
@@ -96,7 +97,7 @@ function handle(event) {
       turn.sentences.push(payload.text);
       renderTranscript();
       if (state.voiceOn) voice.speak(payload.spoken_form);
-      setStatus("Ana está hablando…");
+      if (!state.ended) setStatus("Ana está hablando…");
       break;
     }
     case "tool_started":
@@ -116,6 +117,10 @@ function handle(event) {
       const ms = Object.fromEntries(payload.timings.map((t) => [t.stage, t.milliseconds]));
       const tokens = payload.usage.map((u) => `${u.unit_detail} ${u.quantity}`).join(", ");
       review(`turno terminado · primer token ${ms.llm_first_output ?? "–"} ms · total ${ms.llm_total ?? "–"} ms · tokens ${tokens || "–"}`);
+      if (state.ended) {
+        voice.turnEnded();
+        break;
+      }
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
       if (state.voiceOn) voice.turnEnded();
       break;
@@ -124,6 +129,7 @@ function handle(event) {
       review(`turno fallido · ${payload.code}`);
       showError(payload.message);
       if (payload.code === "session_ended") endConversation();
+      if (state.ended) break;
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
       if (state.voiceOn) voice.turnEnded();
       break;
@@ -245,13 +251,12 @@ function renderConfirmation(confirmation) {
 }
 
 function endConversation() {
+  // The goodbye arrives after the terminal state: keep speaking, stop listening, freeze the UI.
+  state.ended = true;
   el.text.disabled = true;
   el.send.disabled = true;
   el.talk.disabled = true;
-  if (state.voiceOn) {
-    state.voiceOn = false;
-    voice.stopAfterSpeaking();
-  }
+  voice.closing();
   setStatus("Conversación terminada. Gracias.");
 }
 

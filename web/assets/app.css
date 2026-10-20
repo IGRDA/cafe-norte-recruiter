@@ -32,7 +32,7 @@ h2 { font-size: 0.95rem; margin: 16px 0 8px; color: var(--muted); text-transform
 .composer input { flex: 1 1 200px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 1rem; }
 .composer button { padding: 10px 14px; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; font-size: 1rem; cursor: pointer; }
 .composer button[aria-pressed="true"] { background: #fff; color: var(--accent); }
-.composer button:disabled { opacity: 0.6; cursor: wait; }
+.composer button:disabled { opacity: 0.6; cursor: not-allowed; }
 .confirmation { margin: 0; padding: 8px; border: 1px dashed var(--line); border-radius: 6px; font-size: 0.9rem; }
 .confirmation[data-status="pending"] { border-color: var(--accent); }
 .confirmation[data-status="confirmed"] { border-style: solid; }

@@ -168,6 +168,45 @@ async def test_capturing_a_date_or_phone_speaks_the_read_back_itself() -> None:
     assert outcome.events[0].pending_confirmation == pending  # type: ignore[union-attr]
 
 
+async def test_resending_a_known_value_changes_nothing_and_points_at_the_pending_answer() -> None:
+    """Live: after "sí lo es" the model re-sent the date; it was read back a second time."""
+    w = await World().open()
+    first = args(
+        "update_candidate",
+        patch={"earliest_start_date": "2026-11-01"},
+        evidence_text="1 de noviembre",
+    )
+    await w.update(context(), first)
+    await w.deliver()
+    again = await w.update(context("t2"), first)
+    assert again.ok and again.spoken == "" and again.summary == "unchanged"
+    assert "confirm_field" in again.model_text
+    state = await w.current()
+    assert state.candidate.revision == 1
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "pending"
+    assert state.pending_confirmation.presented_turn_id == TurnId("t1")
+
+
+async def test_resending_a_confirmed_value_keeps_it_confirmed() -> None:
+    w = await World(full_record()).open()
+    await w.present(
+        context(), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    await w.deliver()
+    await w.confirm_field(context("t2"), args("confirm_field", answer="affirm"))
+    again = await w.update(
+        context("t3"),
+        args(
+            "update_candidate", patch={"earliest_start_date": "2026-10-26"}, evidence_text="el 26"
+        ),
+    )
+    assert again.ok and again.summary == "unchanged"
+    state = await w.current()
+    assert state.candidate.earliest_start_date.status == "confirmed"
+    assert state.candidate.revision == 1
+
+
 async def test_the_brief_waits_for_an_unanswered_field_read_back() -> None:
     w = await World(full_record()).open()
     await w.present(

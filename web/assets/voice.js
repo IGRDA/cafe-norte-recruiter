@@ -37,6 +37,7 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
   let listening = false;
   let queued = 0; // utterances not yet finished
   let anaTalking = false; // from her first sentence until the turn ends and the queue drains
+  let closing = false; // the conversation ended: finish speaking, never listen again
   let voice = null;
   const refreshVoice = () => {
     voice = supported ? pickVoice(synth) : null;
@@ -49,7 +50,7 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
   function listen() {
     // The microphone opens only between turns: never between two of Ana's sentences, where
     // reopening it cut her speech and swallowed the candidate's first words.
-    if (!active || listening || queued > 0 || anaTalking) return;
+    if (!active || closing || listening || queued > 0 || anaTalking) return;
     recognition = new Recognition();
     recognition.lang = LANG;
     recognition.interimResults = true;
@@ -123,15 +124,10 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
       queued = 0;
       anaTalking = false;
     },
-    // The conversation ended: no more listening, but Ana's goodbye plays to the end.
-    stopAfterSpeaking() {
+    // The conversation ended: no more listening; sentences still arriving are spoken.
+    closing() {
+      closing = true;
       stopListening();
-      const finish = () => {
-        active = false;
-        anaTalking = false;
-      };
-      if (queued === 0) finish();
-      else setTimeout(function wait() { queued === 0 ? finish() : setTimeout(wait, 200); }, 200);
     },
     // Speak one sentence as soon as it arrives; stop the microphone so Ana does not hear herself.
     speak(text) {
@@ -145,7 +141,8 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
       queued += 1;
       const done = () => {
         queued = Math.max(0, queued - 1);
-        if (queued === 0 && !anaTalking) setTimeout(listen, 150);
+        if (queued === 0 && closing) active = false;
+        else if (queued === 0 && !anaTalking) setTimeout(listen, 150);
       };
       utterance.onend = done;
       utterance.onerror = done;

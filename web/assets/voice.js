@@ -4,9 +4,10 @@
 
 const LANG = "es-ES";
 // A final transcript below this confidence, or shorter than this, is treated as background
-// speech and discarded. Browsers that report no confidence (Safari) pass the first check.
-const MIN_CONFIDENCE = 0.6;
-const MIN_CHARACTERS = 3;
+// speech and discarded. "Sí" and "no" are two characters and must pass. Browsers that report
+// no confidence (Safari) pass the first check. Discarded text is shown, never silently lost.
+const MIN_CONFIDENCE = 0.4;
+const MIN_CHARACTERS = 2;
 // Preferred synthesis voices, best first; anything else falls back to the first es-* voice.
 const PREFERRED_VOICES = [
   /M[oó]nica.*(Enhanced|Premium|Mejorada)/i,
@@ -74,7 +75,7 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
       onInterim("");
       const text = finalText.trim();
       if (text.length < MIN_CHARACTERS || confidence < MIN_CONFIDENCE) {
-        onStatus("Eso no parecía para mí. Escuchando…");
+        onStatus(`Descartado (${confidence.toFixed(2)}): "${text}". Escuchando…`);
         return; // onend will listen again
       }
       onFinal(text);

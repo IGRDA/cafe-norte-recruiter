@@ -70,10 +70,16 @@ class UpdateCandidateHandler:
             await tx.commit()
 
         changed = ", ".join(changed_fields(result.value)) or "nothing"
-        missing = ", ".join(unfinished_fields(candidate)) or "none"
+        missing = unfinished_fields(candidate)
+        # Name only the next field: listing them all made the model ask them all at once.
+        next_step = (
+            f"Now ask about {missing[0]} only, in one short sentence, and end your turn."
+            if missing
+            else "Nothing is left to ask; close in one short sentence."
+        )
         return ToolOutcome(
             ok=True,
-            model_text=f"Saved: {changed}. Still to ask: {missing}.",
+            model_text=f"Saved: {changed}. {next_step}",
             summary=f"captured:{changed}",
             events=(
                 StateUpdated(

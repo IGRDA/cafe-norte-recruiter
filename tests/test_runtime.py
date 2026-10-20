@@ -303,6 +303,17 @@ async def test_stage_directions_and_dot_runs_are_never_spoken() -> None:
     ]
 
 
+async def test_the_tool_result_names_only_the_next_question() -> None:
+    """Listing every missing field made the model ask them all at once (measured 1 of 6 single
+    questions); naming the next one alone gave 6 of 6."""
+    h = Harness([[name_call(), WANTS_TOOLS], says("¿Te interesa el puesto?")])
+    await h.open_session()
+    await h.run("Soy Lucía")
+    content = h.model.calls[1][-1].content
+    assert content.startswith("Saved: name. Now ask about interest only, in one short sentence")
+    assert "work_authorization" not in content
+
+
 async def test_an_unknown_session_fails_with_not_found() -> None:
     h = Harness([])
     events = await h.run("Hola")

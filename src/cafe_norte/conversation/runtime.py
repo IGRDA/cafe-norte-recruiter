@@ -4,11 +4,13 @@ import asyncio
 import logging
 import time
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
+from zoneinfo import ZoneInfo
 
+from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
@@ -21,10 +23,16 @@ from cafe_norte.conversation.contracts import (
     TurnInput,
     TurnStarted,
 )
-from cafe_norte.conversation.prompt import HISTORY_TURNS, build_messages, split_sentences
+from cafe_norte.conversation.prompt import (
+    HISTORY_TURNS,
+    build_messages,
+    clean_sentence,
+    split_sentences,
+)
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.domain.contracts import (
     ConfigId,
+    InputId,
     SessionId,
     SessionState,
     StoreConfiguration,
@@ -34,6 +42,7 @@ from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.model.contracts import (
     Model,
+    ModelEvent,
     ModelFinished,
     ModelMessage,
     ModelText,
@@ -47,7 +56,13 @@ from cafe_norte.persistence.contracts import EventRecord, Store, TurnRecord
 class Limits:
     """Per-turn and per-session bounds, all configurable from the environment."""
 
-    __slots__ = ("llm_first_output_seconds", "max_tool_rounds", "session_seconds", "tool_seconds")
+    __slots__ = (
+        "llm_first_output_seconds",
+        "max_answer_characters",
+        "max_tool_rounds",
+        "session_seconds",
+        "tool_seconds",
+    )
 
     def __init__(
         self,
@@ -56,8 +71,10 @@ class Limits:
         llm_first_output_seconds: float = 6.0,
         tool_seconds: float = 10.0,
         session_seconds: float = 480.0,
+        max_answer_characters: int = 600,
     ) -> None:
         self.max_tool_rounds = max_tool_rounds
+        self.max_answer_characters = max_answer_characters
         self.llm_first_output_seconds = llm_first_output_seconds
         self.tool_seconds = tool_seconds
         self.session_seconds = session_seconds
@@ -83,6 +100,7 @@ class _Turn:
     spoken: list[str] = field(default_factory=list)
     usage: list[UsageRecord] = field(default_factory=list)
     timings: list[StageTiming] = field(default_factory=list)
+    asked: bool = False  # a question has been spoken; the turn says nothing more
 
     @property
     def session_id(self) -> SessionId:
@@ -186,6 +204,39 @@ class Runtime:
                 )
                 yield await self._emit(run, run.failed(error.code))
 
+    async def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
+        """The spec's opening sentence, word for word, before any candidate input."""
+        greeting = prompts.load("opening").strip()
+        opening = TurnInput(
+            session_id=session_id,
+            input_id=InputId("opening"),
+            text="",
+            channel="text",
+            received_at=self._clock(),
+        )
+        lock = self._locks.setdefault(session_id, asyncio.Lock())
+        async with lock:
+            state = await self._store.sessions.get(session_id)
+            if state is None:
+                yield await self._journal(session_id, TurnId(""), _NOT_FOUND)
+                return
+            run = _Turn(input=opening, state=state)
+            try:
+                async with self._store.transaction() as tx:
+                    await self._store.turns.append(
+                        tx, run.record("assistant", greeting, self._clock())
+                    )
+            except ServiceError as error:  # a second opening for the same session
+                yield await self._emit(run, run.failed(error.code))
+                return
+            yield await self._emit(
+                run, TurnStarted(turn_id=run.turn_id, language=state.language, text="")
+            )
+            yield await self._emit(run, _say(greeting))
+            yield await self._emit(
+                run, TurnFinished(turn_id=run.turn_id, interrupted=False, usage=(), timings=())
+            )
+
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:
         raise NotImplementedError  # voice stage
 
@@ -201,11 +252,17 @@ class Runtime:
             await self._store.turns.append(
                 tx, run.record("user", run.input.text, run.input.received_at)
             )
-        yield await self._emit(run, TurnStarted(turn_id=run.turn_id, language=run.state.language))
+        yield await self._emit(
+            run,
+            TurnStarted(turn_id=run.turn_id, language=run.state.language, text=run.input.text),
+        )
 
         history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
         configuration = self._configurations[run.state.config_id]
-        run.messages = list(build_messages(configuration, run.state, history[:-1], run.input.text))
+        today = self._clock().astimezone(ZoneInfo(configuration.timezone)).date()
+        run.messages = list(
+            build_messages(configuration, run.state, history[:-1], run.input.text, today)
+        )
 
         for round_index in range(self._limits.max_tool_rounds + 1):
             async for event in self._model_round(run):
@@ -243,34 +300,62 @@ class Runtime:
         said: list[str] = []
         buffer = ""
         first = True
-        async for event in self._stream_model(run):
-            if first:
-                first = False
-                run.time("llm_first_output", run.started)
-            if isinstance(event, ModelText):
-                buffer += event.text
-                sentences, buffer = split_sentences(buffer)
-                for sentence in sentences:
-                    said.append(sentence)
-                    yield await self._emit(run, _say(sentence))
-            elif isinstance(event, ToolCall):
-                run.calls.append(event)
-            elif isinstance(event, ModelUsage):
-                run.count(event)
-        if buffer.strip():
-            said.append(buffer.strip())
-            yield await self._emit(run, _say(buffer.strip()))
+        stream = self._stream_model(run)
+        try:
+            async for event in self._stream_model_events(stream):
+                if first:
+                    first = False
+                    run.time("llm_first_output", run.started)
+                if isinstance(event, ModelText):
+                    buffer += event.text
+                    sentences, buffer = split_sentences(buffer)
+                    for sentence in sentences:
+                        if self._say_once(run, said, sentence):
+                            yield await self._emit(run, _say(sentence))
+                    if sum(map(len, said)) + len(buffer) > self._limits.max_answer_characters:
+                        # A runaway generation: stop reading, keep what was said, drop the rest.
+                        log.warning(
+                            "answer cut at %d characters", self._limits.max_answer_characters
+                        )
+                        buffer = ""
+                        break
+                elif isinstance(event, ToolCall):
+                    run.calls.append(event)
+                elif isinstance(event, ModelUsage):
+                    run.count(event)
+        finally:
+            await stream.aclose()
+        tail = clean_sentence(buffer)
+        if tail and self._say_once(run, said, tail):
+            yield await self._emit(run, _say(tail))
         run.spoken.extend(said)
         if run.calls:
             run.messages.append(
                 ModelMessage(role="assistant", content=" ".join(said), tool_calls=tuple(run.calls))
             )
 
-    async def _stream_model(self, run: _Turn) -> AsyncIterator[ModelText | ToolCall | ModelUsage]:
-        """The model stream with the first-output bound applied around the first event."""
+    @staticmethod
+    def _say_once(run: _Turn, said: list[str], sentence: str) -> bool:
+        """One main question per turn, and never the same sentence twice.
+
+        Once a question has been spoken in this turn nothing else is voiced; the model's
+        extra questions and rephrasings are read (tool calls and usage still count) but
+        dropped. The prompt asks for this; the runtime guarantees it."""
+        if run.asked or sentence in said or sentence in run.spoken:
+            return False
+        said.append(sentence)
+        run.asked = "?" in sentence
+        return True
+
+    def _stream_model(self, run: _Turn) -> AsyncGenerator[ModelEvent, None]:
         remaining = max(self._limits.session_seconds - run.state.active_seconds, 1.0)
         deadline = self._clock() + timedelta(seconds=remaining)
-        stream = self._model.stream(tuple(run.messages), self._tools.schemas(), deadline=deadline)
+        return self._model.stream(tuple(run.messages), self._tools.schemas(), deadline=deadline)
+
+    async def _stream_model_events(
+        self, stream: AsyncIterator[ModelEvent]
+    ) -> AsyncIterator[ModelText | ToolCall | ModelUsage]:
+        """The model stream with the first-output bound applied around the first event."""
         try:
             async with asyncio.timeout(self._limits.llm_first_output_seconds):
                 first = await anext(stream, None)
@@ -308,7 +393,11 @@ class Runtime:
                 run, ToolFinished(name=call.name, ok=outcome.ok, summary=outcome.summary)
             )
             run.messages.append(
-                ModelMessage(role="tool", content=outcome.model_text, tool_call_id=call.call_id)
+                ModelMessage(
+                    role="tool",
+                    content=_tool_message(outcome.model_text, run.spoken),
+                    tool_call_id=call.call_id,
+                )
             )
 
     # ---- the journal -----------------------------------------------------------------------------
@@ -338,6 +427,18 @@ class Runtime:
 
 
 _NOT_FOUND = TurnFailed(turn_id=TurnId(""), code="not_found", message=MESSAGES["es"]["not_found"])
+
+
+def _tool_message(model_text: str, spoken: list[str]) -> str:
+    """The tool result plus what the candidate has already heard this turn, so the model
+    continues instead of asking again in other words."""
+    if not spoken:
+        return model_text
+    said = " ".join(spoken)
+    return (
+        f"{model_text} Already said to the candidate this turn: {said} "
+        "Do not repeat or rephrase it; continue, or reply with nothing if it is enough."
+    )
 
 
 def _say(sentence: str) -> AssistantText:

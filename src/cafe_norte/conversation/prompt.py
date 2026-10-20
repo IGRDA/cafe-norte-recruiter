@@ -2,6 +2,7 @@
 
 import json
 import re
+from datetime import date
 
 from cafe_norte.conversation import prompts
 from cafe_norte.domain.candidate import VALUE_FIELDS, unfinished_fields
@@ -12,11 +13,19 @@ from cafe_norte.persistence.contracts import TurnRecord
 
 HISTORY_TURNS = 20
 
-_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
+# A sentence ends at . ! ? … (optionally followed by a closing bracket) when whitespace, an
+# opening mark, or a capital letter follows. "3.5" stays whole; "?Sí" splits.
+_SENTENCE_END = re.compile(r"(?:(?<=[.!?…])|(?<=[.!?…][)\]]))(?:\s+|(?=[¿¡(A-ZÁÉÍÓÚÑÜ]))")
 
 
-def system_message(configuration: StoreConfiguration, state: SessionState) -> ModelMessage:
+WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+
+
+def system_message(
+    configuration: StoreConfiguration, state: SessionState, today: date
+) -> ModelMessage:
     facts = {
+        "today": {"date": today.isoformat(), "weekday": WEEKDAYS[today.weekday()]},
         "store": {
             "name": configuration.store_name,
             "city": configuration.city,
@@ -69,18 +78,32 @@ def build_messages(
     state: SessionState,
     history: tuple[TurnRecord, ...],
     user_text: str,
+    today: date,
 ) -> tuple[ModelMessage, ...]:
     return (
-        system_message(configuration, state),
+        system_message(configuration, state, today),
         *history_messages(history),
         ModelMessage(role="user", content=user_text),
     )
 
 
+_DOT_RUN = re.compile(r"(?:\.\s*){3,}$")
+_STAGE_DIRECTION = re.compile(r"^[(\[].*[)\]]$", re.DOTALL)
+
+
 def split_sentences(buffer: str) -> tuple[list[str], str]:
-    """Complete sentences in ``buffer`` and the unfinished remainder."""
+    """Complete sentences in ``buffer`` and the unfinished remainder. Sentences that are only
+    a stage direction in brackets are dropped; a trailing run of dots is trimmed."""
     parts = _SENTENCE_END.split(buffer)
     if len(parts) <= 1:
         return [], buffer
-    complete = [p.strip() for p in parts[:-1] if p.strip()]
+    complete = [s for s in (clean_sentence(p) for p in parts[:-1]) if s]
     return complete, parts[-1]
+
+
+def clean_sentence(text: str) -> str:
+    """What is safe to say aloud from one sentence; empty when nothing is."""
+    sentence = _DOT_RUN.sub(".", text.strip()).strip()  # "Vale........" -> "Vale."
+    if not sentence or _STAGE_DIRECTION.match(sentence):
+        return ""
+    return sentence

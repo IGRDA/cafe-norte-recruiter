@@ -29,7 +29,7 @@ def test_encode_matches_the_sse_grammar() -> None:
 
 
 def test_a_journaled_record_round_trips_to_a_typed_payload() -> None:
-    started = TurnStarted(turn_id=TurnId("t"), language="es")
+    started = TurnStarted(turn_id=TurnId("t"), language="es", text="hola")
     record = EventRecord(
         session_id=SID,
         turn_id=TurnId("t"),
@@ -43,7 +43,7 @@ def test_a_journaled_record_round_trips_to_a_typed_payload() -> None:
 
 async def test_stream_replays_after_seq_and_sends_heartbeats_while_idle() -> None:
     store = MemoryStore()
-    started = TurnStarted(turn_id=TurnId("t"), language="es")
+    started = TurnStarted(turn_id=TurnId("t"), language="es", text="hola")
     async with store.transaction() as tx:
         for seq in (1, 2, 3):
             await store.events.append(

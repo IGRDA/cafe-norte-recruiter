@@ -12,7 +12,7 @@ spec means by "code-enforced validation": the LLM proposes, these functions deci
 | `candidate.py` | Applying a validated patch to the whole record; which fields are still unfinished; rendering the deterministic brief |
 | `confirmation.py` | Presenting a pending confirmation and interpreting a response against it |
 | `booking.py` | The five conditions a reservation needs, as one total function |
-| `lifecycle.py` | Allowed `lifecycle` transitions and the outcome they imply |
+| `lifecycle.py` | Allowed `lifecycle` transitions (`transition`, `is_terminal`) and the outcome each terminal event implies |
 | `configuration.py` | Loading and validating the two store configurations from `config/` |
 
 ## Field algebra

@@ -1,7 +1,7 @@
 """Behaviour of ``Runtime.run_turn`` against the fake model and the memory store."""
 
 import json
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from datetime import UTC, datetime
 
 import pytest
@@ -192,7 +192,7 @@ class BrokenModel:
         tools: tuple[ToolSchema, ...],
         *,
         deadline: datetime,
-    ) -> AsyncIterator[ModelEvent]:
+    ) -> AsyncGenerator[ModelEvent, None]:
         raise ModelError("secret provider detail", code="provider_unavailable")
         yield  # pragma: no cover
 
@@ -217,6 +217,133 @@ async def test_a_slow_first_token_fails_with_timeout() -> None:
     assert isinstance(events[-1], TurnFailed) and events[-1].code == "timeout"
 
 
+async def test_the_opening_is_journaled_and_becomes_history_for_the_first_turn() -> None:
+    h = Harness([says("Encantada.")])
+    await h.open_session()
+    opening = [e async for e in h.runtime.open_session(SESSION)]
+    assert [type(e) for e in opening] == [TurnStarted, AssistantText, TurnFinished]
+    assert isinstance(opening[1], AssistantText)
+    assert opening[1].text.startswith("Hola, soy Ana, la asistente de IA de Café Norte.")
+    await h.run("Sí, me viene bien.")
+    roles = [m.role for m in h.model.calls[0]]
+    assert roles == ["system", "assistant", "user"]
+    assert h.model.calls[0][1].content == opening[1].text
+    # A second opening for the same session is refused, not duplicated.
+    again = [e async for e in h.runtime.open_session(SESSION)]
+    assert isinstance(again[0], TurnFailed) and again[0].code == "conflict"
+
+
+async def test_the_prompt_carries_todays_date_in_madrid_and_the_weekday() -> None:
+    h = Harness([says("Vale.")])
+    await h.open_session()
+    await h.run("Hola")
+    assert '"today": {"date": "2026-10-20", "weekday": "martes"}' in h.model.calls[0][0].content
+
+
+async def test_doubtful_work_authorization_raises_a_review_flag_without_blocking() -> None:
+    call = ToolCall(
+        call_id="c1",
+        name="update_candidate",
+        arguments_json=json.dumps(
+            {"patch": {"work_authorization": "unsure"}, "evidence_text": "no estoy segura"}
+        ),
+    )
+    h = Harness([[call, WANTS_TOOLS], says("Entiendo.")])
+    await h.open_session()
+    events = await h.run("No estoy segura de si tengo permiso")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None
+    assert [f.kind for f in state.review_flags] == ["work_authorization"]
+    assert state.candidate.work_authorization.status == "captured"
+    assert isinstance(events[-1], TurnFinished)
+
+
+async def test_a_sentence_is_not_spoken_twice_in_one_turn() -> None:
+    h = Harness(
+        [[ModelText(text="¿Cómo te llamas? "), name_call(), WANTS_TOOLS], says("¿Cómo te llamas?")]
+    )
+    await h.open_session()
+    events = await h.run("Hola")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == ["¿Cómo te llamas?"]
+    assert isinstance(events[-1], TurnFinished)
+
+
+async def test_a_runaway_answer_is_cut_and_the_turn_still_finishes() -> None:
+    junk = [ModelText(text="(Esperando respuesta)") for _ in range(200)]
+    h = Harness(
+        [[ModelText(text="¿Tienes permiso de trabajo? "), *junk, STOP]],
+        limits=Limits(max_answer_characters=100),
+    )
+    await h.open_session()
+    events = await h.run("Maialen")
+    said = [e.text for e in events if isinstance(e, AssistantText)]
+    assert said == ["¿Tienes permiso de trabajo?"]
+    assert isinstance(events[-1], TurnFinished)
+
+
+async def test_the_tool_result_tells_the_model_what_was_already_said_this_turn() -> None:
+    h = Harness([[ModelText(text="¿Cómo te llamas? "), name_call(), WANTS_TOOLS], says("")])
+    await h.open_session()
+    await h.run("Hola")
+    tool_message = h.model.calls[1][-1]
+    assert tool_message.role == "tool"
+    assert "Already said to the candidate this turn: ¿Cómo te llamas?" in tool_message.content
+    assert "Do not repeat or rephrase it" in tool_message.content
+
+
+async def test_stage_directions_and_dot_runs_are_never_spoken() -> None:
+    h = Harness([says("(Esperando respuesta.) ", "Vale........ ", "¿Qué fecha podrías empezar?")])
+    await h.open_session()
+    events = await h.run("Hola")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == [
+        "Vale.",
+        "¿Qué fecha podrías empezar?",
+    ]
+
+
+async def test_the_tool_result_names_only_the_next_question() -> None:
+    """Listing every missing field made the model ask them all at once (measured 1 of 6 single
+    questions); naming the next one alone gave 6 of 6."""
+    h = Harness([[name_call(), WANTS_TOOLS], says("¿Te interesa el puesto?")])
+    await h.open_session()
+    await h.run("Soy Lucía")
+    content = h.model.calls[1][-1].content
+    assert content.startswith("Saved: name. Now ask about interest only, in one short sentence")
+    assert "work_authorization" not in content
+
+
+async def test_nothing_is_spoken_after_the_first_question_of_a_turn() -> None:
+    """Spec: one main question at a time. The prompt asks for it; the runtime guarantees it."""
+    h = Harness(
+        [
+            says(
+                "Perfecto. ",
+                "¿Cuántas horas a la semana? ",
+                "¿Cuál es la fecha? ",
+                "¿Qué experiencia?",
+            )
+        ]
+    )
+    await h.open_session()
+    events = await h.run("lunes y jueves")
+    said = [e.text for e in events if isinstance(e, AssistantText)]
+    assert said == ["Perfecto.", "¿Cuántas horas a la semana?"]
+    assert isinstance(events[-1], TurnFinished)
+
+
+async def test_a_question_before_the_tool_call_silences_the_round_after_it() -> None:
+    h = Harness(
+        [
+            [ModelText(text="¿Cómo te llamas? "), name_call(), WANTS_TOOLS],
+            says("¿Te interesa el puesto?"),
+        ]
+    )
+    await h.open_session()
+    events = await h.run("Hola")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == ["¿Cómo te llamas?"]
+    assert any(isinstance(e, StateUpdated) for e in events)  # the tool call still ran
+
+
 async def test_an_unknown_session_fails_with_not_found() -> None:
     h = Harness([])
     events = await h.run("Hola")
@@ -230,3 +357,23 @@ async def test_blank_model_output_still_finishes_the_turn(text: str) -> None:
     events = await h.run("Hola")
     assert not any(isinstance(e, AssistantText) for e in events)
     assert isinstance(events[-1], TurnFinished)
+
+
+def test_sentences_split_at_an_opening_mark_or_capital_without_a_space() -> None:
+    from cafe_norte.conversation.prompt import split_sentences
+
+    done, rest = split_sentences("¿Tienes permiso?¿Qué días puedes?(nota) Sí. Y más")
+    assert done == ["¿Tienes permiso?", "¿Qué días puedes?", "(nota) Sí."]
+    assert rest == "Y más"
+    # The model sometimes writes the candidate's answer right after its own question.
+    done, rest = split_sentences("¿Te interesa el puesto?Sí, me interesa.Él también. 3.5 horas")
+    assert done == ["¿Te interesa el puesto?", "Sí, me interesa.", "Él también."]
+    assert rest == "3.5 horas"
+
+
+async def test_an_answer_the_model_invents_after_its_question_is_not_spoken() -> None:
+    h = Harness([says("¿Te interesa el puesto de barista?Sí, me interesa el puesto.")])
+    await h.open_session()
+    events = await h.run("mi nombre es Iñaki")
+    said = [e.text for e in events if isinstance(e, AssistantText)]
+    assert said == ["¿Te interesa el puesto de barista?"]

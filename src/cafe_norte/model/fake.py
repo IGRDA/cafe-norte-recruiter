@@ -1,7 +1,7 @@
 """Deterministic scripted model for tests and CI evaluations. Executes nothing."""
 
 import asyncio
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from datetime import datetime
 
 from cafe_norte.model.contracts import ModelError, ModelEvent, ModelMessage, ToolSchema
@@ -34,7 +34,7 @@ class FakeModel:
         tools: tuple[ToolSchema, ...],
         *,
         deadline: datetime,
-    ) -> AsyncIterator[ModelEvent]:
+    ) -> AsyncGenerator[ModelEvent, None]:
         self._calls.append(messages)
         self._tools.append(tools)
         if self._scripts:

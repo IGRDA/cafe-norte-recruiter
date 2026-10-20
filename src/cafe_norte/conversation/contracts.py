@@ -41,9 +41,14 @@ class TurnInput(Frozen):
 
 
 class TurnStarted(Frozen):
+    """Opens a turn. ``text`` is the finalized user input the turn answers (persisted before
+    this is emitted), empty for Ana's opening; the browser renders the user bubble from it so
+    the transcript comes from the stream alone, replay included."""
+
     type: Literal["turn_started"] = "turn_started"
     turn_id: TurnId
     language: Language
+    text: str
 
 
 class AssistantText(Frozen):
@@ -127,6 +132,10 @@ class ConversationRuntime(Protocol):
     ``conflict``. Nothing is announced before it is persisted."""
 
     def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]: ...
+
+    def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
+        """Ana's opening: the fixed disclosure greeting, journaled like any turn, no model."""
+        ...
 
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:
         """Playback acknowledgement from the voice channel: what was actually heard."""

@@ -34,10 +34,14 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 | --- | --- |
 | Active conversation per session | 480 s, across resumes |
 | Tool rounds per turn | 4 |
+| Characters spoken per model round | 600, then the stream is closed |
+| Questions spoken per turn | 1; later sentences are read, not voiced |
+| Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | Recent turns in the prompt | 20 |
 | Tool arguments from the model | 16 KiB |
 | SSE heartbeat while idle | 15 s |
-| Browser speech final accepted (D18 path) | confidence ≥ 0.6, ≥ 3 characters |
+| Clarification attempts before `unknown` | 2 (model-judged, D19) |
+| Browser speech final accepted (D18 path) | confidence ≥ 0.4, ≥ 2 characters |
 | Malformed-call repairs per turn | 1 |
 | LLM first output | 6 s |
 | External tool | 10 s |

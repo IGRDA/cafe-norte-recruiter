@@ -15,7 +15,7 @@ from cafe_norte.domain.candidate import (
     unfinished_fields,
     validate_patch,
 )
-from cafe_norte.domain.contracts import ConfigId, Evidence, StoreConfiguration
+from cafe_norte.domain.contracts import ConfigId, Evidence, ReviewFlag, StoreConfiguration
 from cafe_norte.domain.result import Err
 from cafe_norte.persistence.contracts import Store
 
@@ -51,19 +51,35 @@ class UpdateCandidateHandler:
 
         evidence = Evidence(source_turn_id=context.turn_id, text=arguments.evidence_text)
         candidate = apply_patch(state.candidate, result.value, evidence)
+        flags = state.review_flags
+        if result.value.work_authorization in {"no", "unsure"}:
+            flags = (
+                *flags,
+                ReviewFlag(
+                    kind="work_authorization",
+                    turn_id=context.turn_id,
+                    note=f"self-reported {result.value.work_authorization}",
+                ),
+            )
         async with self._store.transaction() as tx:
             await self._store.sessions.save(
                 tx,
-                state.model_copy(update={"candidate": candidate}),
+                state.model_copy(update={"candidate": candidate, "review_flags": flags}),
                 expected_revision=state.candidate.revision,
             )
             await tx.commit()
 
         changed = ", ".join(changed_fields(result.value)) or "nothing"
-        missing = ", ".join(unfinished_fields(candidate)) or "none"
+        missing = unfinished_fields(candidate)
+        # Name only the next field: listing them all made the model ask them all at once.
+        next_step = (
+            f"Now ask about {missing[0]} only, in one short sentence, and end your turn."
+            if missing
+            else "Nothing is left to ask; close in one short sentence."
+        )
         return ToolOutcome(
             ok=True,
-            model_text=f"Saved: {changed}. Still to ask: {missing}.",
+            model_text=f"Saved: {changed}. {next_step}",
             summary=f"captured:{changed}",
             events=(
                 StateUpdated(

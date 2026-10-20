@@ -1,6 +1,6 @@
 """Model port: provider-neutral messages, tool schemas as data, and typed stream events."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any, Literal, Protocol
 
@@ -67,7 +67,8 @@ class Model(Protocol):
 
     Yields ``ModelText`` deltas and fully assembled ``ToolCall`` items in provider order, an
     optional ``ModelUsage``, then exactly one ``ModelFinished``. Stops yielding at ``deadline``
-    with ``ModelError(code="timeout")``. Cancellation propagates and closes the connection.
+    with ``ModelError(code="timeout")``. It is an async generator: ``aclose()`` cancels the
+    call and closes the connection; the runtime uses that to cut runaway output and barge-in.
     Provider-side tools (search, code execution) are never enabled."""
 
     @property
@@ -79,4 +80,4 @@ class Model(Protocol):
         tools: tuple[ToolSchema, ...],
         *,
         deadline: datetime,
-    ) -> AsyncIterator[ModelEvent]: ...
+    ) -> AsyncGenerator[ModelEvent, None]: ...

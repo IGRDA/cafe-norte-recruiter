@@ -21,7 +21,7 @@
         <p id="interim" class="interim" aria-live="polite"></p>
         <form id="composer" class="composer" autocomplete="off">
           <label for="text" class="visually-hidden">Tu mensaje</label>
-          <input id="text" name="text" maxlength="2000" placeholder="Escribe a Ana… (saluda para empezar)" required>
+          <input id="text" name="text" maxlength="2000" placeholder="Escribe a Ana…" required>
           <button type="submit" id="send">Enviar</button>
           <button type="button" id="talk" aria-pressed="false">🎙 Hablar</button>
         </form>
@@ -30,10 +30,7 @@
 
       <aside class="panel">
         <h2>Ficha del candidato</h2>
-        <dl id="candidate">
-          <dt>Nombre</dt><dd data-field="name">—</dd>
-          <dt>Revisión</dt><dd data-field="revision">0</dd>
-        </dl>
+        <dl id="candidate"></dl>
         <h2>Panel de revisión</h2>
         <ul id="review" class="review" aria-label="Eventos técnicos"></ul>
       </aside>

@@ -1,7 +1,9 @@
 """Streaming Chat Completions adapter (Groq): luzia's wire parsing, plus several calls per turn."""
 
+import asyncio
 import json
-from collections.abc import AsyncIterator
+import re
+from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -20,6 +22,10 @@ from cafe_norte.model.contracts import (
 )
 
 MAX_ARGUMENTS_BYTES = 16 * 1024
+MAX_RETRY_WAIT_SECONDS = 8.0
+_RETRY_HINT = re.compile(r"try again in ([0-9.]+)\s*s", re.IGNORECASE)
+MAX_RETRY_WAIT_SECONDS = 8.0
+_RETRY_HINT = re.compile(r"try again in ([0-9.]+)\s*s", re.IGNORECASE)
 _FINISH: dict[str, Literal["stop", "tool_calls", "length"]] = {
     "stop": "stop",
     "tool_calls": "tool_calls",
@@ -53,7 +59,7 @@ class ChatCompletionsModel:
         tools: tuple[ToolSchema, ...],
         *,
         deadline: datetime,
-    ) -> AsyncIterator[ModelEvent]:
+    ) -> AsyncGenerator[ModelEvent, None]:
         timeout = max((deadline - datetime.now(UTC)).total_seconds(), 0.1)
         body: dict[str, Any] = {
             "model": self._model_id,
@@ -78,20 +84,28 @@ class ChatCompletionsModel:
         known = {t.name for t in tools}
         client = self._client or httpx.AsyncClient()
         try:
-            async with client.stream(
-                "POST", self._base_url, json=body, headers=headers, timeout=timeout
-            ) as response:
-                if response.status_code != 200:
+            for attempt in (1, 2):
+                async with client.stream(
+                    "POST", self._base_url, json=body, headers=headers, timeout=timeout
+                ) as response:
+                    if response.status_code == 200:
+                        async for event in _parse(response.aiter_lines(), known):
+                            yield event
+                        return
                     await response.aread()
+                    detail = response.text[:300].replace("\n", " ")
+                    if response.status_code == 429 and attempt == 1:
+                        # Rate limited: wait what the provider asks, once, then retry.
+                        await asyncio.sleep(_retry_wait(detail))
+                        continue
                     code: ErrorCode = (
-                        "provider_rejected"
+                        "busy"
+                        if response.status_code == 429
+                        else "provider_rejected"
                         if response.status_code < 500
                         else "provider_unavailable"
                     )
-                    detail = response.text[:300].replace("\n", " ")
                     raise ModelError(f"HTTP {response.status_code}: {detail}", code=code)
-                async for event in _parse(response.aiter_lines(), known):
-                    yield event
         except httpx.TimeoutException as error:
             raise ModelError("provider timeout", code="timeout") from error
         except httpx.HTTPError as error:
@@ -103,7 +117,9 @@ class ChatCompletionsModel:
                 await client.aclose()
 
 
-async def _parse(lines: AsyncIterator[str], known_tools: set[str]) -> AsyncIterator[ModelEvent]:
+async def _parse(
+    lines: AsyncIterator[str], known_tools: set[str]
+) -> AsyncGenerator[ModelEvent, None]:
     pending: dict[int, dict[str, str]] = {}
     finish: str | None = None
     usage: ModelUsage | None = None
@@ -118,6 +134,13 @@ async def _parse(lines: AsyncIterator[str], known_tools: set[str]) -> AsyncItera
         except json.JSONDecodeError as error:
             raise ModelError("malformed chunk", code="invalid_response") from error
         if "error" in chunk:
+            rejected = _rejected_tool_call(chunk["error"], len(pending))
+            if rejected is not None:
+                # The provider refused the call against the schema. Hand it over anyway so
+                # the registry's validation message reaches the model and it can repair.
+                yield rejected
+                yield ModelFinished(reason="tool_calls")
+                return
             raise ModelError(_error_detail(chunk["error"]), code="invalid_response")
         raw_usage = chunk.get("usage") or chunk.get("x_groq", {}).get("usage")
         if raw_usage:
@@ -160,6 +183,31 @@ async def _parse(lines: AsyncIterator[str], known_tools: set[str]) -> AsyncItera
     if reason is None:
         raise ModelError(f"finish_reason {finish!r}", code="invalid_response")
     yield ModelFinished(reason=reason)
+
+
+def _retry_wait(detail: str) -> float:
+    match = _RETRY_HINT.search(detail)
+    hinted = float(match.group(1)) if match else 1.0
+    return min(max(hinted, 0.05), MAX_RETRY_WAIT_SECONDS)
+
+
+def _rejected_tool_call(error: Any, index: int) -> ToolCall | None:
+    """Groq's ``tool_use_failed`` carries the generation it refused; when it names a tool and
+    has arguments, it is returned as a call the registry will reject with a usable message."""
+    if not isinstance(error, dict) or error.get("code") != "tool_use_failed":
+        return None
+    try:
+        generation = json.loads(error.get("failed_generation") or "")
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(generation, dict) or not isinstance(generation.get("name"), str):
+        return None
+    arguments = generation.get("arguments", {})
+    return ToolCall(
+        call_id=f"rejected_{index}",
+        name=generation["name"],
+        arguments_json=arguments if isinstance(arguments, str) else json.dumps(arguments),
+    )
 
 
 def _error_detail(error: Any) -> str:

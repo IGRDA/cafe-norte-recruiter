@@ -253,7 +253,29 @@ provider accounts in front of the first conversation; B defers the first convers
 - Browser speech has no barge-in and no meaningful latency figures; nothing from it is a
   measurement.
 
+## D19 · Ana opens with fixed text; the model resolves dates and marks unknown or declined
 
+_Added 20 October 2026, with the full-record stage._
+
+**Decisions.**
+- The opening is the spec §2 sentence from `prompts/opening.md`, journaled at session creation
+  as an ordinary turn (`input_id="opening"`), with no model call. The disclosure is therefore
+  word for word and free; voice will play the same sentence on join.
+- Relative dates are resolved by the model from `today` (Europe/Madrid) and the weekday given
+  in the session facts; the domain refuses past dates and the read-back is the safety net. A
+  Spanish date parser is not written unless evaluations show the model getting it wrong.
+- `unknown` after two failed clarifications and `declined` on refusal are the model's calls,
+  made through the patch's `unknown` and `declined` sets; the server records the attempt count
+  and the evidence. Counting questions per field on the server would need the runtime to parse
+  what each sentence asked, which is more machinery than the rule is worth at this stage.
+- A self-reported `work_authorization` of `no` or `unsure` appends a review flag in the same
+  save as the patch and never blocks anything (spec §3).
+
+**Consequences.** Confirmations, the brief and the ending land in the next pull request; until
+then Ana closes the collection with a sentence and the session stays `active`. D18's "Ana does
+not open the conversation" no longer holds.
+
+## Assumptions recorded without a question
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.
 - Code and documentation in English; candidate-facing text in Spanish (Spain) and English.

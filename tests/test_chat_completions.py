@@ -1,6 +1,7 @@
 """The Groq adapter against a scripted HTTP transport: wire format in, typed events out."""
 
 import json
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -168,10 +169,80 @@ async def test_bad_provider_output_raises_a_coded_model_error(
     assert raised.value.code == code
 
 
+TOOL_USE_FAILED_WITH_GENERATION = (
+    sse(delta(reasoning="hm"), done=False)
+    + "event: error\ndata: "
+    + json.dumps(
+        {
+            "error": {
+                "message": "Tool call validation failed: /evidence_text minLength",
+                "type": "invalid_request_error",
+                "code": "tool_use_failed",
+                "failed_generation": json.dumps(
+                    {
+                        "name": "update_candidate",
+                        "arguments": {
+                            "evidence_text": "",
+                            "patch": {"work_authorization": "sí"},
+                        },
+                    }
+                ),
+            }
+        }
+    )
+    + "\n\n"
+)
+
+
+async def test_a_rejected_tool_call_with_its_generation_becomes_a_repairable_call() -> None:
+    """Groq validates arguments before we do; the model's bad call must still reach the
+    registry so the usual repair message goes back to it instead of failing the turn."""
+    events, _ = await run(TOOL_USE_FAILED_WITH_GENERATION)
+    assert events == [
+        ToolCall(
+            call_id="rejected_0",
+            name="update_candidate",
+            arguments_json=json.dumps({"evidence_text": "", "patch": {"work_authorization": "sí"}}),
+        ),
+        ModelFinished(reason="tool_calls"),
+    ]
+
+
 async def test_a_provider_error_event_keeps_its_code_and_message() -> None:
     with pytest.raises(ModelError) as raised:
         await run(GROQ_TOOL_USE_FAILED)
     assert "tool_use_failed" in str(raised.value) and "/patch/name" in str(raised.value)
+
+
+async def test_a_rate_limit_is_retried_once_after_the_providers_hint() -> None:
+    attempts: list[float] = []
+    body_429 = '{"error": {"message": "Rate limit reached. Please try again in 0.05s."}}'
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts.append(time.monotonic())
+        if len(attempts) == 1:
+            return httpx.Response(429, text=body_429)
+        return httpx.Response(200, text=sse(delta(content="Hola."), finish("stop")))
+
+    model = ChatCompletionsModel(model_id="m", base_url=URL, api_key="k")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        model.bind_client(client)
+        deadline = datetime.now(UTC) + DEADLINE
+        events = [e async for e in model.stream((), (), deadline=deadline)]
+    assert events == [ModelText(text="Hola."), ModelFinished(reason="stop")]
+    assert len(attempts) == 2 and attempts[1] - attempts[0] >= 0.05
+
+
+async def test_a_second_rate_limit_is_busy_not_rejected() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, text='{"error": {"message": "try again in 0.01s"}}')
+
+    model = ChatCompletionsModel(model_id="m", base_url=URL, api_key="k")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        model.bind_client(client)
+        with pytest.raises(ModelError) as raised:
+            _ = [e async for e in model.stream((), (), deadline=datetime.now(UTC) + DEADLINE)]
+    assert raised.value.code == "busy"
 
 
 async def test_a_transport_timeout_is_a_timeout() -> None:

@@ -10,7 +10,6 @@ const state = {
   status: "Conectando…",
   turns: new Map(), // turn_id -> { role, sentences: [] }
   order: [],
-  pendingUser: [], // user texts acknowledged by the server, shown before their turn_started
   candidate: null,
   voiceOn: false,
 };
@@ -52,8 +51,9 @@ async function main() {
   }
   const body = await response.json();
   state.sessionId = body.session_id;
+  renderCandidate();
   openStream();
-  setStatus("Lista. Saluda a Ana para empezar.");
+  setStatus("Conectada.");
   el.text.focus();
 }
 
@@ -84,8 +84,8 @@ function handle(event) {
   const payload = event.payload;
   switch (payload.type) {
     case "turn_started": {
-      const userText = state.pendingUser.shift();
-      if (userText !== undefined) addTurn(`${event.turn_id}:user`, "user", [userText]);
+      // The stream carries the user's words: bubbles never depend on the POST reply's timing.
+      if (payload.text) addTurn(`${event.turn_id}:user`, "user", [payload.text]);
       addTurn(event.turn_id, "assistant", []);
       setStatus("Ana está pensando…");
       break;
@@ -114,14 +114,14 @@ function handle(event) {
       const tokens = payload.usage.map((u) => `${u.unit_detail} ${u.quantity}`).join(", ");
       review(`turno terminado · primer token ${ms.llm_first_output ?? "–"} ms · total ${ms.llm_total ?? "–"} ms · tokens ${tokens || "–"}`);
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
-      if (state.voiceOn) voice.listenWhenQuiet();
+      if (state.voiceOn) voice.turnEnded();
       break;
     }
     case "turn_failed":
       review(`turno fallido · ${payload.code}`);
       showError(payload.message);
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
-      if (state.voiceOn) voice.listenWhenQuiet();
+      if (state.voiceOn) voice.turnEnded();
       break;
     default:
       review(`evento ${payload.type}`);
@@ -144,7 +144,6 @@ async function submitTurn(text) {
       showError(body.message ?? "No se pudo enviar el mensaje.");
       return;
     }
-    state.pendingUser.push(trimmed);
     el.text.value = "";
     setStatus("Enviado…");
   } catch {
@@ -182,13 +181,43 @@ function renderTranscript() {
   el.transcript.lastElementChild?.scrollIntoView({ block: "end" });
 }
 
+const FIELDS = [
+  ["name", "Nombre"],
+  ["interest", "Interés"],
+  ["work_authorization", "Permiso de trabajo"],
+  ["availability_days", "Días"],
+  ["availability_shifts", "Turnos"],
+  ["hours_per_week", "Horas/semana"],
+  ["earliest_start_date", "Inicio"],
+  ["experience", "Experiencia"],
+  ["contact_phone", "Teléfono"],
+];
+const STATUS_TEXT = { unknown: "no lo sabe", declined: "no quiere decirlo", unset: "—" };
+
+function fieldText(field) {
+  if (!field) return "—";
+  if (field.status === "captured" || field.status === "confirmed") {
+    const value = Array.isArray(field.value) ? field.value.join(", ") : String(field.value);
+    return field.status === "confirmed" ? `${value} ✓` : value;
+  }
+  return STATUS_TEXT[field.status] ?? field.status;
+}
+
 function renderCandidate() {
-  const candidate = state.candidate?.candidate;
-  const name = candidate?.name;
-  const nameCell = el.candidate.querySelector('[data-field="name"]');
-  nameCell.textContent = name && name.value ? `${name.value} (${name.status})` : "—";
-  el.candidate.querySelector('[data-field="revision"]').textContent = String(
-    state.candidate?.revision ?? 0,
+  const update = state.candidate;
+  const candidate = update?.candidate;
+  const rows = FIELDS.map(([key, label]) => [label, fieldText(candidate?.[key])]);
+  rows.push(["Notas", candidate?.notes?.length ? candidate.notes.join(" · ") : "—"]);
+  rows.push(["Revisión", String(update?.revision ?? 0)]);
+  rows.push(["Estado", update ? `${update.lifecycle}${update.outcome ? ` · ${update.outcome}` : ""}` : "active"]);
+  el.candidate.replaceChildren(
+    ...rows.flatMap(([label, value]) => {
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      return [dt, dd];
+    }),
   );
 }
 

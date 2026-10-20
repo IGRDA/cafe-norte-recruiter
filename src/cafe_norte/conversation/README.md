@@ -1,6 +1,7 @@
 # `conversation`: one runtime, two channels
 
-`ConversationRuntime.run_turn` is the only way a user turn becomes assistant output. Voice and
+`ConversationRuntime.run_turn` is the only way a user turn becomes assistant output;
+`open_session` journals Ana's fixed opening sentence before any input (D19). Voice and
 text are adapters that feed it finalized text and consume its events; neither has an agent of
 its own.
 

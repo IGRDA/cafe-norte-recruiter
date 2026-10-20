@@ -10,8 +10,10 @@ stores, the pay, the candidates. No real hiring decision is made or suggested.
 
 > **Status: tracer bullet** ([D18](docs/DECISIONS.md)). One text turn runs end to end:
 > browser, API, runtime, the `update_candidate` tool, domain validation, in-memory store,
-> SSE back to the page. Voice is the browser's own speech recognition and synthesis on the
-> same path. Everything else keeps its contract and raises `NotImplementedError`.
+> SSE back to the page. Ana opens with the disclosure and collects the whole candidate record
+> in Spanish (D19). Voice is the browser's own speech recognition and synthesis on the same
+> path. Confirmations, brief, booking and hosted voice keep their contracts and raise
+> `NotImplementedError`.
 
 ## Run and test
 
@@ -27,7 +29,8 @@ make run        # http://localhost:8000 with fakes; GROQ_API_KEY + CAFE_NORTE_MO
 With no `.env`, the model is a fake that answers every turn with one fixed sentence, the store
 is in memory, retrieval is canned and hosted voice is off: no credentials, no Docker, no network
 after installation. Copy `.env.example` to `.env` and set `CAFE_NORTE_MODEL=groq/openai/gpt-oss-120b`
-with `GROQ_API_KEY` to talk to Ana for real; press **Hablar** in Chrome, Edge or Safari to use
+with `GROQ_API_KEY` to talk to Ana for real (or `CAFE_NORTE_MODEL=openai/gpt-4o-mini` with `OPENAI_API_KEY`;
+Groq's free tier caps at 200k tokens a day); press **Hablar** in Chrome, Edge or Safari to use
 the browser's speech recognition and synthesis.
 
 ## How it is built

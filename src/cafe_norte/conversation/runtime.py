@@ -4,6 +4,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
@@ -28,7 +29,7 @@ from cafe_norte.domain.contracts import (
     StoreConfiguration,
     TurnId,
 )
-from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
+from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.model.contracts import (
     Model,
@@ -63,6 +64,69 @@ class Limits:
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+@dataclass
+class _Turn:
+    """Everything one turn accumulates. Mutable on purpose and private to the runtime."""
+
+    input: TurnInput
+    state: SessionState
+    turn_id: TurnId = field(default_factory=lambda: TurnId(uuid.uuid4().hex))
+    started: float = field(default_factory=time.monotonic)
+    messages: list[ModelMessage] = field(default_factory=list)
+    calls: list[ToolCall] = field(default_factory=list)  # asked for in the latest model round
+    spoken: list[str] = field(default_factory=list)
+    usage: list[UsageRecord] = field(default_factory=list)
+    timings: list[StageTiming] = field(default_factory=list)
+
+    @property
+    def session_id(self) -> SessionId:
+        return self.input.session_id
+
+    def failed(self, code: ErrorCode) -> TurnFailed:
+        message = MESSAGES[self.state.language][code]
+        return TurnFailed(turn_id=self.turn_id, code=code, message=message)
+
+    def time(self, stage: Stage, since: float, *, tool_name: str = "") -> None:
+        self.timings.append(
+            StageTiming(
+                session_id=self.session_id,
+                turn_id=self.turn_id,
+                stage=stage,
+                milliseconds=int((time.monotonic() - since) * 1000),
+                source="server",
+                tool_name=tool_name,
+            )
+        )
+
+    def count(self, usage: ModelUsage) -> None:
+        for detail, quantity in (("input", usage.input_tokens), ("output", usage.output_tokens)):
+            self.usage.append(
+                UsageRecord(
+                    session_id=self.session_id,
+                    turn_id=self.turn_id,
+                    kind="llm_tokens",
+                    quantity=quantity,
+                    unit_detail=detail,
+                    estimated=False,
+                )
+            )
+
+    def record(
+        self, role: Literal["user", "assistant"], text: str, finished_at: datetime
+    ) -> TurnRecord:
+        return TurnRecord(
+            turn_id=self.turn_id,
+            session_id=self.session_id,
+            input_id=self.input.input_id,
+            role=role,
+            channel=self.input.channel,
+            language=self.state.language,
+            text=text,
+            started_at=self.input.received_at,
+            finished_at=finished_at,
+        )
 
 
 class Runtime:
@@ -100,8 +164,16 @@ class Runtime:
     async def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]:
         lock = self._locks.setdefault(turn.session_id, asyncio.Lock())
         async with lock:
-            async for event in self._turn(turn):
-                yield event
+            state = await self._store.sessions.get(turn.session_id)
+            if state is None:
+                yield await self._journal(turn.session_id, TurnId(""), _NOT_FOUND)
+                return
+            run = _Turn(input=turn, state=state)
+            try:
+                async for event in self._turn(run):
+                    yield event
+            except ServiceError as error:
+                yield await self._emit(run, run.failed(error.code))
 
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:
         raise NotImplementedError  # voice stage
@@ -111,119 +183,83 @@ class Runtime:
     ) -> None:
         raise NotImplementedError  # lifecycle stage
 
-    # ---- one turn ------------------------------------------------------------------------------
+    # ---- the turn, step by step ------------------------------------------------------------------
 
-    async def _turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]:
-        turn_id = TurnId(uuid.uuid4().hex)
-        state = await self._store.sessions.get(turn.session_id)
-        if state is None:
-            yield await self._journal(turn.session_id, turn_id, self._failed(turn_id, "not_found"))
-            return
-        language = state.language
-        try:
-            await self._persist_user_turn(turn, turn_id, state)
-        except ServiceError as error:
-            yield await self._journal(
-                turn.session_id, turn_id, self._failed(turn_id, error.code, language)
+    async def _turn(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        async with self._store.transaction() as tx:  # duplicate input_id raises conflict here
+            await self._store.turns.append(
+                tx, run.record("user", run.input.text, run.input.received_at)
             )
-            return
+        yield await self._emit(run, TurnStarted(turn_id=run.turn_id, language=run.state.language))
 
-        yield await self._journal(
-            turn.session_id, turn_id, TurnStarted(turn_id=turn_id, language=language)
-        )
-        history = await self._store.turns.recent(turn.session_id, HISTORY_TURNS + 1)
-        messages = list(
-            build_messages(self._configurations[state.config_id], state, history[:-1], turn.text)
-        )
-        usage: list[UsageRecord] = []
-        timings: list[StageTiming] = []
-        spoken: list[str] = []
-        started = time.monotonic()
-        try:
-            for round_index in range(self._limits.max_tool_rounds + 1):
-                text, calls = "", []
-                buffer = ""
-                first_output: float | None = None
-                async for event in self._stream_model(tuple(messages), state):
-                    if first_output is None:
-                        first_output = time.monotonic()
-                        timings.append(self._timing(turn, turn_id, "llm_first_output", started))
-                    if isinstance(event, ModelText):
-                        buffer += event.text
-                        sentences, buffer = split_sentences(buffer)
-                        for sentence in sentences:
-                            spoken.append(sentence)
-                            yield await self._journal(turn.session_id, turn_id, _say(sentence))
-                    elif isinstance(event, ToolCall):
-                        calls.append(event)
-                    elif isinstance(event, ModelUsage):
-                        usage.extend(_usage(turn, turn_id, event))
-                    elif isinstance(event, ModelFinished):
-                        pass
-                if buffer.strip():
-                    spoken.append(buffer.strip())
-                    yield await self._journal(turn.session_id, turn_id, _say(buffer.strip()))
-                    text += buffer
-                if not calls:
-                    break
-                if round_index == self._limits.max_tool_rounds:
-                    raise ServiceError("tool rounds exhausted", code="limit_exceeded")
-                messages.append(
-                    ModelMessage(role="assistant", content=text, tool_calls=tuple(calls))
-                )
-                for call in calls:
-                    yield await self._journal(turn.session_id, turn_id, ToolStarted(name=call.name))
-                    tool_started = time.monotonic()
-                    context = ToolContext(
-                        session_id=turn.session_id,
-                        turn_id=turn_id,
-                        now=self._clock(),
-                        language=language,
-                        lease_generation=0,
-                    )
-                    try:
-                        async with asyncio.timeout(self._limits.tool_seconds):
-                            outcome = await self._tools.dispatch(call, context)
-                    except TimeoutError as error:
-                        raise ServiceError(f"tool {call.name} timed out", code="timeout") from error
-                    timings.append(
-                        self._timing(turn, turn_id, "tool", tool_started, tool_name=call.name)
-                    )
-                    for extra in outcome.events:
-                        yield await self._journal(turn.session_id, turn_id, extra)
-                    yield await self._journal(
-                        turn.session_id,
-                        turn_id,
-                        ToolFinished(name=call.name, ok=outcome.ok, summary=outcome.summary),
-                    )
-                    messages.append(
-                        ModelMessage(
-                            role="tool", content=outcome.model_text, tool_call_id=call.call_id
-                        )
-                    )
-        except ServiceError as error:
-            yield await self._journal(
-                turn.session_id, turn_id, self._failed(turn_id, error.code, language)
+        history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
+        configuration = self._configurations[run.state.config_id]
+        run.messages = list(build_messages(configuration, run.state, history[:-1], run.input.text))
+
+        for round_index in range(self._limits.max_tool_rounds + 1):
+            async for event in self._model_round(run):
+                yield event
+            if not run.calls:
+                break
+            if round_index == self._limits.max_tool_rounds:
+                raise ServiceError("tool rounds exhausted", code="limit_exceeded")
+            async for event in self._tool_calls(run):
+                yield event
+
+        run.time("llm_total", run.started)
+        async with self._store.transaction() as tx:
+            await self._store.turns.append(
+                tx, run.record("assistant", " ".join(run.spoken), self._clock())
             )
-            return
-
-        timings.append(self._timing(turn, turn_id, "llm_total", started))
-        await self._persist_assistant_turn(turn, turn_id, state, " ".join(spoken), usage, timings)
-        yield await self._journal(
-            turn.session_id,
-            turn_id,
+            for usage in run.usage:
+                await self._store.events.record_usage(tx, usage)
+            for timing in run.timings:
+                await self._store.events.record_timing(tx, timing)
+        yield await self._emit(
+            run,
             TurnFinished(
-                turn_id=turn_id, interrupted=False, usage=tuple(usage), timings=tuple(timings)
+                turn_id=run.turn_id,
+                interrupted=False,
+                usage=tuple(run.usage),
+                timings=tuple(run.timings),
             ),
         )
 
-    async def _stream_model(
-        self, messages: tuple[ModelMessage, ...], state: SessionState
-    ) -> AsyncIterator[ModelText | ToolCall | ModelUsage | ModelFinished]:
+    async def _model_round(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        """One model call: sentences out as they complete; tool calls collected in ``run.calls``;
+        the assistant message appended to ``run.messages`` when tools were requested."""
+        run.calls = []
+        said: list[str] = []
+        buffer = ""
+        first = True
+        async for event in self._stream_model(run):
+            if first:
+                first = False
+                run.time("llm_first_output", run.started)
+            if isinstance(event, ModelText):
+                buffer += event.text
+                sentences, buffer = split_sentences(buffer)
+                for sentence in sentences:
+                    said.append(sentence)
+                    yield await self._emit(run, _say(sentence))
+            elif isinstance(event, ToolCall):
+                run.calls.append(event)
+            elif isinstance(event, ModelUsage):
+                run.count(event)
+        if buffer.strip():
+            said.append(buffer.strip())
+            yield await self._emit(run, _say(buffer.strip()))
+        run.spoken.extend(said)
+        if run.calls:
+            run.messages.append(
+                ModelMessage(role="assistant", content=" ".join(said), tool_calls=tuple(run.calls))
+            )
+
+    async def _stream_model(self, run: _Turn) -> AsyncIterator[ModelText | ToolCall | ModelUsage]:
         """The model stream with the first-output bound applied around the first event."""
-        remaining = max(self._limits.session_seconds - state.active_seconds, 1.0)
+        remaining = max(self._limits.session_seconds - run.state.active_seconds, 1.0)
         deadline = self._clock() + timedelta(seconds=remaining)
-        stream = self._model.stream(messages, self._tools.schemas(), deadline=deadline)
+        stream = self._model.stream(tuple(run.messages), self._tools.schemas(), deadline=deadline)
         try:
             async with asyncio.timeout(self._limits.llm_first_output_seconds):
                 first = await anext(stream, None)
@@ -231,61 +267,43 @@ class Runtime:
             raise ServiceError("no model output in time", code="timeout") from error
         if first is None:
             raise ServiceError("empty model stream", code="invalid_response")
-        yield first
+        if not isinstance(first, ModelFinished):
+            yield first
         async for event in stream:
-            yield event
+            if not isinstance(event, ModelFinished):
+                yield event
 
-    # ---- persistence -------------------------------------------------------------------------
-
-    async def _persist_user_turn(
-        self, turn: TurnInput, turn_id: TurnId, state: SessionState
-    ) -> None:
-        async with self._store.transaction() as tx:
-            await self._store.turns.append(
-                tx,
-                TurnRecord(
-                    turn_id=turn_id,
-                    session_id=turn.session_id,
-                    input_id=turn.input_id,
-                    role="user",
-                    channel=turn.channel,
-                    language=state.language,
-                    text=turn.text,
-                    started_at=turn.received_at,
-                    finished_at=turn.received_at,
-                ),
+    async def _tool_calls(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        """Dispatch every call of the round in order; each result becomes a tool message."""
+        for call in run.calls:
+            yield await self._emit(run, ToolStarted(name=call.name))
+            started = time.monotonic()
+            context = ToolContext(
+                session_id=run.session_id,
+                turn_id=run.turn_id,
+                now=self._clock(),
+                language=run.state.language,
+                lease_generation=0,
             )
-            await tx.commit()
-
-    async def _persist_assistant_turn(
-        self,
-        turn: TurnInput,
-        turn_id: TurnId,
-        state: SessionState,
-        text: str,
-        usage: list[UsageRecord],
-        timings: list[StageTiming],
-    ) -> None:
-        async with self._store.transaction() as tx:
-            await self._store.turns.append(
-                tx,
-                TurnRecord(
-                    turn_id=turn_id,
-                    session_id=turn.session_id,
-                    input_id=turn.input_id,
-                    role="assistant",
-                    channel=turn.channel,
-                    language=state.language,
-                    text=text,
-                    started_at=turn.received_at,
-                    finished_at=self._clock(),
-                ),
+            try:
+                async with asyncio.timeout(self._limits.tool_seconds):
+                    outcome = await self._tools.dispatch(call, context)
+            except TimeoutError as error:
+                raise ServiceError(f"tool {call.name} timed out", code="timeout") from error
+            run.time("tool", started, tool_name=call.name)
+            for extra in outcome.events:
+                yield await self._emit(run, extra)
+            yield await self._emit(
+                run, ToolFinished(name=call.name, ok=outcome.ok, summary=outcome.summary)
             )
-            for record in usage:
-                await self._store.events.record_usage(tx, record)
-            for timing in timings:
-                await self._store.events.record_timing(tx, timing)
-            await tx.commit()
+            run.messages.append(
+                ModelMessage(role="tool", content=outcome.model_text, tool_call_id=call.call_id)
+            )
+
+    # ---- the journal -----------------------------------------------------------------------------
+
+    async def _emit(self, run: _Turn, event: RuntimeEvent) -> RuntimeEvent:
+        return await self._journal(run.session_id, run.turn_id, event)
 
     async def _journal(
         self, session_id: SessionId, turn_id: TurnId, event: RuntimeEvent
@@ -298,56 +316,18 @@ class Runtime:
                 tx,
                 EventRecord(
                     session_id=session_id,
-                    turn_id=turn_id,
+                    turn_id=turn_id or None,
                     seq=seq,
                     kind=event.type,
                     payload_json=event.model_dump_json(),
                     at=self._clock(),
                 ),
             )
-            await tx.commit()
         return event
 
-    # ---- small builders ------------------------------------------------------------------------
 
-    @staticmethod
-    def _failed(turn_id: TurnId, code: ErrorCode, language: Language = "es") -> TurnFailed:
-        return TurnFailed(turn_id=turn_id, code=code, message=MESSAGES[language][code])
-
-    @staticmethod
-    def _timing(
-        turn: TurnInput, turn_id: TurnId, stage: Stage, since: float, *, tool_name: str = ""
-    ) -> StageTiming:
-        return StageTiming(
-            session_id=turn.session_id,
-            turn_id=turn_id,
-            stage=stage,
-            milliseconds=int((time.monotonic() - since) * 1000),
-            source="server",
-            tool_name=tool_name,
-        )
+_NOT_FOUND = TurnFailed(turn_id=TurnId(""), code="not_found", message=MESSAGES["es"]["not_found"])
 
 
 def _say(sentence: str) -> AssistantText:
     return AssistantText(text=sentence, spoken_form=sentence)
-
-
-def _usage(turn: TurnInput, turn_id: TurnId, event: ModelUsage) -> tuple[UsageRecord, UsageRecord]:
-    return (
-        UsageRecord(
-            session_id=turn.session_id,
-            turn_id=turn_id,
-            kind="llm_tokens",
-            quantity=event.input_tokens,
-            unit_detail="input",
-            estimated=False,
-        ),
-        UsageRecord(
-            session_id=turn.session_id,
-            turn_id=turn_id,
-            kind="llm_tokens",
-            quantity=event.output_tokens,
-            unit_detail="output",
-            estimated=False,
-        ),
-    )

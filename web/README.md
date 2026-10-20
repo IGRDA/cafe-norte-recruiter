@@ -1,6 +1,6 @@
 # Browser UI
 
-Vanilla ES modules served by FastAPI; no build step, no Node. `daily-js` is pinned and vendored
+Vanilla ES modules served by FastAPI; no build step, no Node. `daily-js` 0.94.0 is pinned and vendored
 under `vendor/` for audio. One SSE stream carries assistant text, state updates, sources and
 voice status; one POST per text turn.
 
@@ -8,7 +8,7 @@ voice status; one POST per text turn.
 | --- | --- |
 | `index.html` | Entry: demo disclosure, status line, transcript, composer with Enviar/Hablar, candidate card with every field's value or status, notes, lifecycle and outcome, the pending confirmation and its status, reviewer panel; composer and mic disabled once the session ends. Access code, store and language choice: later |
 | `assets/app.js` | State store, SSE client with `Last-Event-ID`, turn submission with `input_id`, renderers |
-| `assets/voice.js` | Today (D18): Web Speech recognition in, `speechSynthesis` out with the best installed Spanish voice, microphone only after **Hablar** and only between turns, never between Ana's sentences; finals under 0.4 confidence or 2 characters are discarded as background speech and shown in the status line. Later: Daily join, barge-in and timing events |
+| `assets/voice.js` | Two modes chosen by `GET /api/runtime`: `pipecat` joins the session's Daily room with the vendored `daily-js` (audio only, mic only after **Hablar**), plays Ana's track, posts `connected` and `first_audio` timings; `browser` is the Web Speech path of D18, kept until hosted voice is verified |
 | `assets/app.css` | Compact responsive layout, readable contrast, visible errors |
 | `vendor/` | Pinned third-party scripts with their version and hash recorded in `vendor/README.md` |
 

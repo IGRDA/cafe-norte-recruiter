@@ -315,7 +315,34 @@ _Added 20 October 2026._
   design when a brief is presented again after a correction.
 - Live mode, the judge and the simulator stay manual and arrive with the evaluation stage.
 
-## Assumptions recorded without a question
+## D22 · Hosted voice: VoiceSession owns the logic, Pipecat carries audio, tests never pay
+
+_Added 20 October 2026, with the voice stage (local half)._
+
+**Decisions.**
+- Paid services are I/O at the edges. `voice/session.py` (`VoiceSession`) holds every voice
+  decision (turns, the delivery ledger, interruption, opening, filler, silence) as plain Python
+  tested with a fake runtime and a recorder; `voice/delivery.py` is pure. Two tiny
+  `FrameProcessor`s in `voice/bridge.py` map frames to session methods and are tested with
+  Pipecat's in-memory `run_test`. `voice/pipeline.py` only assembles services. CI never
+  opens a provider connection; one manual live smoke per PR does.
+- Pipecat 1.13's `LLMUserAggregator` is used for what it does well: Silero VAD, the VAD start
+  strategy (which interrupts the bot), the speech-timeout stop strategy that waits for a
+  transcript, and joining Deepgram's segments. It emits the finished user message; the bridge
+  turns it into one runtime turn and keeps Pipecat's context empty. No Pipecat LLM, no
+  smart-turn model: D01 holds. Reason: `UserStoppedSpeakingFrame` is a system frame that skips
+  processor queues, so joining segments in our own processor would race.
+- Delivered means heard: a sentence counts once its `TTSStoppedFrame` has passed the output
+  transport; on an interruption the runtime learns exactly which sentences were heard, and a
+  read-back is `fully_delivered` only when its last sentence was. The text channel still
+  marks on journaling.
+- `CAFE_NORTE_VOICE = off | browser | pipecat`. `browser` (Web Speech, D18) stays until the
+  hosted exchange is verified and is removed in the deploy PR.
+- Cost guards from day one: two voice sessions per container, the session cap plus a
+  two-minute margin as room expiry with ejection, 8 s silence prompt then pause, Daily rooms
+  destroyed on stop. The hosted checkpoint runs on the memory store with one instance.
+
+
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.
 - Code and documentation in English; candidate-facing text in Spanish (Spain) and English.

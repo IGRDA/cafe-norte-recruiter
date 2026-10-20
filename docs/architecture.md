@@ -39,6 +39,10 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 | Brief length | 4–8 sentences, deterministic |
 | Fields read back right after capture | `contact_phone`, `earliest_start_date` |
 | Coverage floor | 80% of the package |
+| Voice: filler after a tool runs | 1.5 s |
+| Voice: bot join timeout | 15 s |
+| Voice: user speech timeout before a turn ends | 0.6 s (Pipecat default) |
+| Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | Recent turns in the prompt | 20 |
 | Tool arguments from the model | 16 KiB |

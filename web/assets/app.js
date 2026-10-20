@@ -12,6 +12,7 @@ const state = {
   order: [],
   candidate: null,
   voiceOn: false,
+  voiceMode: "off",
   ended: false,
 };
 
@@ -29,19 +30,41 @@ const el = {
   review: document.getElementById("review"),
 };
 
-const voice = createVoice({
-  onInterim: (text) => {
-    el.interim.textContent = text ? `… ${text}` : "";
-  },
-  onFinal: (text) => {
-    el.interim.textContent = "";
-    submitTurn(text);
-  },
-  onStatus: setStatus,
-  onError: showError,
-});
+let voice = { supported: false, start() {}, stop() {}, speak() {}, turnEnded() {}, closing() {} };
+
+function buildVoice(mode) {
+  return createVoice({
+    mode,
+    onInterim: (text) => {
+      el.interim.textContent = text ? `… ${text}` : "";
+    },
+    onFinal: (text) => {
+      el.interim.textContent = "";
+      submitTurn(text);
+    },
+    onStatus: setStatus,
+    onError: showError,
+    startVoice: async () => {
+      const response = await fetch(`/api/sessions/${state.sessionId}/voice`, { method: "POST" });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message ?? "No se pudo iniciar la voz.");
+      return body;
+    },
+    postTiming: (event, monotonic_ms) => {
+      fetch(`/api/sessions/${state.sessionId}/voice/timings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ turn_id: null, event, monotonic_ms }),
+      }).catch(() => {});
+    },
+  });
+}
 
 async function main() {
+  const runtime = await fetch("/api/runtime").then((r) => r.json()).catch(() => ({ voice: "off" }));
+  state.voiceMode = runtime.voice;
+  if (runtime.voice === "off") el.talk.hidden = true;
+  else voice = buildVoice(runtime.voice);
   const response = await fetch("/api/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -296,6 +319,7 @@ el.talk.addEventListener("click", () => {
   state.voiceOn = !state.voiceOn;
   el.talk.setAttribute("aria-pressed", String(state.voiceOn));
   el.talk.textContent = state.voiceOn ? "⏹ Parar" : "🎙 Hablar";
+  if (state.voiceMode === "pipecat") el.talk.title = "Voz alojada: Daily + Deepgram + ElevenLabs";
   if (state.voiceOn) {
     hideError();
     voice.start();

@@ -30,9 +30,10 @@ headers locally and hosted.
 | `events.py` | SSE encoding and replay |
 | `boundary.py` | Body size limit, security headers, safe validation errors |
 
-Implemented today (D18): `POST /api/sessions`, `POST …/turns` (202, the turn runs in the
-background and its events are journaled by the runtime), `GET …/events`, `GET /api/configurations`
-and health. Ownership is a signed session cookie. `ServiceError` maps to `{code, message}` with
+Implemented today: `POST /api/sessions`, `POST …/turns` (202, the turn runs in the background
+and its events are journaled by the runtime), `GET …/events`, `GET /api/configurations`,
+`GET /api/runtime` (which voice mode to offer), `POST …/voice` (admission, private room, bot
+start; nothing left behind on failure), `POST …/voice/timings`, and health. Ownership is a signed session cookie. `ServiceError` maps to `{code, message}` with
 fixed public text; request validation errors never echo the body.
 
 On reconnect the browser fetches the snapshot and resumes the stream from its last sequence;

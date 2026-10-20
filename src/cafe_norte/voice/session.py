@@ -1,0 +1,208 @@
+"""``VoiceSession``: everything voice decides, with no audio framework in it.
+
+Inputs are method calls from the two Pipecat processors in ``bridge.py`` (final transcript,
+interruption, one sentence finished playing, participant joined). Outputs are ``speak`` (a
+sentence to TTS), ``on_status`` and the runtime's ``run_turn`` / ``delivered`` / ``end``. The
+delivery ledger decides what was heard. Tested with a fake runtime and a recorder."""
+
+import asyncio
+import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Literal, Protocol
+
+from cafe_norte.conversation.contracts import (
+    AssistantText,
+    RuntimeEvent,
+    ToolFinished,
+    ToolStarted,
+    TurnFinished,
+    TurnInput,
+    TurnStarted,
+)
+from cafe_norte.domain.contracts import InputId, SessionId, TurnId
+from cafe_norte.voice.contracts import VoiceStatus, VoiceTexts
+from cafe_norte.voice.delivery import Ledger, finished, heard, sent
+
+Speak = Callable[[str], Awaitable[None]]
+
+
+class VoiceRuntime(Protocol):
+    """The three things voice needs from the conversation runtime."""
+
+    def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]: ...
+    async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None: ...
+    async def end(
+        self, session_id: SessionId, reason: Literal["stop", "limit", "shutdown"]
+    ) -> None: ...
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
+class VoiceSession:
+    filler_after_seconds: float = 1.5
+
+    def __init__(
+        self,
+        runtime: VoiceRuntime,
+        session_id: SessionId,
+        *,
+        speak: Speak,
+        on_status: Callable[[VoiceStatus], None],
+        texts: VoiceTexts,
+        clock: Callable[[], datetime] = _utcnow,
+        idle_prompt_seconds: float = 8.0,
+        idle_pause_seconds: float = 12.0,
+    ) -> None:
+        self._runtime = runtime
+        self._session_id = session_id
+        self._speak = speak
+        self._on_status = on_status
+        self._texts = texts
+        self._clock = clock
+        self._idle_prompt_seconds = idle_prompt_seconds
+        self._idle_pause_seconds = idle_pause_seconds
+        self.status: VoiceStatus = "connecting"
+        self._ledger = Ledger()
+        self._turn_task: asyncio.Task[None] | None = None
+        self._turn_id: TurnId | None = None
+        self._turn_done = False
+        self._acknowledged = False
+        self._opened = False
+        self._filler_task: asyncio.Task[None] | None = None
+        self._idle_task: asyncio.Task[None] | None = None
+
+    # ---- inputs from the audio side --------------------------------------------------------------
+
+    async def joined(self) -> None:
+        """The candidate is in the room: Ana speaks the opening, once."""
+        if self._opened:
+            return
+        self._opened = True
+        self._set("speaking")
+        self._ledger = sent(self._ledger, self._texts.opening)
+        self._turn_done = True
+        await self._speak(self._texts.opening)
+
+    async def transcript(self, text: str) -> None:
+        """A finalized transcript: one voice turn through the runtime."""
+        self._cancel_idle()
+        if self._turn_task is not None and not self._turn_task.done():
+            return  # an interruption frame precedes any new speech; nothing to do here
+        turn = TurnInput(
+            session_id=self._session_id,
+            input_id=InputId(uuid.uuid4().hex),
+            text=text,
+            channel="voice",
+            received_at=self._clock(),
+        )
+        self._ledger, self._turn_id, self._turn_done, self._acknowledged = (
+            Ledger(),
+            None,
+            False,
+            False,
+        )
+        self._set("thinking")
+        self._turn_task = asyncio.create_task(self._run(turn))
+
+    async def played_one(self) -> None:
+        """One sentence finished playing on the candidate's side."""
+        self._ledger = finished(self._ledger)
+        await self._maybe_acknowledge()
+
+    async def interrupted(self) -> None:
+        """The candidate started speaking over Ana: stop generating, record what was heard."""
+        self._cancel_filler()
+        task, self._turn_task = self._turn_task, None
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        if self._turn_id is not None and not self._acknowledged:
+            text, _ = heard(self._ledger)
+            self._acknowledged = True
+            await self._runtime.delivered(self._turn_id, text=text, complete=False)
+        self._ledger = Ledger()
+        self._set("listening")
+
+    async def wait(self) -> None:
+        if self._turn_task is not None:
+            await asyncio.gather(self._turn_task, return_exceptions=True)
+
+    async def close(self) -> None:
+        self._cancel_idle()
+        self._cancel_filler()
+        if self._turn_task is not None:
+            self._turn_task.cancel()
+            await asyncio.gather(self._turn_task, return_exceptions=True)
+        self._set("ended")
+
+    # ---- the turn --------------------------------------------------------------------------------
+
+    async def _run(self, turn: TurnInput) -> None:
+        try:
+            async for event in self._runtime.run_turn(turn):
+                if isinstance(event, TurnStarted):
+                    self._turn_id = event.turn_id
+                elif isinstance(event, AssistantText):
+                    self._cancel_filler()
+                    self._ledger = sent(self._ledger, event.spoken_form)
+                    self._set("speaking")
+                    await self._speak(event.spoken_form)
+                elif isinstance(event, ToolStarted):
+                    self._filler_task = asyncio.create_task(self._filler())
+                elif isinstance(event, ToolFinished):
+                    self._cancel_filler()
+                elif isinstance(event, TurnFinished):
+                    self._turn_done = True
+        finally:
+            self._cancel_filler()
+            self._turn_done = True
+        await self._maybe_acknowledge()
+
+    async def _filler(self) -> None:
+        await asyncio.sleep(self.filler_after_seconds)
+        self._ledger = sent(self._ledger, self._texts.filler)
+        await self._speak(self._texts.filler)
+
+    async def _maybe_acknowledge(self) -> None:
+        """Once the turn has ended and its last sentence has played, tell the runtime."""
+        text, complete = heard(self._ledger)
+        if not (self._turn_done and complete) or self._acknowledged:
+            return
+        self._acknowledged = True
+        if self._turn_id is not None:
+            await self._runtime.delivered(self._turn_id, text=text, complete=True)
+        self._set("listening")
+        self._start_idle()
+
+    # ---- silence ---------------------------------------------------------------------------------
+
+    def _start_idle(self) -> None:
+        self._cancel_idle()
+        self._idle_task = asyncio.create_task(self._idle())
+
+    async def _idle(self) -> None:
+        await asyncio.sleep(self._idle_prompt_seconds)
+        await self._speak(self._texts.idle_prompt)
+        await asyncio.sleep(self._idle_pause_seconds)
+        await self._runtime.end(self._session_id, "shutdown")
+        self._set("paused")
+
+    def _cancel_idle(self) -> None:
+        if self._idle_task is not None:
+            self._idle_task.cancel()
+            self._idle_task = None
+
+    def _cancel_filler(self) -> None:
+        if self._filler_task is not None:
+            self._filler_task.cancel()
+            self._filler_task = None
+
+    def _set(self, status: VoiceStatus) -> None:
+        self.status = status
+        self._on_status(status)

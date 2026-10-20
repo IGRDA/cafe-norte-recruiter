@@ -26,6 +26,15 @@ class Room(Frozen):
 VoiceStatus = Literal["connecting", "listening", "thinking", "speaking", "paused", "ended"]
 
 
+class VoiceTexts(Frozen):
+    """The three fixed sentences voice needs. They live in ``conversation/prompts`` and are
+    handed in by the composition root, because this package may not import prompts."""
+
+    opening: str
+    filler: str  # spoken only while a tool is running longer than the filler delay
+    idle_prompt: str  # after the first silence window
+
+
 class VoiceTiming(Frozen):
     """Browser or server observation of one audible event; converted to ``StageTiming``."""
 

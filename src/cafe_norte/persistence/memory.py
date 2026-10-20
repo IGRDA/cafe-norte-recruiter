@@ -20,6 +20,7 @@ from cafe_norte.domain.contracts import (
     SessionState,
     Signal,
     SlotId,
+    TurnId,
 )
 from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import StageTiming, UsageRecord
@@ -112,6 +113,25 @@ class MemoryTurns:
         """The last ``limit`` turns in chronological order."""
         turns = self._turns.get(session_id, [])
         return tuple(turns[-limit:]) if limit else ()
+
+    async def mark_delivered(
+        self,
+        tx: Transaction,
+        session_id: SessionId,
+        turn_id: TurnId,
+        *,
+        delivered_text: str,
+        interrupted: bool,
+    ) -> None:
+        def apply() -> None:
+            turns = self._turns.get(session_id, [])
+            for index, turn in enumerate(turns):
+                if turn.turn_id == turn_id and turn.role == "assistant":
+                    turns[index] = turn.model_copy(
+                        update={"delivered_text": delivered_text, "interrupted": interrupted}
+                    )
+
+        _tx(tx).enlist(apply)
 
 
 class MemoryEvents:

@@ -93,6 +93,18 @@ class Turns(Protocol):
 
     async def recent(self, session_id: SessionId, limit: int) -> tuple[TurnRecord, ...]: ...
 
+    async def mark_delivered(
+        self,
+        tx: Transaction,
+        session_id: SessionId,
+        turn_id: TurnId,
+        *,
+        delivered_text: str,
+        interrupted: bool,
+    ) -> None:
+        """Record what the voice channel actually played for the assistant turn."""
+        ...
+
 
 class Events(Protocol):
     async def append(self, tx: Transaction, event: EventRecord) -> None: ...

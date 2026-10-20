@@ -38,7 +38,8 @@ from cafe_norte.domain.contracts import (
     StoreConfiguration,
     TurnId,
 )
-from cafe_norte.domain.lifecycle import is_terminal
+from cafe_norte.domain.lifecycle import LifecycleEvent, is_terminal, transition
+from cafe_norte.domain.result import Err
 from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.model.contracts import (
@@ -82,6 +83,9 @@ class Limits:
 
 
 log = logging.getLogger(__name__)
+
+
+_END_EVENTS: dict[str, LifecycleEvent] = {"stop": "stop", "limit": "abandon", "shutdown": "pause"}
 
 
 def _utcnow() -> datetime:
@@ -183,6 +187,7 @@ class Runtime:
         self._clock = clock
         self._locks: dict[SessionId, asyncio.Lock] = {}
         self._seq: dict[SessionId, int] = {}
+        self._turn_sessions: dict[TurnId, SessionId] = {}  # for delivery acknowledgements
 
     async def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]:
         lock = self._locks.setdefault(turn.session_id, asyncio.Lock())
@@ -192,6 +197,7 @@ class Runtime:
                 yield await self._journal(turn.session_id, TurnId(""), _NOT_FOUND)
                 return
             run = _Turn(input=turn, state=state)
+            self._turn_sessions[run.turn_id] = turn.session_id
             if is_terminal(state):
                 yield await self._emit(run, run.failed("session_ended"))
                 return
@@ -242,12 +248,59 @@ class Runtime:
             )
 
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:
-        raise NotImplementedError  # voice stage
+        """Playback acknowledgement from the voice channel: what was actually heard. Updates
+        the assistant turn record and, when that turn presented the pending read-back, whether
+        it counts as delivered (its last sentence was heard)."""
+        session_id = self._turn_sessions.get(turn_id)
+        if session_id is None:
+            return
+        lock = self._locks.setdefault(session_id, asyncio.Lock())
+        async with lock:
+            state = await self._store.sessions.get(session_id)
+            if state is None:
+                return
+            async with self._store.transaction() as tx:
+                await self._store.turns.mark_delivered(
+                    tx, session_id, turn_id, delivered_text=text, interrupted=not complete
+                )
+                pending = state.pending_confirmation
+                if pending is not None and pending.presented_turn_id == turn_id:
+                    # Heard when playback reached the read-back's last sentence.
+                    last_sentence = _sentences(pending.presentation_text)[-1]
+                    was_heard = complete or text.endswith(last_sentence)
+                    await self._store.sessions.save(
+                        tx,
+                        state.model_copy(
+                            update={
+                                "pending_confirmation": pending.model_copy(
+                                    update={"fully_delivered": was_heard}
+                                )
+                            }
+                        ),
+                        expected_revision=state.candidate.revision,
+                    )
 
     async def end(
         self, session_id: SessionId, reason: Literal["stop", "limit", "shutdown"]
     ) -> None:
-        raise NotImplementedError  # lifecycle stage
+        """Close a session from outside a turn (silence, time cap, shutdown). Terminal
+        sessions are left alone."""
+        event = _END_EVENTS[reason]
+        lock = self._locks.setdefault(session_id, asyncio.Lock())
+        async with lock:
+            state = await self._store.sessions.get(session_id)
+            if state is None or is_terminal(state):
+                return
+            result = transition(state, event)
+            if isinstance(result, Err):
+                return
+            lifecycle, outcome = result.value
+            async with self._store.transaction() as tx:
+                await self._store.sessions.save(
+                    tx,
+                    state.model_copy(update={"lifecycle": lifecycle, "outcome": outcome}),
+                    expected_revision=state.candidate.revision,
+                )
 
     # ---- the turn, step by step ------------------------------------------------------------------
 
@@ -401,7 +454,8 @@ class Runtime:
                     if self._say_once(run, run.spoken, sentence):
                         yield await self._emit(run, _say(sentence))
                 run.asked = True
-                await self._mark_delivered(run)
+                if run.input.channel == "text":
+                    await self._mark_delivered(run)
             yield await self._emit(
                 run, ToolFinished(name=call.name, ok=outcome.ok, summary=outcome.summary)
             )

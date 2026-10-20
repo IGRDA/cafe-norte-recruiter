@@ -13,7 +13,9 @@ from cafe_norte.persistence.contracts import TurnRecord
 
 HISTORY_TURNS = 20
 
-_SENTENCE_END = re.compile(r"(?:(?<=[.!?…])|(?<=[.!?…][)\]]))(?:\s+|(?=[¿¡(]))")
+# A sentence ends at . ! ? … (optionally followed by a closing bracket) when whitespace, an
+# opening mark, or a capital letter follows. "3.5" stays whole; "?Sí" splits.
+_SENTENCE_END = re.compile(r"(?:(?<=[.!?…])|(?<=[.!?…][)\]]))(?:\s+|(?=[¿¡(A-ZÁÉÍÓÚÑÜ]))")
 
 
 WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")

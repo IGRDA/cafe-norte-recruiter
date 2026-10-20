@@ -359,9 +359,21 @@ async def test_blank_model_output_still_finishes_the_turn(text: str) -> None:
     assert isinstance(events[-1], TurnFinished)
 
 
-def test_sentences_split_at_an_opening_mark_without_a_space() -> None:
+def test_sentences_split_at_an_opening_mark_or_capital_without_a_space() -> None:
     from cafe_norte.conversation.prompt import split_sentences
 
     done, rest = split_sentences("¿Tienes permiso?¿Qué días puedes?(nota) Sí. Y más")
     assert done == ["¿Tienes permiso?", "¿Qué días puedes?", "(nota) Sí."]
     assert rest == "Y más"
+    # The model sometimes writes the candidate's answer right after its own question.
+    done, rest = split_sentences("¿Te interesa el puesto?Sí, me interesa.Él también. 3.5 horas")
+    assert done == ["¿Te interesa el puesto?", "Sí, me interesa.", "Él también."]
+    assert rest == "3.5 horas"
+
+
+async def test_an_answer_the_model_invents_after_its_question_is_not_spoken() -> None:
+    h = Harness([says("¿Te interesa el puesto de barista?Sí, me interesa el puesto.")])
+    await h.open_session()
+    events = await h.run("mi nombre es Iñaki")
+    said = [e.text for e in events if isinstance(e, AssistantText)]
+    assert said == ["¿Te interesa el puesto de barista?"]

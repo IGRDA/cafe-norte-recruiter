@@ -126,6 +126,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
             llm_first_output_seconds=float(env.get("CAFE_NORTE_LLM_FIRST_OUTPUT_SECONDS", "6")),
             tool_seconds=float(env.get("CAFE_NORTE_TOOL_SECONDS", "10")),
             session_seconds=float(env.get("CAFE_NORTE_SESSION_SECONDS", "480")),
+            max_answer_characters=int(env.get("CAFE_NORTE_MAX_ANSWER_CHARACTERS", "600")),
         ),
         owner=env.get("K_REVISION", "local"),
     )

@@ -13,7 +13,7 @@ from cafe_norte.persistence.contracts import TurnRecord
 
 HISTORY_TURNS = 20
 
-_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
+_SENTENCE_END = re.compile(r"(?<=[.!?…])(?:\s+|(?=[¿¡(]))")
 
 
 WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")

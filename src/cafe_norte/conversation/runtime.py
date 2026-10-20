@@ -4,7 +4,7 @@ import asyncio
 import logging
 import time
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
@@ -37,6 +37,7 @@ from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.model.contracts import (
     Model,
+    ModelEvent,
     ModelFinished,
     ModelMessage,
     ModelText,
@@ -50,7 +51,13 @@ from cafe_norte.persistence.contracts import EventRecord, Store, TurnRecord
 class Limits:
     """Per-turn and per-session bounds, all configurable from the environment."""
 
-    __slots__ = ("llm_first_output_seconds", "max_tool_rounds", "session_seconds", "tool_seconds")
+    __slots__ = (
+        "llm_first_output_seconds",
+        "max_answer_characters",
+        "max_tool_rounds",
+        "session_seconds",
+        "tool_seconds",
+    )
 
     def __init__(
         self,
@@ -59,8 +66,10 @@ class Limits:
         llm_first_output_seconds: float = 6.0,
         tool_seconds: float = 10.0,
         session_seconds: float = 480.0,
+        max_answer_characters: int = 600,
     ) -> None:
         self.max_tool_rounds = max_tool_rounds
+        self.max_answer_characters = max_answer_characters
         self.llm_first_output_seconds = llm_first_output_seconds
         self.tool_seconds = tool_seconds
         self.session_seconds = session_seconds
@@ -280,22 +289,32 @@ class Runtime:
         said: list[str] = []
         buffer = ""
         first = True
-        async for event in self._stream_model(run):
-            if first:
-                first = False
-                run.time("llm_first_output", run.started)
-            if isinstance(event, ModelText):
-                buffer += event.text
-                sentences, buffer = split_sentences(buffer)
-                for sentence in sentences:
-                    said.append(sentence)
-                    yield await self._emit(run, _say(sentence))
-            elif isinstance(event, ToolCall):
-                run.calls.append(event)
-            elif isinstance(event, ModelUsage):
-                run.count(event)
-        if buffer.strip():
-            said.append(buffer.strip())
+        stream = self._stream_model(run)
+        try:
+            async for event in self._stream_model_events(stream):
+                if first:
+                    first = False
+                    run.time("llm_first_output", run.started)
+                if isinstance(event, ModelText):
+                    buffer += event.text
+                    sentences, buffer = split_sentences(buffer)
+                    for sentence in sentences:
+                        if self._say_once(run, said, sentence):
+                            yield await self._emit(run, _say(sentence))
+                    if sum(map(len, said)) + len(buffer) > self._limits.max_answer_characters:
+                        # A runaway generation: stop reading, keep what was said, drop the rest.
+                        log.warning(
+                            "answer cut at %d characters", self._limits.max_answer_characters
+                        )
+                        buffer = ""
+                        break
+                elif isinstance(event, ToolCall):
+                    run.calls.append(event)
+                elif isinstance(event, ModelUsage):
+                    run.count(event)
+        finally:
+            await stream.aclose()
+        if buffer.strip() and self._say_once(run, said, buffer.strip()):
             yield await self._emit(run, _say(buffer.strip()))
         run.spoken.extend(said)
         if run.calls:
@@ -303,11 +322,24 @@ class Runtime:
                 ModelMessage(role="assistant", content=" ".join(said), tool_calls=tuple(run.calls))
             )
 
-    async def _stream_model(self, run: _Turn) -> AsyncIterator[ModelText | ToolCall | ModelUsage]:
-        """The model stream with the first-output bound applied around the first event."""
+    @staticmethod
+    def _say_once(run: _Turn, said: list[str], sentence: str) -> bool:
+        """A sentence already spoken in this turn is not spoken again (the model tends to
+        repeat its question after a tool result)."""
+        if sentence in said or sentence in run.spoken:
+            return False
+        said.append(sentence)
+        return True
+
+    def _stream_model(self, run: _Turn) -> AsyncGenerator[ModelEvent, None]:
         remaining = max(self._limits.session_seconds - run.state.active_seconds, 1.0)
         deadline = self._clock() + timedelta(seconds=remaining)
-        stream = self._model.stream(tuple(run.messages), self._tools.schemas(), deadline=deadline)
+        return self._model.stream(tuple(run.messages), self._tools.schemas(), deadline=deadline)
+
+    async def _stream_model_events(
+        self, stream: AsyncIterator[ModelEvent]
+    ) -> AsyncIterator[ModelText | ToolCall | ModelUsage]:
+        """The model stream with the first-output bound applied around the first event."""
         try:
             async with asyncio.timeout(self._limits.llm_first_output_seconds):
                 first = await anext(stream, None)

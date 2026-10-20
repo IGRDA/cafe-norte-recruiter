@@ -1,7 +1,7 @@
 """Streaming Chat Completions adapter (Groq): luzia's wire parsing, plus several calls per turn."""
 
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -53,7 +53,7 @@ class ChatCompletionsModel:
         tools: tuple[ToolSchema, ...],
         *,
         deadline: datetime,
-    ) -> AsyncIterator[ModelEvent]:
+    ) -> AsyncGenerator[ModelEvent, None]:
         timeout = max((deadline - datetime.now(UTC)).total_seconds(), 0.1)
         body: dict[str, Any] = {
             "model": self._model_id,
@@ -103,7 +103,9 @@ class ChatCompletionsModel:
                 await client.aclose()
 
 
-async def _parse(lines: AsyncIterator[str], known_tools: set[str]) -> AsyncIterator[ModelEvent]:
+async def _parse(
+    lines: AsyncIterator[str], known_tools: set[str]
+) -> AsyncGenerator[ModelEvent, None]:
     pending: dict[int, dict[str, str]] = {}
     finish: str | None = None
     usage: ModelUsage | None = None

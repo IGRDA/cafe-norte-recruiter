@@ -1,7 +1,7 @@
 """Behaviour of ``Runtime.run_turn`` against the fake model and the memory store."""
 
 import json
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from datetime import UTC, datetime
 
 import pytest
@@ -192,7 +192,7 @@ class BrokenModel:
         tools: tuple[ToolSchema, ...],
         *,
         deadline: datetime,
-    ) -> AsyncIterator[ModelEvent]:
+    ) -> AsyncGenerator[ModelEvent, None]:
         raise ModelError("secret provider detail", code="provider_unavailable")
         yield  # pragma: no cover
 
@@ -258,6 +258,29 @@ async def test_doubtful_work_authorization_raises_a_review_flag_without_blocking
     assert isinstance(events[-1], TurnFinished)
 
 
+async def test_a_sentence_is_not_spoken_twice_in_one_turn() -> None:
+    h = Harness(
+        [[ModelText(text="¿Cómo te llamas? "), name_call(), WANTS_TOOLS], says("¿Cómo te llamas?")]
+    )
+    await h.open_session()
+    events = await h.run("Hola")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == ["¿Cómo te llamas?"]
+    assert isinstance(events[-1], TurnFinished)
+
+
+async def test_a_runaway_answer_is_cut_and_the_turn_still_finishes() -> None:
+    junk = [ModelText(text="(Esperando respuesta)") for _ in range(200)]
+    h = Harness(
+        [[ModelText(text="¿Tienes permiso de trabajo? "), *junk, STOP]],
+        limits=Limits(max_answer_characters=100),
+    )
+    await h.open_session()
+    events = await h.run("Maialen")
+    said = [e.text for e in events if isinstance(e, AssistantText)]
+    assert said == ["¿Tienes permiso de trabajo?"]
+    assert isinstance(events[-1], TurnFinished)
+
+
 async def test_an_unknown_session_fails_with_not_found() -> None:
     h = Harness([])
     events = await h.run("Hola")
@@ -271,3 +294,11 @@ async def test_blank_model_output_still_finishes_the_turn(text: str) -> None:
     events = await h.run("Hola")
     assert not any(isinstance(e, AssistantText) for e in events)
     assert isinstance(events[-1], TurnFinished)
+
+
+def test_sentences_split_at_an_opening_mark_without_a_space() -> None:
+    from cafe_norte.conversation.prompt import split_sentences
+
+    done, rest = split_sentences("¿Tienes permiso?¿Qué días puedes?(nota) Sí. Y más")
+    assert done == ["¿Tienes permiso?", "¿Qué días puedes?", "(nota) Sí."]
+    assert rest == "Y más"

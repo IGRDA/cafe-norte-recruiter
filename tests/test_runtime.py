@@ -292,14 +292,12 @@ async def test_the_tool_result_tells_the_model_what_was_already_said_this_turn()
 
 
 async def test_stage_directions_and_dot_runs_are_never_spoken() -> None:
-    h = Harness(
-        [says("¿Qué fecha podrías empezar?............ ", "(Esperando respuesta.) ", "Vale.")]
-    )
+    h = Harness([says("(Esperando respuesta.) ", "Vale........ ", "¿Qué fecha podrías empezar?")])
     await h.open_session()
     events = await h.run("Hola")
     assert [e.text for e in events if isinstance(e, AssistantText)] == [
-        "¿Qué fecha podrías empezar?",
         "Vale.",
+        "¿Qué fecha podrías empezar?",
     ]
 
 

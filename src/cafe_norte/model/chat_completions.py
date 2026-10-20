@@ -88,7 +88,8 @@ class ChatCompletionsModel:
                         if response.status_code < 500
                         else "provider_unavailable"
                     )
-                    raise ModelError(f"HTTP {response.status_code}", code=code)
+                    detail = response.text[:300].replace("\n", " ")
+                    raise ModelError(f"HTTP {response.status_code}: {detail}", code=code)
                 async for event in _parse(response.aiter_lines(), known):
                     yield event
         except httpx.TimeoutException as error:

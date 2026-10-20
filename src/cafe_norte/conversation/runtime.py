@@ -1,6 +1,7 @@
 """The runtime implementation behind the ``ConversationRuntime`` port."""
 
 import asyncio
+import logging
 import time
 import uuid
 from collections.abc import AsyncIterator, Callable
@@ -60,6 +61,9 @@ class Limits:
         self.llm_first_output_seconds = llm_first_output_seconds
         self.tool_seconds = tool_seconds
         self.session_seconds = session_seconds
+
+
+log = logging.getLogger(__name__)
 
 
 def _utcnow() -> datetime:
@@ -173,6 +177,10 @@ class Runtime:
                 async for event in self._turn(run):
                     yield event
             except ServiceError as error:
+                log.warning(
+                    "turn failed",
+                    extra={"session_id": run.session_id, "code": error.code, "detail": str(error)},
+                )
                 yield await self._emit(run, run.failed(error.code))
 
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:

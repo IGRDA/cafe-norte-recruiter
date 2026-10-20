@@ -314,6 +314,38 @@ async def test_the_tool_result_names_only_the_next_question() -> None:
     assert "work_authorization" not in content
 
 
+async def test_nothing_is_spoken_after_the_first_question_of_a_turn() -> None:
+    """Spec: one main question at a time. The prompt asks for it; the runtime guarantees it."""
+    h = Harness(
+        [
+            says(
+                "Perfecto. ",
+                "¿Cuántas horas a la semana? ",
+                "¿Cuál es la fecha? ",
+                "¿Qué experiencia?",
+            )
+        ]
+    )
+    await h.open_session()
+    events = await h.run("lunes y jueves")
+    said = [e.text for e in events if isinstance(e, AssistantText)]
+    assert said == ["Perfecto.", "¿Cuántas horas a la semana?"]
+    assert isinstance(events[-1], TurnFinished)
+
+
+async def test_a_question_before_the_tool_call_silences_the_round_after_it() -> None:
+    h = Harness(
+        [
+            [ModelText(text="¿Cómo te llamas? "), name_call(), WANTS_TOOLS],
+            says("¿Te interesa el puesto?"),
+        ]
+    )
+    await h.open_session()
+    events = await h.run("Hola")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == ["¿Cómo te llamas?"]
+    assert any(isinstance(e, StateUpdated) for e in events)  # the tool call still ran
+
+
 async def test_an_unknown_session_fails_with_not_found() -> None:
     h = Harness([])
     events = await h.run("Hola")

@@ -100,6 +100,7 @@ class _Turn:
     spoken: list[str] = field(default_factory=list)
     usage: list[UsageRecord] = field(default_factory=list)
     timings: list[StageTiming] = field(default_factory=list)
+    asked: bool = False  # a question has been spoken; the turn says nothing more
 
     @property
     def session_id(self) -> SessionId:
@@ -330,11 +331,15 @@ class Runtime:
 
     @staticmethod
     def _say_once(run: _Turn, said: list[str], sentence: str) -> bool:
-        """A sentence already spoken in this turn is not spoken again (the model tends to
-        repeat its question after a tool result)."""
-        if sentence in said or sentence in run.spoken:
+        """One main question per turn, and never the same sentence twice.
+
+        Once a question has been spoken in this turn nothing else is voiced; the model's
+        extra questions and rephrasings are read (tool calls and usage still count) but
+        dropped. The prompt asks for this; the runtime guarantees it."""
+        if run.asked or sentence in said or sentence in run.spoken:
             return False
         said.append(sentence)
+        run.asked = "?" in sentence
         return True
 
     def _stream_model(self, run: _Turn) -> AsyncGenerator[ModelEvent, None]:

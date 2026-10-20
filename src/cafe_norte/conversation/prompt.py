@@ -4,7 +4,7 @@ import json
 import re
 
 from cafe_norte.conversation import prompts
-from cafe_norte.domain.candidate import unfinished_fields
+from cafe_norte.domain.candidate import VALUE_FIELDS, unfinished_fields
 from cafe_norte.domain.contracts import CandidateRecord, SessionState, StoreConfiguration
 from cafe_norte.domain.fields import value_of
 from cafe_norte.model.contracts import ModelMessage
@@ -31,7 +31,8 @@ def system_message(configuration: StoreConfiguration, state: SessionState) -> Mo
             ],
         },
         "language": state.language,
-        "candidate": candidate_facts(state.candidate),
+        "candidate_known_values": known_values(state.candidate),
+        "candidate_field_status": field_status(state.candidate),
         "fields_still_to_ask": list(unfinished_fields(state.candidate)),
     }
     content = (
@@ -42,17 +43,19 @@ def system_message(configuration: StoreConfiguration, state: SessionState) -> Mo
     return ModelMessage(role="system", content=content)
 
 
-def candidate_facts(candidate: CandidateRecord) -> dict[str, dict[str, object]]:
-    """Status and value per field; values only when captured or confirmed."""
-    facts: dict[str, dict[str, object]] = {}
-    for name in type(candidate).model_fields:
-        field = getattr(candidate, name)
-        if hasattr(field, "status"):
-            facts[name] = {"status": field.status}
-            value = value_of(field)
-            if value is not None:
-                facts[name]["value"] = sorted(value) if isinstance(value, frozenset) else value
-    return facts
+def known_values(candidate: CandidateRecord) -> dict[str, object]:
+    """Plain values of captured or confirmed fields, in the same shape a patch uses, so the
+    model never sees a field rendered as an object it might copy into ``patch``."""
+    values: dict[str, object] = {}
+    for name in VALUE_FIELDS:
+        value = value_of(getattr(candidate, name))
+        if value is not None:
+            values[name] = sorted(value) if isinstance(value, frozenset) else value
+    return values
+
+
+def field_status(candidate: CandidateRecord) -> dict[str, str]:
+    return {name: str(getattr(candidate, name).status) for name in VALUE_FIELDS}
 
 
 def history_messages(turns: tuple[TurnRecord, ...]) -> tuple[ModelMessage, ...]:

@@ -178,8 +178,11 @@ class Runtime:
                     yield event
             except ServiceError as error:
                 log.warning(
-                    "turn failed",
-                    extra={"session_id": run.session_id, "code": error.code, "detail": str(error)},
+                    "turn failed session=%s turn=%s code=%s detail=%s",
+                    run.session_id,
+                    run.turn_id,
+                    error.code,
+                    error,
                 )
                 yield await self._emit(run, run.failed(error.code))
 

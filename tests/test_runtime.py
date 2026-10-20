@@ -137,7 +137,9 @@ async def test_the_model_sees_history_state_and_only_registered_tools() -> None:
     third = h.model.calls[2]
     assert [m.role for m in third] == ["system", "user", "assistant", "user"]
     assert third[2].content == "Encantada."
-    assert '"name": {"status": "captured", "value": "Lucía"}' in third[0].content
+    assert '"candidate_known_values": {"name": "Lucía"}' in third[0].content
+    assert '"name": "captured"' in third[0].content
+    assert '"status"' not in third[0].content.split("candidate_known_values")[1].split("}")[0]
     assert [t.name for t in h.model.advertised_tools[0]] == ["update_candidate"]
 
 

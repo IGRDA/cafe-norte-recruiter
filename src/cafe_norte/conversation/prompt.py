@@ -43,6 +43,8 @@ def system_message(
         "candidate_known_values": known_values(state.candidate),
         "candidate_field_status": field_status(state.candidate),
         "fields_still_to_ask": list(unfinished_fields(state.candidate)),
+        "pending_confirmation": pending_facts(state),
+        "lifecycle": state.lifecycle,
     }
     content = (
         prompts.load("system")
@@ -61,6 +63,17 @@ def known_values(candidate: CandidateRecord) -> dict[str, object]:
         if value is not None:
             values[name] = sorted(value) if isinstance(value, frozenset) else value
     return values
+
+
+def pending_facts(state: SessionState) -> dict[str, object] | None:
+    """What a bare yes or no would answer, if anything."""
+    pending = state.pending_confirmation
+    if pending is None:
+        return None
+    facts: dict[str, object] = {"kind": pending.target.kind, "status": pending.status}
+    if pending.target.kind == "field":
+        facts["field"] = pending.target.field
+    return facts
 
 
 def field_status(candidate: CandidateRecord) -> dict[str, str]:

@@ -16,7 +16,7 @@ from cafe_norte.conversation.contracts import (
     TurnInput,
     TurnStarted,
 )
-from cafe_norte.conversation.handlers import UpdateCandidateHandler
+from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.domain.configuration import load_configurations
@@ -68,10 +68,9 @@ class Harness:
         self.store = MemoryStore()
         configurations = load_configurations(CONFIG_DIR)
         self.model = FakeModel(scripts)
-        handler = UpdateCandidateHandler(store=self.store, configurations=configurations)
         self.runtime = Runtime(
             model=self.model,
-            tools=ToolRegistry({"update_candidate": handler}),
+            tools=ToolRegistry(all_handlers(store=self.store, configurations=configurations)),
             retriever=FakeRetriever(),
             store=self.store,
             configurations=configurations,
@@ -140,7 +139,13 @@ async def test_the_model_sees_history_state_and_only_registered_tools() -> None:
     assert '"candidate_known_values": {"name": "Lucía"}' in third[0].content
     assert '"name": "captured"' in third[0].content
     assert '"status"' not in third[0].content.split("candidate_known_values")[1].split("}")[0]
-    assert [t.name for t in h.model.advertised_tools[0]] == ["update_candidate"]
+    assert [t.name for t in h.model.advertised_tools[0]] == [
+        "update_candidate",
+        "present_confirmation",
+        "confirm_field",
+        "confirm_brief",
+        "end_session",
+    ]
 
 
 async def test_a_domain_refusal_goes_back_to_the_model_and_writes_nothing() -> None:
@@ -342,6 +347,61 @@ async def test_a_question_before_the_tool_call_silences_the_round_after_it() -> 
     events = await h.run("Hola")
     assert [e.text for e in events if isinstance(e, AssistantText)] == ["¿Cómo te llamas?"]
     assert any(isinstance(e, StateUpdated) for e in events)  # the tool call still ran
+
+
+def present_brief(call_id: str = "p1") -> ToolCall:
+    return ToolCall(
+        call_id=call_id, name="present_confirmation", arguments_json='{"target": "brief"}'
+    )
+
+
+async def fill_record(h: Harness) -> None:
+    from tests.test_handlers import FULL, full_record
+
+    _ = FULL
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None
+    async with h.store.transaction() as tx:
+        await h.store.sessions.save(
+            tx, state.model_copy(update={"candidate": full_record()}), expected_revision=0
+        )
+
+
+async def test_a_presentation_is_spoken_verbatim_before_tool_finished_and_marked_delivered() -> (
+    None
+):
+    h = Harness([[present_brief(), WANTS_TOOLS], says("Dime.")])
+    await h.open_session()
+    await fill_record(h)
+    events = await h.run("ya está todo")
+    kinds = [type(e).__name__ for e in events]
+    spoken = [e.text for e in events if isinstance(e, AssistantText)]
+    assert kinds.index("AssistantText") < kinds.index("ToolFinished")
+    assert spoken[0] == "Te resumo lo que tengo." and spoken[-1] == "¿Es todo correcto?"
+    assert "Dime." not in spoken  # the brief ends with the turn's one question
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.fully_delivered is True
+    assert state.pending_confirmation.presentation_text == " ".join(spoken)
+
+
+async def test_a_turn_on_an_ended_session_fails_with_session_ended_and_persists_nothing() -> None:
+    h = Harness([says("Hola.")])
+    await h.open_session()
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None
+    async with h.store.transaction() as tx:
+        await h.store.sessions.save(
+            tx,
+            state.model_copy(update={"lifecycle": "completed", "outcome": "brief_only"}),
+            expected_revision=0,
+        )
+    events = await h.run("¿sigues ahí?")
+    assert [type(e) for e in events] == [TurnFailed]
+    assert isinstance(events[0], TurnFailed) and events[0].code == "session_ended"
+    assert events[0].message == "Esta conversación ha terminado."
+    assert await h.store.turns.recent(SESSION, 10) == ()
+    assert h.model.calls == ()
 
 
 async def test_an_unknown_session_fails_with_not_found() -> None:

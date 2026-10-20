@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-PROMPT_VERSION = "ana_v3"
+PROMPT_VERSION = "ana_v4"
 PROMPTS_DIR = Path(__file__).parent
 
 

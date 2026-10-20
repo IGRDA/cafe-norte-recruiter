@@ -19,7 +19,7 @@ from cafe_norte.api.contracts import ErrorResponse
 from cafe_norte.api.routes import TurnTasks, build_router
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import ConversationRuntime
-from cafe_norte.conversation.handlers import UpdateCandidateHandler
+from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.domain.configuration import load_configurations
@@ -44,6 +44,7 @@ STATUS: dict[ErrorCode, int] = {
     "not_found": 404,
     "conflict": 409,
     "limit_exceeded": 429,
+    "session_ended": 409,
     "internal_error": 500,
 }
 
@@ -112,9 +113,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
     env = env if env is not None else os.environ
     store = MemoryStore()
     configurations = load_configurations(Path(env.get("CAFE_NORTE_CONFIG_DIR", "config")))
-    registry = ToolRegistry(
-        {"update_candidate": UpdateCandidateHandler(store=store, configurations=configurations)}
-    )
+    registry = ToolRegistry(all_handlers(store=store, configurations=configurations))
     runtime = Runtime(
         model=_model(env),
         tools=registry,

@@ -38,6 +38,7 @@ from cafe_norte.domain.contracts import (
     StoreConfiguration,
     TurnId,
 )
+from cafe_norte.domain.lifecycle import is_terminal
 from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.model.contracts import (
@@ -191,6 +192,9 @@ class Runtime:
                 yield await self._journal(turn.session_id, TurnId(""), _NOT_FOUND)
                 return
             run = _Turn(input=turn, state=state)
+            if is_terminal(state):
+                yield await self._emit(run, run.failed("session_ended"))
+                return
             try:
                 async for event in self._turn(run):
                     yield event
@@ -389,6 +393,12 @@ class Runtime:
             run.time("tool", started, tool_name=call.name)
             for extra in outcome.events:
                 yield await self._emit(run, extra)
+            if outcome.spoken:
+                # A read-back: said verbatim, then recorded as delivered (text channel).
+                for sentence in _sentences(outcome.spoken):
+                    if self._say_once(run, run.spoken, sentence):
+                        yield await self._emit(run, _say(sentence))
+                await self._mark_delivered(run)
             yield await self._emit(
                 run, ToolFinished(name=call.name, ok=outcome.ok, summary=outcome.summary)
             )
@@ -398,6 +408,21 @@ class Runtime:
                     content=_tool_message(outcome.model_text, run.spoken),
                     tool_call_id=call.call_id,
                 )
+            )
+
+    async def _mark_delivered(self, run: _Turn) -> None:
+        """The text channel has delivered the read-back once it is journaled; voice will do
+        this on playback acknowledgement instead."""
+        state = await self._store.sessions.get(run.session_id)
+        pending = state.pending_confirmation if state is not None else None
+        if state is None or pending is None or pending.fully_delivered:
+            return
+        delivered = pending.model_copy(update={"fully_delivered": True})
+        async with self._store.transaction() as tx:
+            await self._store.sessions.save(
+                tx,
+                state.model_copy(update={"pending_confirmation": delivered}),
+                expected_revision=state.candidate.revision,
             )
 
     # ---- the journal -----------------------------------------------------------------------------
@@ -439,6 +464,12 @@ def _tool_message(model_text: str, spoken: list[str]) -> str:
         f"{model_text} Already said to the candidate this turn: {said} "
         "Do not repeat or rephrase it; continue, or reply with nothing if it is enough."
     )
+
+
+def _sentences(text: str) -> list[str]:
+    complete, rest = split_sentences(text + " ")
+    tail = clean_sentence(rest)
+    return complete + ([tail] if tail else [])
 
 
 def _say(sentence: str) -> AssistantText:

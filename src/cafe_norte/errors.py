@@ -19,6 +19,7 @@ ErrorCode = Literal[
     "not_found",  # session, slot or confirmation does not exist for this caller
     "conflict",  # revision mismatch, slot taken, superseded lease, duplicate input id
     "limit_exceeded",  # text length, turns per session or active seconds
+    "session_ended",  # the session is completed, stopped, abandoned or failed
     "internal_error",
 ]
 
@@ -34,6 +35,7 @@ MESSAGES: dict[Language, dict[ErrorCode, str]] = {
         "not_found": "No encuentro esa conversación.",
         "conflict": "Alguien ha modificado esta conversación. Recarga la página.",
         "limit_exceeded": "Se ha alcanzado el límite de esta conversación.",
+        "session_ended": "Esta conversación ha terminado.",
         "internal_error": "No se pudo completar la operación.",
     },
     "en": {
@@ -47,6 +49,7 @@ MESSAGES: dict[Language, dict[ErrorCode, str]] = {
         "not_found": "I cannot find that conversation.",
         "conflict": "This conversation changed elsewhere. Please reload the page.",
         "limit_exceeded": "This conversation has reached its limit.",
+        "session_ended": "This conversation has ended.",
         "internal_error": "The operation could not be completed.",
     },
 }

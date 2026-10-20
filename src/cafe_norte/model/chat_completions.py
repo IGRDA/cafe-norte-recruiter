@@ -134,6 +134,13 @@ async def _parse(
         except json.JSONDecodeError as error:
             raise ModelError("malformed chunk", code="invalid_response") from error
         if "error" in chunk:
+            rejected = _rejected_tool_call(chunk["error"], len(pending))
+            if rejected is not None:
+                # The provider refused the call against the schema. Hand it over anyway so
+                # the registry's validation message reaches the model and it can repair.
+                yield rejected
+                yield ModelFinished(reason="tool_calls")
+                return
             raise ModelError(_error_detail(chunk["error"]), code="invalid_response")
         raw_usage = chunk.get("usage") or chunk.get("x_groq", {}).get("usage")
         if raw_usage:
@@ -182,6 +189,25 @@ def _retry_wait(detail: str) -> float:
     match = _RETRY_HINT.search(detail)
     hinted = float(match.group(1)) if match else 1.0
     return min(max(hinted, 0.05), MAX_RETRY_WAIT_SECONDS)
+
+
+def _rejected_tool_call(error: Any, index: int) -> ToolCall | None:
+    """Groq's ``tool_use_failed`` carries the generation it refused; when it names a tool and
+    has arguments, it is returned as a call the registry will reject with a usable message."""
+    if not isinstance(error, dict) or error.get("code") != "tool_use_failed":
+        return None
+    try:
+        generation = json.loads(error.get("failed_generation") or "")
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(generation, dict) or not isinstance(generation.get("name"), str):
+        return None
+    arguments = generation.get("arguments", {})
+    return ToolCall(
+        call_id=f"rejected_{index}",
+        name=generation["name"],
+        arguments_json=arguments if isinstance(arguments, str) else json.dumps(arguments),
+    )
 
 
 def _error_detail(error: Any) -> str:

@@ -169,6 +169,45 @@ async def test_bad_provider_output_raises_a_coded_model_error(
     assert raised.value.code == code
 
 
+TOOL_USE_FAILED_WITH_GENERATION = (
+    sse(delta(reasoning="hm"), done=False)
+    + "event: error\ndata: "
+    + json.dumps(
+        {
+            "error": {
+                "message": "Tool call validation failed: /evidence_text minLength",
+                "type": "invalid_request_error",
+                "code": "tool_use_failed",
+                "failed_generation": json.dumps(
+                    {
+                        "name": "update_candidate",
+                        "arguments": {
+                            "evidence_text": "",
+                            "patch": {"work_authorization": "sí"},
+                        },
+                    }
+                ),
+            }
+        }
+    )
+    + "\n\n"
+)
+
+
+async def test_a_rejected_tool_call_with_its_generation_becomes_a_repairable_call() -> None:
+    """Groq validates arguments before we do; the model's bad call must still reach the
+    registry so the usual repair message goes back to it instead of failing the turn."""
+    events, _ = await run(TOOL_USE_FAILED_WITH_GENERATION)
+    assert events == [
+        ToolCall(
+            call_id="rejected_0",
+            name="update_candidate",
+            arguments_json=json.dumps({"evidence_text": "", "patch": {"work_authorization": "sí"}}),
+        ),
+        ModelFinished(reason="tool_calls"),
+    ]
+
+
 async def test_a_provider_error_event_keeps_its_code_and_message() -> None:
     with pytest.raises(ModelError) as raised:
         await run(GROQ_TOOL_USE_FAILED)

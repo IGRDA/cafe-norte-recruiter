@@ -33,5 +33,9 @@ def test_model_selection_needs_a_known_provider_and_its_key() -> None:
     assert groq.model_id == "openai/gpt-oss-120b"
     with pytest.raises(ValueError, match="GROQ_API_KEY"):
         model_from_env("groq/openai/gpt-oss-120b", {})
+    openai = model_from_env("openai/gpt-4o-mini", {"OPENAI_API_KEY": "k"})
+    assert openai.model_id == "gpt-4o-mini"
+    with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+        model_from_env("openai/gpt-4o-mini", {})
     with pytest.raises(ValueError, match="unknown model selector"):
-        model_from_env("openai/gpt-4o", {"OPENAI_API_KEY": "k"})
+        model_from_env("anthropic/claude", {"ANTHROPIC_API_KEY": "k"})

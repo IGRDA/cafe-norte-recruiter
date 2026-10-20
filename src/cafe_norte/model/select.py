@@ -8,6 +8,8 @@ from cafe_norte.model.fake import FakeModel
 
 PROVIDERS: dict[str, str] = {
     "groq": "https://api.groq.com/openai/v1/chat/completions",
+    # Same wire format; a local alternative when Groq's free-tier daily quota runs out.
+    "openai": "https://api.openai.com/v1/chat/completions",
 }
 
 

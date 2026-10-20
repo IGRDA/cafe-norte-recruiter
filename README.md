@@ -29,7 +29,8 @@ make run        # http://localhost:8000 with fakes; GROQ_API_KEY + CAFE_NORTE_MO
 With no `.env`, the model is a fake that answers every turn with one fixed sentence, the store
 is in memory, retrieval is canned and hosted voice is off: no credentials, no Docker, no network
 after installation. Copy `.env.example` to `.env` and set `CAFE_NORTE_MODEL=groq/openai/gpt-oss-120b`
-with `GROQ_API_KEY` to talk to Ana for real; press **Hablar** in Chrome, Edge or Safari to use
+with `GROQ_API_KEY` to talk to Ana for real (or `CAFE_NORTE_MODEL=openai/gpt-4o-mini` with `OPENAI_API_KEY`;
+Groq's free tier caps at 200k tokens a day); press **Hablar** in Chrome, Edge or Safari to use
 the browser's speech recognition and synthesis.
 
 ## How it is built

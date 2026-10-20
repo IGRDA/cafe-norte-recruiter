@@ -31,7 +31,7 @@ from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.memory import MemoryStore
-from cafe_norte.voice.contracts import RoomProvisioner, VoiceSessionController
+from cafe_norte.voice.contracts import RoomProvisioner, VoiceMode, VoiceSessionController
 
 STATUS: dict[ErrorCode, int] = {
     "busy": 503,
@@ -58,6 +58,9 @@ def create_app(
     rooms: RoomProvisioner | None = None,
     voice: VoiceSessionController | None = None,
     web_dir: Path | None = None,
+    voice_mode: VoiceMode = "off",
+    max_voice_sessions: int = 2,
+    session_seconds: float = 480.0,
 ) -> FastAPI:
     """Build from typed collaborators. Lifespan today: cancel in-flight turns on shutdown.
     Later stages add store warm-up, calendar seeding, lease renewal and the summary worker."""
@@ -78,6 +81,9 @@ def create_app(
             voice=voice,
             gate=gate,
             tasks=tasks,
+            voice_mode=voice_mode,
+            max_voice_sessions=max_voice_sessions,
+            session_seconds=session_seconds,
         )
     )
 

@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from cafe_norte.conversation.contracts import RuntimeEvent
 from cafe_norte.domain.contracts import Channel, ConfigId, InputId, SessionId, TurnId
 from cafe_norte.errors import ErrorCode, Language
-from cafe_norte.voice.contracts import VoiceStatus
+from cafe_norte.voice.contracts import VoiceMode, VoiceStatus
 
 
 class Frozen(BaseModel):
@@ -25,6 +25,13 @@ class ConfigurationSummary(Frozen):
     city: str
     hours_per_week: int
     languages: tuple[Language, ...] = ("es", "en")
+
+
+class RuntimeInfo(Frozen):
+    """What the page needs before it renders: which voice to offer and the stores."""
+
+    voice: VoiceMode
+    config_ids: tuple[ConfigId, ...]
 
 
 class CreateSessionRequest(Frozen):

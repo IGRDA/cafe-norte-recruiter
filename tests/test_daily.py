@@ -80,7 +80,7 @@ async def test_destroy_is_best_effort() -> None:
 
 
 def test_room_expiry_is_the_session_cap_plus_a_margin() -> None:
-    from cafe_norte.voice.daily import room_expiry
+    from cafe_norte.voice.contracts import room_expiry
 
     now = datetime(2026, 10, 20, 10, 0, tzinfo=UTC)
     assert room_expiry(now, session_seconds=480) == now + timedelta(seconds=480 + 120)

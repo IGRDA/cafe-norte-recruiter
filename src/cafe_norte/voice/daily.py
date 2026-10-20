@@ -1,6 +1,6 @@
 """Daily REST: private rooms and meeting tokens. One room per session, two scoped tokens."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -10,11 +10,6 @@ from cafe_norte.errors import ErrorCode, ServiceError
 from cafe_norte.voice.contracts import Room
 
 API = "https://api.daily.co/v1"
-ROOM_MARGIN_SECONDS = 120  # the room outlives the session cap by this much, then ejects
-
-
-def room_expiry(now: datetime, *, session_seconds: float) -> datetime:
-    return now + timedelta(seconds=session_seconds + ROOM_MARGIN_SECONDS)
 
 
 class DailyRooms:

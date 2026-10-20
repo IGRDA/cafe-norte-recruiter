@@ -15,14 +15,25 @@ from cafe_norte.api.contracts import (
     ConfigurationSummary,
     CreateSessionRequest,
     CreateSessionResponse,
+    RuntimeInfo,
     TurnAccepted,
     TurnRequest,
+    VoiceStartResponse,
+    VoiceTimingReport,
 )
 from cafe_norte.conversation.contracts import ConversationRuntime, TurnInput
 from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, StoreConfiguration
 from cafe_norte.errors import ServiceError
 from cafe_norte.persistence.contracts import Store
-from cafe_norte.voice.contracts import RoomProvisioner, VoiceSessionController
+from cafe_norte.voice.contracts import (
+    RoomProvisioner,
+    VoiceMode,
+    VoiceSessionController,
+    VoiceTiming,
+    room_expiry,
+)
+
+VOICE_RESERVE_EUR = 0.5  # per-session spend reservation until pricing lands
 
 
 class TurnTasks:
@@ -52,9 +63,13 @@ def build_router(
     voice: VoiceSessionController | None,
     gate: AccessGate,
     tasks: TurnTasks,
+    voice_mode: VoiceMode = "off",
+    max_voice_sessions: int = 2,
+    session_seconds: float = 480.0,
 ) -> APIRouter:
     """Voice endpoints return ``provider_unavailable`` when ``rooms``/``voice`` are None."""
     router = APIRouter()
+    hosted_voice = voice_mode == "pipecat" and rooms is not None and voice is not None
 
     def owner(request: Request, session_id: str) -> SessionId:
         found = gate.session_from_cookie(request.cookies.get(SESSION_COOKIE))
@@ -71,6 +86,54 @@ def build_router(
         if not await store.check_ready():
             raise ServiceError("store not ready", code="provider_unavailable")
         return {"status": "ok"}
+
+    @router.get("/api/runtime")
+    async def runtime_info() -> RuntimeInfo:
+        return RuntimeInfo(voice=voice_mode, config_ids=tuple(configurations))
+
+    @router.post("/api/sessions/{session_id}/voice")
+    async def start_voice(session_id: str, request: Request) -> VoiceStartResponse:
+        """Admission, a private room, the bot joins. A failure at any step leaves nothing
+        behind: the slot is released and the room destroyed."""
+        sid = owner(request, session_id)
+        if not hosted_voice or rooms is None or voice is None:
+            raise ServiceError("voice is not configured", code="provider_unavailable")
+        if await store.sessions.get(sid) is None:
+            raise ServiceError("no such session", code="not_found")
+        if not await store.admission.acquire(
+            sid, max_active=max_voice_sessions, reserve_eur=VOICE_RESERVE_EUR
+        ):
+            raise ServiceError("voice capacity reached", code="busy")
+        expires_at = room_expiry(datetime.now(UTC), session_seconds=session_seconds)
+        try:
+            room = await rooms.create(sid, expires_at=expires_at)
+        except Exception:
+            await store.admission.release(sid, actual_eur=0.0)
+            raise
+        try:
+            await voice.start(sid, room)
+        except Exception:
+            await rooms.destroy(room)
+            await store.admission.release(sid, actual_eur=0.0)
+            raise
+        return VoiceStartResponse(
+            room_url=room.room_url, candidate_token=room.candidate_token, expires_at=expires_at
+        )
+
+    @router.post("/api/sessions/{session_id}/voice/timings", status_code=status.HTTP_204_NO_CONTENT)
+    async def voice_timings(session_id: str, body: VoiceTimingReport, request: Request) -> Response:
+        sid = owner(request, session_id)
+        if voice is not None:
+            voice.observe(
+                VoiceTiming(
+                    session_id=sid,
+                    turn_id=body.turn_id,
+                    event=body.event,
+                    monotonic_ms=body.monotonic_ms,
+                    source="browser",
+                )
+            )
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @router.get("/api/configurations")
     async def list_configurations() -> list[ConfigurationSummary]:

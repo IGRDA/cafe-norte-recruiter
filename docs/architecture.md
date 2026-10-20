@@ -34,6 +34,9 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 | --- | --- |
 | Active conversation per session | 480 s, across resumes |
 | Tool rounds per turn | 4 |
+| Recent turns in the prompt | 20 |
+| Tool arguments from the model | 16 KiB |
+| SSE heartbeat while idle | 15 s |
 | Malformed-call repairs per turn | 1 |
 | LLM first output | 6 s |
 | External tool | 10 s |

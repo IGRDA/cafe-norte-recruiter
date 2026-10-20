@@ -218,7 +218,42 @@ networks, no VPC connector.
 **Why.** It is the documented Cloud Run path, needs no extra library, and keeps D03. Amends
 spec §11.
 
-## Assumptions recorded without a question
+## D18 · Tracer bullet first: one turn end to end, browser speech as a stand-in for voice
+
+_Added 20 October 2026._
+
+**Context.** With the contracts in place (D13), the next commit could deepen one module or
+cut the thinnest path through all of them. The brief rewards a working conversation early and
+the design wants complexity added in layers.
+
+**Options.**
+- A. A tracer bullet: one text turn through API, runtime, one tool (`update_candidate`, one
+  field), domain validation, in-memory persistence and the SSE stream, with the browser's own
+  Web Speech API (recognition in, synthesis out) feeding the same path for voice. Tests offline
+  with `FakeModel` and `MemoryStore`; the Groq adapter ships so `make run` with a key is real.
+- B. Module by module: finish the domain, then persistence on Postgres, then the runtime.
+- C. The full voice stack (Pipecat, Daily, Deepgram, ElevenLabs) in the first slice.
+
+**Decision.** A.
+
+**Why.** Every layer is exercised once, so the next layers extend code that already runs; the
+integration risk with a real model is met in the second pull request instead of the sixth; CI
+never needs a credential. Web Speech costs about eighty lines of JavaScript that `voice/`
+replaces without touching `app.js`, and it gives a usable voice loop today. C puts three
+provider accounts in front of the first conversation; B defers the first conversation by weeks.
+
+**Consequences we accept, and what is deliberately missing.**
+- Only `update_candidate` is registered; the registry advertises registered tools only.
+- Spanish only in the prompt; `language` is carried and `en` is refused nowhere yet.
+- No access code, resume tokens, snapshot endpoint, cancellation, repair budget, signals,
+  leases, Postgres or tracing. Each stays `NotImplementedError` behind its port.
+- Sequence numbers live in the runtime per process; Postgres will own them.
+- Ana does not open the conversation; the candidate greets first. The opening turn is part
+  of the lifecycle stage.
+- Browser speech has no barge-in and no meaningful latency figures; nothing from it is a
+  measurement.
+
+
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.
 - Code and documentation in English; candidate-facing text in Spanish (Spain) and English.

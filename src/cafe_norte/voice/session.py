@@ -52,7 +52,7 @@ class VoiceSession:
         speak: Speak,
         on_status: Callable[[VoiceStatus], None],
         texts: VoiceTexts,
-        clock: Callable[[], datetime] = _utcnow,
+        clock: Callable[[], datetime] | None = None,
         idle_prompt_seconds: float = 8.0,
         idle_pause_seconds: float = 12.0,
     ) -> None:
@@ -61,7 +61,7 @@ class VoiceSession:
         self._speak = speak
         self._on_status = on_status
         self._texts = texts
-        self._clock = clock
+        self._clock = clock or _utcnow
         self._idle_prompt_seconds = idle_prompt_seconds
         self._idle_pause_seconds = idle_pause_seconds
         self.status: VoiceStatus = "connecting"

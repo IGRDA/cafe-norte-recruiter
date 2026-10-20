@@ -1,9 +1,10 @@
 """The two Pipecat ``FrameProcessor``s. They only map frames to ``VoiceSession`` methods.
 
-``InboundBridge`` sits between STT and TTS: final transcripts and interruptions go to the
-session, interim transcripts are dropped, everything else passes. ``PlaybackTap`` sits after
-the output transport, where ``TTSStoppedFrame`` arrives once the audio has actually played.
-Pipecat is imported here and in ``pipeline.py`` only."""
+``InboundBridge`` sits after Pipecat's user aggregator (which owns VAD, turn end, segment
+joining and interruptions) and before TTS: the aggregated user message becomes one turn for the
+session, interruptions go to the session, raw transcripts never reach TTS. ``PlaybackTap`` sits
+after the output transport, where ``TTSStoppedFrame`` arrives once the audio has actually
+played. Pipecat is imported here and in ``pipeline.py`` only."""
 
 from typing import Protocol
 
@@ -11,6 +12,7 @@ from pipecat.frames.frames import (
     Frame,
     InterimTranscriptionFrame,
     InterruptionFrame,
+    LLMContextFrame,
     TranscriptionFrame,
     TTSSpeakFrame,
     TTSStoppedFrame,
@@ -31,11 +33,16 @@ class InboundBridge(FrameProcessor):
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
-        if isinstance(frame, InterimTranscriptionFrame):
-            return  # provisional text is never evidence
-        if isinstance(frame, TranscriptionFrame):
-            await self._session.transcript(frame.text)
-            return  # never let the candidate's words reach TTS
+        if isinstance(frame, InterimTranscriptionFrame | TranscriptionFrame):
+            return  # raw words: provisional or already aggregated; never spoken back
+        if isinstance(frame, LLMContextFrame):
+            text = _last_user_message(frame)
+            frame.context.set_messages(
+                []
+            )  # the runtime keeps history; Pipecat's context stays empty
+            if text:
+                await self._session.transcript(text)
+            return
         if isinstance(frame, InterruptionFrame):
             await self._session.interrupted()
         await self.push_frame(frame, direction)
@@ -54,3 +61,11 @@ class PlaybackTap(FrameProcessor):
         if isinstance(frame, TTSStoppedFrame):
             await self._session.played_one()
         await self.push_frame(frame, direction)
+
+
+def _last_user_message(frame: LLMContextFrame) -> str:
+    for message in reversed(frame.context.get_messages()):
+        if isinstance(message, dict) and message.get("role") == "user":
+            content = message.get("content")
+            return content.strip() if isinstance(content, str) else ""
+    return ""

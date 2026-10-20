@@ -20,7 +20,7 @@ the deterministic release gate; their live counterparts run from `evals/`.
 Today (D18) the suite has: the import-rule check, field algebra properties, patch validation
 and application, configuration loading, the memory store's transactions, the registry, the
 runtime's turn behaviour, SSE encoding and heartbeat, cookie ownership, the Groq adapter
-against a scripted transport, and `tests/test_api_tracer.py`, the outside-in acceptance test of
+against a scripted transport, the handlers, the confirmation rules, the brief, `tests/test_scenario_s01.py` (S01 end to end plus a correction after the brief) and `tests/test_api_tracer.py`, the outside-in acceptance test of
 the whole tracer bullet through the HTTP boundary. `tests/support.py` builds the app with fakes.
 
 Fakes live next to the port they implement (`model/fake.py`, `persistence/memory.py`,

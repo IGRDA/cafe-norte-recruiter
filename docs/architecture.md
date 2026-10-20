@@ -36,6 +36,9 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 | Tool rounds per turn | 4 |
 | Characters spoken per model round | 600, then the stream is closed |
 | Questions spoken per turn | 1; later sentences are read, not voiced |
+| Brief length | 4–8 sentences, deterministic |
+| Fields read back right after capture | `contact_phone`, `earliest_start_date` |
+| Coverage floor | 80% of the package |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | Recent turns in the prompt | 20 |
 | Tool arguments from the model | 16 KiB |

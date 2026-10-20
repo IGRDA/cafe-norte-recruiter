@@ -123,6 +123,16 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
       queued = 0;
       anaTalking = false;
     },
+    // The conversation ended: no more listening, but Ana's goodbye plays to the end.
+    stopAfterSpeaking() {
+      stopListening();
+      const finish = () => {
+        active = false;
+        anaTalking = false;
+      };
+      if (queued === 0) finish();
+      else setTimeout(function wait() { queued === 0 ? finish() : setTimeout(wait, 200); }, 200);
+    },
     // Speak one sentence as soon as it arrives; stop the microphone so Ana does not hear herself.
     speak(text) {
       if (!active) return;

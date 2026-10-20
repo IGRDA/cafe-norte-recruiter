@@ -33,6 +33,10 @@ h2 { font-size: 0.95rem; margin: 16px 0 8px; color: var(--muted); text-transform
 .composer button { padding: 10px 14px; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; font-size: 1rem; cursor: pointer; }
 .composer button[aria-pressed="true"] { background: #fff; color: var(--accent); }
 .composer button:disabled { opacity: 0.6; cursor: wait; }
+.confirmation { margin: 0; padding: 8px; border: 1px dashed var(--line); border-radius: 6px; font-size: 0.9rem; }
+.confirmation[data-status="pending"] { border-color: var(--accent); }
+.confirmation[data-status="confirmed"] { border-style: solid; }
+.confirmation[data-status="invalidated"], .confirmation[data-status="rejected"] { color: var(--muted); text-decoration: line-through; }
 .error { color: var(--error); font-weight: 600; margin: 8px 0 0; }
 dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
 dt { color: var(--muted); }

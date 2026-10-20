@@ -24,6 +24,7 @@ const el = {
   talk: document.getElementById("talk"),
   error: document.getElementById("error"),
   candidate: document.getElementById("candidate"),
+  confirmation: document.getElementById("confirmation"),
   review: document.getElementById("review"),
 };
 
@@ -107,7 +108,9 @@ function handle(event) {
     case "state_updated":
       state.candidate = payload;
       renderCandidate();
+      renderConfirmation(payload.pending_confirmation);
       review(`estado guardado, revisión ${payload.revision}`);
+      if (TERMINAL.has(payload.lifecycle)) endConversation();
       break;
     case "turn_finished": {
       const ms = Object.fromEntries(payload.timings.map((t) => [t.stage, t.milliseconds]));
@@ -120,6 +123,7 @@ function handle(event) {
     case "turn_failed":
       review(`turno fallido · ${payload.code}`);
       showError(payload.message);
+      if (payload.code === "session_ended") endConversation();
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
       if (state.voiceOn) voice.turnEnded();
       break;
@@ -193,6 +197,14 @@ const FIELDS = [
   ["contact_phone", "Teléfono"],
 ];
 const STATUS_TEXT = { unknown: "no lo sabe", declined: "no quiere decirlo", unset: "—" };
+const CONFIRMATION_TEXT = {
+  pending: "pendiente",
+  confirmed: "confirmada",
+  rejected: "rechazada",
+  invalidated: "invalidada",
+  expired: "caducada",
+};
+const TERMINAL = new Set(["completed", "stopped", "abandoned", "failed"]);
 
 function fieldText(field) {
   if (!field) return "—";
@@ -219,6 +231,28 @@ function renderCandidate() {
       return [dt, dd];
     }),
   );
+}
+
+function renderConfirmation(confirmation) {
+  if (!confirmation) {
+    el.confirmation.textContent = "—";
+    el.confirmation.removeAttribute("data-status");
+    return;
+  }
+  const label = CONFIRMATION_TEXT[confirmation.status] ?? confirmation.status;
+  el.confirmation.textContent = `${label} (rev. ${confirmation.target.revision ?? "–"}): ${confirmation.presentation_text}`;
+  el.confirmation.dataset.status = confirmation.status;
+}
+
+function endConversation() {
+  el.text.disabled = true;
+  el.send.disabled = true;
+  el.talk.disabled = true;
+  if (state.voiceOn) {
+    state.voiceOn = false;
+    voice.stopAfterSpeaking();
+  }
+  setStatus("Conversación terminada. Gracias.");
 }
 
 function review(line) {

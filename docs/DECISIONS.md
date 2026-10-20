@@ -275,6 +275,28 @@ _Added 20 October 2026, with the full-record stage._
 then Ana closes the collection with a sentence and the session stays `active`. D18's "Ana does
 not open the conversation" no longer holds.
 
+## D20 · Read-backs are spoken by the runtime, word for word; the session ends by tool
+
+_Added 20 October 2026, with the confirmation stage._
+
+**Decisions.**
+- Phone and date are read back right after capture; the brief is presented when every requested
+  field is settled. The text comes from `conversation/brief.py` filling `prompts/brief.md`
+  (4 to 8 short sentences; unknown and declined stay visible; the optional phone only when
+  given). The runtime speaks it verbatim through `ToolOutcome.spoken` and stores the same text
+  as the pending confirmation, so shown, spoken and confirmed are one string. The model is told
+  it was already said and adds nothing. The domain keeps no candidate-facing text, so brief
+  rendering lives in `conversation/`, not `domain/candidate.py` as the scaffold planned.
+- A bare yes or no resolves only the pending confirmation, through `confirm_field` or
+  `confirm_brief` and `domain.confirmation.respond`; affirm needs it pending, delivered and at
+  the current revision. For the text channel "delivered" is set when the sentence is journaled;
+  voice will set it on playback acknowledgement.
+- Interview intent is recorded as a note until the booking stage; the session ends through
+  `end_session` and `lifecycle.transition` (`completed / brief_only`, or `stopped /
+  not_interested`). A turn on an ended session fails with the new `session_ended` code.
+- Work-permit `no` keeps the spec's rule: a review flag, nothing blocked, nothing ended.
+- Coverage floor `fail_under = 80` over the whole package; raised as stubs fill.
+
 ## Assumptions recorded without a question
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.

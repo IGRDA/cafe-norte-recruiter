@@ -6,7 +6,7 @@ voice status; one POST per text turn.
 
 | File | Responsibility |
 | --- | --- |
-| `index.html` | Entry: demo disclosure, status line, transcript, composer with Enviar/Hablar, candidate card with every field's value or status, notes, lifecycle and outcome, reviewer panel. Access code, store and language choice: later |
+| `index.html` | Entry: demo disclosure, status line, transcript, composer with Enviar/Hablar, candidate card with every field's value or status, notes, lifecycle and outcome, the pending confirmation and its status, reviewer panel; composer and mic disabled once the session ends. Access code, store and language choice: later |
 | `assets/app.js` | State store, SSE client with `Last-Event-ID`, turn submission with `input_id`, renderers |
 | `assets/voice.js` | Today (D18): Web Speech recognition in, `speechSynthesis` out with the best installed Spanish voice, microphone only after **Hablar** and only between turns, never between Ana's sentences; finals under 0.4 confidence or 2 characters are discarded as background speech and shown in the status line. Later: Daily join, barge-in and timing events |
 | `assets/app.css` | Compact responsive layout, readable contrast, visible errors |

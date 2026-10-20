@@ -8,7 +8,9 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
+from zoneinfo import ZoneInfo
 
+from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
@@ -25,6 +27,7 @@ from cafe_norte.conversation.prompt import HISTORY_TURNS, build_messages, split_
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.domain.contracts import (
     ConfigId,
+    InputId,
     SessionId,
     SessionState,
     StoreConfiguration,
@@ -186,6 +189,37 @@ class Runtime:
                 )
                 yield await self._emit(run, run.failed(error.code))
 
+    async def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
+        """The spec's opening sentence, word for word, before any candidate input."""
+        greeting = prompts.load("opening").strip()
+        opening = TurnInput(
+            session_id=session_id,
+            input_id=InputId("opening"),
+            text="",
+            channel="text",
+            received_at=self._clock(),
+        )
+        lock = self._locks.setdefault(session_id, asyncio.Lock())
+        async with lock:
+            state = await self._store.sessions.get(session_id)
+            if state is None:
+                yield await self._journal(session_id, TurnId(""), _NOT_FOUND)
+                return
+            run = _Turn(input=opening, state=state)
+            try:
+                async with self._store.transaction() as tx:
+                    await self._store.turns.append(
+                        tx, run.record("assistant", greeting, self._clock())
+                    )
+            except ServiceError as error:  # a second opening for the same session
+                yield await self._emit(run, run.failed(error.code))
+                return
+            yield await self._emit(run, TurnStarted(turn_id=run.turn_id, language=state.language))
+            yield await self._emit(run, _say(greeting))
+            yield await self._emit(
+                run, TurnFinished(turn_id=run.turn_id, interrupted=False, usage=(), timings=())
+            )
+
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:
         raise NotImplementedError  # voice stage
 
@@ -205,7 +239,10 @@ class Runtime:
 
         history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
         configuration = self._configurations[run.state.config_id]
-        run.messages = list(build_messages(configuration, run.state, history[:-1], run.input.text))
+        today = self._clock().astimezone(ZoneInfo(configuration.timezone)).date()
+        run.messages = list(
+            build_messages(configuration, run.state, history[:-1], run.input.text, today)
+        )
 
         for round_index in range(self._limits.max_tool_rounds + 1):
             async for event in self._model_round(run):

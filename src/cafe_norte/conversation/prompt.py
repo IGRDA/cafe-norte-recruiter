@@ -2,6 +2,7 @@
 
 import json
 import re
+from datetime import date
 
 from cafe_norte.conversation import prompts
 from cafe_norte.domain.candidate import VALUE_FIELDS, unfinished_fields
@@ -15,8 +16,14 @@ HISTORY_TURNS = 20
 _SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
 
 
-def system_message(configuration: StoreConfiguration, state: SessionState) -> ModelMessage:
+WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+
+
+def system_message(
+    configuration: StoreConfiguration, state: SessionState, today: date
+) -> ModelMessage:
     facts = {
+        "today": {"date": today.isoformat(), "weekday": WEEKDAYS[today.weekday()]},
         "store": {
             "name": configuration.store_name,
             "city": configuration.city,
@@ -69,9 +76,10 @@ def build_messages(
     state: SessionState,
     history: tuple[TurnRecord, ...],
     user_text: str,
+    today: date,
 ) -> tuple[ModelMessage, ...]:
     return (
-        system_message(configuration, state),
+        system_message(configuration, state, today),
         *history_messages(history),
         ModelMessage(role="user", content=user_text),
     )

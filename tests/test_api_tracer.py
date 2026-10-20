@@ -73,7 +73,14 @@ def create_session(client: TestClient) -> str:
     )
     assert response.status_code == 201, response.text
     assert "cafe_norte_session" in response.cookies
-    return str(response.json()["session_id"])
+    session_id = str(response.json()["session_id"])
+    opening = read_turn(client, session_id)
+    assert [e["type"] for e in opening] == ["turn_started", "assistant_text", "turn_finished"]
+    assert opening[1]["data"]["payload"]["text"].startswith("Hola, soy Ana, la asistente de IA")
+    return session_id
+
+
+OPENING_EVENTS = 3
 
 
 def test_a_name_is_captured_persisted_and_then_announced(
@@ -87,7 +94,7 @@ def test_a_name_is_captured_persisted_and_then_announced(
     )
     assert accepted.status_code == 202
 
-    events = read_turn(client, session_id)
+    events = read_turn(client, session_id, after=OPENING_EVENTS)
     types = [e["type"] for e in events]
     assert types == [
         "turn_started",
@@ -98,7 +105,7 @@ def test_a_name_is_captured_persisted_and_then_announced(
         "assistant_text",
         "turn_finished",
     ]
-    assert [e["seq"] for e in events] == list(range(1, 8))
+    assert [e["seq"] for e in events] == list(range(OPENING_EVENTS + 1, OPENING_EVENTS + 8))
 
     state = events[2]["data"]["payload"]
     assert state["revision"] == 1
@@ -120,8 +127,9 @@ def test_a_name_is_captured_persisted_and_then_announced(
 
     # The model saw the tool result and the user text in order; prompt assembly is real.
     second_call = model.calls[1]
-    assert [m.role for m in second_call] == ["system", "user", "assistant", "tool"]
-    assert second_call[1].content == "Me llamo Lucía Marín"
+    assert [m.role for m in second_call] == ["system", "assistant", "user", "assistant", "tool"]
+    assert second_call[1].content.startswith("Hola, soy Ana")  # the opening is in the history
+    assert second_call[2].content == "Me llamo Lucía Marín"
 
 
 def test_the_stream_replays_from_last_event_id(client: TestClient) -> None:
@@ -129,21 +137,25 @@ def test_the_stream_replays_from_last_event_id(client: TestClient) -> None:
     client.post(
         f"/api/sessions/{session_id}/turns", json={"input_id": "in-1", "text": "Me llamo Lucía"}
     )
-    read_turn(client, session_id)
+    read_turn(client, session_id, after=OPENING_EVENTS)
 
-    replayed = read_turn(client, session_id, after=4)
-    assert [e["seq"] for e in replayed] == [5, 6, 7]
+    replayed = read_turn(client, session_id, after=OPENING_EVENTS + 4)
+    assert [e["seq"] for e in replayed] == [
+        OPENING_EVENTS + 5,
+        OPENING_EVENTS + 6,
+        OPENING_EVENTS + 7,
+    ]
 
 
 def test_a_resubmitted_input_id_fails_once_with_conflict(client: TestClient) -> None:
     session_id = create_session(client)
     body = {"input_id": "in-1", "text": "Me llamo Lucía"}
     client.post(f"/api/sessions/{session_id}/turns", json=body)
-    read_turn(client, session_id)
+    read_turn(client, session_id, after=OPENING_EVENTS)
 
     again = client.post(f"/api/sessions/{session_id}/turns", json=body)
     assert again.status_code == 202
-    events = read_turn(client, session_id, after=7)
+    events = read_turn(client, session_id, after=OPENING_EVENTS + 7)
     assert [e["type"] for e in events] == ["turn_failed"]
     assert events[0]["data"]["payload"]["code"] == "conflict"
 

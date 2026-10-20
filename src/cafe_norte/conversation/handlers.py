@@ -15,7 +15,7 @@ from cafe_norte.domain.candidate import (
     unfinished_fields,
     validate_patch,
 )
-from cafe_norte.domain.contracts import ConfigId, Evidence, StoreConfiguration
+from cafe_norte.domain.contracts import ConfigId, Evidence, ReviewFlag, StoreConfiguration
 from cafe_norte.domain.result import Err
 from cafe_norte.persistence.contracts import Store
 
@@ -51,10 +51,20 @@ class UpdateCandidateHandler:
 
         evidence = Evidence(source_turn_id=context.turn_id, text=arguments.evidence_text)
         candidate = apply_patch(state.candidate, result.value, evidence)
+        flags = state.review_flags
+        if result.value.work_authorization in {"no", "unsure"}:
+            flags = (
+                *flags,
+                ReviewFlag(
+                    kind="work_authorization",
+                    turn_id=context.turn_id,
+                    note=f"self-reported {result.value.work_authorization}",
+                ),
+            )
         async with self._store.transaction() as tx:
             await self._store.sessions.save(
                 tx,
-                state.model_copy(update={"candidate": candidate}),
+                state.model_copy(update={"candidate": candidate, "review_flags": flags}),
                 expected_revision=state.candidate.revision,
             )
             await tx.commit()

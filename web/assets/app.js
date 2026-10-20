@@ -52,8 +52,9 @@ async function main() {
   }
   const body = await response.json();
   state.sessionId = body.session_id;
+  renderCandidate();
   openStream();
-  setStatus("Lista. Saluda a Ana para empezar.");
+  setStatus("Conectada.");
   el.text.focus();
 }
 
@@ -182,13 +183,43 @@ function renderTranscript() {
   el.transcript.lastElementChild?.scrollIntoView({ block: "end" });
 }
 
+const FIELDS = [
+  ["name", "Nombre"],
+  ["interest", "Interés"],
+  ["work_authorization", "Permiso de trabajo"],
+  ["availability_days", "Días"],
+  ["availability_shifts", "Turnos"],
+  ["hours_per_week", "Horas/semana"],
+  ["earliest_start_date", "Inicio"],
+  ["experience", "Experiencia"],
+  ["contact_phone", "Teléfono"],
+];
+const STATUS_TEXT = { unknown: "no lo sabe", declined: "no quiere decirlo", unset: "—" };
+
+function fieldText(field) {
+  if (!field) return "—";
+  if (field.status === "captured" || field.status === "confirmed") {
+    const value = Array.isArray(field.value) ? field.value.join(", ") : String(field.value);
+    return field.status === "confirmed" ? `${value} ✓` : value;
+  }
+  return STATUS_TEXT[field.status] ?? field.status;
+}
+
 function renderCandidate() {
-  const candidate = state.candidate?.candidate;
-  const name = candidate?.name;
-  const nameCell = el.candidate.querySelector('[data-field="name"]');
-  nameCell.textContent = name && name.value ? `${name.value} (${name.status})` : "—";
-  el.candidate.querySelector('[data-field="revision"]').textContent = String(
-    state.candidate?.revision ?? 0,
+  const update = state.candidate;
+  const candidate = update?.candidate;
+  const rows = FIELDS.map(([key, label]) => [label, fieldText(candidate?.[key])]);
+  rows.push(["Notas", candidate?.notes?.length ? candidate.notes.join(" · ") : "—"]);
+  rows.push(["Revisión", String(update?.revision ?? 0)]);
+  rows.push(["Estado", update ? `${update.lifecycle}${update.outcome ? ` · ${update.outcome}` : ""}` : "active"]);
+  el.candidate.replaceChildren(
+    ...rows.flatMap(([label, value]) => {
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      return [dt, dd];
+    }),
   );
 }
 

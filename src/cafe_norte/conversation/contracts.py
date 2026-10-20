@@ -128,6 +128,10 @@ class ConversationRuntime(Protocol):
 
     def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]: ...
 
+    def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
+        """Ana's opening: the fixed disclosure greeting, journaled like any turn, no model."""
+        ...
+
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:
         """Playback acknowledgement from the voice channel: what was actually heard."""
         ...

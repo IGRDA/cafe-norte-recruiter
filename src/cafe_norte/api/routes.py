@@ -100,6 +100,7 @@ def build_router(
             channel=body.channel,
         )
         await store.sessions.create(state, access_hash="")
+        tasks.start(_drain(runtime.open_session(session_id)))
         response.set_cookie(
             SESSION_COOKIE,
             gate.issue_session_cookie(session_id),

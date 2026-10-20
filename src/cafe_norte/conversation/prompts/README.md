@@ -6,6 +6,7 @@ configuration and the knowledge base, which are their single source.
 
 | File | Purpose |
 | --- | --- |
+| `opening.md` | The spec's disclosure greeting, journaled at session creation without a model call (D19) |
 | `system.md` | Ana's role, disclosure, one-question-at-a-time rules, confirmation discipline, language policy, what she must never infer |
 | `fake_model.md` | The one sentence the fake model says in `make run` without a real model |
 | `brief.md` | Template for the deterministic brief, both languages |

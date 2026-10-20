@@ -217,6 +217,47 @@ async def test_a_slow_first_token_fails_with_timeout() -> None:
     assert isinstance(events[-1], TurnFailed) and events[-1].code == "timeout"
 
 
+async def test_the_opening_is_journaled_and_becomes_history_for_the_first_turn() -> None:
+    h = Harness([says("Encantada.")])
+    await h.open_session()
+    opening = [e async for e in h.runtime.open_session(SESSION)]
+    assert [type(e) for e in opening] == [TurnStarted, AssistantText, TurnFinished]
+    assert isinstance(opening[1], AssistantText)
+    assert opening[1].text.startswith("Hola, soy Ana, la asistente de IA de Café Norte.")
+    await h.run("Sí, me viene bien.")
+    roles = [m.role for m in h.model.calls[0]]
+    assert roles == ["system", "assistant", "user"]
+    assert h.model.calls[0][1].content == opening[1].text
+    # A second opening for the same session is refused, not duplicated.
+    again = [e async for e in h.runtime.open_session(SESSION)]
+    assert isinstance(again[0], TurnFailed) and again[0].code == "conflict"
+
+
+async def test_the_prompt_carries_todays_date_in_madrid_and_the_weekday() -> None:
+    h = Harness([says("Vale.")])
+    await h.open_session()
+    await h.run("Hola")
+    assert '"today": {"date": "2026-10-20", "weekday": "martes"}' in h.model.calls[0][0].content
+
+
+async def test_doubtful_work_authorization_raises_a_review_flag_without_blocking() -> None:
+    call = ToolCall(
+        call_id="c1",
+        name="update_candidate",
+        arguments_json=json.dumps(
+            {"patch": {"work_authorization": "unsure"}, "evidence_text": "no estoy segura"}
+        ),
+    )
+    h = Harness([[call, WANTS_TOOLS], says("Entiendo.")])
+    await h.open_session()
+    events = await h.run("No estoy segura de si tengo permiso")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None
+    assert [f.kind for f in state.review_flags] == ["work_authorization"]
+    assert state.candidate.work_authorization.status == "captured"
+    assert isinstance(events[-1], TurnFinished)
+
+
 async def test_an_unknown_session_fails_with_not_found() -> None:
     h = Harness([])
     events = await h.run("Hola")

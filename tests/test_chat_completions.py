@@ -141,6 +141,11 @@ async def test_no_tools_means_no_tools_key_in_the_request() -> None:
 
 
 UNKNOWN_TOOL = sse(tool_delta(0, id="x", name="rm_rf", arguments="{}"), finish("tool_calls"))
+GROQ_TOOL_USE_FAILED = (
+    sse(delta(reasoning="hm"), done=False)
+    + 'event: error\ndata: {"error": {"message": "Tool call validation failed: '
+    '/patch/name expected string", "type": "invalid_request_error", "code": "tool_use_failed"}}\n\n'
+)
 
 
 @pytest.mark.parametrize(
@@ -149,6 +154,7 @@ UNKNOWN_TOOL = sse(tool_delta(0, id="x", name="rm_rf", arguments="{}"), finish("
         (sse(delta(content="Hola"), done=False), 200, "invalid_response"),
         ("data: {not json}\n\n", 200, "invalid_response"),
         (UNKNOWN_TOOL, 200, "invalid_response"),
+        (GROQ_TOOL_USE_FAILED, 200, "invalid_response"),
         (sse(finish("content_filter")), 200, "invalid_response"),
         ('{"error": "bad key"}', 401, "provider_rejected"),
         ("oops", 503, "provider_unavailable"),
@@ -160,6 +166,12 @@ async def test_bad_provider_output_raises_a_coded_model_error(
     with pytest.raises(ModelError) as raised:
         await run(body, status=status)
     assert raised.value.code == code
+
+
+async def test_a_provider_error_event_keeps_its_code_and_message() -> None:
+    with pytest.raises(ModelError) as raised:
+        await run(GROQ_TOOL_USE_FAILED)
+    assert "tool_use_failed" in str(raised.value) and "/patch/name" in str(raised.value)
 
 
 async def test_a_transport_timeout_is_a_timeout() -> None:

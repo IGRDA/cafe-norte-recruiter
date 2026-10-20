@@ -117,6 +117,8 @@ async def _parse(lines: AsyncIterator[str], known_tools: set[str]) -> AsyncItera
             chunk = json.loads(data)
         except json.JSONDecodeError as error:
             raise ModelError("malformed chunk", code="invalid_response") from error
+        if "error" in chunk:
+            raise ModelError(_error_detail(chunk["error"]), code="invalid_response")
         raw_usage = chunk.get("usage") or chunk.get("x_groq", {}).get("usage")
         if raw_usage:
             usage = ModelUsage(
@@ -158,6 +160,14 @@ async def _parse(lines: AsyncIterator[str], known_tools: set[str]) -> AsyncItera
     if reason is None:
         raise ModelError(f"finish_reason {finish!r}", code="invalid_response")
     yield ModelFinished(reason=reason)
+
+
+def _error_detail(error: Any) -> str:
+    """Groq sends ``event: error`` mid-stream, e.g. ``tool_use_failed`` when the model's
+    arguments do not match the schema; the stream then ends without a finish reason."""
+    if isinstance(error, dict):
+        return f"provider error {error.get('code', '')}: {str(error.get('message', ''))[:300]}"
+    return f"provider error: {str(error)[:300]}"
 
 
 def _wire(message: ModelMessage) -> dict[str, Any]:

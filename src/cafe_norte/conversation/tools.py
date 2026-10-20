@@ -85,7 +85,8 @@ ARGUMENT_MODELS: dict[ToolName, type[Args]] = {
 
 DESCRIPTIONS: dict[ToolName, str] = {
     "update_candidate": "Record facts the candidate just stated, or mark fields they declined "
-    "or do not know. Never guess a value.",
+    "or do not know. Patch values are plain strings, numbers, dates or lists, never objects. "
+    "Never guess a value.",
     "search_knowledge": "Look up role, store, pay, shifts, training or policy facts before "
     "answering a question about them.",
     "list_interview_slots": "Get two or three available interview slots for this store.",

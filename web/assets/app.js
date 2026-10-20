@@ -115,14 +115,14 @@ function handle(event) {
       const tokens = payload.usage.map((u) => `${u.unit_detail} ${u.quantity}`).join(", ");
       review(`turno terminado · primer token ${ms.llm_first_output ?? "–"} ms · total ${ms.llm_total ?? "–"} ms · tokens ${tokens || "–"}`);
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
-      if (state.voiceOn) voice.listenWhenQuiet();
+      if (state.voiceOn) voice.turnEnded();
       break;
     }
     case "turn_failed":
       review(`turno fallido · ${payload.code}`);
       showError(payload.message);
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
-      if (state.voiceOn) voice.listenWhenQuiet();
+      if (state.voiceOn) voice.turnEnded();
       break;
     default:
       review(`evento ${payload.type}`);

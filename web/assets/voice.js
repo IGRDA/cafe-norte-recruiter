@@ -36,6 +36,7 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
   let active = false; // the user wants the voice loop on
   let listening = false;
   let queued = 0; // utterances not yet finished
+  let anaTalking = false; // from her first sentence until the turn ends and the queue drains
   let voice = null;
   const refreshVoice = () => {
     voice = supported ? pickVoice(synth) : null;
@@ -46,7 +47,9 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
   }
 
   function listen() {
-    if (!active || listening || queued > 0) return;
+    // The microphone opens only between turns: never between two of Ana's sentences, where
+    // reopening it cut her speech and swallowed the candidate's first words.
+    if (!active || listening || queued > 0 || anaTalking) return;
     recognition = new Recognition();
     recognition.lang = LANG;
     recognition.interimResults = true;
@@ -91,8 +94,8 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
     };
     recognition.onend = () => {
       listening = false;
-      // No final result (silence) and nothing being spoken: listen again.
-      if (active && queued === 0) setTimeout(listen, 250);
+      // No final result (silence) and Ana is not talking: listen again.
+      if (active) setTimeout(listen, 250);
     };
     recognition.start();
   }
@@ -118,11 +121,13 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
       stopListening();
       synth.cancel();
       queued = 0;
+      anaTalking = false;
     },
     // Speak one sentence as soon as it arrives; stop the microphone so Ana does not hear herself.
     speak(text) {
       if (!active) return;
-      stopListening();
+      anaTalking = true;
+      if (listening) stopListening();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = LANG;
       if (voice) utterance.voice = voice;
@@ -130,14 +135,15 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
       queued += 1;
       const done = () => {
         queued = Math.max(0, queued - 1);
-        if (queued === 0) setTimeout(listen, 150);
+        if (queued === 0 && !anaTalking) setTimeout(listen, 150);
       };
       utterance.onend = done;
       utterance.onerror = done;
       synth.speak(utterance);
     },
-    // Called at the end of a turn: resume listening once the queue has drained.
-    listenWhenQuiet() {
+    // Called when Ana's turn has ended: listen once her last sentence has finished playing.
+    turnEnded() {
+      anaTalking = false;
       if (queued === 0) listen();
     },
   };

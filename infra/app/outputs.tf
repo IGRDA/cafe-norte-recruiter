@@ -14,3 +14,8 @@ output "artifact_repository" {
 output "runtime_service_account" {
   value = google_service_account.runtime.email
 }
+
+output "database_connection_name" {
+  value       = local.db_connection_name
+  description = "project:region:instance for the Auth Proxy; empty when the database is disabled."
+}

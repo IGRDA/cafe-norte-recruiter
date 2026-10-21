@@ -214,6 +214,7 @@ class ToolOutcome(Frozen):
     events: tuple[StateUpdated | SourcesShown, ...] = ()
     spoken: str = ""  # text the runtime says verbatim (read-backs): shown == spoken == pending
     malformed: bool = False  # unknown tool or invalid arguments: spends the repair budget
+    idle: bool = False  # changed nothing: a done save repeated, or an answer not given yet (D44)
 
 
 class ToolHandler(Protocol):

@@ -7,7 +7,7 @@ its own.
 
 | File | Contents |
 | --- | --- |
-| `contracts.py` | `TurnInput` (and `UiAnswer`, the page's Sí / No on a read-back, D38), the `RuntimeEvent` union (`SignalRecorded` included), `ToolContext`, `ToolOutcome` (`malformed` spends the repair budget), ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
+| `contracts.py` | `TurnInput` (and `UiAnswer`, the page's Sí / No on a read-back, D38), the `RuntimeEvent` union (`SignalRecorded` included), `ToolContext`, `ToolOutcome` (`malformed` spends the repair budget; `idle` marks a call that changed nothing, D44), ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
 | `handlers.py` | `all_handlers()`: update, search knowledge, list interview slots, present (read-backs, the brief, a slot), confirm field/brief, reserve interview, request human follow-up, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |

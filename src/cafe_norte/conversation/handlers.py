@@ -134,8 +134,8 @@ class _Handler:
         return StateUpdated.of(state)
 
     @staticmethod
-    def _refuse(summary: str, model_text: str) -> ToolOutcome:
-        return ToolOutcome(ok=False, model_text=model_text, summary=summary)
+    def _refuse(summary: str, model_text: str, *, idle: bool = False) -> ToolOutcome:
+        return ToolOutcome(ok=False, model_text=model_text, summary=summary, idle=idle)
 
 
 def _brief_confirmed(state: SessionState) -> bool:
@@ -152,6 +152,13 @@ def _without_known_values(patch: CandidatePatch, candidate: CandidateRecord) -> 
         and fields.value_of(getattr(candidate, name)) == getattr(patch, name)
     }
     return patch.model_copy(update=repeated) if repeated else patch
+
+
+# A read-back answered in the turn that said it: the candidate has not spoken yet (D44).
+SAME_TURN = (
+    "The candidate has not answered yet: wait for them. End your turn now, with no text and "
+    "no tool call."
+)
 
 
 def _next_question(state: SessionState) -> str:
@@ -212,8 +219,10 @@ class UpdateCandidateHandler(_Handler):
                 # read-back): nothing changes, and it is told what to do instead.
                 return ToolOutcome(
                     ok=True,
-                    model_text=f"Nothing changed. {_next_question(state)}",
+                    model_text="Already saved; nothing changed. Do not call update_candidate "
+                    f"again this turn. {_next_question(state)}",
                     summary="unchanged",
+                    idle=True,
                 )
             return self._refuse("empty_patch", "Nothing to save; call only with stated facts.")
 
@@ -490,7 +499,7 @@ class _ConfirmHandler(_Handler):
         result = confirmation.respond(state, arguments.answer, context.turn_id)
         if isinstance(result, Err):
             advice = {
-                "same_turn": "The candidate has not answered yet. Reply with nothing and wait.",
+                "same_turn": SAME_TURN,
                 "nothing_pending": "Continue.",
                 "not_delivered": "It was not heard to the end: call present_confirmation "
                 f"(target={self.kind}) to read it again, then wait for the answer.",
@@ -498,6 +507,7 @@ class _ConfirmHandler(_Handler):
             return self._refuse(
                 f"confirmation_refused:{result.error}",
                 f"No {self.kind} read-back can be answered now ({result.error}). {advice}",
+                idle=result.error == "same_turn",
             )
         resolved = result.value
         candidate = state.candidate
@@ -623,7 +633,7 @@ class ReserveInterviewHandler(_InterviewHandler):
     session are written in one transaction; nothing is announced before it commits."""
 
     ADVICE: dict[str, str] = {
-        "same_turn": "The candidate has not answered yet. Reply with nothing and wait.",
+        "same_turn": SAME_TURN,
         "slot_unavailable": NEXT_STEP["slots"],
         "slot_in_past": NEXT_STEP["slots"],
         "already_booked": NEXT_STEP["booked"],
@@ -648,7 +658,11 @@ class ReserveInterviewHandler(_InterviewHandler):
         answered = confirmation.respond(state, "affirm", context.turn_id)
         if isinstance(answered, Err):
             advice = self.ADVICE.get(answered.error, "Present the slot again.")
-            return self._refuse(f"confirmation_refused:{answered.error}", advice)
+            return self._refuse(
+                f"confirmation_refused:{answered.error}",
+                advice,
+                idle=answered.error == "same_turn",
+            )
         slot = await self._store.calendar.get(arguments.slot_id)
         if slot is None:
             return self._refuse("booking_refused:slot_unavailable", NEXT_STEP["slots"])

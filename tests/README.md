@@ -26,3 +26,6 @@ the whole tracer bullet through the HTTP boundary. `tests/support.py` builds the
 Fakes live next to the port they implement (`model/fake.py`, `persistence/memory.py`,
 `knowledge/fake.py`, `voice/fake.py`); production code never selects them except `main.py`
 when the environment asks for them.
+
+`tests/test_known_issues.py` holds strict `xfail` reproductions of `docs/known-issues.md`:
+they fail today by design; the commit that fixes an issue removes its marker.

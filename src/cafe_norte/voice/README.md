@@ -1,6 +1,6 @@
 # `voice`: Pipecat as the shell, not the brain
 
-`Daily in → Deepgram → user aggregator → InboundBridge → ElevenLabs → Daily out → PlaybackTap`.
+`Daily in → Deepgram → SpeechTap → user aggregator → InboundBridge → ElevenLabs → Daily out → PlaybackTap`.
 Pipecat 1.13's `LLMUserAggregator` owns VAD, turn end, segment joining and interruptions and
 emits the finished user message; everything voice *decides* lives in `VoiceSession`, plain
 Python with no Pipecat import (D22).
@@ -10,8 +10,8 @@ Python with no Pipecat import (D22).
 | `contracts.py` | `Room`, `VoiceStatus`, `VoiceMode`, `VoiceTexts`, `VoiceTiming`, `room_expiry`, ports `RoomProvisioner`, `VoiceSessionController` |
 | `delivery.py` | Pure ledger: sentences sent to TTS, sentences finished playing, `heard`, `readback_heard` |
 | `session.py` | `VoiceSession`: transcript → runtime turn, sentences → `speak` and the ledger, playback → `delivered(complete=True)`, interruption → cancel and `delivered(heard, complete=False)`, opening on join, filler while a tool runs long (journaled with `aside`), one silence prompt and the apology after a failed turn (both spoken through the runtime's journaled `say`), any raw transcript resets the silence clock, `close` pauses the session once, a language change reported so STT follows; each in the language of the latest turn (D28, D35) |
-| `bridge.py` | `InboundBridge` (before TTS) and `PlaybackTap` (after the output transport): frames in, session methods out |
-| `pipeline.py` | `PipecatVoiceController`: one pipeline task per session, join wait, stop, status, timing observations |
+| `bridge.py` | `SpeechTap` (before the aggregator, which consumes transcripts), `InboundBridge` (before TTS) and `PlaybackTap` (after the output transport): frames in, session methods out |
+| `pipeline.py` | `user_side` (tap, aggregator, bridge: one assembly for the pipeline and its tests), `PipecatVoiceController`: one pipeline task per session, join wait, stop, status, timing observations |
 | `daily.py` | Private expiring rooms and two scoped tokens over Daily REST |
 | `fake.py` | `FakeRooms`, `FakeVoiceController` for the API tests |
 

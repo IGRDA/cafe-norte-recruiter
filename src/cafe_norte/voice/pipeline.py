@@ -1,6 +1,7 @@
 """Pipeline assembly for one session. Pipecat is imported here and in ``bridge.py`` only.
 
-``Daily in → Deepgram → user aggregator → InboundBridge → ElevenLabs → Daily out → PlaybackTap``.
+``Daily in → Deepgram → SpeechTap → user aggregator → InboundBridge → ElevenLabs → Daily out →
+PlaybackTap``.
 Pipecat 1.13's ``LLMUserAggregator`` owns Silero VAD, the VAD start strategy (which interrupts
 the bot), the speech-timeout stop strategy that waits for a transcript, and segment joining; it
 emits the finished user message, which the bridge turns into one runtime turn. No smart-turn
@@ -38,7 +39,7 @@ from pipecat.workers.runner import WorkerRunner
 from cafe_norte.domain.contracts import SessionId
 from cafe_norte.errors import Language, ServiceError
 from cafe_norte.observability.contracts import StageTiming
-from cafe_norte.voice.bridge import InboundBridge, PlaybackTap, SessionPort
+from cafe_norte.voice.bridge import InboundBridge, PlaybackTap, SessionPort, SpeechTap
 from cafe_norte.voice.contracts import (
     STT_MODEL,
     TTS_MODEL,
@@ -81,7 +82,8 @@ def user_turn_strategies() -> UserTurnStrategies:
 
 
 def user_side(session: SessionPort, vad: VADAnalyzer | None) -> list[FrameProcessor]:
-    """What sits between STT and TTS, in order: Pipecat's user aggregator and our bridge.
+    """What sits between STT and TTS, in order: the speech tap, Pipecat's user aggregator and
+    our bridge.
     One function, so the pipeline and the tests that run the real aggregator share it."""
     turns = LLMUserAggregator(
         LLMContext(),
@@ -89,7 +91,7 @@ def user_side(session: SessionPort, vad: VADAnalyzer | None) -> list[FrameProces
             vad_analyzer=vad, user_turn_strategies=user_turn_strategies()
         ),
     )
-    return [turns, InboundBridge(session)]
+    return [SpeechTap(session), turns, InboundBridge(session)]
 
 
 class PipecatVoiceController:

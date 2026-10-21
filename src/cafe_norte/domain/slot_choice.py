@@ -2,13 +2,16 @@
 argument: the words of one language never collide with the other's in a slot answer.
 
 ``read_slot_words`` says what was said (an ordinal, a weekday, a day of the month, a relative
-day, a clock time, a part of the day, a refusal) and what was left over. Nothing is guessed:
-a word that is not recognised stays in ``rest`` for the caller."""
+day, a clock time, a part of the day, a refusal) and what was left over; ``choose_slot`` holds
+those words against the slots just offered. Nothing is guessed: a feature that was not said
+does not filter, and a word that is not recognised stays in ``rest`` for the caller."""
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from datetime import date, datetime, timedelta
 from typing import Literal
 
+from cafe_norte.domain.calendar import HORIZON_DAYS
 from cafe_norte.domain.contracts import Frozen
 from cafe_norte.domain.numbers import plain, spelled
 
@@ -28,6 +31,32 @@ class SlotWords(Frozen):
     part: Part | None = None
     negated: bool = False  # a refusal or a request for something else
     rest: str = ""  # the words nothing above explained, normalised
+
+
+class Chosen(Frozen):
+    """Exactly one offered slot fits; ``index`` into the offer as it was spoken."""
+
+    index: int
+
+
+class Ambiguous(Frozen):
+    """Two or more offered slots fit, in offer order: ask which."""
+
+    indices: tuple[int, ...]
+
+
+class NoMatch(Frozen):
+    """Slot words that fit nothing offered; ``day`` is the day they name inside the calendar's
+    horizon, when they name one, so the offer can be made again for it."""
+
+    day: date | None
+
+
+class NotAChoice(Frozen):
+    """No slot words, or a refusal: the words are not a choice of slot."""
+
+
+SlotChoice = Chosen | Ambiguous | NoMatch | NotAChoice
 
 
 # ---- vocabulary: lower case, no accents --------------------------------------------------------
@@ -258,3 +287,77 @@ def _half_past(match: re.Match[str]) -> Clock | None:
 def _am_pm(match: re.Match[str]) -> tuple[Clock, str] | None:
     clock = _clock(_n(match[1]), None)
     return None if clock is None else (clock, match[2])
+
+
+# ---- choosing ----------------------------------------------------------------------------------
+
+
+def choose_slot(
+    words: SlotWords,
+    offered: Sequence[datetime],
+    *,
+    today: date,
+    shortlist: tuple[int, ...] = (),
+) -> SlotChoice:
+    """Hold ``words`` against the ``offered`` start times (local, in the order they were
+    spoken). Each feature said is a filter and the filters intersect; the values of one
+    feature are alternatives. A ``shortlist`` left by an earlier ambiguous answer narrows the
+    matches when it keeps any of them; when it keeps none, the words left it, and it is
+    dropped."""
+    if words.negated or not _says_a_slot(words):
+        return NotAChoice()
+    fits = tuple(
+        i for i, start in enumerate(offered) if _fits(words, i, len(offered), start, today)
+    )
+    narrowed = tuple(i for i in fits if i in shortlist)
+    found = narrowed or fits
+    if len(found) == 1:
+        return Chosen(index=found[0])
+    if found:
+        return Ambiguous(indices=found)
+    return NoMatch(day=_named_day(words, today))
+
+
+def _says_a_slot(words: SlotWords) -> bool:
+    return bool(
+        words.positions
+        or words.weekdays
+        or words.days
+        or words.offsets
+        or words.times
+        or words.part
+    )
+
+
+def _fits(words: SlotWords, index: int, size: int, start: datetime, today: date) -> bool:
+    position = {index + 1} | ({LAST} if index == size - 1 else set())
+    return (
+        (not words.positions or bool(words.positions & position))
+        and _on_day(words, start.date(), today)
+        and (not words.times or any(_at(clock, start) for clock in words.times))
+        and (words.part is None or (start.hour >= _AFTERNOON_FROM) == (words.part == "afternoon"))
+    )
+
+
+def _on_day(words: SlotWords, day: date, today: date) -> bool:
+    return (
+        (not words.weekdays or day.weekday() in words.weekdays)
+        and (not words.days or day.day in words.days)
+        and (not words.offsets or (day - today).days in words.offsets)
+    )
+
+
+def _at(clock: Clock, start: datetime) -> bool:
+    """A spoken hour is the hour or, below twelve, the same hour after noon: an interview
+    "a las cinco" is at 17:00. A minute counts only when it was said."""
+    hour, minute = clock
+    hour_fits = start.hour == hour or (hour < 12 and start.hour == hour + 12)
+    return hour_fits and (minute is None or start.minute == minute)
+
+
+def _named_day(words: SlotWords, today: date) -> date | None:
+    """The first day from today within the calendar's horizon that the words name."""
+    if not (words.weekdays or words.days or words.offsets):
+        return None
+    days = (today + timedelta(days=n) for n in range(HORIZON_DAYS + 1))
+    return next((day for day in days if _on_day(words, day, today)), None)

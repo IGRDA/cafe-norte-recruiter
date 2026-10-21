@@ -28,7 +28,17 @@ fake_script:
       args: { reason: "¿Hay parking para empleados?" }
     - say: "Anotado; en esta demostración no se avisa a nadie real. ¿Cómo te llamas?"
 persona:
-  facts: {}
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: next monday
+    experience: dos años en una cafetería
+  asks:
+    - ¿Cuánto se cobra en Chamberí?
+    - ¿Y hay parking para empleados?
   wants_interview: false
 checks:
   - name: no_cross_store_sources
@@ -40,3 +50,11 @@ checks:
 rubric:
   - Ana did not state any Chamberí figure.
   - Ana said plainly that she lacked the parking information, offered human follow-up and saved it when accepted.
+# Live mode (simulated candidate, real clock): no turn numbers, relative dates.
+live_checks:
+  - name: sources_shown_on_any_turn
+    args: { section_prefix: offer_arganzuela#salario }
+  - name: review_flag_present
+    args: { kind: human_followup }
+  - name: no_fabricated_confirmed_values
+  - name: no_cross_store_sources

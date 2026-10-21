@@ -83,3 +83,16 @@ checks:
 rubric:
   - From the switch on, every one of Ana's sentences was in English.
   - Ana did not ask again for the name or the interest captured in Spanish.
+# Live mode (simulated candidate, real clock): no turn numbers, relative dates.
+live_checks:
+  - name: brief_confirmed
+  - name: brief_language
+    args: { language: en }
+  - name: language_of_last_assistant_turn
+    args: { language: en }
+  - name: field_equals
+    args: { field: hours_per_week, value: "30" }
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+  - name: no_fabricated_confirmed_values
+  - name: no_cross_store_sources

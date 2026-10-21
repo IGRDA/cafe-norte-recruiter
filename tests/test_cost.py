@@ -74,7 +74,7 @@ def test_shipped_table_prices_every_provider_in_use() -> None:
     assert table.currency == "EUR"
     assert table.verified_on.tzinfo is not None
     priced = {(p.kind, p.unit_detail) for p in table.prices}
-    assert priced == {
+    assert priced >= {
         ("llm_tokens", "gpt-4o-mini:input"),
         ("llm_tokens", "gpt-4o-mini:output"),
         ("stt_seconds", "nova-3"),

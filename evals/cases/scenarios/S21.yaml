@@ -1,0 +1,85 @@
+id: S21
+title: The summary cut by a yes, then carried on (confirmed without full review)
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# The hosted call of 21 October (KI-02): the summary is cut after its first sentence by
+# "Sí, está todo bien." (`faults`). The yes cannot confirm what was not heard; it earns one
+# offer, and "Sigue." confirms the summary, recorded as waived (D39). Live mode (task B's
+# simulator) uses the persona and the rubric as they are.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
+  - "Sí, está todo bien."
+  - "Sigue."
+  - "No, ninguna duda. No quiero entrevista, gracias."
+faults:
+  - { turn: 5, kind: interrupt, after_sentences: 1 }
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    # The candidate speaks over the summary: the turn ends while it is still being said.
+    - tool: present_confirmation
+      args: { target: brief }
+  # "Sí, está todo bien." over the summary: the runtime routes it to the review, and the
+  # model makes the one offer in its own words (D39).
+  - - say: "Perdona, me has contestado antes de acabar. ¿Lo repasamos por partes o seguimos?"
+  # "Sigue.": the runtime waives the review and confirms the summary in the same call.
+  - - say: "¿Tienes alguna duda sobre el puesto o la tienda?"
+  - - tool: end_session
+      args: { reason: candidate_done }
+    - say: "Gracias, Lucía. Hasta pronto."
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: next monday
+    experience: dos años en una cafetería de barrio
+  wants_interview: false
+checks:
+  - name: brief_confirmed
+  - name: readback_assurance
+    args: { assurance: waived }
+  - name: readback_said_whole
+    args: { max: "1" }
+  - name: tool_ok
+    args: { turn: "6", tool: review_readback, ok: "true" }
+  - name: tool_ok
+    args: { turn: "7", tool: review_readback, ok: "true" }
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+  - name: outcome_is
+    args: { outcome: brief_only }
+  - name: no_fabricated_confirmed_values
+  - name: max_repeated_questions
+    args: { max: "0" }
+rubric:
+  - After the candidate answered over the summary, Ana offered once, briefly and in her own words, to go over it or carry on.
+  - Ana never read the whole summary again and never repeated the offer.
+  - After "Sigue." Ana moved on without reading anything back.

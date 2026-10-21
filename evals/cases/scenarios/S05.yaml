@@ -25,6 +25,14 @@ fake_script:
 persona:
   facts:
     name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: next monday
+    experience: dos años en una cafetería
+  asks:
+    - ¿Cuántas horas a la semana son?
   wants_interview: false
 checks:
   - name: sources_shown_for_policy_answer
@@ -37,3 +45,14 @@ checks:
 rubric:
   - Ana answered with the figure from the offer and named the source briefly.
   - Ana returned to the pending question without repeating herself.
+# Live mode (simulated candidate, real clock): no turn numbers, relative dates.
+live_checks:
+  - name: sources_shown_on_any_turn
+    args: { section_prefix: offer_chamberi#horas }
+  - name: field_equals
+    args: { field: name, value: Lucía Marín }
+  - name: brief_confirmed
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+  - name: no_fabricated_confirmed_values
+  - name: no_cross_store_sources

@@ -1,6 +1,6 @@
 """Runtime boundary: what channels put in, what they get out, and the ports it needs."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from datetime import datetime
 from typing import Literal, Protocol
 
@@ -21,6 +21,7 @@ from cafe_norte.domain.contracts import (
     TurnId,
 )
 from cafe_norte.errors import ErrorCode, Language
+from cafe_norte.model.contracts import ModelUsage
 from cafe_norte.observability.contracts import StageTiming, UsageRecord
 
 
@@ -74,6 +75,7 @@ class AssistantText(Frozen):
 class ToolStarted(Frozen):
     type: Literal["tool_started"] = "tool_started"
     name: str
+    arguments: str = ""  # the call's JSON, redacted then cut (D44); empty in older journals
 
 
 class ToolFinished(Frozen):
@@ -190,6 +192,11 @@ class ConversationRuntime(Protocol):
         """A sentence voice said inside a running turn, journaled under it."""
         ...
 
+    async def record_usage(self, session_id: SessionId, usage: Sequence[UsageRecord]) -> None:
+        """Usage measured outside a turn (a call's speech providers); a session already
+        ended stores its export again so the cost includes it (D44)."""
+        ...
+
     async def end(
         self, session_id: SessionId, reason: Literal["stop", "limit", "shutdown"]
     ) -> None: ...
@@ -214,10 +221,19 @@ class ToolOutcome(Frozen):
     events: tuple[StateUpdated | SourcesShown, ...] = ()
     spoken: str = ""  # text the runtime says verbatim (read-backs): shown == spoken == pending
     malformed: bool = False  # unknown tool or invalid arguments: spends the repair budget
+    idle: bool = False  # changed nothing: a done save repeated, or an answer not given yet (D44)
 
 
 class ToolHandler(Protocol):
     async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome: ...
+
+
+class SignalAnalysis(Frozen):
+    """What one classification produced: the verdict, when there is one, and what it cost."""
+
+    signal: Signal | None
+    usage: ModelUsage | None  # reported even when no signal came of it; None when it never came
+    model_id: str  # the configured classifier model, which prices the tokens (D36)
 
 
 class SignalAnalyzer(Protocol):
@@ -225,4 +241,4 @@ class SignalAnalyzer(Protocol):
     attached to their turn. ``None`` when there is no evidence-backed verdict. Explicit stop and
     human requests have a synchronous path in ``signals.py`` and never wait for this."""
 
-    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal | None: ...
+    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis: ...

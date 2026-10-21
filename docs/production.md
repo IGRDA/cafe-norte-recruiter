@@ -140,7 +140,7 @@ it: it is paid, slow and optional, so it should never sit on the turn.
 **Today.** Prompts, knowledge and the configuration are files in the repository (D12).
 `VersionStamp` (prompt, model, knowledge base, configuration, commit) is on every session, every
 export and every trace span (D36). Scenarios replay against a fake model in `make check` (D21,
-S01–S19), and the live counterparts are run by hand.
+S01–S22), and the live counterparts are run by hand.
 
 **What breaks first.** Nothing gates a change on live behaviour. A prompt edit that passes the
 fake-model scenarios can still change how `gpt-4o-mini` behaves: D35 and the language stage
@@ -250,11 +250,11 @@ is Daily over WebRTC; the runtime does not know that.
 
 **What breaks first.** The read-back rule. A read-back counts as presented only when its audio
 has fully played (D22, "delivered means heard"), and the page only mirrors it. In a browser a
-candidate can read a summary and answer before the audio ends; KI-02 shows the cost, a lost
-yes and a loop. On a phone there is no page, so the rule is the only channel and applies
-unchanged: the summary must be short enough to be heard whole, and an interruption means the
-read-back is read again. Telephony therefore inherits KI-02's fix (short spoken read-backs,
-re-read at most once) rather than needing one of its own.
+candidate can read a summary and answer before the audio ends; KI-02 showed the cost, a lost
+yes and a loop. D39 fixed it for voice alone, with no page needed: a yes over the summary earns
+one offer to go over it in short parts or carry on, and a carry-on is recorded as confirmed
+without full review. On a phone there is no page, so telephony inherits that fix unchanged
+rather than needing one of its own.
 
 **Next step.** A Twilio adapter for the transport only: a webhook that validates Twilio's
 signature, a media-stream connection carrying 8 kHz mu-law that Pipecat's serializer converts,
@@ -279,7 +279,7 @@ use tools; they are not excluded.
 for the turn end alone, D35), and a cascade hears words, not tone.
 
 **Next step.** A measured comparison, not a switch, behind the same voice port and the same
-scenarios (S01–S19): first-audio latency, interruption behaviour, tool-call reliability (the
+scenarios (S01–S22): first-audio latency, interruption behaviour, tool-call reliability (the
 `gpt-4o-mini` slips D35 lists are the baseline), transcript observability (can every sentence
 be journaled and traced as today?), Spanish and English quality, and euros per call from the
 price table. Adopt it only where it wins on tool reliability and observability as well as

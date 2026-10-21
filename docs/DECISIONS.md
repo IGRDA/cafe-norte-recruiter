@@ -252,7 +252,7 @@ provider accounts in front of the first conversation; B defers the first convers
 - Ana does not open the conversation; the candidate greets first. The opening turn is part
   of the lifecycle stage.
 - Browser speech has no barge-in and no meaningful latency figures; nothing from it is a
-  measurement.
+  measurement. (Removed by D45.)
 
 ## D19 · Ana opens with fixed text; the model resolves dates and marks unknown or declined
 
@@ -338,7 +338,7 @@ _Added 20 October 2026, with the voice stage (local half)._
   read-back is `fully_delivered` only when its last sentence was. The text channel still
   marks on journaling.
 - `CAFE_NORTE_VOICE = off | browser | pipecat`. `browser` (Web Speech, D18) stays until the
-  hosted exchange is verified and is removed in the deploy PR.
+  hosted exchange is verified and is removed in the deploy PR. (Removed by D45.)
 - Cost guards from day one: two voice sessions per container, the session cap plus a
   two-minute margin as room expiry with ejection, 8 s silence prompt then pause, Daily rooms
   destroyed on stop. The hosted checkpoint runs on the memory store with one instance.
@@ -1013,10 +1013,100 @@ endpoint and a hardened boundary.
 
 **Consequences we accept.** A new conversation is a page load. A button answer to a read-back
 the voice has not finished saying counts as read. The browser speech mode (D22) stays until a
-follow-up removes it. `ui.<lang>.md` is new candidate-facing text; `PROMPT_VERSION` is unchanged
+follow-up removes it. (Removed by D45.) `ui.<lang>.md` is new candidate-facing text; `PROMPT_VERSION` is unchanged
 because the model never sees it.
 
 ---
+
+## D39 · A read-back the candidate cut is offered once, gone over in parts, or carried on
+
+_Added 21 October 2026, after the second hosted voice call (KI-01, KI-02). Built in two parts:
+the word families, the domain stage and the parts (PR #26); the tool, the router, the prompt,
+the export and the matrix (branch `readback-review-2`)._
+
+**Context.** The summary takes about 12 s to say and is shown on the page at once. The
+candidate read it and said "Sí, está todo bien" 10.8 s in. D22 counts only what was heard, so
+the yes could not confirm it; D35 read it again, word for word; it was cut the same way,
+three times, until the turn hit its round limit. "Está todo bien" was not even a plain yes
+(KI-01): the phrases had to match whole.
+
+**Decided with the owner (21 October).** Voice only first: the page mirrors the call and
+never counts as hearing it. A read-back cut by a yes gets one natural offer to go over it or
+carry on, and then the candidate decides. An explicit carry-on confirms it, recorded as
+*confirmed without full review*. What is confirmed stays the fixed text (D20); the bridge
+around it is the model's, from a short general policy. A long read-back is gone over in short
+parts, each one checked. No verbatim re-read loops.
+
+**Decisions.**
+- **A yes is a family of words**, in any order, with fillers and at least one core word and no
+  negation (`signals.answer_to_readback`). A carry-on ("sigue", "adelante", "no hace falta";
+  "carry on", "skip") is a third answer, `skip`. A bare "no" never rides along with a carry-on.
+- **The review is domain state.** `Confirmation.review` is `None` (said once, whole), or
+  `offered`, `in_parts(part, parts)` or `waived`, each stamped with the turn that moved it: one
+  move per turn. `fully_delivered` means the latest saying (the whole text, or the part) was
+  heard. `advance_review` holds the table:
+
+  | now | yes | carry on |
+  | --- | --- | --- |
+  | said, not heard | offered | offered (no carry-on before the offer) |
+  | offered | first part | waived |
+  | a part that is not the last (heard, or cut by the yes) | next part | waived |
+  | the last part, cut | waived | waived |
+
+  A yes over a part answers that part's check, so the review moves on; only a cut last part
+  ends it waived. `ready_to_confirm` is true when the read-back was heard whole, its last part
+  was heard, or it was waived; `respond` and the booking conditions use it. `assurance` says
+  which: `heard`, `reviewed` or `waived`.
+- **Parts** are slices of the read-back's own sentences (`readback.review_parts`): at most two
+  sentences and 160 characters, without the intro and the closing question, each followed by
+  `review.check` ("¿Está bien?" / "Is that right?"). A one-sentence read-back is one part.
+- **One tool, `review_readback(answer: affirm | skip)`.** Its handler moves the review and
+  saves; it says the part verbatim through the runtime, or asks the model for the offer; on a
+  waiver it confirms in the same call through the read-back's own handler (`confirm_field`,
+  `confirm_brief`, `reserve_interview`), so a model that stops there leaves nothing pending. A
+  read-back that is ready goes straight to that handler. The allowlist has ten tools.
+- **The runtime routes a plain answer by the stage** (`readback.answer_call`, one pure table),
+  before the model, as D35 does for a heard read-back:
+
+  | read-back | yes | carry on | no |
+  | --- | --- | --- | --- |
+  | ready to confirm | its tool, yes | its tool, yes | its tool, no |
+  | cut, not reviewed | review (the offer) | review (the offer) | its tool, no |
+  | offered | review (first part) | review, carry on | review, carry on |
+  | in parts | review (next part) | review, carry on | its tool, no |
+
+  A plain "no" to the offer ("¿lo repasamos?") is carrying on. A no to a slot stays the
+  model's. The button is routed the same way and no longer marks a read-back delivered:
+  **D38's "the card counts as heard" is superseded.**
+- **Presented again, a cut read-back starts with its first part** (`start_parts`), once:
+  **D35's verbatim re-read is superseded.** Under review, `present_confirmation`, `confirm_*`,
+  `reserve_interview` and the next step after a save all point at `review_readback`.
+- **The prompt** (`ana_v16`) gets `heard` and `review` in `pending_confirmation` and one short
+  policy: offer once, briefly, in your own words, phrased so that a yes means going over it;
+  never repeat the read-back; the system says the parts.
+- **The export** carries `assurance` on every confirmed read-back, so a reviewer tells a
+  heard one from one confirmed without full review.
+
+**Evaluation.** The behaviour matrix (`tests/test_readback_matrix.py`, 180 rows on fakes):
+each kind of read-back x where it is cut x yes, no, correction, carry on or unrelated x going
+over it or carrying on. In every row nothing is confirmed outside the three assurance paths,
+the assurance is the one the path predicts, no read-back is said whole more than twice, and
+nothing loops to the round limit. Before the router 106 rows never settled. S21 (carried on)
+and S22 (gone over) replay the call. The live, simulator-judged half runs S21 and S22 through
+task B's simulated candidate with their `persona` and `rubric`; no second simulator is built
+here.
+
+**Rejected.** A short spoken summary with the full one on the page (the page must not be
+needed). Counting a read-back as heard once shown on a connected page (voice only first).
+Saying a cut part again (a verbatim loop). Leaving "no" at the offer to the model (gpt-4o-mini
+has skipped confirmation tools before). A second call from the runtime to confirm after a
+waiver (the model would have to make it too, or task C's tool loop would).
+
+**Consequences we accept.** A yes that cuts a part moves on even though that part was not
+heard to its end; a cut last part is recorded as waived, never as reviewed. A press of Sí on a
+card whose audio was cut earns the offer instead of confirming. The resume sentence still
+repeats a pending read-back in full (a third saying across a hang-up). A button answer in a
+voice call is not spoken in the call (D38's gap).
 
 ---
 
@@ -1140,3 +1230,176 @@ not a pattern, so this is safe because the data is fictional, not because the fi
 Langfuse keeps what it received under its own retention, not our seven days (D34). With real
 applicants it is `off`, and `docs/production.md` §10 lists what must exist first. Spans exported
 before the switch is turned off stay in Langfuse until deleted there.
+
+---
+
+## D43 · Live evaluations: the same scorers over HTTP, a simulated candidate that cannot forget, spend only with --yes
+
+_Added 21 October 2026, task B of the parallel branches._
+
+**Context.** Every evaluation beyond the offline replay was a stub (D06, D14, D21). The model
+decision for the hosted demo (gpt-4o-mini or gpt-4o), the release gate's live S01 and S02, and
+part of D39's evidence all need live runs, and none could be made without hand-driving the
+browser.
+
+**Decisions (agreed with the owner).**
+- **One fold, two modes.** A turn's `RuntimeEvent`s fold into a `TurnObservation`
+  (`evals/observation.py`); the fake replay reads them from the runtime and the live runner from
+  the SSE stream, so the scorers never know which mode produced a `SessionResult`.
+- **The public API, on loopback by default.** `HttpConversation` drives a session exactly as the
+  browser does (access, create, one POST per line, the turn's events resumed by `Last-Event-ID`,
+  end, snapshot, export). The comparison serves the real app on `127.0.0.1` with one server per
+  model (`serve`), memory store, text only, traces tagged `evaluation`; `--base-url` targets the
+  hosted demo or `make run` instead. Rejected: external URL only (the model would be known only
+  from the version stamp afterwards).
+- **Explicit `live_checks`.** A simulated candidate adapts to Ana and runs on a real clock, so
+  live checks name no turn (`sources_shown_on_any_turn`) and dates are relative
+  (`next monday`). S01, S02 and the six comparison scenarios carry them; others are refused
+  live. Rejected: reusing `checks` and skipping turn-indexed ones (S05 and S06 would lose the
+  grounding the comparison must measure).
+- **Extraction accuracy from the persona.** Exact-match facts (name, phone, permit, days,
+  shifts, hours, start date), corrections applied and declined fields left out, against the
+  final record; free text is the judge's. Every miss is named.
+- **The simulator decides in code and words with a model.** `cue(persona, language,
+  transcript)` is pure: questions on fixed lines, corrections on the first brief read-back,
+  the language switch and the withdrawal after a named line. `ModelCandidateSimulator` only
+  words the cue, so a run cannot pass because the simulator forgot to correct. One simulator
+  model for every run (`openai/gpt-4o-mini` by default), so the candidate is the same for both
+  answering models.
+- **Spend is explicit.** Every paid command prints an estimate from the export's own price table
+  (`evals/spend.py`; assumptions in `docs/architecture.md`) and calls nothing without `--yes`.
+  The fake model and the fake simulator run the whole path for free. gpt-4o joins the price
+  table.
+- **The comparison is spec §13's, with the owner's models.** Six cases × `openai/gpt-4o-mini`
+  and `openai/gpt-4o` × two runs: 24 runs, about €5 by the estimate. This amends the spec's
+  GPT-OSS pair: the decision now open is the hosted model, and `--models` takes any pair.
+- **Reports carry denominators.** Every rate is k/n, every median says its n, a broken run is a
+  recorded miss in every denominator, by model, by configuration and language, and by case.
+  The comparison's summary and runs (no conversations) are committed under
+  `evals/results/comparison/`; exports go to `evals/results/live/`, ignored.
+- **The judge is a labelled second opinion.** One JSON boolean per rubric bullet or
+  `unparsable`, never coerced and never pass/fail; a judge that is the answering model is
+  flagged.
+- **ragas by ID.** The retrieval fixture's expected sections are chunk ids, so ragas'
+  ID-based context precision and recall apply exactly, offline, with no model (`--ragas`).
+  ragas 0.4.3 did not import with langchain-community 0.4; the dev extra pins it below 0.4.
+- **Langfuse through a port.** `ExperimentSink` with a fake; the SDK adapter replays recorded
+  runs through `run_experiment` (the supported write path in langfuse 5, which deprecated
+  dataset run items): checks and metrics as scores, the session id on a span so the experiment
+  item sits next to the server's own turn traces. Opt-in with `--langfuse`; nothing is sent
+  without keys.
+
+**Tests.** `tests/test_eval_*.py`: the fold, the HTTP adapter against a scripted server built on
+the app's own SSE encoder, loopback runs of S03 that get the fake mode's verdicts, the cue
+table, the simulator and judge over `FakeModel`, spend, report, comparison plan, ragas, and
+Langfuse with a fake sink and a stub client. No test needs a key or the network.
+
+**Consequences we accept.** Latency is measured over HTTP on the runner's clock: it says how the
+text path behaves, not the voice path (D40's timings stay the measure there). The estimate is
+deliberately high, so the real export cost will usually come in lower. A free-text fact is not
+scored exactly. The comparison has not been run: the owner decides when to spend on it, and the
+model decision will be its own entry with the committed numbers.
+
+---
+
+## D44 · Fewer wasted rounds, a joined hesitation, the whole cost, tool arguments in the journal
+
+_Added 21 October 2026, for KI-07, KI-08, D36's "not yet recorded" and KI-06's observability
+half. Options were chosen by the owner before building._
+
+**Context.** In the second hosted call the model re-sent saves that changed nothing
+(`unchanged`, seq 39, 47, 49, 60) and answered a read-back in the turn that said it
+(`same_turn`, 62). Each round costs 0.6–0.9 s, and those turns took 2.1–3.4 s to the first
+sentence. The repeats came before Ana spoke, so ending the loop alone would have left her
+silent. A pause split "El lunes, … dos de noviembre" into two turns, and the second cancelled
+the first before anything was said (KI-07). The export's cost left out the classifier's tokens
+and every cancelled generation, and it derived a call's speech usage from the snapshot, so
+every voice cost was partial. The journal did not record tool arguments, so KI-06's slot id
+could not be read without Langfuse.
+
+**Decisions.**
+- **An idle call is a type.** `ToolOutcome.idle` is set where the outcome is built: on a save
+  that only repeats known values, and on the `same_turn` refusals of `confirm_field`,
+  `confirm_brief` and `reserve_interview`. The runtime never reads summaries.
+- **Stop.** Once the turn's question has been said, a round whose every call was idle ends the
+  loop. Nothing more can be voiced (`_say_once`), so another round is only latency.
+- **Withhold.** A tool whose call changed nothing is left out of the schemas for the rest of the
+  turn, so the next round has to answer in words. The next turn offers it again. The texts say
+  the same: "Do not call update_candidate again this turn", and for `same_turn`, "End your
+  turn now, with no text and no tool call".
+- **Join a cut answer (KI-07).** When new speech cuts a running voice turn none of whose answer
+  was heard (the filler aside), its words go in front of the next transcript if that comes
+  within 5 s. Both user turns stay in the journal (the first one interrupted, D37); the model
+  reads the whole answer once. Rejected: a longer speech timeout after a question about a date
+  or a number. It would make every such answer 0.8 s slower, guess what the model asked, and
+  change Pipecat's stop strategy mid-call.
+- **Tool arguments in the journal.** `ToolStarted.arguments` is the call's JSON, redacted then
+  cut at 2 000 characters like trace content, for the model's calls and the runtime's own. The
+  export carries it, and the reviewer panel prints it. `redact` moved to
+  `observability/redaction.py`, which `conversation` may import. The card pattern no longer
+  matches digits glued to a word or a dash: it had masked every slot id as `[card]`, in the
+  hosted traces too (D42).
+- **The classifier's tokens.** `SignalAnalyzer.analyze` returns a `SignalAnalysis`: the signal,
+  or none, plus the usage the call reported (a malformed verdict still costs). The runtime
+  records it under the turn it classified. `token_usage` builds the two token records for
+  every caller.
+- **Cancelled generations.** An attempt that ends without a usage report (a barge-in, the
+  answer limit, a silent first attempt, a failed stream) adds an estimate at 4 characters per
+  token: the messages and tool schemas sent, and the text streamed. It is marked `estimated`.
+- **Measured speech.** Pipecat's usage metrics are on. `UsageObserver` counts Deepgram's audio
+  seconds and ElevenLabs' characters on their first push only, and the room's joins and leaves
+  give each participant's minutes. The pure `SpeechMeter` turns them into `UsageRecord`s. The
+  controller records them through `record_usage` once the pipeline has ended and the providers
+  have flushed. A session already ended stores its export again (D34 is idempotent).
+- **Partial means missing.** The snapshot derives a speech kind only when the call measured
+  none. `cost_is_partial` is true when a usage has no price, no estimator is bound, or a speech
+  kind was derived. A token estimate is flagged on its record and no longer makes the total
+  partial. This replaces D36's "any estimate is partial".
+
+**Measured** (the KI-08 patterns, one model round modelled at 0.75 s, `main` → this branch):
+
+| Turn | Rounds | To the first sentence |
+|---|---|---|
+| A save repeated twice (seq 39–49) | 4 → 3 | 3.0 s → 2.3 s |
+| A save repeated three times | 5 → 3 | 3.8 s → 2.3 s |
+| A same-turn confirm (seq 60–62) | 3 → 2 | 0.75 s (total 2.3 s → 1.5 s) |
+| A well-behaved save, then the question | 2 → 2 | 1.5 s → 1.5 s |
+
+The scenario replays S01–S20 keep their scripts: none had an idle round, so no round count
+changed.
+
+**Consequences we accept.** A second, different fact for a tool whose call changed nothing waits
+for the next turn. A join puts a cut part in front of words that may start a new thought within
+5 s. The classifier's tokens can arrive after the export was stored at close; only speech usage
+stores it again. A crash before the pipeline ends loses the measurement, and the export then
+derives that call's speech and says it is partial. Pipecat's latency metrics are not stored.
+Real latency is checked on the next hosted call (Langfuse `rounds`, time to first token).
+
+---
+
+## D45 · Browser speech is removed; voice is hosted or off
+
+_Added 21 October 2026, with the documentation refresh._
+
+**Context.** D18 put the browser's own Web Speech API in front of the runtime as a stand-in for
+voice, and D22 kept it as `CAFE_NORTE_VOICE=browser` until the hosted exchange was verified. It
+is: two hosted calls on 21 October (D35, `docs/known-issues.md`) and the fixes after them
+(D40, D41) run on Daily, Deepgram and ElevenLabs. The page still carried about 150 lines of
+recognition and synthesis code, and a seven-call voice surface shaped for it.
+
+**Decision.** `VoiceMode = off | pipecat`. The Web Speech path leaves `web/assets/voice.js`;
+the page's voice module is the Daily call alone and offers `app.js` three calls: `start`,
+`stop`, `closing`. With voice `off` the **Hablar** button is hidden. `CAFE_NORTE_VOICE=browser`
+stops the process at startup with "browser speech was removed in D45"; the allowed values are
+read from `VoiceMode`, so the list in the message cannot drift from the type.
+
+**Why.** Two voice paths meant two behaviours for the same read-back: browser speech has no
+barge-in and no "delivered means heard" (D22), so nothing measured or fixed on one held for the
+other. Keeping a mode nobody verifies costs a test matrix and a page surface for no evidence.
+
+**Not changed.** A timing's `source = "browser"` stays: it means "measured on the page's clock"
+(the hosted page posts `connected` and `first_audio`), not the speech mode.
+
+**Consequences we accept.** There is no free local voice: speaking to Ana locally needs the
+Daily, Deepgram and ElevenLabs keys (`make voice-smoke`, `.env.example`). The text channel is
+unchanged and remains the offline path; CI never needed browser speech.

@@ -9,9 +9,11 @@ from typing import Any, Literal
 import pytest
 
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.brief import render_brief
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
+    SignalAnalysis,
     SignalAnalyzer,
     SignalRecorded,
     StateUpdated,
@@ -24,6 +26,7 @@ from cafe_norte.conversation.contracts import (
     UiAnswer,
 )
 from cafe_norte.conversation.handlers import all_handlers
+from cafe_norte.conversation.readback import review_parts
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime, conversation_tail
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
@@ -31,6 +34,7 @@ from cafe_norte.domain import confirmation
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import (
     ConfigId,
+    Confirmation,
     ConfirmationId,
     FieldTarget,
     InputId,
@@ -54,7 +58,7 @@ from cafe_norte.model.contracts import (
     ToolSchema,
 )
 from cafe_norte.model.fake import FakeModel
-from cafe_norte.observability.contracts import StructuredEvent
+from cafe_norte.observability.contracts import StructuredEvent, UsageRecord
 from cafe_norte.observability.fakes import RecordedSpan, RecordingTelemetry
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
@@ -119,11 +123,12 @@ class Harness:
         slow_calls: int = 0,
         on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
         clock: Callable[[], datetime] | None = None,
+        model: FakeModel | None = None,
     ):
         self.store = store or MemoryStore()
         self.telemetry = RecordingTelemetry()
         configurations = load_configurations(CONFIG_DIR)
-        self.model = SlowFirst(scripts, slow_calls) if slow_calls else FakeModel(scripts)
+        self.model = model or (SlowFirst(scripts, slow_calls) if slow_calls else FakeModel(scripts))
         self.runtime = Runtime(
             model=self.model,
             tools=ToolRegistry(
@@ -221,6 +226,7 @@ async def test_the_model_sees_history_state_and_only_registered_tools() -> None:
         "confirm_field",
         "confirm_brief",
         "reserve_interview",
+        "review_readback",
         "request_human_followup",
         "end_session",
     ]
@@ -913,9 +919,9 @@ async def test_a_verdict_is_journaled_against_its_source_turn() -> None:
 
 async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() -> None:
     class Slow:
-        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal:
+        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis:
             await asyncio.sleep(0.05)
-            return Signal(
+            signal = Signal(
                 turn_id=turn_id,
                 sentiment="frustrated",
                 explicit_human_request=False,
@@ -923,6 +929,7 @@ async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() 
                 language_switch_to=None,
                 evidence_text="",
             )
+            return SignalAnalysis(signal=signal, usage=None, model_id="slow")
 
     h = Harness([says("Uno."), says("Dos."), says("Tres.")], signals=Slow())
     await h.open_session()
@@ -936,7 +943,7 @@ async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() 
 
 async def test_a_failing_analyzer_never_reaches_the_turn() -> None:
     class Broken:
-        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal:
+        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis:
             raise RuntimeError("boom")
 
     h = Harness([says("Uno."), says("Dos.")], signals=Broken())
@@ -1152,9 +1159,10 @@ async def test_a_button_for_another_read_back_changes_nothing() -> None:
     assert not [e for e in events if isinstance(e, ToolStarted)]
 
 
-async def test_the_button_confirms_a_read_back_the_voice_has_not_finished_saying() -> None:
-    """The card is on the screen: pressing the button is reading it."""
-    h = with_date_read_back(says("Perfecto."))
+async def test_the_button_on_a_read_back_the_voice_has_not_finished_earns_the_offer() -> None:
+    """A page only mirrors the call (D39): pressing Sí on a card whose read-back was cut is a
+    yes to what was not heard, like a spoken one. It no longer counts as reading it (D38)."""
+    h = with_date_read_back(says("Perdona. ¿Lo repasamos o seguimos?"))
     await h.open_session()
     await readback_pending(h)
     state = await h.store.sessions.get(SESSION)
@@ -1166,10 +1174,13 @@ async def test_the_button_confirms_a_read_back_the_voice_has_not_finished_saying
             state.model_copy(update={"pending_confirmation": heard_nothing}),
             expected_revision=state.candidate.revision,
         )
-    await _run(h, button("affirm", heard_nothing.confirmation_id))
+    events = await _run(h, button("affirm", heard_nothing.confirmation_id))
+    assert [e.name for e in events if isinstance(e, ToolStarted)] == ["review_readback"]
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.pending_confirmation is not None
-    assert state.pending_confirmation.status == "confirmed"
+    assert state.pending_confirmation.status == "pending"
+    assert state.pending_confirmation.review is not None
+    assert state.pending_confirmation.review.stage == "offered"
 
 
 async def _run(h: Harness, turn_input: TurnInput) -> list[RuntimeEvent]:
@@ -1722,3 +1733,274 @@ async def test_a_question_after_the_offer_is_answered_by_the_model() -> None:
     assert tools_started(events) == []
     said = [e.text for e in events if isinstance(e, AssistantText)]
     assert said == ["Unos treinta minutos.", "¿Qué hueco prefieres?"]
+
+
+# ---- a read-back the candidate cut: the offer, the parts, carrying on (D39) -------------------
+
+OFFER = "Perdona, me has contestado antes de acabar. ¿Lo repasamos por partes o seguimos?"
+
+
+async def cut_summary(*scripts: list[ModelEvent]) -> Harness:
+    """The summary said by voice and cut after its first sentence; then ``scripts``."""
+    h = Harness([[present_brief(), WANTS_TOOLS], says(""), *scripts])
+    await h.open_session()
+    await fill_record(h)
+    events = await voice_run(h, "ya está todo", "v-1")
+    turn_id = next(e for e in events if isinstance(e, TurnStarted)).turn_id
+    await h.runtime.delivered(turn_id, text="Te resumo lo que tengo.", complete=False)
+    return h
+
+
+async def pending_now(h: Harness) -> Confirmation:
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    return state.pending_confirmation
+
+
+async def test_a_yes_over_the_cut_summary_is_routed_to_the_offer_without_the_model() -> None:
+    h = await cut_summary(says(OFFER))
+    events = await voice_run(h, "Sí, está todo bien.", "v-2")
+    assert tools_started(events) == ["review_readback"]
+    pending = await pending_now(h)
+    assert pending.status == "pending" and pending.review is not None
+    assert pending.review.stage == "offered"
+    assert "offer" in h.model.calls[-1][0].content  # readback_answered tells the model
+
+
+async def test_a_plain_no_to_the_offer_carries_on_and_confirms_it_as_waived() -> None:
+    h = await cut_summary(says(OFFER), says("¿Alguna duda?"))
+    await voice_run(h, "Sí.", "v-2")
+    events = await voice_run(h, "No.", "v-3")
+    assert tools_started(events) == ["review_readback"]
+    pending = await pending_now(h)
+    assert pending.status == "confirmed"
+    assert confirmation.assurance(pending) == "waived"
+
+
+async def test_a_no_over_the_cut_summary_rejects_it() -> None:
+    h = await cut_summary(says("Vale, ¿qué cambio?"))
+    events = await voice_run(h, "No es correcto.", "v-2")
+    assert tools_started(events) == ["confirm_brief"]
+    assert (await pending_now(h)).status == "rejected"
+
+
+async def test_going_over_it_each_part_is_said_and_heard_by_its_own_playback() -> None:
+    from tests.test_handlers import CONFIG, full_record
+
+    parts = review_parts(render_brief(full_record(), CONFIG, "es"), "es")
+    h = await cut_summary(says(OFFER), *[says("")] * len(parts), says("¿Alguna duda?"))
+    await voice_run(h, "Sí.", "v-2")
+    for number, part in enumerate(parts, start=3):
+        events = await voice_run(h, "Sí.", f"v-{number}")
+        said = " ".join(e.text for e in events if isinstance(e, AssistantText))
+        assert said == part  # the part, word for word, and nothing else
+        turn_id = next(e for e in events if isinstance(e, TurnStarted)).turn_id
+        await h.runtime.delivered(turn_id, text=part, complete=False)  # heard to its check
+        assert (await pending_now(h)).fully_delivered is True
+    await voice_run(h, "Sí.", "v-9")
+    pending = await pending_now(h)
+    assert pending.status == "confirmed"
+    assert confirmation.assurance(pending) == "reviewed"
+
+
+def pending_seen(h: Harness) -> dict[str, object]:
+    """The pending read-back as the model saw it in its last call."""
+    content = h.model.calls[-1][0].content
+    facts = json.loads(content.split("## Datos de esta sesión (JSON)\n", 1)[1].split("\n\n")[0])
+    pending = facts["pending_confirmation"]
+    assert isinstance(pending, dict)
+    return pending
+
+
+async def test_the_model_sees_whether_the_read_back_was_heard_and_where_its_review_is() -> None:
+    h = await cut_summary(says(OFFER), says(""), says(""))
+    await voice_run(h, "Sí.", "v-2")
+    assert pending_seen(h) | {"heard": False, "review": "offered"} == pending_seen(h)
+    await voice_run(h, "Sí.", "v-3")
+    review = pending_seen(h)["review"]
+    assert isinstance(review, str) and review.startswith("part 1 of ")
+    await voice_run(h, "Sigue.", "v-4")
+    assert pending_seen(h)["review"] == "waived" and pending_seen(h)["status"] == "confirmed"
+
+
+# ---- rounds that change nothing (KI-08, D44) -----------------------------------------------------
+
+
+async def test_an_idle_round_before_anything_was_said_still_lets_the_model_answer() -> None:
+    h = Harness(
+        [
+            [name_call(), WANTS_TOOLS],
+            says(""),
+            [name_call("c2"), WANTS_TOOLS],
+            says("¿Tienes permiso?"),
+        ]
+    )
+    await h.open_session()
+    await h.run("Soy Lucía.", "in-1")
+    events = await h.run("Lucía, ya te lo dije.", "in-2")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == ["¿Tienes permiso?"]
+    assert len(h.model.calls) == 4
+
+
+async def test_a_round_that_saved_something_after_the_question_goes_on() -> None:
+    h = Harness([[ModelText(text="¿Tienes permiso?"), name_call(), WANTS_TOOLS], says("")])
+    await h.open_session()
+    await h.run("Soy Lucía.")
+    assert len(h.model.calls) == 2
+
+
+async def test_a_tool_whose_call_changed_nothing_is_offered_again_only_next_turn() -> None:
+    h = Harness(
+        [
+            [name_call(), WANTS_TOOLS],
+            [name_call("c2"), WANTS_TOOLS],
+            says("¿Tienes permiso?"),
+            says("Gracias."),
+        ]
+    )
+    await h.open_session()
+    await h.run("Soy Lucía.", "in-1")
+    await h.run("Sí.", "in-2")
+    offered = [{tool.name for tool in tools} for tools in h.model.advertised_tools]
+    assert ["update_candidate" in names for names in offered] == [True, True, False, True]
+
+
+# ---- tool arguments in the journal (KI-06, D44) --------------------------------------------------
+
+
+async def test_a_tool_call_is_journaled_with_its_arguments_redacted() -> None:
+    call = ToolCall(
+        call_id="p1",
+        name="update_candidate",
+        arguments_json=json.dumps(
+            {"patch": {"phone": "612 345 678"}, "evidence_text": "Mi móvil es 612 345 678"}
+        ),
+    )
+    h = Harness([[call, WANTS_TOOLS], says("")])
+    await h.open_session()
+    await h.run("Mi móvil es 612 345 678")
+    started = [
+        json.loads(e.payload_json) for e in h.store.events.all(SESSION) if e.kind == "tool_started"
+    ]
+    assert started[0]["name"] == "update_candidate"
+    assert "[phone]" in started[0]["arguments"] and "612" not in started[0]["arguments"]
+    assert '"patch"' in started[0]["arguments"]
+
+
+async def test_the_runtimes_own_call_is_journaled_with_its_arguments() -> None:
+    h = with_date_read_back(says("Perfecto."))
+    await h.open_session()
+    await readback_pending(h)
+    events = await h.run("Sí.", "in-2")
+    started = [e for e in events if isinstance(e, ToolStarted)]
+    assert started[0].arguments == '{"answer": "affirm"}'
+
+
+def test_a_journaled_tool_start_from_before_arguments_still_reads() -> None:
+    assert ToolStarted.model_validate_json('{"type": "tool_started", "name": "x"}').arguments == ""
+
+
+async def test_the_classifiers_tokens_are_recorded_under_the_turn_it_classified() -> None:
+    usage = ModelUsage(input_tokens=210, output_tokens=12, model_id="fake-2024-07-18")
+    verdict = ModelText(text='{"sentiment": "neutral", "evidence_text": ""}')
+    analyzer = ModelSignalAnalyzer(FakeModel([[verdict, usage, STOP]]))
+    h = Harness([says("Hola.")], signals=analyzer)
+    await h.open_session()
+    events = await h.run("Hola.")
+    await h.runtime.settle()
+    source = events[0].turn_id  # type: ignore[union-attr]
+    measured = [u for u in h.store.events.usage if not u.estimated]  # the turn's own is not
+    assert {(u.turn_id, u.unit_detail, u.quantity, u.estimated) for u in measured} == {
+        (source, "fake:input", 210, False),
+        (source, "fake:output", 12, False),
+    }
+
+
+# ---- a generation with no usage report is estimated (D44) ----------------------------------------
+
+
+def estimated(h: Harness) -> list[tuple[str, float]]:
+    return [(u.unit_detail, u.quantity) for u in h.store.events.usage if u.estimated]
+
+
+async def test_a_generation_closed_by_a_barge_in_is_estimated_from_its_characters() -> None:
+    h = Harness([says("Hola. ", "Te cuento algo. ", "¿Y tú?")])
+    await h.open_session()
+    stream = h.runtime.run_turn(turn("Hola"))
+    async for event in stream:
+        if isinstance(event, AssistantText):
+            break
+    await stream.aclose()
+    (input_tokens, output_tokens) = estimated(h)
+    assert input_tokens[0] == "fake:input" and input_tokens[1] > 100  # the system prompt
+    assert output_tokens == ("fake:output", 2)  # "Hola. ": what was read before the close
+
+
+async def test_a_cut_runaway_answer_is_estimated() -> None:
+    junk = [ModelText(text="(Esperando respuesta)") for _ in range(200)]
+    h = Harness(
+        [[ModelText(text="¿Tienes permiso de trabajo? "), *junk, STOP]],
+        limits=Limits(max_answer_characters=100),
+    )
+    await h.open_session()
+    await h.run("Maialen")
+    assert [detail for detail, _ in estimated(h)] == ["fake:input", "fake:output"]
+
+
+async def test_a_silent_attempt_and_its_retry_are_each_estimated() -> None:
+    h = Harness([says("Vale, apuntado.")], limits=FAST_DEADLINE, slow_calls=1)
+    await h.open_session()
+    await h.run("De lunes a viernes")
+    silent, retried = estimated(h)[:2], estimated(h)[2:]
+    assert silent[1] == ("fake:output", 0) and retried[1] == ("fake:output", 4)
+
+
+async def test_a_round_the_provider_reported_is_not_estimated() -> None:
+    usage = ModelUsage(input_tokens=120, output_tokens=14, model_id="fake")
+    h = Harness([[ModelText(text="Hola."), usage, STOP]])
+    await h.open_session()
+    await h.run("Hola")
+    assert estimated(h) == [] and len(h.store.events.usage) == 2
+
+
+# ---- usage measured outside a turn (D44) ---------------------------------------------------------
+
+
+def speech_usage() -> UsageRecord:
+    return UsageRecord(
+        session_id=SESSION,
+        turn_id=None,
+        kind="stt_seconds",
+        quantity=95.5,
+        unit_detail="nova-3",
+        estimated=False,
+    )
+
+
+async def test_usage_recorded_after_the_session_ended_stores_the_export_again() -> None:
+    closed: list[SessionId] = []
+
+    async def on_closed(session_id: SessionId) -> None:
+        closed.append(session_id)
+
+    h = Harness([], on_closed=on_closed)
+    await h.open_session()
+    await h.runtime.end(SESSION, "stop")
+    await h.runtime.settle()
+    await h.runtime.record_usage(SESSION, [speech_usage()])
+    await h.runtime.settle()
+    assert h.store.events.usage == [speech_usage()]
+    assert closed == [SESSION, SESSION]
+
+
+async def test_usage_recorded_while_the_session_is_open_is_only_stored() -> None:
+    closed: list[SessionId] = []
+
+    async def on_closed(session_id: SessionId) -> None:
+        closed.append(session_id)
+
+    h = Harness([], on_closed=on_closed)
+    await h.open_session()
+    await h.runtime.record_usage(SESSION, [speech_usage()])
+    await h.runtime.settle()
+    assert h.store.events.usage == [speech_usage()] and closed == []

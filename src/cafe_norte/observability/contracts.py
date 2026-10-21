@@ -97,6 +97,31 @@ class UsageRecord(Frozen):
     estimated: bool  # true when inferred (cancelled generation, missing provider report)
 
 
+def token_usage(
+    session_id: SessionId,
+    turn_id: TurnId | None,
+    model_id: str,
+    input_tokens: float,
+    output_tokens: float,
+    *,
+    estimated: bool,
+) -> tuple[UsageRecord, UsageRecord]:
+    """A model call's tokens as two records, keyed ``<model_id>:input`` and ``:output``. The
+    configured model id prices them: a provider echoes a dated snapshot id instead (D36)."""
+    input_record, output_record = (
+        UsageRecord(
+            session_id=session_id,
+            turn_id=turn_id,
+            kind="llm_tokens",
+            quantity=quantity,
+            unit_detail=f"{model_id}:{direction}",
+            estimated=estimated,
+        )
+        for direction, quantity in (("input", input_tokens), ("output", output_tokens))
+    )
+    return input_record, output_record
+
+
 class Price(Frozen):
     kind: UsageKind
     unit_detail: str

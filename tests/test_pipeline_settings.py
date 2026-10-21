@@ -15,7 +15,11 @@ from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import (  # 
     SpeechTimeoutUserTurnStopStrategy,
 )
 
-from cafe_norte.voice.pipeline import stt_settings, user_turn_strategies  # noqa: E402
+from cafe_norte.voice.pipeline import (  # noqa: E402
+    pipeline_params,
+    stt_settings,
+    user_turn_strategies,
+)
 
 
 def test_a_transcript_can_start_a_turn_when_vad_misses_a_soft_answer() -> None:
@@ -40,3 +44,8 @@ def test_speech_is_recognised_in_the_session_language_not_multi(language: str) -
     settings = stt_settings(language)  # type: ignore[arg-type]
     assert str(settings.language).lower().startswith(language)
     assert settings.model == "nova-3" and settings.interim_results is True
+
+
+def test_the_providers_report_their_usage_so_the_cost_is_measured() -> None:
+    """Deepgram's seconds and ElevenLabs' characters arrive only as usage metrics (D44)."""
+    assert pipeline_params().enable_usage_metrics

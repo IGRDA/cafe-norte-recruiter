@@ -2,8 +2,8 @@
 
 from datetime import UTC, date, datetime
 
-from evals.contracts import Check, SessionResult
-from evals.scorers import run_check
+from evals.contracts import Check, CheckResult, Persona, SessionResult
+from evals.scorers import extraction_accuracy, run_check
 
 from cafe_norte.domain.candidate import apply_patch
 from cafe_norte.domain.contracts import (
@@ -16,6 +16,7 @@ from cafe_norte.domain.contracts import (
     ConfirmationId,
     Evidence,
     InputId,
+    ReviewWaived,
     SessionId,
     SessionState,
     SlotId,
@@ -216,3 +217,93 @@ def test_brief_unconfirmed_fails_once_the_candidate_confirmed_a_brief() -> None:
     assert run_check(open_brief, Check(name="brief_unconfirmed")).ok
     confirmed = result(patch, brief_status="confirmed")
     assert not run_check(confirmed, Check(name="brief_unconfirmed")).ok
+
+
+def test_readback_assurance_reads_how_the_pending_read_back_was_confirmed() -> None:
+    heard = result(brief_status="confirmed")
+    assert run_check(heard, Check(name="readback_assurance", args={"assurance": "heard"})).ok
+    assert state_with_review(heard, "waived").ok
+    assert not run_check(heard, Check(name="readback_assurance", args={"assurance": "waived"})).ok
+    pending = result(brief_status="pending")
+    assert not run_check(pending, Check(name="readback_assurance", args={"assurance": "heard"})).ok
+
+
+def state_with_review(heard: SessionResult, stage: str) -> CheckResult:
+    pending = heard.state.pending_confirmation
+    assert pending is not None
+    waived = pending.model_copy(update={"review": ReviewWaived(turn_id=TurnId("t3"))})
+    state = heard.state.model_copy(update={"pending_confirmation": waived})
+    check = Check(name="readback_assurance", args={"assurance": stage})
+    return run_check(heard.model_copy(update={"state": state}), check)
+
+
+def test_readback_said_whole_counts_the_turns_that_said_the_pending_text_in_full() -> None:
+    once = result(brief_status="pending", spoken_by_turn=(("Resumen.",), ("¿Algo más?",)))
+    assert run_check(once, Check(name="readback_said_whole", args={"max": "1"})).ok
+    twice = result(brief_status="pending", spoken_by_turn=(("Resumen.",), ("Resumen.",)))
+    assert not run_check(twice, Check(name="readback_said_whole", args={"max": "1"})).ok
+    assert run_check(twice, Check(name="readback_said_whole", args={"max": "2"})).ok
+
+
+def test_the_check_after_each_part_of_a_review_is_not_a_repeated_question() -> None:
+    parts = result(
+        spoken_by_turn=(("Te llamas Lucía.", "¿Está bien?"), ("Tienes permiso.", "¿Está bien?"))
+    )
+    assert run_check(parts, Check(name="max_repeated_questions", args={"max": "0"})).ok
+
+
+def test_a_relative_start_date_resolves_against_the_session_day() -> None:
+    """Live runs happen on a real clock: ``next monday`` from Tuesday 20 October is the 26th."""
+    r = result(CandidatePatch(earliest_start_date=date(2026, 10, 26)))
+    check = Check(
+        name="field_equals", args={"field": "earliest_start_date", "value": "next monday"}
+    )
+    assert run_check(r, check).ok
+    tuesday = Check(
+        name="field_equals", args={"field": "earliest_start_date", "value": "next tuesday"}
+    )
+    assert run_check(result(CandidatePatch(earliest_start_date=date(2026, 10, 27))), tuesday).ok
+
+
+def test_sources_shown_on_any_turn_is_the_turn_free_grounding_check() -> None:
+    r = result().model_copy(update={"sources_by_turn": ((), ("offer_chamberi#horas-1",), ())})
+    shown = Check(name="sources_shown_on_any_turn", args={"section_prefix": "offer_chamberi#horas"})
+    other = Check(name="sources_shown_on_any_turn", args={"section_prefix": "offer_arganzuela"})
+    assert run_check(r, shown).ok
+    assert not run_check(r, other).ok
+
+
+PERSONA = Persona(
+    facts={
+        "name": "Lucía Marín",
+        "work_authorization": "yes",
+        "availability_days": "mon,thu",
+        "hours_per_week": "30",
+        "earliest_start_date": "next monday",
+        "experience": "dos años en una cafetería",  # free text: not an exact-match fact
+    },
+    corrections=(("hours_per_week", "25"),),
+)
+
+
+def test_extraction_counts_structured_facts_after_corrections_and_names_the_misses() -> None:
+    r = result(
+        CandidatePatch(
+            name="lucía marín ",
+            work_authorization="yes",
+            availability_days=frozenset({"mon", "thu"}),
+            hours_per_week=30,  # the correction to 25 was missed
+            earliest_start_date=date(2026, 10, 26),
+            experience="dos años",
+        )
+    )
+    extraction = extraction_accuracy(PERSONA, r.state)
+    assert (extraction.correct, extraction.supplied) == (4, 5)
+    assert extraction.misses == ("hours_per_week: expected 25, got 30",)
+
+
+def test_a_declined_fact_is_not_supplied() -> None:
+    persona = PERSONA.model_copy(update={"declines": ("hours_per_week",), "corrections": ()})
+    extraction = extraction_accuracy(persona, result().state)
+    assert extraction.supplied == 4
+    assert extraction.correct == 0

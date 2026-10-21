@@ -23,7 +23,11 @@ NAME_CALL = ToolCall(
         {"patch": {"name": "Lucía Marín"}, "evidence_text": "Me llamo Lucía Marín"}
     ),
 )
-TOOL_TURN: list[ModelEvent] = [NAME_CALL, ModelFinished(reason="tool_calls")]
+TOOL_TURN: list[ModelEvent] = [
+    NAME_CALL,
+    ModelUsage(input_tokens=120, output_tokens=9, model_id="fake"),
+    ModelFinished(reason="tool_calls"),
+]
 ANSWER_TURN: list[ModelEvent] = [
     ModelText(text="Encantada, Lucía. "),
     ModelText(text="¿Te interesa el puesto de barista?"),

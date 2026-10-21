@@ -15,6 +15,7 @@ data/
 evals/results/*
 !evals/results/README.md
 !evals/results/retrieval/
+!evals/results/comparison/
 kb/index/
 infra/**/.terraform/
 *.tfstate

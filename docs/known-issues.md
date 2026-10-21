@@ -1,7 +1,7 @@
 # Known issues
 
-Problems seen in real calls that are documented, reproduced where possible, and left for a
-later stage. Each entry says what happened, the evidence, the cause, how to reproduce it and
+Problems seen in real calls, documented and reproduced where possible. A fixed entry stays,
+with the decision or commit that fixed it, so the evidence trail is complete. Each entry says what happened, the evidence, the cause, how to reproduce it and
 the fix proposed. A reproduction in `tests/test_known_issues.py` is a strict `xfail`: it fails
 today, and the commit that fixes the issue removes the marker.
 
@@ -17,14 +17,14 @@ the session never paused during the call; no model round timed out.
 
 | Id | Problem | Severity | Reproduced by | Belongs with |
 |---|---|---|---|---|
-| KI-01 | "Está todo bien" is not taken as a yes | High | `test_ki01_…` | runtime yes/no |
-| KI-02 | A yes to the summary on screen is lost when its audio was cut; the summary loops | High | `test_ki02_…` | read-back design |
+| KI-01 | "Está todo bien" is not taken as a yes | High | `test_ki01_…` | **fixed (D39)** |
+| KI-02 | A yes to the summary on screen is lost when its audio was cut; the summary loops | High | `test_ki02_…`, S21, S22, the read-back matrix | **fixed (D39)** |
 | KI-03 | "¿Sigues ahí?" while the candidate is speaking | High | `test_ki03_…` | **fixed (D40)** |
 | KI-04 | "¿Sigues ahí?" twice after a failed turn | Medium | `test_ki04_…` | **fixed (D40)** |
 | KI-05 | System sentences are said ahead of the audio still playing | Medium | `test_ki05_…` | **fixed (D40)** |
 | KI-06 | Choosing an interview slot loops and never books | High | `test_ki06_…`, S20 | **fixed (D41)** |
-| KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | manual (below) | runtime robustness |
-| KI-08 | Wasted model rounds add latency | Low | journal | runtime, prompt |
+| KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | `test_ki07_…` | **fixed (D44)** |
+| KI-08 | Wasted model rounds add latency | Low | `test_ki08_…` (two) | **fixed (D44)** |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -36,6 +36,12 @@ the session never paused during the call; no model round timed out.
 - **Fix.** Add "está todo bien", "todo bien", "está bien todo", "todo está bien" (and the
   English "all good", "that's all right") to the affirmations; consider word-set matching for
   the "todo / bien / correcto" family.
+- **Fixed** (commit `bdc588d`, merged in PR #26). `signals.answer_to_readback` takes a yes as an
+  answer made only of yes-words and fillers, in any order, with at least one core yes-word and
+  no negation; "todo" or "está" alone only support a core word. "Está todo bien", "Todo bien",
+  "Está bien todo", "All good" and "That is all right" are a plain yes; `test_ki01_…` passes
+  with no marker, and a no still wins first. Since D39 a
+  carry-on ("sigue", "adelante") is its own answer.
 
 ## KI-02 · A yes to the summary on screen is lost when its audio was cut
 
@@ -54,6 +60,12 @@ the session never paused during the call; no model round timed out.
 - **Fix (decide first).** Speak a short summary ("Te lo he puesto en pantalla, ¿está todo
   bien?") and show the full one; or count a read-back as presented once its last sentence was
   shown on a connected page, keeping "heard" for voice-only; and re-read at most once.
+- **Fixed (D39).** Decided with the owner: voice only, the page never counts as hearing. The
+  yes over the summary earns one offer, in the model's words, to go over it or carry on.
+  "Sigue." (or a plain "no" to the offer) confirms it, recorded in the export as `waived`;
+  "sí" goes over it in short parts, each with "¿Está bien?", and the yes to the last one
+  confirms it as `reviewed`. A cut read-back is never said whole again. `test_ki02_…` replays
+  the call; S21, S22 and `tests/test_readback_matrix.py` cover every kind and cut.
 
 ## KI-03 · "¿Sigues ahí?" while the candidate is speaking
 
@@ -117,7 +129,8 @@ the session never paused during the call; no model round timed out.
 - **Fixed (D41).** The runtime matches the answer against the offer
   (`domain/slot_choice.py`), reads one fitting slot back, keeps a shortlist and lets the model
   ask when several fit, offers again when none does, and books a yes that restates the slot.
-  `test_ki06_…` and scenario S20 replay the call. **Still open:** tool arguments in the journal.
+  `test_ki06_…` and scenario S20 replay the call. Tool arguments are journaled since D44
+  (`ToolStarted.arguments`, redacted), so the export and the reviewer panel show them.
 
 ## KI-07 · A hesitation splits the answer and the first part is lost silently
 
@@ -128,6 +141,10 @@ the session never paused during the call; no model round timed out.
   the running one; cancellation is not journaled (runtime robustness item).
 - **Fix.** Journal the cancelled turn as interrupted (runtime robustness stream); consider a
   longer timeout after a question that expects a date or a number, or Pipecat's smart-turn.
+- **Fixed (D37, D44).** D37 journals a cancelled turn as an interrupted assistant turn that ends
+  with `turn_finished` (`interrupted: true`), so the page closes it instead of showing "…". D44
+  joins a turn cut before any of its answer was heard to the next transcript within 5 s, so the
+  model reads "El lunes, uno, de, dos de noviembre." as one answer (`test_ki07_…`).
 
 ## KI-08 · Wasted model rounds add latency
 
@@ -137,3 +154,7 @@ the session never paused during the call; no model round timed out.
   sentence.
 - **Fix.** Prompt and next-step texts that end the round after a successful save; the runtime
   could stop the loop when a round only repeats an unchanged save.
+- **Fixed (D44).** A call that changed nothing is `idle`. Once the question was said, an idle
+  round ends the loop. A tool whose call changed nothing is not offered again that turn, so the
+  next round has to speak. With a round modelled at 0.75 s, a save repeated twice goes from 4
+  rounds and 3.0 s to the first sentence to 3 rounds and 2.3 s (`test_ki08_…`, two).

@@ -15,9 +15,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.contracts import SignalAnalysis
 from cafe_norte.domain.contracts import Sentiment, Signal, TurnId
 from cafe_norte.errors import Language, ServiceError
-from cafe_norte.model.contracts import Model, ModelMessage, ModelText
+from cafe_norte.model.contracts import Model, ModelMessage, ModelText, ModelUsage
 
 Control = Literal["stop", "human", "switch_es", "switch_en"]
 
@@ -240,42 +241,62 @@ class ModelSignalAnalyzer:
         self._model = model
         self._deadline_seconds = deadline_seconds
 
-    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal | None:
+    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis:
+        """The verdict and the tokens it cost; the tokens are reported even when the verdict
+        is no signal, and are ``None`` only when the call never finished."""
+        reply = _Reply()
         try:
             async with asyncio.timeout(self._deadline_seconds):
-                raw = await self._complete(text, language)
-            verdict = _Verdict.model_validate_json(_strip_fence(raw))
+                await self._complete(text, language, reply)
+            verdict = _Verdict.model_validate_json(_strip_fence("".join(reply.parts)))
         except (TimeoutError, ServiceError, ValidationError) as error:
             log.info("no signal for turn %s: %s", turn_id, type(error).__name__)
-            return None
-        evidence = verdict.evidence_text.strip()
-        if evidence.casefold() not in text.casefold() or (
-            verdict.sentiment != "neutral" and not evidence
-        ):
-            log.info("no signal for turn %s: evidence not in the text", turn_id)
-            return None
-        controls = explicit_controls(text)
-        asked = requested_language(controls, language)
-        return Signal(
-            turn_id=turn_id,
-            sentiment=verdict.sentiment,
-            explicit_human_request="human" in controls,
-            explicit_stop="stop" in controls,
-            language_switch_to=None if asked == language else asked,
-            evidence_text=evidence,
-        )
+            return self._analysis(None, reply)
+        return self._analysis(_signal(turn_id, text, language, verdict), reply)
 
-    async def _complete(self, text: str, language: Language) -> str:
+    def _analysis(self, signal: Signal | None, reply: "_Reply") -> SignalAnalysis:
+        return SignalAnalysis(signal=signal, usage=reply.usage, model_id=self._model.model_id)
+
+    async def _complete(self, text: str, language: Language, reply: "_Reply") -> None:
         messages = (
             ModelMessage(role="system", content=prompts.load("classifier")),
             ModelMessage(role="user", content=f"language: {language}\ntext: {text}"),
         )
         deadline = datetime.now(UTC) + timedelta(seconds=self._deadline_seconds)
-        parts: list[str] = []
         async for event in self._model.stream(messages, (), deadline=deadline):
             if isinstance(event, ModelText):
-                parts.append(event.text)
-        return "".join(parts)
+                reply.parts.append(event.text)
+            elif isinstance(event, ModelUsage):
+                reply.usage = event
+
+
+class _Reply:
+    """What the classifier call streamed so far; kept outside the call so a verdict that
+    fails to parse still reports the tokens it cost."""
+
+    def __init__(self) -> None:
+        self.parts: list[str] = []
+        self.usage: ModelUsage | None = None
+
+
+def _signal(turn_id: TurnId, text: str, language: Language, verdict: _Verdict) -> Signal | None:
+    """A verdict becomes a signal only when the candidate's own words back it."""
+    evidence = verdict.evidence_text.strip()
+    if evidence.casefold() not in text.casefold() or (
+        verdict.sentiment != "neutral" and not evidence
+    ):
+        log.info("no signal for turn %s: evidence not in the text", turn_id)
+        return None
+    controls = explicit_controls(text)
+    asked = requested_language(controls, language)
+    return Signal(
+        turn_id=turn_id,
+        sentiment=verdict.sentiment,
+        explicit_human_request="human" in controls,
+        explicit_stop="stop" in controls,
+        language_switch_to=None if asked == language else asked,
+        evidence_text=evidence,
+    )
 
 
 def _strip_fence(raw: str) -> str:

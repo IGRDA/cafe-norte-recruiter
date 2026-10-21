@@ -33,7 +33,6 @@ h2 { font-size: 0.95rem; margin: 16px 0 8px; color: var(--muted); text-transform
 .transcript li.user { background: var(--user); }
 .transcript .who { font-weight: 600; color: var(--muted); }
 .transcript p { margin: 0; white-space: pre-wrap; }
-.interim { min-height: 1.2em; color: var(--muted); font-style: italic; margin: 6px 0; }
 .composer { display: flex; gap: 8px; flex-wrap: wrap; }
 .composer input { flex: 1 1 200px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 1rem; }
 .composer button { padding: 10px 14px; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; font-size: 1rem; cursor: pointer; }

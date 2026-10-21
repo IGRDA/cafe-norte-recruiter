@@ -3,13 +3,14 @@
 import asyncio
 import json
 import logging
+import math
 import time
 import uuid
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import aclosing
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import Literal, TypeGuard
 from zoneinfo import ZoneInfo
 
 from cafe_norte.conversation import prompts
@@ -17,6 +18,7 @@ from cafe_norte.conversation.brief import slot_time
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
+    SignalAnalysis,
     SignalAnalyzer,
     SignalRecorded,
     StateUpdated,
@@ -37,6 +39,7 @@ from cafe_norte.conversation.prompt import (
     sentences,
     split_sentences,
 )
+from cafe_norte.conversation.readback import answer_call, current_saying
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.signals import (
     answer_to_readback,
@@ -76,6 +79,7 @@ from cafe_norte.model.contracts import (
     ModelText,
     ModelUsage,
     ToolCall,
+    ToolSchema,
 )
 from cafe_norte.observability.contracts import (
     EventName,
@@ -88,7 +92,9 @@ from cafe_norte.observability.contracts import (
     StructuredEvent,
     Telemetry,
     UsageRecord,
+    token_usage,
 )
+from cafe_norte.observability.redaction import redact
 from cafe_norte.persistence.contracts import EventRecord, Lease, Store, TurnRecord
 
 
@@ -138,6 +144,9 @@ def _utcnow() -> datetime:
 # What a generation's trace keeps of the conversation it saw (docs/architecture.md).
 _TRACE_CONTEXT_CHARACTERS = 1800
 
+# A generation with no usage report is estimated at this many characters per token (D44).
+CHARACTERS_PER_TOKEN = 4
+
 
 def conversation_tail(
     messages: Sequence[ModelMessage], budget: int = _TRACE_CONTEXT_CHARACTERS
@@ -173,6 +182,8 @@ class _Turn:
     timings: list[StageTiming] = field(default_factory=list)
     asked: bool = False  # a question has been spoken; the turn says nothing more
     repairs: int = 0  # malformed tool calls this turn; the budget is ``Limits.max_repairs``
+    round_idle: bool = False  # every call of the latest model round changed nothing (D44)
+    withheld: set[str] = field(default_factory=set)  # tools not offered again this turn (D44)
     previous_end: datetime | None = None  # when Ana last finished, for the gap before this turn
     recorded: bool = False  # the user turn is stored, so an interruption has a turn to close
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
@@ -210,19 +221,16 @@ class _Turn:
         )
 
     def count(self, usage: ModelUsage, model_id: str) -> None:
-        """Priced by the configured model: a provider echoes a dated snapshot id instead."""
-        for direction, quantity in (("input", usage.input_tokens), ("output", usage.output_tokens)):
-            detail = f"{model_id}:{direction}"
-            self.usage.append(
-                UsageRecord(
-                    session_id=self.session_id,
-                    turn_id=self.turn_id,
-                    kind="llm_tokens",
-                    quantity=quantity,
-                    unit_detail=detail,
-                    estimated=False,
-                )
+        self.usage.extend(
+            token_usage(
+                self.session_id,
+                self.turn_id,
+                model_id,
+                usage.input_tokens,
+                usage.output_tokens,
+                estimated=False,
             )
+        )
 
     def record(
         self,
@@ -384,6 +392,14 @@ class Runtime:
         if session_id is not None:
             await self._journal(session_id, turn_id, _say(text))
 
+    async def record_usage(self, session_id: SessionId, usage: Sequence[UsageRecord]) -> None:
+        """Usage measured outside a turn, such as a call's speech providers. A session that
+        has already ended stores its export again, so the cost in it includes this (D44)."""
+        await self._record(usage)
+        state = await self._store.sessions.get(session_id)
+        if state is not None and is_terminal(state):
+            self._close_later(session_id)
+
     async def _system_turn(
         self,
         session_id: SessionId,
@@ -465,8 +481,9 @@ class Runtime:
                 )
                 pending = state.pending_confirmation
                 if pending is not None and pending.presented_turn_id == turn_id:
-                    # Heard when playback reached the read-back's last sentence.
-                    last_sentence = sentences(pending.presentation_text)[-1]
+                    # Heard when playback reached the last sentence of what was said: the
+                    # whole read-back, or the part under review (D39).
+                    last_sentence = sentences(current_saying(pending, state.language))[-1]
                     was_heard = complete or text.endswith(last_sentence)
                     await self._store.sessions.save(
                         tx,
@@ -599,6 +616,9 @@ class Runtime:
                         raise ServiceError("tool rounds exhausted", code="limit_exceeded")
                     async for event in self._tool_calls(run, step):
                         yield event
+                    if _nothing_left_to_do(run):
+                        step.annotate(idle=True)
+                        break
 
         run.time("llm_total", run.started)
         with run.trace.child("write-assistant-turn"):
@@ -700,7 +720,10 @@ class Runtime:
 
         async def analyze() -> None:
             try:
-                signal = await analyzer.analyze(run.turn_id, run.input.text, run.state.language)
+                analysis = await analyzer.analyze(run.turn_id, run.input.text, run.state.language)
+                if analysis.usage is not None:
+                    await self._record(_analysis_usage(run, analysis))
+                signal = analysis.signal
                 if signal is None:
                     return
                 if self._last_user_turn.get(run.session_id) == run.turn_id:
@@ -712,6 +735,12 @@ class Runtime:
         task = asyncio.create_task(analyze())
         self._analyses.add(task)
         task.add_done_callback(self._analyses.discard)
+
+    async def _record(self, usage: Sequence[UsageRecord]) -> None:
+        """Usage that arrives outside a turn's own closing transaction."""
+        async with self._store.transaction() as tx:
+            for record in usage:
+                await self._store.events.record_usage(tx, record)
 
     async def _model_round(self, run: _Turn, step: Span) -> AsyncGenerator[RuntimeEvent, None]:
         """One model call: sentences out as they complete; tool calls collected in ``run.calls``;
@@ -788,7 +817,8 @@ class Runtime:
     def _stream_model(self, run: _Turn) -> AsyncGenerator[ModelEvent, None]:
         remaining = max(self._limits.session_seconds - run.state.active_seconds, 1.0)
         deadline = self._clock() + timedelta(seconds=remaining)
-        return self._model.stream(tuple(run.messages), self._tools.schemas(), deadline=deadline)
+        tools = _offered(self._tools.schemas(), run.withheld)
+        return self._model.stream(tuple(run.messages), tools, deadline=deadline)
 
     async def _round_events(
         self, run: _Turn, chat: Span
@@ -805,6 +835,7 @@ class Runtime:
                     first = await anext(stream, None)
             except TimeoutError as error:
                 await stream.aclose()
+                self._estimate(run, output_characters=0)
                 if attempt == 1:
                     chat.annotate(silent_attempts=1)
                     self._event(
@@ -816,16 +847,19 @@ class Runtime:
         first_output_ms = int((time.monotonic() - started) * 1000)
         chat.first_output()
         chat.annotate(attempt=attempt, first_output_ms=first_output_ms)
+        seen = _Attempt()
         try:
             if first is None:
                 raise ServiceError("empty model stream", code="invalid_response")
-            if not isinstance(first, ModelFinished):
+            if seen.note(first):
                 yield first
             async for event in stream:
-                if not isinstance(event, ModelFinished):
+                if seen.note(event):
                     yield event
         finally:
             await stream.aclose()
+            if not seen.reported:
+                self._estimate(run, output_characters=seen.output_characters)
             self._event(
                 run,
                 "model_round",
@@ -835,11 +869,34 @@ class Runtime:
                 total_ms=int((time.monotonic() - started) * 1000),
             )
 
+    def _estimate(self, run: _Turn, *, output_characters: int) -> None:
+        """A generation that ended with no usage report (cut by a barge-in or the answer
+        limit, silent, or failed) still cost tokens: they are estimated from its characters,
+        the prompt and tools it was sent and the text it streamed, and marked so (D44)."""
+        input_characters = sum(len(m.content) for m in run.messages) + sum(
+            len(schema.model_dump_json())
+            for schema in _offered(self._tools.schemas(), run.withheld)
+        )
+        run.usage.extend(
+            token_usage(
+                run.session_id,
+                run.turn_id,
+                self._model.model_id,
+                math.ceil(input_characters / CHARACTERS_PER_TOKEN),
+                math.ceil(output_characters / CHARACTERS_PER_TOKEN),
+                estimated=True,
+            )
+        )
+
     async def _tool_calls(self, run: _Turn, step: Span) -> AsyncIterator[RuntimeEvent]:
         """Dispatch every call of the round in order; each result becomes a tool message."""
+        run.round_idle = True
         for call in run.calls:
             async for event in self._run_tool(run, call, step):
                 yield event
+            run.round_idle = run.round_idle and run.outcome.idle
+            if run.outcome.idle:
+                run.withheld.add(call.name)  # the next round has to speak instead
             if run.outcome.malformed:
                 run.repairs += 1
                 if run.repairs > self._limits.max_repairs:
@@ -857,7 +914,9 @@ class Runtime:
     ) -> AsyncIterator[RuntimeEvent]:
         """One tool call through the registry: started, its events, anything it says, finished.
         The outcome is left on ``run.outcome`` for the caller."""
-        yield await self._emit(run, ToolStarted(name=call.name))
+        yield await self._emit(
+            run, ToolStarted(name=call.name, arguments=redact(call.arguments_json))
+        )
         started = time.monotonic()
         context = ToolContext(
             session_id=run.session_id,
@@ -892,39 +951,20 @@ class Runtime:
         run.outcome = outcome
 
     async def _plain_answer(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
-        """A plain yes or no to a read-back the candidate has fully heard is resolved here,
-        through the same tool and domain rules as the model's call, so a model that forgets
-        ``confirm_field`` can no longer leave it pending (D35). Anything else is the model's."""
+        """A plain yes, no or carry-on to the pending read-back is resolved here, through the
+        same tools and domain rules as the model's call, so a model that forgets
+        ``confirm_field`` can no longer leave it pending (D35). Where the read-back stands
+        decides the tool (``readback.answer_call``): one heard to the end is answered, one the
+        candidate cut goes to the review (D39). Anything else is the model's."""
         ui = run.input.ui_answer
         answer = ui.answer if ui is not None else answer_to_readback(run.input.text)
-        if answer == "skip":
-            answer = None  # routed by the read-back review (D39); until then the model's
         pending = run.state.pending_confirmation
-        if ui is not None and pending is not None and pending.confirmation_id == ui.confirmation_id:
-            # The card was on the screen: pressing the button is reading it, even if the voice
-            # had not finished saying it.
-            await self._mark_delivered(run)
-            refreshed = await self._store.sessions.get(run.session_id)
-            if refreshed is not None:
-                run.state = refreshed
-                pending = refreshed.pending_confirmation
-        elif ui is not None:
+        if ui is not None and (pending is None or pending.confirmation_id != ui.confirmation_id):
             return  # an answer to a read-back that is no longer the pending one
-        if (
-            answer is None
-            or pending is None
-            or pending.status != "pending"
-            or not pending.fully_delivered
-            or pending.presented_turn_id == run.turn_id
-        ):
+        call = answer_call(pending, answer, run.turn_id) if answer is not None else None
+        if call is None:
             return
-        arguments: dict[str, str]
-        if isinstance(pending.target, SlotTarget):
-            if answer != "affirm":
-                return  # another slot or none: the model offers alternatives
-            name, arguments = "reserve_interview", {"slot_id": str(pending.target.slot_id)}
-        else:
-            name, arguments = f"confirm_{pending.target.kind}", {"answer": answer}
+        name, arguments = call
         async for event in self._runtime_call(run, name, arguments):
             yield event
         run.answered = run.outcome.model_text
@@ -1118,6 +1158,49 @@ def _heard_read_back_of(run: _Turn, slot_id: SlotId) -> bool:
         and pending.fully_delivered
         and pending.presented_turn_id != run.turn_id
     )
+
+
+def _analysis_usage(run: _Turn, analysis: SignalAnalysis) -> tuple[UsageRecord, ...]:
+    """The classifier's tokens, under the turn it classified."""
+    usage = analysis.usage
+    assert usage is not None
+    return token_usage(
+        run.session_id,
+        run.turn_id,
+        analysis.model_id,
+        usage.input_tokens,
+        usage.output_tokens,
+        estimated=False,
+    )
+
+
+@dataclass
+class _Attempt:
+    """What one model attempt streamed: whether the provider reported its usage, and the
+    characters of text, for the estimate when it did not (D44)."""
+
+    reported: bool = False
+    output_characters: int = 0
+
+    def note(self, event: ModelEvent) -> TypeGuard[ModelText | ToolCall | ModelUsage]:
+        """Count the event; ``True`` when it is for the round to read (not the finish)."""
+        self.reported = self.reported or isinstance(event, ModelUsage)
+        if isinstance(event, ModelText):
+            self.output_characters += len(event.text)
+        return not isinstance(event, ModelFinished)
+
+
+def _nothing_left_to_do(run: _Turn) -> bool:
+    """The question of the turn has been said and the round only repeated what was done or
+    answered for the candidate: nothing more can be voiced, so another round is only latency
+    (KI-08, D44)."""
+    return run.asked and run.round_idle
+
+
+def _offered(schemas: tuple[ToolSchema, ...], withheld: set[str]) -> tuple[ToolSchema, ...]:
+    """The tools the next round may call: all but those whose call this turn changed nothing,
+    so a model that repeats a done save has to answer in words (KI-08, D44)."""
+    return tuple(schema for schema in schemas if schema.name not in withheld)
 
 
 def _opening(state: SessionState) -> list[str]:

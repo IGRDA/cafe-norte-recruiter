@@ -10,7 +10,14 @@ recorder."""
 
 import asyncio
 import uuid
-from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Mapping
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Mapping,
+    Sequence,
+)
 from contextlib import aclosing
 from datetime import UTC, datetime
 from typing import Literal, Protocol
@@ -27,6 +34,7 @@ from cafe_norte.conversation.contracts import (
 )
 from cafe_norte.domain.contracts import InputId, SessionId, TurnId
 from cafe_norte.errors import Language
+from cafe_norte.observability.contracts import UsageRecord
 from cafe_norte.voice.contracts import VoiceStatus, VoiceTexts
 from cafe_norte.voice.delivery import Ledger, finished, heard, sent
 
@@ -43,6 +51,7 @@ class VoiceRuntime(Protocol):
     ) -> None: ...
     def say(self, session_id: SessionId, text: str) -> AsyncIterator[RuntimeEvent]: ...
     async def aside(self, turn_id: TurnId, text: str) -> None: ...
+    async def record_usage(self, session_id: SessionId, usage: Sequence[UsageRecord]) -> None: ...
 
 
 def _utcnow() -> datetime:
@@ -51,6 +60,7 @@ def _utcnow() -> datetime:
 
 class VoiceSession:
     filler_after_seconds: float = 1.5
+    join_window_seconds: float = 5.0  # a cut answer and the words after it are one (KI-07)
 
     def __init__(
         self,
@@ -88,6 +98,8 @@ class VoiceSession:
         self._idle_task: asyncio.Task[None] | None = None
         self._prompted = False  # the one silence prompt since the candidate's last turn was said
         self._owed: str | None = None  # the apology to say once the queued audio has played
+        self._turn_input: TurnInput | None = None  # what the running turn was asked
+        self._carry: TurnInput | None = None  # a turn cut before Ana's answer was heard (D44)
 
     # ---- inputs from the audio side --------------------------------------------------------------
 
@@ -106,13 +118,15 @@ class VoiceSession:
         if self._turn_task is not None and not self._turn_task.done():
             return  # an interruption frame precedes any new speech; nothing to do here
         self._prompted = False  # the candidate has spoken: the next silence earns a prompt again
+        received_at = self._clock()
         turn = TurnInput(
             session_id=self._session_id,
             input_id=InputId(uuid.uuid4().hex),
-            text=text,
+            text=self._joined(text, received_at),
             channel="voice",
-            received_at=self._clock(),
+            received_at=received_at,
         )
+        self._turn_input = turn
         self._ledger, self._turn_id, self._turn_done, self._acknowledged = (
             Ledger(),
             None,
@@ -132,6 +146,7 @@ class VoiceSession:
         self._cancel_filler()
         task, self._turn_task = self._turn_task, None
         if task is not None and not task.done():
+            self._carry = self._turn_input if self._nothing_heard() else None
             task.cancel()
             try:
                 await task
@@ -201,6 +216,22 @@ class VoiceSession:
         if failed:
             self._owed = self._texts.failure
         await self._drained()
+
+    def _nothing_heard(self) -> bool:
+        """None of the running turn's answer has played, the filler aside: the candidate was
+        still saying the same thing when they paused (KI-07)."""
+        text, _ = heard(self._ledger)
+        return text in ("", self._texts.filler)
+
+    def _joined(self, text: str, received_at: datetime) -> str:
+        """The words of a turn cut before its answer was heard, then these, when they come
+        within the join window; the cut part is used once (D44)."""
+        carry, self._carry = self._carry, None
+        if carry is None:
+            return text
+        if (received_at - carry.received_at).total_seconds() > self.join_window_seconds:
+            return text
+        return f"{carry.text} {text}"
 
     async def _filler(self) -> None:
         await self._after_silence(self.filler_after_seconds)

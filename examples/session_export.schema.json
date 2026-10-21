@@ -532,122 +532,6 @@
       "title": "Captured[frozenset[NewType]]",
       "type": "object"
     },
-    "Confirmation": {
-      "additionalProperties": false,
-      "description": "One read-back and its answer. A bare \"yes\" only means something against the pending one.",
-      "properties": {
-        "confirmation_id": {
-          "title": "Confirmation Id",
-          "type": "string"
-        },
-        "target": {
-          "discriminator": {
-            "mapping": {
-              "brief": "#/$defs/BriefTarget",
-              "field": "#/$defs/FieldTarget",
-              "slot": "#/$defs/SlotTarget"
-            },
-            "propertyName": "kind"
-          },
-          "oneOf": [
-            {
-              "$ref": "#/$defs/FieldTarget"
-            },
-            {
-              "$ref": "#/$defs/BriefTarget"
-            },
-            {
-              "$ref": "#/$defs/SlotTarget"
-            }
-          ],
-          "title": "Target"
-        },
-        "presentation_text": {
-          "title": "Presentation Text",
-          "type": "string"
-        },
-        "presented_turn_id": {
-          "title": "Presented Turn Id",
-          "type": "string"
-        },
-        "fully_delivered": {
-          "default": false,
-          "title": "Fully Delivered",
-          "type": "boolean"
-        },
-        "review": {
-          "anyOf": [
-            {
-              "discriminator": {
-                "mapping": {
-                  "in_parts": "#/$defs/ReviewInParts",
-                  "offered": "#/$defs/ReviewOffered",
-                  "waived": "#/$defs/ReviewWaived"
-                },
-                "propertyName": "stage"
-              },
-              "oneOf": [
-                {
-                  "$ref": "#/$defs/ReviewOffered"
-                },
-                {
-                  "$ref": "#/$defs/ReviewInParts"
-                },
-                {
-                  "$ref": "#/$defs/ReviewWaived"
-                }
-              ]
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Review"
-        },
-        "response_turn_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Response Turn Id"
-        },
-        "status": {
-          "default": "pending",
-          "enum": [
-            "pending",
-            "confirmed",
-            "rejected",
-            "invalidated",
-            "expired"
-          ],
-          "title": "Status",
-          "type": "string"
-        },
-        "source": {
-          "default": "model",
-          "enum": [
-            "model",
-            "ui"
-          ],
-          "title": "Source",
-          "type": "string"
-        }
-      },
-      "required": [
-        "confirmation_id",
-        "target",
-        "presentation_text",
-        "presented_turn_id"
-      ],
-      "title": "Confirmation",
-      "type": "object"
-    },
     "Confirmed_Annotated_int__FieldInfo_annotation_NoneType__required_True__metadata__Ge_ge_1___Le_le_60_____": {
       "additionalProperties": false,
       "properties": {
@@ -904,6 +788,139 @@
         "text"
       ],
       "title": "Evidence",
+      "type": "object"
+    },
+    "ExportedConfirmation": {
+      "additionalProperties": false,
+      "description": "A read-back as the export shows it: with how a confirmed one was confirmed (D39), heard\nwhole, gone over to the end, or carried on without going over it. ``None`` otherwise.",
+      "properties": {
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        },
+        "target": {
+          "discriminator": {
+            "mapping": {
+              "brief": "#/$defs/BriefTarget",
+              "field": "#/$defs/FieldTarget",
+              "slot": "#/$defs/SlotTarget"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/FieldTarget"
+            },
+            {
+              "$ref": "#/$defs/BriefTarget"
+            },
+            {
+              "$ref": "#/$defs/SlotTarget"
+            }
+          ],
+          "title": "Target"
+        },
+        "presentation_text": {
+          "title": "Presentation Text",
+          "type": "string"
+        },
+        "presented_turn_id": {
+          "title": "Presented Turn Id",
+          "type": "string"
+        },
+        "fully_delivered": {
+          "default": false,
+          "title": "Fully Delivered",
+          "type": "boolean"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "in_parts": "#/$defs/ReviewInParts",
+                  "offered": "#/$defs/ReviewOffered",
+                  "waived": "#/$defs/ReviewWaived"
+                },
+                "propertyName": "stage"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/ReviewOffered"
+                },
+                {
+                  "$ref": "#/$defs/ReviewInParts"
+                },
+                {
+                  "$ref": "#/$defs/ReviewWaived"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review"
+        },
+        "response_turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response Turn Id"
+        },
+        "status": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "confirmed",
+            "rejected",
+            "invalidated",
+            "expired"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "source": {
+          "default": "model",
+          "enum": [
+            "model",
+            "ui"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "assurance": {
+          "anyOf": [
+            {
+              "enum": [
+                "heard",
+                "reviewed",
+                "waived"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assurance"
+        }
+      },
+      "required": [
+        "confirmation_id",
+        "target",
+        "presentation_text",
+        "presented_turn_id"
+      ],
+      "title": "ExportedConfirmation",
       "type": "object"
     },
     "FieldTarget": {
@@ -1827,7 +1844,7 @@
     },
     "confirmations": {
       "items": {
-        "$ref": "#/$defs/Confirmation"
+        "$ref": "#/$defs/ExportedConfirmation"
       },
       "title": "Confirmations",
       "type": "array"

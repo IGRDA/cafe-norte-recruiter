@@ -54,7 +54,8 @@
      `jsonPayload.session_id="<id>"`. For the voice pipeline (VAD, TTS, idle prompts) too.
   3. The journal, for what was announced to the candidate, in order:
      `docker exec app uv run --no-sync python -c "import os,psycopg; c=psycopg.connect(os.environ['CAFE_NORTE_DATABASE_URL']); [print(r) for r in c.execute('select seq, kind, at, payload from events where session_id=%s order by seq', ('<id>',))]"`.
-     D35 is a worked example of reading it.
+     D35 is a worked example of reading it. Since D44 a `tool_started` payload carries the
+     call's arguments (redacted), and a `step` span with `idle` is a round that changed nothing.
 - **Restart or new image**: sessions, bookings and the event sequence are in Cloud SQL, so
   they survive; an open page reconnects and a candidate reopens the conversation with the
   private link shown when it started (valid 7 days). A turn in flight during the reset is lost

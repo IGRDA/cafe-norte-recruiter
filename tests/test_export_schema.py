@@ -25,6 +25,7 @@ def test_example_export_is_a_complete_s01_session() -> None:
     assert document.session.ended_at is not None
     confirmed = {c.target.kind for c in document.confirmations if c.status == "confirmed"}
     assert confirmed == {"field", "brief", "slot"}
+    assert {c.assurance for c in document.confirmations if c.status == "confirmed"} == {"heard"}
     assert document.summary.brief and document.summary.brief in {
         c.presentation_text for c in document.confirmations
     }

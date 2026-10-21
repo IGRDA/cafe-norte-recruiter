@@ -265,6 +265,9 @@ class Runtime:
             if state is None:
                 yield _NOT_FOUND  # nothing to journal against, and nobody can stream it
                 return
+            if turn.ui_answer is not None and not turn.text:
+                label = prompts.table("ui", state.language)[turn.ui_answer.answer]
+                turn = turn.model_copy(update={"text": label})
             run = _Turn(input=turn, state=state)
             self._turn_sessions[run.turn_id] = turn.session_id
             run.trace = self._telemetry.turn(
@@ -783,8 +786,19 @@ class Runtime:
         """A plain yes or no to a read-back the candidate has fully heard is resolved here,
         through the same tool and domain rules as the model's call, so a model that forgets
         ``confirm_field`` can no longer leave it pending (D35). Anything else is the model's."""
-        answer = answer_to_readback(run.input.text)
+        ui = run.input.ui_answer
+        answer = ui.answer if ui is not None else answer_to_readback(run.input.text)
         pending = run.state.pending_confirmation
+        if ui is not None and pending is not None and pending.confirmation_id == ui.confirmation_id:
+            # The card was on the screen: pressing the button is reading it, even if the voice
+            # had not finished saying it.
+            await self._mark_delivered(run)
+            refreshed = await self._store.sessions.get(run.session_id)
+            if refreshed is not None:
+                run.state = refreshed
+                pending = refreshed.pending_confirmation
+        elif ui is not None:
+            return  # an answer to a read-back that is no longer the pending one
         if (
             answer is None
             or pending is None

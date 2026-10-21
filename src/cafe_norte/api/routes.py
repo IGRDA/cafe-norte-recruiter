@@ -14,17 +14,19 @@ from cafe_norte.api.access import ACCESS_COOKIE, SESSION_COOKIE, AccessGate
 from cafe_norte.api.contracts import (
     AccessRequest,
     ConfigurationSummary,
+    ConfirmationAnswer,
     CreateSessionRequest,
     CreateSessionResponse,
     ResumeRequest,
     ResumeResponse,
     RuntimeInfo,
+    SessionSnapshotResponse,
     TurnAccepted,
     TurnRequest,
     VoiceStartResponse,
     VoiceTimingReport,
 )
-from cafe_norte.conversation.contracts import ConversationRuntime, TurnInput
+from cafe_norte.conversation.contracts import ConversationRuntime, TurnInput, UiAnswer
 from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, StoreConfiguration
 from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import Estimator, ProcessVersions, stamp
@@ -201,7 +203,11 @@ def build_router(
         await store.resume_tokens.issue(session_id, token_hash, gate.expiry(state.created_at))
         tasks.start(_drain(runtime.open_session(session_id)))
         _set_session_cookie(response, session_id)
-        return CreateSessionResponse(session_id=session_id, resume_url=f"/#resume={token}")
+        return CreateSessionResponse(
+            session_id=session_id,
+            resume_url=f"/#resume={token}",
+            versions=stamp(configuration, versions),
+        )
 
     @router.post("/api/resume")
     async def resume(body: ResumeRequest, response: Response) -> ResumeResponse:
@@ -242,6 +248,60 @@ def build_router(
         tasks.start(_drain(runtime.run_turn(turn)))
         return TurnAccepted(input_id=body.input_id)
 
+    @router.post(
+        "/api/sessions/{session_id}/confirmations/{confirmation_id}",
+        status_code=status.HTTP_202_ACCEPTED,
+    )
+    async def answer_confirmation(
+        session_id: str, confirmation_id: str, body: ConfirmationAnswer, request: Request
+    ) -> TurnAccepted:
+        """The page's Sí / No. It must name the read-back that is pending now, at the revision
+        the candidate was looking at; the answer then runs as a turn with no words, so the
+        domain rules are the ones a spoken answer meets (D38)."""
+        sid = owner(request, session_id)
+        state = await store.sessions.get(sid)
+        if state is None:
+            raise ServiceError("no such session", code="not_found")
+        pending = state.pending_confirmation
+        if pending is None or pending.confirmation_id != confirmation_id:
+            raise ServiceError("not the pending read-back", code="not_found")
+        if pending.status != "pending" or body.expected_revision != state.candidate.revision:
+            raise ServiceError("read-back already answered or changed", code="conflict")
+        turn = TurnInput(
+            session_id=sid,
+            input_id=body.input_id,
+            text="",
+            channel=state.channel,
+            received_at=datetime.now(UTC),
+            expected_revision=body.expected_revision,
+            ui_answer=UiAnswer(confirmation_id=pending.confirmation_id, answer=body.answer),
+        )
+        tasks.start(_drain(runtime.run_turn(turn)))
+        return TurnAccepted(input_id=body.input_id)
+
+    @router.get("/api/sessions/{session_id}")
+    async def get_session(session_id: str, request: Request) -> SessionSnapshotResponse:
+        """The owner's consistent snapshot; after a reload the page rebuilds from it and then
+        follows the stream from ``last_seq``."""
+        sid = owner(request, session_id)
+        state = await store.sessions.get(sid)
+        if state is None:
+            raise ServiceError("session not found", code="not_found")
+        snapshot = await store.snapshot(
+            sid,
+            versions=stamp(configurations[state.config_id], versions),
+            taken_at=datetime.now(UTC),
+        )
+        if snapshot is None:
+            raise ServiceError("session not found", code="not_found")
+        return SessionSnapshotResponse(
+            session_id=sid,
+            last_seq=max((e.seq for e in snapshot.events), default=0),
+            state=snapshot.state,
+            transcript=snapshot.turns,
+            versions=snapshot.versions,
+        )
+
     @router.get("/api/sessions/{session_id}/export")
     async def export_session(session_id: str, request: Request) -> Response:
         """The JSON record of the owner's session: the snapshot stored at close (D34), or
@@ -266,6 +326,18 @@ def build_router(
             media_type="application/json",
             headers=headers,
         )
+
+    @router.post("/api/sessions/{session_id}/end", status_code=status.HTTP_204_NO_CONTENT)
+    async def end_session(session_id: str, request: Request) -> Response:
+        """The owner finishes the conversation: a voice call still running is stopped, then
+        the session is finalized like any other stop. Idempotent."""
+        sid = owner(request, session_id)
+        if await store.sessions.get(sid) is None:
+            raise ServiceError("session not found", code="not_found")
+        if voice is not None and voice.status(sid) is not None:
+            await voice.stop(sid, reason="stop")
+        await runtime.end(sid, "stop")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @router.delete("/api/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_session(session_id: str, request: Request) -> Response:

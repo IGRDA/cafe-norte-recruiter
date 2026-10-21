@@ -70,6 +70,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Turns read into one export snapshot | 10 000 (the whole transcript; the session cap keeps it far below) |
 | Tool arguments from the model | 16 KiB |
 | SSE heartbeat while idle | 15 s |
+| Request body | 64 KiB, then 413 `limit_exceeded` (D38) |
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
 | Browser speech final accepted (D18 path) | confidence ≥ 0.4, ≥ 2 characters |
 | Malformed-call repairs per turn | 1 |

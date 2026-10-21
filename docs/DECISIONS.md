@@ -920,3 +920,43 @@ from the session, and the export should carry an honest cost.
 Not yet recorded: the signal analyzer's tokens, a cancelled generation's tokens (no usage
 chunk arrives), Pipecat's own STT/TTS metrics. Live evals, datasets and experiments are a
 later stage.
+
+---
+
+## D38 · The page and API gaps: a chooser in the URL, buttons that answer as a turn, one boundary
+
+_Added 21 October 2026._
+
+**Context.** The spec's browser and API contract (§10) still lacked the store chooser, the
+reviewer panel's versions and per-turn detail, the snapshot, the UI confirmation, the end
+endpoint and a hardened boundary.
+
+**Decisions.**
+- **Chooser.** The page creates nothing until a store is chosen. The choice lives in
+  `?store=&lang=`; the chooser reloads into a new session, as the language picker did (D28).
+  The header names the store; a resumed session reads its store, language and versions from
+  `GET /api/sessions/{id}`.
+- **Buttons are a turn with an explicit answer.** `POST …/confirmations/{id}` names the
+  read-back pending now (404 otherwise) at the revision the candidate saw (409 if it moved or
+  was answered), then runs a turn whose `TurnInput.ui_answer` replaces the parsing of words. The
+  runtime resolves it with the tool a spoken answer uses (D35), so the domain refuses what it
+  refuses for the model. The card on screen counts as heard: pressing the button marks a
+  read-back delivered first. The transcript records the language's label (`ui.<lang>.md`).
+  Rejected: sending "sí" as text (language-dependent, ignores the id) and calling the tool in
+  the route (Ana would say nothing, and a second path to keep in step).
+- **Snapshot and end.** The snapshot is typed (`SessionState`, `TurnRecord`, `VersionStamp`)
+  and carries `last_seq`, where the stream resumes. `POST …/end` stops a running call, then ends
+  like any stop; ending twice changes nothing. Both check ownership like every session route.
+- **Versions** come in the create reply and the snapshot; timings, usage, tool outcomes and
+  retrieval excerpts come from the stream the page already follows. The panel shows no hidden
+  reasoning.
+- **One boundary.** `HttpBoundary` is installed by the app factory, so local and hosted runs
+  send the same headers: a CSP with no inline code (Daily is the only third party),
+  `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`.
+  A body over 64 KiB is refused with 413, declared or streamed. Validation errors carry a fixed
+  message and never the input.
+
+**Consequences we accept.** A new conversation is a page load. A button answer to a read-back
+the voice has not finished saying counts as read. The browser speech mode (D22) stays until a
+follow-up removes it. `ui.<lang>.md` is new candidate-facing text; `PROMPT_VERSION` is unchanged
+because the model never sees it.

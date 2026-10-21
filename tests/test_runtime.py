@@ -4,7 +4,7 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 
@@ -21,13 +21,22 @@ from cafe_norte.conversation.contracts import (
     TurnFinished,
     TurnInput,
     TurnStarted,
+    UiAnswer,
 )
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime, conversation_tail
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import ConfigId, InputId, SessionId, SessionState, Signal, TurnId
+from cafe_norte.domain.contracts import (
+    ConfigId,
+    ConfirmationId,
+    InputId,
+    SessionId,
+    SessionState,
+    Signal,
+    TurnId,
+)
 from cafe_norte.errors import Language
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.model.contracts import (
@@ -884,6 +893,89 @@ async def test_a_yes_with_more_words_is_left_to_the_model() -> None:
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.pending_confirmation is not None
     assert state.pending_confirmation.status == "pending"
+
+
+def button(
+    answer: Literal["affirm", "deny"], confirmation_id: ConfirmationId, input_id: str = "in-2"
+) -> TurnInput:
+    """What the page's Sí / No posts: no words, an explicit answer to one read-back."""
+    return TurnInput(
+        session_id=SESSION,
+        input_id=InputId(input_id),
+        text="",
+        channel="text",
+        received_at=NOW,
+        ui_answer=UiAnswer(confirmation_id=confirmation_id, answer=answer),
+    )
+
+
+async def pending_id(h: Harness) -> ConfirmationId:
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    return state.pending_confirmation.confirmation_id
+
+
+async def test_the_yes_button_confirms_through_the_same_tool_as_a_spoken_yes() -> None:
+    h = with_date_read_back(says("Perfecto. ¿Qué experiencia tienes?"))
+    await h.open_session()
+    await readback_pending(h)
+    events = await _run(h, button("affirm", await pending_id(h)))
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.candidate.earliest_start_date.status == "confirmed"
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "confirmed"
+    assert [e.name for e in events if isinstance(e, ToolStarted)] == ["confirm_field"]
+    users = [t for t in await h.store.turns.recent(SESSION, 10) if t.role == "user"]
+    assert users[-1].text == "Sí"  # the transcript shows what the candidate pressed
+    assert "readback_answered" in h.model.calls[-1][0].content
+
+
+async def test_the_no_button_rejects_it_in_the_session_language() -> None:
+    h = with_date_read_back(says("Understood. What is the right date?"))
+    await h.open_session("en")
+    await readback_pending(h)
+    events = await _run(h, button("deny", await pending_id(h)))
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "rejected"
+    assert [e.name for e in events if isinstance(e, ToolStarted)] == ["confirm_field"]
+    users = [t for t in await h.store.turns.recent(SESSION, 10) if t.role == "user"]
+    assert users[-1].text == "No"
+
+
+async def test_a_button_for_another_read_back_changes_nothing() -> None:
+    h = with_date_read_back(says("Vale."))
+    await h.open_session()
+    await readback_pending(h)
+    events = await _run(h, button("affirm", ConfirmationId("an-older-one")))
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "pending"
+    assert not [e for e in events if isinstance(e, ToolStarted)]
+
+
+async def test_the_button_confirms_a_read_back_the_voice_has_not_finished_saying() -> None:
+    """The card is on the screen: pressing the button is reading it."""
+    h = with_date_read_back(says("Perfecto."))
+    await h.open_session()
+    await readback_pending(h)
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    heard_nothing = state.pending_confirmation.model_copy(update={"fully_delivered": False})
+    async with h.store.transaction() as tx:
+        await h.store.sessions.save(
+            tx,
+            state.model_copy(update={"pending_confirmation": heard_nothing}),
+            expected_revision=state.candidate.revision,
+        )
+    await _run(h, button("affirm", heard_nothing.confirmation_id))
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "confirmed"
+
+
+async def _run(h: Harness, turn_input: TurnInput) -> list[RuntimeEvent]:
+    return [event async for event in h.runtime.run_turn(turn_input)]
 
 
 async def test_a_turn_on_a_paused_session_makes_it_active_again() -> None:

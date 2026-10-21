@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from cafe_norte.api.access import AccessGate, gate_from_env
+from cafe_norte.api.boundary import HttpBoundary
 from cafe_norte.api.contracts import ErrorResponse
 from cafe_norte.api.routes import TurnTasks, build_router
 from cafe_norte.conversation import prompts
@@ -138,6 +139,8 @@ def create_app(
             estimate=estimate,
         )
     )
+
+    app.add_middleware(HttpBoundary)
 
     @app.exception_handler(ServiceError)
     async def service_error(_: Request, error: ServiceError) -> JSONResponse:

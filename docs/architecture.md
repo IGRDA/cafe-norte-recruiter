@@ -74,7 +74,6 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | SSE heartbeat while idle | 15 s |
 | Request body | 64 KiB, then 413 `limit_exceeded` (D38) |
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
-| Browser speech final accepted (D18 path) | confidence ≥ 0.4, ≥ 2 characters |
 | Malformed-call repairs per turn | 1; a second malformed call ends the turn with `invalid_response` (D37) |
 | Signal classifier | opt-in (`CAFE_NORTE_SIGNAL_MODEL`), one call per user turn, after the turn, 5 s deadline |
 | Signal freshness | the previous user turn only; `frustrated`/`uncertain` reach the prompt, others never |

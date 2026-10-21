@@ -224,3 +224,28 @@ def test_retrieval_events_come_from_journaled_sources() -> None:
     assert [(e.turn_id, e.sources_found) for e in events] == [("t5", True), ("t5", False)]
     assert events[0].sources == ("offer_chamberi#horas",) and events[1].question == "¿parking?"
     assert build_export(snapshot((*journal(), shown))).retrieval_events == events[:1]
+
+
+def test_signals_come_from_journaled_verdicts() -> None:
+    from cafe_norte.conversation.contracts import SignalRecorded
+    from cafe_norte.domain.contracts import Signal
+    from cafe_norte.persistence.export import signals_from_events
+
+    verdict = Signal(
+        turn_id=TurnId("t2"),
+        sentiment="frustrated",
+        explicit_human_request=False,
+        explicit_stop=False,
+        language_switch_to=None,
+        evidence_text="muy lento",
+    )
+    recorded = EventRecord(
+        session_id=SID,
+        turn_id=TurnId("t2"),
+        seq=9,
+        kind="signal_recorded",
+        payload_json=SignalRecorded(signal=verdict).model_dump_json(),
+        at=NOW,
+    )
+    assert signals_from_events((*journal(), recorded)) == (verdict,)
+    assert build_export(snapshot((*journal(), recorded))).signals == (verdict,)

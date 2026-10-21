@@ -69,6 +69,10 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
 | Browser speech final accepted (D18 path) | confidence ≥ 0.4, ≥ 2 characters |
 | Malformed-call repairs per turn | 1 |
+| Signal classifier | opt-in (`CAFE_NORTE_SIGNAL_MODEL`), one call per user turn, after the turn, 5 s deadline |
+| Signal freshness | the previous user turn only; `frustrated`/`uncertain` reach the prompt, others never |
+| Negation window for explicit requests | 3 words before the match, within one clause |
+| Follow-up flags | at most one per turn |
 | LLM first output | 6 s |
 | External tool | 10 s |
 | Text turn | 1–2000 characters |

@@ -5,7 +5,7 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from cafe_norte.conversation.tools import ToolName
-from cafe_norte.domain.contracts import ConfigId, SessionState
+from cafe_norte.domain.contracts import ConfigId, Sentiment, SessionState, Signal
 from cafe_norte.errors import Language
 from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import TurnRecord
@@ -47,6 +47,13 @@ class Step(Frozen):
         return self
 
 
+class FakeSignal(Frozen):
+    """The classifier's scripted verdict on one candidate line (``fake_signals``)."""
+
+    sentiment: Sentiment
+    evidence_text: str = ""
+
+
 class Scenario(Frozen):
     id: str  # S01..S18
     title: str
@@ -55,6 +62,7 @@ class Scenario(Frozen):
     today: str = "2026-10-20"  # the fake clock's date, so relative dates in the script are fixed
     scripted_turns: tuple[str, ...]  # fake mode: the candidate's lines
     fake_script: tuple[tuple[Step, ...], ...] = ()  # one tuple of steps per candidate line
+    fake_signals: tuple[FakeSignal, ...] = ()  # one per line; empty = no signal analyzer
     persona: Persona  # live mode
     checks: tuple[Check, ...]
     rubric: tuple[str, ...] = ()
@@ -63,6 +71,8 @@ class Scenario(Frozen):
     def _script_matches_lines(self) -> "Scenario":
         if self.fake_script and len(self.fake_script) != len(self.scripted_turns):
             raise ValueError("fake_script needs exactly one entry per scripted turn")
+        if self.fake_signals and len(self.fake_signals) != len(self.scripted_turns):
+            raise ValueError("fake_signals needs exactly one entry per scripted turn")
         return self
 
 
@@ -75,6 +85,7 @@ class SessionResult(Frozen):
     spoken_by_turn: tuple[tuple[str, ...], ...]
     sources_by_turn: tuple[tuple[str, ...], ...] = ()  # chunk ids shown per candidate turn
     allowed_doc_ids: frozenset[str] = frozenset()  # the configuration's documents
+    signals: tuple[Signal, ...] = ()  # the classifier's journaled verdicts, in order
 
     @property
     def candidate_lines(self) -> frozenset[str]:

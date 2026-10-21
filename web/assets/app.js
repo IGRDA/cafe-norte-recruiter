@@ -122,6 +122,7 @@ function openStream() {
     "tool_finished",
     "state_updated",
     "sources_shown",
+    "signal_recorded",
     "turn_finished",
     "turn_failed",
     "voice_state",
@@ -151,6 +152,12 @@ function handle(event) {
       renderSources(payload);
       review(`fuentes para «${payload.question}»: ${payload.chunk_ids.length}`);
       break;
+    case "signal_recorded": {
+      const signal = payload.signal;
+      const evidence = signal.evidence_text ? ` («${signal.evidence_text}»)` : "";
+      review(`señal del turno: ${signal.sentiment}${evidence}`);
+      break;
+    }
     case "assistant_text": {
       const turn = state.turns.get(event.turn_id) ?? addTurn(event.turn_id, "assistant", []);
       turn.sentences.push(payload.text);

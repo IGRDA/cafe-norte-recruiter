@@ -1,4 +1,4 @@
-# Brief and read-back sentences (ana_v8, en)
+# Brief and read-back sentences (ana_v9, en)
 
 One `key: sentence` per line; `#` lines and blank lines are ignored. `{value}` is filled by
 `conversation/brief.py`. `brief.es.md` has exactly the same keys.
@@ -19,6 +19,7 @@ hours_per_week: About {value} hours a week.
 earliest_start_date: You could start on {value}.
 experience: Experience: {value}.
 contact_phone: Your phone number is {value}.
+followup: You have asked for someone from the team to get in touch with you.
 unknown: {label}: you do not know.
 declined: {label}: you would rather not say.
 readback.contact_phone: I have your phone number as {value}. Is that correct?

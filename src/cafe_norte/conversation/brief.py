@@ -30,10 +30,15 @@ def _texts(language: Language) -> dict[str, str]:
 
 
 def render_brief(
-    record: CandidateRecord, configuration: StoreConfiguration, language: Language
+    record: CandidateRecord,
+    configuration: StoreConfiguration,
+    language: Language,
+    *,
+    followup: bool = False,
 ) -> str:
     """Four to eight short sentences; unknown and declined fields stay visible; the optional
-    phone appears only when given; ends with the confirmation question."""
+    phone appears only when given; a requested human follow-up is stated; ends with the
+    confirmation question."""
     t = _texts(language)
     parts = [t["intro"]]
     parts += _fact(record, "name", t, lambda v: t["name"].format(value=v))
@@ -53,6 +58,8 @@ def render_brief(
         parts += _fact(
             record, "contact_phone", t, lambda v: t["contact_phone"].format(value=_phone(v))
         )
+    if followup:
+        parts.append(t["followup"])
     parts.append(t["question"])
     return " ".join(parts)
 

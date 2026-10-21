@@ -29,6 +29,8 @@ CHECKS = (
     "sources_shown_for_policy_answer",
     "no_cross_store_sources",
     "max_repeated_questions",
+    "signal_recorded",
+    "said_control_reply",
 )
 
 SET_FIELDS = {"availability_days", "availability_shifts"}
@@ -172,6 +174,22 @@ def _brief_language(result: SessionResult, check: Check) -> tuple[bool, str]:
     return briefs[-1].startswith(intros[wanted]), f"brief: {briefs[-1][:40]}…"
 
 
+def _signal_recorded(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """The classifier's verdict for candidate line ``turn`` (1-based) has ``sentiment``."""
+    turn_id = _user_turn_ids(result)[int(check.args["turn"]) - 1]
+    found = [s.sentiment for s in result.signals if s.turn_id == turn_id]
+    wanted = check.args["sentiment"]
+    detail = f"turn {check.args['turn']} signals: {found or 'none'} (wanted {wanted})"
+    return found == [wanted], detail
+
+
+def _said_control_reply(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """The fixed reply to an explicit ``control`` was said word for word on ``turn``."""
+    reply = prompts.table("controls", result.state.language)[check.args["control"]]
+    said = " ".join(result.spoken_by_turn[int(check.args["turn"]) - 1])
+    return reply in said, f"turn {check.args['turn']} said: {said!r}"
+
+
 def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
     def scorer(result: SessionResult, check: Check) -> tuple[bool, str]:
         raise NotImplementedError(f"check {check.name!r} arrives with the {stage} stage")
@@ -194,11 +212,17 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "brief_language": _brief_language,
     "sources_shown_for_policy_answer": _sources_shown,
     "no_cross_store_sources": _no_cross_store_sources,
+    "signal_recorded": _signal_recorded,
+    "said_control_reply": _said_control_reply,
 }
 LATER: dict[str, str] = {}
 
 
 # ---- helpers -------------------------------------------------------------------------------------
+
+
+def _user_turn_ids(result: SessionResult) -> list[str]:
+    return [t.turn_id for t in result.turns if t.role == "user"]
 
 
 @cache

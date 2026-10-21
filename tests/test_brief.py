@@ -102,7 +102,7 @@ def test_the_brief_and_read_backs_in_english_use_the_english_labels_and_date() -
     )
 
 
-@pytest.mark.parametrize("name", ["brief", "voice"])
+@pytest.mark.parametrize("name", ["brief", "voice", "controls"])
 def test_every_language_has_the_same_sentence_keys(name: str) -> None:
     keys = {language: set(prompts.table(name, language)) for language in get_args(Language)}
     assert keys["en"] == keys["es"]
@@ -112,3 +112,12 @@ def test_every_language_has_the_same_sentence_keys(name: str) -> None:
 @pytest.mark.parametrize("language", get_args(Language))
 def test_every_language_has_its_own_text(name: str, language: Language) -> None:
     assert prompts.load(name, language).strip()
+
+
+def test_a_requested_follow_up_is_stated_just_before_the_question() -> None:
+    ane = record(name="Ane")
+    with_followup = render_brief(ane, CONFIG, "es", followup=True)
+    assert with_followup.endswith(
+        "Has pedido que una persona del equipo se ponga en contacto contigo. ¿Es todo correcto?"
+    )
+    assert "persona del equipo" not in render_brief(ane, CONFIG, "es")

@@ -17,6 +17,7 @@ Instructions to the model are one Spanish file; the language it answers in is a 
 | `brief.<lang>.md` | `key: sentence` table for the brief and the read-backs, including the date layout |
 | `voice.<lang>.md` | The filler and idle sentences the voice channel speaks |
 | `language.<lang>.md` | The closing line of the system message, written in that language: which language every reply is in. Without it a Spanish prompt pulls the model back to Spanish |
+| `controls.<lang>.md` | `key: sentence` table: the fixed reply to an explicit request for a person, spoken by the runtime |
 | `summary.md` | Post-session narrative summary (structured generation, optional) |
-| `classifier.md` | Sentiment and explicit-request classification |
+| `classifier.md` | Sentiment of one candidate message as JSON with verbatim evidence (`ModelSignalAnalyzer`); explicit requests are not the model's job |
 | `simulator.md` | The candidate persona used by live evaluations (not shipped to production) |

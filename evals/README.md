@@ -19,7 +19,7 @@ uv run python -m evals.run --list
 
 ## What runs today
 
-Scenarios in fake mode. `S01`–`S03`, `S05` and `S06` replay against the real runtime, handlers,
+Scenarios in fake mode. `S01`–`S03`, `S05`, `S06` and `S09` replay against the real runtime, handlers,
 domain, memory store and the real `HybridRetriever` over `kb/` with `FakeEmbedder`, driven by
 the scripted `FakeModel`; `tests/test_scenarios.py` parametrizes over the
 files, so `make check` and CI fail on a broken scenario with the check named. `make evals
@@ -36,11 +36,15 @@ One file `evals/cases/scenarios/Snn.yaml`:
 - `fake_script`: one list per line with what a well-behaved model does: `{tool: name, args:
   {...}}` rounds, then `{say: "…"}` to end the turn (`say: ""` when the system speaks, as after
   a read-back or the brief). One model round per step.
+- `fake_signals` (optional): one `{sentiment, evidence_text}` per line, the classifier's
+  verdict. When present the real `ModelSignalAnalyzer` runs over a fake model and the runner
+  waits for it after each turn (`Runtime.settle`), so the asynchronous path is deterministic.
 - `checks`: names from `evals/scorers.py` (`field_equals`, `field_status`, `brief_confirmed`,
   `lifecycle_is`, `outcome_is`, `booking_present`, `booking_absent`,
   `no_fabricated_confirmed_values`, `max_repeated_questions`, `review_flag_present`,
   `sources_shown_for_policy_answer`, `no_cross_store_sources`,
-  `language_of_last_assistant_turn`, `brief_language`; the rest raise until their stage).
+  `language_of_last_assistant_turn`, `brief_language`, `signal_recorded`,
+  `said_control_reply`; the rest raise until their stage).
 - `today`: the fake clock's date, so relative dates in the script stay fixed.
 
 Checks run over `SessionResult` (final state, transcript, what Ana said per turn); the export

@@ -9,15 +9,15 @@ Python with no Pipecat import (D22).
 | --- | --- |
 | `contracts.py` | `Room`, `VoiceStatus`, `VoiceMode`, `VoiceTexts`, `VoiceTiming`, `room_expiry`, ports `RoomProvisioner`, `VoiceSessionController` |
 | `delivery.py` | Pure ledger: sentences sent to TTS, sentences finished playing, `heard`, `readback_heard` |
-| `session.py` | `VoiceSession`: transcript → runtime turn, sentences → `speak` and the ledger, playback → `delivered(complete=True)`, interruption → cancel and `delivered(heard, complete=False)`, opening on join, filler while a tool runs long, silence prompt then pause; each in the language of the latest turn (D28) |
+| `session.py` | `VoiceSession`: transcript → runtime turn, sentences → `speak` and the ledger, playback → `delivered(complete=True)`, interruption → cancel and `delivered(heard, complete=False)`, opening on join, filler while a tool runs long (journaled with `aside`), one silence prompt and the apology after a failed turn (both spoken through the runtime's journaled `say`), any raw transcript resets the silence clock, `close` pauses the session once, a language change reported so STT follows; each in the language of the latest turn (D28, D35) |
 | `bridge.py` | `InboundBridge` (before TTS) and `PlaybackTap` (after the output transport): frames in, session methods out |
 | `pipeline.py` | `PipecatVoiceController`: one pipeline task per session, join wait, stop, status, timing observations |
 | `daily.py` | Private expiring rooms and two scoped tokens over Daily REST |
 | `fake.py` | `FakeRooms`, `FakeVoiceController` for the API tests |
 
 Required behaviours: barge-in stops queued speech and cancels generation; a committed booking
-stays committed; an unplayed read-back is not "heard"; eight seconds of silence prompts once,
-twelve more pauses the session and releases voice resources. Timings are browser-observable
+stays committed; an unplayed read-back is not "heard"; eight seconds of silence prompts once and never pauses a live call; the session pauses when
+the call ends (D35); everything Ana says is journaled. Timings are browser-observable
 where possible and labelled as proxies otherwise.
 
 Tests: `test_delivery.py` (pure, property-based), `test_voice_session.py` (fake runtime,

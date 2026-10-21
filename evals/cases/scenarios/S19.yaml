@@ -1,0 +1,86 @@
+id: S19
+title: The hosted call of 21 October, replayed with a model that skips the confirmation tools
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# What went wrong live (D35): the model copied the store's 35 hours into the record from
+# "por la mañana", answered "Sí, es correcto" without confirm_field, and the summary's yes
+# without confirm_brief. A plain yes is now resolved by the runtime, and a number the
+# candidate did not say is refused.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Jack, sí me interesa."
+  - "Tengo permiso de trabajo. De lunes a viernes, por la mañana."
+  - "Unas treinta y cinco horas."
+  - "El dos de noviembre."
+  - "Sí, es correcto."
+  - "Ocho años trabajando en bares."
+  - "Sí, es todo correcto."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Jack, interest: "yes" }
+        evidence_text: "Me llamo Jack, sí me interesa."
+    - say: "Encantada, Jack. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  # The model invents the hours from the store facts; the domain refuses, it saves the rest.
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, wed, thu, fri]
+          availability_shifts: [morning]
+          hours_per_week: 35
+        evidence_text: "Tengo permiso de trabajo. De lunes a viernes, por la mañana."
+    - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, wed, thu, fri]
+          availability_shifts: [morning]
+        evidence_text: "Tengo permiso de trabajo. De lunes a viernes, por la mañana."
+    - say: "Perfecto. ¿Cuántas horas a la semana te gustaría trabajar?"
+  - - tool: update_candidate
+      args:
+        patch: { hours_per_week: 35 }
+        evidence_text: "Unas treinta y cinco horas."
+    - say: "Apuntado. ¿Cuándo podrías empezar?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-11-02" }
+        evidence_text: "El dos de noviembre."
+    - say: ""
+  # The model forgets confirm_field, as gpt-4o-mini did; the runtime has already confirmed.
+  - - say: "Perfecto. ¿Qué experiencia tienes en trabajos parecidos?"
+  - - tool: update_candidate
+      args:
+        patch: { experience: Ocho años trabajando en bares }
+        evidence_text: "Ocho años trabajando en bares."
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  # The model forgets confirm_brief too.
+  - - say: "¿Tienes alguna duda sobre el puesto antes de hablar de la entrevista?"
+persona:
+  facts:
+    name: Jack
+    work_authorization: "yes"
+    availability_days: mon,tue,wed,thu,fri
+    availability_shifts: morning
+    hours_per_week: "35"
+    earliest_start_date: "2026-11-02"
+    experience: ocho años en bares
+  wants_interview: true
+checks:
+  - name: field_equals
+    args: { field: hours_per_week, value: "35" }
+  - name: field_status
+    args: { field: earliest_start_date, status: confirmed }
+  - name: field_status
+    args: { field: experience, status: captured }
+  - name: brief_confirmed
+  - name: lifecycle_is
+    args: { lifecycle: active }
+  - name: no_fabricated_confirmed_values
+  - name: max_repeated_questions
+    args: { max: "0" }

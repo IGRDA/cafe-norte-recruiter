@@ -53,7 +53,8 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Coverage floor | 80% of the package |
 | Voice: filler after a tool runs | 1.5 s |
 | Voice: bot join timeout | 15 s |
-| Voice: user speech timeout before a turn ends | 0.6 s (Pipecat default) |
+| Voice: user speech timeout before a turn ends | 1.0 s; a transcript can start a turn when VAD misses it (D35) |
+| Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | Recent turns in the prompt | 20 |
@@ -73,12 +74,12 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Signal freshness | the previous user turn only; `frustrated`/`uncertain` reach the prompt, others never |
 | Negation window for explicit requests | 3 words before the match, within one clause |
 | Follow-up flags | at most one per turn |
-| LLM first output | 6 s |
+| LLM first output | 6 s per round, one retry of a silent round, then `timeout` (D35) |
 | External tool | 10 s |
 | Text turn | 1–2000 characters |
 | Voice sessions per container | 2 (Postgres-enforced) |
 | Session starts per access session per hour | 3 |
-| Silence | 8 s prompt, then 12 s pause |
+| Silence | 8 s, then one "¿Sigues ahí?"; a live call is never paused, the session pauses when the call ends (D35) |
 | Database connections per container | 5 |
 | Database statement timeout | 3 s |
 | Database lock wait | 2 s |

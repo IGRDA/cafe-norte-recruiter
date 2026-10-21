@@ -86,6 +86,12 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Malformed-call repairs per turn | 1; a second malformed call ends the turn with `invalid_response` (D37) |
 | Signal classifier | opt-in (`CAFE_NORTE_SIGNAL_MODEL`), one call per user turn, after the turn, 5 s deadline |
 | Signal freshness | the previous user turn only; `frustrated`/`uncertain` reach the prompt, others never |
+| Live eval: candidate lines per run | 24 (`MAX_LIVE_TURNS`); a run stops earlier when the session leaves `active` (D43) |
+| Live eval: wait for one turn's end | 90 s, then the turn is reported `no_turn_end` (D43) |
+| Live eval: loopback server start | 30 s to bind and finish its lifespan (D43) |
+| Live eval: simulator reply | 30 s per line; an empty reply stops the run (`SimulatorError`) (D43) |
+| Live eval: rubric judge | 60 s per run; the newest 12 000 characters of the transcript (`JUDGE_TRANSCRIPT_CHARS`), the cut start marked (D43) |
+| Live eval: spend estimate assumptions | 14 candidate turns a run; per turn 12 000 input + 200 output tokens for the answering model and 1 200 + 60 for the simulator; 8 000 + 300 per run for the judge; deliberately high, priced with `prices/v1.yaml` (D43) |
 | Negation window for explicit requests | 3 words before the match, within one clause |
 | Follow-up flags | at most one per turn |
 | LLM first output | 6 s per round, one retry of a silent round, then `timeout` (D35) |

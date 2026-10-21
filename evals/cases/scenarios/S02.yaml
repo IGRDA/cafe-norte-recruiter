@@ -93,3 +93,19 @@ checks:
 rubric:
   - Every one of Ana's sentences was in English.
   - The pay answer matched the Arganzuela offer and named its source, with no Chamberí figure.
+# Live mode (simulated candidate, real clock): no turn numbers, relative dates.
+live_checks:
+  - name: brief_confirmed
+  - name: brief_language
+    args: { language: en }
+  - name: language_of_last_assistant_turn
+    args: { language: en }
+  - name: sources_shown_on_any_turn
+    args: { section_prefix: offer_arganzuela#salario }
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+  - name: outcome_is
+    args: { outcome: reserved }
+  - name: booking_present
+  - name: no_fabricated_confirmed_values
+  - name: no_cross_store_sources

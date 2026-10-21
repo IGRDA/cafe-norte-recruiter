@@ -1,32 +1,28 @@
-"""Load scenarios, replay them against the real runtime with the fake model, score, report.
+"""Load scenarios, replay them against the real runtime with the fake model, score, report;
+and the CLI for every suite.
 
-Fake mode is the CI gate: no network, no credentials, under a second per scenario. Live mode,
-the retrieval and comparison suites, the judge and the simulator arrive with their stages."""
+Fake mode is the CI gate: no network, no credentials, under a second per scenario. Live mode
+and the comparison drive the public API with a simulated candidate (``evals/live_runs.py``,
+D43) and spend only with ``--yes``; the retrieval suite runs the 24 questions."""
 
 import argparse
 import asyncio
 import json
+import os
 from collections.abc import Sequence
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
 import yaml
 
-from cafe_norte.conversation.contracts import (
-    AssistantText,
-    SourcesShown,
-    ToolFinished,
-    TurnFailed,
-    TurnInput,
-    TurnStarted,
-)
+from cafe_norte.conversation.contracts import AssistantText, TurnInput
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.prompts import PROMPT_VERSION
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import InputId, SessionId, SessionState, TurnId
+from cafe_norte.domain.contracts import InputId, SessionId, SessionState
 from cafe_norte.errors import ServiceError
 from cafe_norte.knowledge.contracts import Index, Retriever
 from cafe_norte.knowledge.fake import FakeEmbedder
@@ -41,7 +37,19 @@ from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
-from evals.contracts import FakeSignal, Fault, RunRecord, Scenario, SessionResult, Step
+from evals.contracts import (
+    ComparisonCase,
+    FakeSignal,
+    Fault,
+    RunRecord,
+    Scenario,
+    Step,
+    TurnObservation,
+)
+from evals.live import MAX_LIVE_TURNS
+from evals.live_runs import DEFAULT_SIMULATOR, Planned, execute
+from evals.observation import fold, session_result
+from evals.ragas_bridge import score_with_ragas, to_ragas_samples
 from evals.retrieval import load_cases, run_retrieval, write_report
 from evals.scorers import run_check
 
@@ -49,6 +57,13 @@ ROOT = Path(__file__).resolve().parents[1]
 SCENARIOS_DIR = ROOT / "evals" / "cases" / "scenarios"
 CONFIG_DIR = ROOT / "config"
 KB_DIR = ROOT / "kb"
+RETRIEVAL_RESULTS = ROOT / "evals" / "results" / "retrieval"
+LIVE_RESULTS = ROOT / "evals" / "results" / "live"
+DEFAULT_MODEL = "openai/gpt-4o-mini"  # what the hosted demo runs
+COMPARISON_CASES = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
+COMPARISON_RESULTS = ROOT / "evals" / "results" / "comparison"  # committed (.gitignore)
+COMPARISON_MODELS = ("openai/gpt-4o-mini", "openai/gpt-4o")  # D43: the hosted model's choice
+COMPARISON_REPEAT = 2
 
 _FAKE_INDEX: dict[str, Index] = {}
 
@@ -150,10 +165,7 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         ),
         access_hash="",
     )
-    spoken_by_turn: list[tuple[str, ...]] = []
-    sources_by_turn: list[tuple[str, ...]] = []
-    tools_by_turn: list[tuple[tuple[str, bool], ...]] = []
-    failed_by_turn: list[str] = []
+    observations: list[TurnObservation] = []
     surprises: list[str] = []
     async for _ in runtime.open_session(session_id):
         pass
@@ -170,36 +182,22 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         )
         fault = faults.get(number)
         _arm(fault, model, store)
-        spoken: list[str] = []
-        sources: list[str] = []
-        tools: list[tuple[str, bool]] = []
-        failed = ""
-        turn_id = TurnId("")
+        observation = TurnObservation()
         stream = runtime.run_turn(turn)
         async for event in stream:
-            if isinstance(event, TurnStarted):
-                turn_id = event.turn_id
-            elif isinstance(event, AssistantText):
-                spoken.append(event.text)
-                if fault is not None and fault.kind == "interrupt":
-                    if len(spoken) >= fault.after_sentences:
-                        break  # the candidate speaks over Ana
-            elif isinstance(event, SourcesShown):
-                sources.extend(event.chunk_ids)
-            elif isinstance(event, ToolFinished):
-                tools.append((event.name, event.ok))
-            elif isinstance(event, TurnFailed):
-                failed = event.code
+            observation = fold(observation, event)
+            if fault is not None and fault.kind == "interrupt" and isinstance(event, AssistantText):
+                if len(observation.spoken) >= fault.after_sentences:
+                    break  # the candidate speaks over Ana
         await stream.aclose()
         if fault is not None and fault.kind == "interrupt":
-            await runtime.delivered(turn_id, text=" ".join(spoken), complete=False)
-        if failed and number not in expected_failures:
-            surprises.append(f"turn {number}: {failed}")
+            await runtime.delivered(
+                observation.turn_id, text=" ".join(observation.spoken), complete=False
+            )
+        if observation.failed and number not in expected_failures:
+            surprises.append(f"turn {number}: {observation.failed}")
         await runtime.settle()
-        spoken_by_turn.append(tuple(spoken))
-        sources_by_turn.append(tuple(sources))
-        tools_by_turn.append(tuple(tools))
-        failed_by_turn.append(failed)
+        observations.append(observation)
 
     state = await store.sessions.get(session_id)
     assert state is not None
@@ -207,15 +205,12 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
     snapshot = await store.snapshot(session_id, versions=versions, taken_at=clock_at)
     assert snapshot is not None
     export = build_export(snapshot)
-    result = SessionResult(
-        state=state,
-        turns=await store.turns.recent(session_id, 1000),
-        spoken_by_turn=tuple(spoken_by_turn),
-        sources_by_turn=tuple(sources_by_turn),
+    result = session_result(
+        state,
+        await store.turns.recent(session_id, 1000),
+        observations,
         allowed_doc_ids=configuration.kb_doc_ids,
         signals=export.signals,
-        tools_by_turn=tuple(tools_by_turn),
-        failed_by_turn=tuple(failed_by_turn),
     )
     checks = tuple(run_check(result, check) for check in scenario.checks)
     return RunRecord(
@@ -226,8 +221,12 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         checks=checks,
         judge=None,
         provider_failed=bool(surprises),
-        latency_ms={},
         estimated_cost_eur=0.0,
+        scenario_id=scenario.id,
+        model=model.model_id,
+        language=scenario.language,
+        lines=len(scenario.scripted_turns),
+        cost_is_partial=False,
     )
 
 
@@ -250,12 +249,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--mode", choices=["fake", "live"], default="fake")
     parser.add_argument("--only", nargs="*", default=[])
-    parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument("--repeat", type=int, default=None, help="scenarios 1, comparison 2")
     parser.add_argument("--models", nargs="*", default=[])
-    parser.add_argument("--judge", default="off")
+    parser.add_argument("--judge", default="off", help="provider/model for the rubric judge")
     parser.add_argument("--retriever", choices=["hybrid", "lexical"], default="hybrid")
-    parser.add_argument("--out", default=str(ROOT / "evals" / "results" / "retrieval"))
+    parser.add_argument("--out", default=None, help="results directory (per suite default)")
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--ragas", action="store_true", help="retrieval: add ragas' ID metrics")
+    live = parser.add_argument_group("live runs (paid; the estimate is printed first)")
+    live.add_argument("--model", default=os.environ.get("CAFE_NORTE_MODEL") or DEFAULT_MODEL)
+    live.add_argument("--simulator", default=DEFAULT_SIMULATOR)
+    live.add_argument(
+        "--base-url", default=None, help="an existing server; access code from EVAL_ACCESS_CODE"
+    )
+    live.add_argument("--max-turns", type=int, default=MAX_LIVE_TURNS)
+    live.add_argument("--langfuse", action="store_true", help="sync cases and runs (needs keys)")
+    live.add_argument("--yes", action="store_true", help="spend: without it nothing is called")
     args = parser.parse_args(argv)
 
     if args.list:
@@ -263,7 +272,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{scenario.id}  {scenario.title}")
         return 0
     if args.suite == "retrieval":
-        return retrieval_main(args.retriever, args.only, Path(args.out))
+        out = Path(args.out or RETRIEVAL_RESULTS)
+        return retrieval_main(args.retriever, args.only, out, ragas=args.ragas)
+    if args.suite == "scenarios" and args.mode == "live":
+        return live_main(args)
+    if args.suite == "comparison":
+        return comparison_main(args)
     if args.suite != "scenarios" or args.mode != "fake":
         print(f"{args.suite} in {args.mode} mode is not available yet (later stage).")
         return 2
@@ -287,9 +301,78 @@ def main(argv: list[str] | None = None) -> int:
     return 1 if failed else 0
 
 
-def retrieval_main(mode: str, only: Sequence[str], out: Path) -> int:
+def live_main(args: argparse.Namespace) -> int:
+    """Scenarios with ``live_checks``, the simulated candidate, the chosen model."""
+    try:
+        scenarios = load_scenarios(only=args.only)
+    except ValueError as error:
+        print(error)
+        return 1
+    not_live = [s.id for s in scenarios if not s.live_checks]
+    if not_live:
+        print(f"no live_checks, not run live: {', '.join(not_live)}")
+        return 2
+    plan = [
+        Planned(case_id=s.id, scenario=s, model=args.model, repetition=r)
+        for s in scenarios
+        for r in range(1, (args.repeat or 1) + 1)
+    ]
+    return execute(
+        plan,
+        suite="scenarios",
+        simulator=args.simulator,
+        base_url=args.base_url,
+        access_code=os.environ.get("EVAL_ACCESS_CODE") or None,
+        max_turns=args.max_turns,
+        out=Path(args.out or LIVE_RESULTS),
+        yes=args.yes,
+        judge=None if args.judge == "off" else args.judge,
+        langfuse=args.langfuse,
+    )
+
+
+def comparison_plan(models: Sequence[str], *, repeat: int) -> list[Planned]:
+    """Every comparison case, ``repeat`` times, for each model in turn (one server each)."""
+    cases = [ComparisonCase.model_validate(c) for c in yaml.safe_load(COMPARISON_CASES.read_text())]
+    scenarios = {s.id: s for s in load_scenarios(only=[c.scenario_id for c in cases])}
+    return [
+        Planned(
+            case_id=case.id,
+            scenario=scenarios[case.scenario_id],
+            model=model,
+            repetition=r,
+            emphasis=case.emphasis,
+        )
+        for model in models
+        for case in cases
+        for r in range(1, repeat + 1)
+    ]
+
+
+def comparison_main(args: argparse.Namespace) -> int:
+    """Spec §13: the six cases through each model, ``COMPARISON_REPEAT`` times, on loopback."""
+    plan = comparison_plan(
+        args.models or COMPARISON_MODELS, repeat=args.repeat or COMPARISON_REPEAT
+    )
+    return execute(
+        plan,
+        suite="comparison",
+        simulator=args.simulator,
+        base_url=None,
+        access_code=None,
+        max_turns=args.max_turns,
+        out=Path(args.out or LIVE_RESULTS),
+        yes=args.yes,
+        judge=None if args.judge == "off" else args.judge,
+        langfuse=args.langfuse,
+        committed=COMPARISON_RESULTS,
+    )
+
+
+def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = False) -> int:
     """The 24 questions through the real retriever: ``hybrid`` needs the knowledge extra and
-    downloads the model once; ``lexical`` is BM25 only and runs anywhere."""
+    downloads the model once; ``lexical`` is BM25 only and runs anywhere. ``ragas`` adds its
+    ID-based context precision and recall over the answerable questions (offline, free)."""
     configurations = load_configurations(CONFIG_DIR)
     (kb_version,) = {c.kb_version for c in configurations.values()}
     documents = load_documents(KB_DIR)
@@ -303,6 +386,9 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path) -> int:
     retriever = HybridRetriever(index, embedder)
     cases = [c for c in load_cases() if not only or c.id in set(only)]
     report = asyncio.run(run_retrieval(cases, retriever, configurations))
+    if ragas:
+        scores = asyncio.run(score_with_ragas(to_ragas_samples(report.runs, cases)))
+        report = report.model_copy(update={"ragas": scores})
     path = write_report(report, out)
     for run in report.runs:
         mark = {True: "hit ", False: "MISS", None: "    "}[run.hit] + (
@@ -314,4 +400,11 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path) -> int:
         f"{len(report.runs)}  unsupported with sources {report.unsupported_with_sources}/4  "
         f"median {report.median_ms} ms  {report.embedding_model}  -> {path}"
     )
+    if report.ragas is not None:
+        precision = report.ragas.mean_precision
+        print(
+            f"ragas id-based: precision {'–' if precision is None else f'{precision:.2f}'} "
+            f"(n={report.ragas.samples - report.ragas.nothing_retrieved}), recall "
+            f"{report.ragas.mean_recall:.2f} (n={report.ragas.samples})"
+        )
     return 0 if report.leaked == 0 else 1

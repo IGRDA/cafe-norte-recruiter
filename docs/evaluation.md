@@ -16,10 +16,10 @@
 | --- | --- | --- |
 | Unit and property tests of the domain | pytest, hypothesis | CI |
 | Scenario integrity (S01–S18) against fakes | own runner, deterministic scorers | CI |
-| Scenario behaviour live, candidate simulated | own runner + `ModelCandidateSimulator` | local, paid |
-| Retrieval quality (24 questions) | own scorers (recall@3, abstention, leakage) + ragas (context precision/recall, faithfulness) | local, cheap |
-| Rubric judge | Langfuse evaluators or `evals/judge.py` through the `Model` port | local, optional |
-| Model comparison (120B vs 20B, 24 runs) | own runner, same prompt/tools/KB | local, once; results committed |
+| Scenario behaviour live, candidate simulated | own runner over the HTTP API + `ModelCandidateSimulator` worded from deterministic cues (D43) | local, paid, `--yes` |
+| Retrieval quality (24 questions) | own scorers (recall@3, abstention, leakage) + ragas ID-based context precision/recall (`--ragas`, offline) | local, free |
+| Rubric judge | `evals/judge.py` through the `Model` port (`--judge provider/model`) | local, optional |
+| Model comparison (gpt-4o-mini vs gpt-4o by default, 24 runs) | own runner on one loopback server per model, same prompt/tools/KB | local, once, `--yes`; summary committed |
 | Voice latency | browser monotonic timings + server stage timings | hosted, by hand, ≥6 sessions |
 | Production traces | OpenTelemetry → Langfuse EU | always |
 
@@ -38,7 +38,8 @@ reported next to these, not instead of them.
 
 ## Judge
 
-Default off. `EVAL_JUDGE=provider/model` enables rubric bullets. Output must be JSON booleans.
+Default off. `--judge provider/model` enables rubric bullets. Output must be one JSON boolean per
+bullet; anything else is recorded as unparsable, never coerced.
 Using the answering model as judge is a known bias and is labelled in the report.
 
 ## Cost
@@ -48,3 +49,11 @@ estimated usage (generations cut before their usage report, at 4 characters per 
 unpriced kinds. A voice call's speech usage is measured (D44); `cost_is_partial` means
 something is missing, not that something is estimated. The €100 ceiling is tracked by
 admission reservation in Postgres plus the Google Cloud budget alerts; neither is a hard cap.
+
+## Live runs (D43)
+
+The same scorers as fake mode, over the public API: `HttpConversation` reads each turn from the
+SSE stream into the `TurnObservation` the fake replay builds. Live runs are held to a scenario's
+`live_checks` (no turn numbers, relative dates) plus extraction accuracy from the persona.
+Every paid command prints its estimated spend first and calls nothing without `--yes`. Langfuse
+gets cases as a dataset and runs as experiments with `--langfuse`.

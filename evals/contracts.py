@@ -5,9 +5,9 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from cafe_norte.conversation.tools import ToolName
-from cafe_norte.domain.contracts import ConfigId, Sentiment, SessionState, Signal
+from cafe_norte.domain.contracts import ConfigId, Lifecycle, Sentiment, SessionState, Signal, TurnId
 from cafe_norte.errors import Language
-from cafe_norte.observability.contracts import VersionStamp
+from cafe_norte.observability.contracts import StageTiming, UsageRecord, VersionStamp
 from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.persistence.export import ExportDocument
 
@@ -23,9 +23,22 @@ class Persona(Frozen):
     corrections: tuple[tuple[str, str], ...] = ()  # (field, new value) applied mid-conversation
     mood: Literal["neutral", "frustrated"] = "neutral"
     switch_language_after_turn: int | None = None
+    withdraws_after_turn: int | None = None  # leaves politely on the next line
     declines: tuple[str, ...] = ()
     asks: tuple[str, ...] = ()  # questions to raise during the interview
     wants_interview: bool = True
+
+
+class Cue(Frozen):
+    """What the simulated candidate does on one line, decided by ``evals.simulator.cue``;
+    the model only words it. Facts, declines and the interview wish are standing
+    instructions from the persona."""
+
+    language: Language
+    mood: Literal["neutral", "frustrated"]
+    ask: str | None = None  # raise this question on this line
+    corrections: tuple[tuple[str, str], ...] = ()  # (field, new value) to correct now
+    withdraw: bool = False  # leave the conversation politely
 
 
 class Check(Frozen):
@@ -78,6 +91,7 @@ class Scenario(Frozen):
     faults: tuple[Fault, ...] = ()  # fake mode: what goes wrong, and on which line
     persona: Persona  # live mode
     checks: tuple[Check, ...]
+    live_checks: tuple[Check, ...] = ()  # live mode: no turn numbers; empty = not run live
     rubric: tuple[str, ...] = ()
 
     @model_validator(mode="after")
@@ -90,6 +104,23 @@ class Scenario(Frozen):
             if not 1 <= fault.turn <= len(self.scripted_turns):
                 raise ValueError(f"fault on turn {fault.turn}: there is no such line")
         return self
+
+
+class TurnObservation(Frozen):
+    """What one candidate turn showed from the outside, folded from its runtime events: the
+    fake replay and the live SSE stream build the same value (``evals/observation.py``)."""
+
+    turn_id: TurnId = TurnId("")
+    spoken: tuple[str, ...] = ()
+    sources: tuple[str, ...] = ()  # chunk ids shown
+    tools: tuple[tuple[str, bool], ...] = ()  # (tool, ok)
+    failed: str = ""  # the error code the turn failed with
+    lifecycle: Lifecycle | None = None  # the last state the turn committed
+    usage: tuple[UsageRecord, ...] = ()
+    timings: tuple[StageTiming, ...] = ()
+    done: bool = False  # turn_finished or turn_failed seen
+    client_first_text_ms: int | None = None  # live: POST to first assistant_text, runner's clock
+    client_total_ms: int | None = None  # live: POST to the turn's end, runner's clock
 
 
 class SessionResult(Frozen):
@@ -120,6 +151,33 @@ class RetrievalCase(Frozen):
     expected_facts: tuple[str, ...] = ()
 
 
+class RagasSample(Frozen):
+    """One answerable retrieval question in ragas' terms (``SingleTurnSample``): what came
+    back and what should have, as chunk ids."""
+
+    case_id: str
+    user_input: str
+    retrieved_context_ids: tuple[str, ...]
+    reference_context_ids: tuple[str, ...]
+
+
+class RagasCaseScore(Frozen):
+    case_id: str
+    precision: float | None  # None when nothing was retrieved: ragas has no precision then
+    recall: float
+
+
+class RagasScores(Frozen):
+    """ragas' ID-based context precision and recall, reported next to recall@3, never
+    instead of it (D06)."""
+
+    samples: int
+    mean_precision: float | None  # over questions that retrieved something
+    mean_recall: float
+    nothing_retrieved: int
+    per_case: tuple[RagasCaseScore, ...]
+
+
 class RetrievalRun(Frozen):
     """One question through the retriever: what came back, scored against the fixture."""
 
@@ -144,6 +202,7 @@ class RetrievalReport(Frozen):
     leaked: int  # over every case
     unsupported_with_sources: int  # stage 1 has no floor: reported, not judged
     median_ms: int
+    ragas: RagasScores | None = None  # ``--ragas``: a second opinion on the answerable ones
 
 
 class ComparisonCase(Frozen):
@@ -154,6 +213,25 @@ class ComparisonCase(Frozen):
     ]
 
 
+class Extraction(Frozen):
+    """Normalized supplied facts the record holds, out of those the persona gave (spec §13's
+    ≥ 95 % target). Free text is not an exact-match fact; misses are named."""
+
+    correct: int
+    supplied: int
+    misses: tuple[str, ...] = ()
+
+
+class JudgeVerdict(Frozen):
+    """A rubric judge's opinion: one boolean per bullet, or why there is none. A secondary
+    signal next to the checks, never a pass or a fail (D06)."""
+
+    judge_model: str
+    answers: dict[str, bool] = {}  # rubric bullet -> held
+    unparsable: str = ""  # why the output was not one JSON boolean per bullet
+    same_model: bool  # the judge is the answering model: a known bias, labelled
+
+
 class CheckResult(Frozen):
     name: str
     ok: bool
@@ -161,15 +239,34 @@ class CheckResult(Frozen):
 
 
 class RunRecord(Frozen):
+    """One run of one case. Live runs fill the metrics; a run that broke before its end has
+    a ``failure`` and counts as a miss, never as a skipped case."""
+
     case_id: str
     mode: Literal["fake", "live"]
-    versions: VersionStamp
+    versions: VersionStamp | None  # None only when the session was never created
     export: ExportDocument | None
     checks: tuple[CheckResult, ...]
-    judge: dict[str, bool] | None
-    provider_failed: bool
-    latency_ms: dict[str, int]
-    estimated_cost_eur: float | None
+    judge: JudgeVerdict | None
+    provider_failed: bool  # a turn failed that the case did not expect to
+    estimated_cost_eur: float | None  # the answering model's, from the export
+    scenario_id: str = ""
+    session_id: str = ""  # live: the server's session, the key to its turn traces
+    model: str = ""  # the answering model's selector
+    language: Language | None = None  # the session's starting language
+    repetition: int = 1
+    failure: str = ""  # why the run stopped early
+    extraction: Extraction | None = None
+    tool_calls: tuple[tuple[str, bool], ...] = ()  # (tool, ok), every candidate turn
+    first_text_ms: tuple[int, ...] = ()  # per candidate turn that spoke, runner's clock
+    turn_ms: tuple[int, ...] = ()  # per candidate turn, POST to its end, runner's clock
+    lines: int = 0  # candidate lines said
+    hit_turn_cap: bool = False
+    cost_is_partial: bool = True
+
+    @property
+    def passed(self) -> bool:
+        return not self.failure and not self.provider_failed and all(c.ok for c in self.checks)
 
 
 class Report(Frozen):
@@ -182,5 +279,40 @@ class Scorer(Protocol):
     def __call__(self, result: SessionResult, check: Check) -> CheckResult: ...
 
 
+class Finished(Frozen):
+    """A live session after it was ended: what the checks read, the export, and every turn as
+    observed (the opening first, then one per candidate line)."""
+
+    result: SessionResult
+    export: ExportDocument
+    observations: tuple[TurnObservation, ...]
+
+
+class Conversation(Protocol):
+    """One session seen from the candidate's side: Ana's opening, one turn per line, the end."""
+
+    async def start(self) -> TurnObservation: ...
+
+    async def say(self, text: str) -> TurnObservation: ...
+
+    async def finish(self) -> Finished: ...
+
+
+Speaker = Literal["ana", "candidate"]
+Transcript = tuple[tuple[Speaker, str], ...]  # what was said aloud, in order
+
+
+class Candidate(Protocol):
+    """Who speaks for the candidate in a live run: the next line given everything said so far,
+    or ``None`` when the candidate has nothing more to say."""
+
+    async def next_line(self, transcript: Transcript) -> str | None: ...
+
+
 class CandidateSimulator(Protocol):
-    async def reply(self, persona: Persona, transcript: tuple[tuple[str, str], ...]) -> str: ...
+    """Puts one cue into the candidate's words."""
+
+    @property
+    def model_id(self) -> str: ...
+
+    async def reply(self, persona: Persona, cue: Cue, transcript: Transcript) -> str: ...

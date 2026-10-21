@@ -98,3 +98,17 @@ checks:
 rubric:
   - Ana disclosed being an AI in the first message.
   - Ana asked one main question at a time.
+# Live mode (simulated candidate, real clock): no turn numbers, relative dates.
+live_checks:
+  - name: brief_confirmed
+  - name: field_status
+    args: { field: earliest_start_date, status: confirmed }
+  - name: field_equals
+    args: { field: earliest_start_date, value: next monday }
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+  - name: outcome_is
+    args: { outcome: reserved }
+  - name: booking_present
+  - name: no_fabricated_confirmed_values
+  - name: no_cross_store_sources

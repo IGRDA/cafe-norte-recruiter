@@ -65,3 +65,21 @@ def test_set_secrets_commands_never_contain_the_value() -> None:
     assert "topsecret" not in " ".join(commands[0].argv)
     assert commands[0].argv[:4] == ["gcloud", "secrets", "versions", "add"]
     assert "--data-file=-" in commands[0].argv and commands[0].stdin == "topsecret"
+
+
+def test_set_secrets_only_writes_the_names_asked_for() -> None:
+    """Uploading the Langfuse keys from a full local .env must not touch the hosted access code,
+    the cookie secret or the provider keys, whose local values differ."""
+    env = {
+        "LANGFUSE_PUBLIC_KEY": "pk",
+        "LANGFUSE_SECRET_KEY": "sk",
+        "CAFE_NORTE_ACCESS_CODE": "local-code",
+        "OPENAI_API_KEY": "local-key",
+    }
+    planned = set_secrets.commands("p", env, only=("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"))
+    assert [c.name for c in planned] == ["LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"]
+
+
+def test_set_secrets_refuses_an_unknown_name_in_only(capsys: pytest.CaptureFixture[str]) -> None:
+    code = set_secrets.main(["--project", "p", "--dry-run", "--only", "NOT_A_SECRET"], env={})
+    assert code == 2 and "NOT_A_SECRET" in capsys.readouterr().err

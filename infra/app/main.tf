@@ -18,6 +18,8 @@ locals {
     "ELEVENLABS_API_KEY",
     "CAFE_NORTE_ACCESS_CODE",
     "CAFE_NORTE_COOKIE_SECRET",
+    "LANGFUSE_PUBLIC_KEY", # tracing (D36); empty until set_secrets.py --only writes a version
+    "LANGFUSE_SECRET_KEY",
   ]
 }
 
@@ -71,6 +73,8 @@ locals {
     "CAFE_NORTE_VOICE=pipecat",
     "ELEVENLABS_VOICE_ID=${var.elevenlabs_voice_id}",
     "CAFE_NORTE_MAX_VOICE_SESSIONS=2",
+    "CAFE_NORTE_ENVIRONMENT=production",
+    "LANGFUSE_BASE_URL=${var.langfuse_base_url}",
   ])
 }
 

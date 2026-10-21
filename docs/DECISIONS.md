@@ -915,8 +915,9 @@ from the session, and the export should carry an honest cost.
 - **The shutdown flush is bounded** (5 s) and runs in a thread, last in the lifespan.
 
 **Consequences we accept.** A trace is only as good as its flush: a crash loses the last batch
-(at most 2 s). Langfuse shows euros as dollars. The hosted app sends nothing until the
-`LANGFUSE_*` variables and `CAFE_NORTE_ENVIRONMENT=production` are added to `infra/app`.
+(at most 2 s). Langfuse shows euros as dollars. The hosted app's keys are Secret Manager
+versions written with `set_secrets.py --only` and its host and `CAFE_NORTE_ENVIRONMENT=production`
+are plain settings of `infra/app` (added 21 October, after the first hosted traces were wanted).
 Not yet recorded: the signal analyzer's tokens, a cancelled generation's tokens (no usage
 chunk arrives), Pipecat's own STT/TTS metrics. Live evals, datasets and experiments are a
 later stage.

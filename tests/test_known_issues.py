@@ -6,13 +6,20 @@ suite, and the marker comes off in the same commit as the fix.
 """
 
 import asyncio
+import json
 
 import pytest
 
 from cafe_norte.conversation.contracts import TurnFailed
 from cafe_norte.conversation.signals import answer_to_readback
-from cafe_norte.domain.contracts import TurnId
+from cafe_norte.domain.configuration import load_configurations
+from cafe_norte.domain.contracts import SlotId, TurnId
+from cafe_norte.model.contracts import ToolCall
+from cafe_norte.persistence.memory import MemoryStore
+from cafe_norte.persistence.seed import seed_calendar
+from tests.support import CONFIG_DIR
 from tests.test_runtime import (
+    NOW,
     SESSION,
     WANTS_TOOLS,
     Harness,
@@ -105,3 +112,58 @@ async def test_ki02_a_yes_to_the_summary_on_screen_confirms_it_even_if_its_audio
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.pending_confirmation is not None
     assert state.pending_confirmation.status == "confirmed"
+
+
+@pytest.mark.xfail(strict=True, reason="KI-06: choosing a slot depends on the model copying an id")
+async def test_ki06_a_day_and_a_time_end_in_a_booking_without_the_model_copying_an_id() -> None:
+    """Live: after "el viernes", "el viernes", "exacto, sí" and "el viernes, veintitrés, a las
+    diez y media" the model re-listed the slots, asked in plain text, reserved with nothing
+    pending and presented an id that does not exist (seq 172 to 183). Here the model never
+    presents a slot; the runtime must turn the words into the read-back, and the yes into the
+    booking."""
+    offer = ToolCall(
+        call_id="o1",
+        name="list_interview_slots",
+        arguments_json=json.dumps(
+            {"evidence_text": "Sí, quiero entrevista.", "date_preference": "2026-10-23"}
+        ),
+    )
+    ask = "¿Cuál te viene mejor?"
+    h = Harness(
+        [
+            [offer, WANTS_TOOLS],
+            says(""),
+            says(ask),
+            says(ask),
+            says(ask),
+            says(""),
+            says("Reservado."),
+        ],
+        store=MemoryStore(clock=lambda: NOW),
+    )
+    await h.open_session()
+    await seed_calendar(h.store, load_configurations(CONFIG_DIR), now=NOW)
+    await fill_record(h)
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None
+    async with h.store.transaction() as tx:
+        await h.store.sessions.save(
+            tx,
+            state.model_copy(update={"brief_confirmed_revision": state.candidate.revision}),
+            expected_revision=state.candidate.revision,
+        )
+    for n, words in enumerate(
+        [
+            "Sí, quiero entrevista.",
+            "El viernes.",
+            "El viernes.",
+            "Exacto, sí.",
+            "El viernes, veintitrés, a las diez y media.",
+            "Sí.",
+        ],
+        start=1,
+    ):
+        await h.run(words, f"in-{n}")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.booking is not None
+    assert state.booking.slot_id == SlotId("chamberi_barista_v1-2026-10-23-1030")

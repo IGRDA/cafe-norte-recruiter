@@ -4,9 +4,18 @@ import json
 import re
 from datetime import date, timedelta
 
+from pydantic import BaseModel, ConfigDict
+
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.brief import slot_time
+from cafe_norte.conversation.signals import Control
 from cafe_norte.domain.candidate import VALUE_FIELDS, unfinished_fields
-from cafe_norte.domain.contracts import CandidateRecord, SessionState, StoreConfiguration
+from cafe_norte.domain.contracts import (
+    CandidateRecord,
+    Sentiment,
+    SessionState,
+    StoreConfiguration,
+)
 from cafe_norte.domain.fields import value_of
 from cafe_norte.model.contracts import ModelMessage
 from cafe_norte.persistence.contracts import TurnRecord
@@ -18,11 +27,21 @@ HISTORY_TURNS = 20
 _SENTENCE_END = re.compile(r"(?:(?<=[.!?…])|(?<=[.!?…][)\]]))(?:\s+|(?=[¿¡(A-ZÁÉÍÓÚÑÜ]))")
 
 
+class PromptHints(BaseModel):
+    """What this turn adds beyond the stored state: the explicit requests detected in its text
+    and the sentiment of the previous turn, when fresh (``signals.fresh_sentiment``)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    explicit: frozenset[Control] = frozenset()
+    sentiment: Sentiment | None = None
+
+
 WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 
 
 def system_message(
-    configuration: StoreConfiguration, state: SessionState, today: date
+    configuration: StoreConfiguration, state: SessionState, today: date, hints: PromptHints
 ) -> ModelMessage:
     facts = {
         "today": {"date": today.isoformat(), "weekday": WEEKDAYS[today.weekday()]},
@@ -48,12 +67,18 @@ def system_message(
         "candidate_field_status": field_status(state.candidate),
         "fields_still_to_ask": list(unfinished_fields(state.candidate)),
         "pending_confirmation": pending_facts(state),
+        "schedule_intent": state.schedule_intent is not None,
+        "booking": booking_facts(state, configuration),
         "lifecycle": state.lifecycle,
+        "explicit_requests": sorted(c for c in hints.explicit if c in ("stop", "human")),
+        "candidate_sentiment": hints.sentiment,
     }
     content = (
         prompts.load("system")
         + "\n\n## Datos de esta sesión (JSON)\n"
         + json.dumps(facts, ensure_ascii=False, default=str)
+        + "\n\n"
+        + prompts.load("language", state.language).strip()  # last, where it weighs most
     )
     return ModelMessage(role="system", content=content)
 
@@ -77,7 +102,21 @@ def pending_facts(state: SessionState) -> dict[str, object] | None:
     facts: dict[str, object] = {"kind": pending.target.kind, "status": pending.status}
     if pending.target.kind == "field":
         facts["field"] = pending.target.field
+    elif pending.target.kind == "slot":
+        facts["slot_id"] = pending.target.slot_id
     return facts
+
+
+def booking_facts(state: SessionState, configuration: StoreConfiguration) -> dict[str, str] | None:
+    """The committed simulated reservation, in the store's local time."""
+    booking = state.booking
+    if booking is None:
+        return None
+    return {
+        "slot_id": booking.slot_id,
+        "when": slot_time(booking.starts_at_utc, configuration, state.language),
+        "simulated": "yes",
+    }
 
 
 def field_status(candidate: CandidateRecord) -> dict[str, str]:
@@ -96,9 +135,10 @@ def build_messages(
     history: tuple[TurnRecord, ...],
     user_text: str,
     today: date,
+    hints: PromptHints,
 ) -> tuple[ModelMessage, ...]:
     return (
-        system_message(configuration, state, today),
+        system_message(configuration, state, today, hints),
         *history_messages(history),
         ModelMessage(role="user", content=user_text),
     )

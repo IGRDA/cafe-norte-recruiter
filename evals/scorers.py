@@ -7,10 +7,12 @@ from collections import Counter
 from collections.abc import Callable
 from datetime import date
 from functools import cache
+from typing import get_args
 
 from cafe_norte.conversation import prompts
-from cafe_norte.domain.contracts import BriefTarget, CandidateFieldName, Captured, Confirmed
+from cafe_norte.domain.contracts import CandidateFieldName, Captured, Confirmed
 from cafe_norte.domain.fields import value_of
+from cafe_norte.errors import Language
 from evals.contracts import Check, CheckResult, SessionResult
 
 CHECKS = (
@@ -27,6 +29,8 @@ CHECKS = (
     "sources_shown_for_policy_answer",
     "no_cross_store_sources",
     "max_repeated_questions",
+    "signal_recorded",
+    "said_control_reply",
 )
 
 SET_FIELDS = {"availability_days", "availability_shifts"}
@@ -59,12 +63,24 @@ def _field_status(result: SessionResult, check: Check) -> tuple[bool, str]:
 
 
 def _brief_confirmed(result: SessionResult, check: Check) -> tuple[bool, str]:
-    pending = result.state.pending_confirmation
-    if pending is None or not isinstance(pending.target, BriefTarget):
-        return False, "no brief confirmation on record"
+    confirmed = result.state.brief_confirmed_revision
     current = result.state.candidate.revision
-    ok = pending.status == "confirmed" and pending.target.revision == current
-    return ok, f"brief {pending.status} at revision {pending.target.revision}, record at {current}"
+    if confirmed is None:
+        return False, "no brief confirmation on record"
+    return confirmed == current, f"brief confirmed at revision {confirmed}, record at {current}"
+
+
+def _booking_present(result: SessionResult, check: Check) -> tuple[bool, str]:
+    booking = result.state.booking
+    if booking is None:
+        return False, "no booking"
+    same_store = booking.config_id == result.state.config_id
+    return same_store and booking.simulated, f"booking {booking.slot_id}, store match {same_store}"
+
+
+def _booking_absent(result: SessionResult, check: Check) -> tuple[bool, str]:
+    booking = result.state.booking
+    return booking is None, "no booking" if booking is None else f"booking {booking.slot_id}"
 
 
 def _outcome_is(result: SessionResult, check: Check) -> tuple[bool, str]:
@@ -134,6 +150,46 @@ def _review_flag_present(result: SessionResult, check: Check) -> tuple[bool, str
     return wanted in kinds, f"review flags: {kinds or 'none'} (wanted {wanted})"
 
 
+def _language_of_last_assistant_turn(result: SessionResult, check: Check) -> tuple[bool, str]:
+    last = next((t for t in reversed(result.turns) if t.role == "assistant"), None)
+    language = last.language if last is not None else None
+    wanted = check.args["language"]
+    return language == wanted, f"expected {wanted}, got {language}"
+
+
+def _brief_language(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """The last brief Ana read back came from the ``language`` table, word for word. Read from
+    the transcript: after a booking the pending confirmation is the slot, not the brief."""
+    intros = {
+        language: prompts.table("brief", language)["intro"] for language in get_args(Language)
+    }
+    briefs = [
+        t.text
+        for t in result.turns
+        if t.role == "assistant" and any(t.text.startswith(intro) for intro in intros.values())
+    ]
+    if not briefs:
+        return False, "no brief on record"
+    wanted: Language = "en" if check.args["language"] == "en" else "es"
+    return briefs[-1].startswith(intros[wanted]), f"brief: {briefs[-1][:40]}…"
+
+
+def _signal_recorded(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """The classifier's verdict for candidate line ``turn`` (1-based) has ``sentiment``."""
+    turn_id = _user_turn_ids(result)[int(check.args["turn"]) - 1]
+    found = [s.sentiment for s in result.signals if s.turn_id == turn_id]
+    wanted = check.args["sentiment"]
+    detail = f"turn {check.args['turn']} signals: {found or 'none'} (wanted {wanted})"
+    return found == [wanted], detail
+
+
+def _said_control_reply(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """The fixed reply to an explicit ``control`` was said word for word on ``turn``."""
+    reply = prompts.table("controls", result.state.language)[check.args["control"]]
+    said = " ".join(result.spoken_by_turn[int(check.args["turn"]) - 1])
+    return reply in said, f"turn {check.args['turn']} said: {said!r}"
+
+
 def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
     def scorer(result: SessionResult, check: Check) -> tuple[bool, str]:
         raise NotImplementedError(f"check {check.name!r} arrives with the {stage} stage")
@@ -149,12 +205,15 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "lifecycle_is": _lifecycle_is,
     "no_fabricated_confirmed_values": _no_fabricated,
     "max_repeated_questions": _max_repeated_questions,
-    "booking_present": _later("booking"),
-    "booking_absent": _later("booking"),
+    "booking_present": _booking_present,
+    "booking_absent": _booking_absent,
     "review_flag_present": _review_flag_present,
-    "language_of_last_assistant_turn": _later("language"),
+    "language_of_last_assistant_turn": _language_of_last_assistant_turn,
+    "brief_language": _brief_language,
     "sources_shown_for_policy_answer": _sources_shown,
     "no_cross_store_sources": _no_cross_store_sources,
+    "signal_recorded": _signal_recorded,
+    "said_control_reply": _said_control_reply,
 }
 LATER: dict[str, str] = {}
 
@@ -162,15 +221,21 @@ LATER: dict[str, str] = {}
 # ---- helpers -------------------------------------------------------------------------------------
 
 
+def _user_turn_ids(result: SessionResult) -> list[str]:
+    return [t.turn_id for t in result.turns if t.role == "user"]
+
+
 @cache
 def _system_questions() -> frozenset[str]:
-    """The fixed questions of prompts/brief.md: the brief's closing question and the last
-    sentence of each read-back template."""
-    table = prompts.table("brief")
-    questions = {table["question"]}
-    for key, template in table.items():
-        if key.startswith("readback."):
-            questions.add(template.rsplit(". ", 1)[-1])
+    """The fixed questions of prompts/brief.<language>.md, in every language: the brief's
+    closing question and the last sentence of each read-back template."""
+    questions: set[str] = set()
+    for language in get_args(Language):
+        table = prompts.table("brief", language)
+        questions.add(table["question"])
+        for key, template in table.items():
+            if key.startswith("readback."):
+                questions.add(template.rsplit(". ", 1)[-1])
     return frozenset(questions)
 
 

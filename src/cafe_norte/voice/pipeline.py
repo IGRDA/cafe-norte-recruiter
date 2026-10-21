@@ -7,7 +7,7 @@ emits the finished user message, which the bridge turns into one runtime turn. N
 model and no Pipecat LLM (D01, D22)."""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import datetime
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
@@ -29,7 +29,7 @@ from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from pipecat.workers.runner import WorkerRunner
 
 from cafe_norte.domain.contracts import SessionId
-from cafe_norte.errors import ServiceError
+from cafe_norte.errors import Language, ServiceError
 from cafe_norte.observability.contracts import StageTiming
 from cafe_norte.voice.bridge import InboundBridge, PlaybackTap
 from cafe_norte.voice.contracts import Room, VoiceStatus, VoiceTexts, VoiceTiming
@@ -51,7 +51,7 @@ class PipecatVoiceController:
         deepgram_api_key: str,
         elevenlabs_api_key: str,
         voice_id: str,
-        texts: VoiceTexts,
+        texts: Mapping[Language, VoiceTexts],
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._runtime = runtime
@@ -63,9 +63,9 @@ class PipecatVoiceController:
         self._sessions: dict[SessionId, _Live] = {}
         self._observed: dict[SessionId, list[VoiceTiming]] = {}
 
-    async def start(self, session_id: SessionId, room: Room) -> None:
+    async def start(self, session_id: SessionId, room: Room, language: Language) -> None:
         """Returns once the bot has joined; a failure leaves no task, room slot or session."""
-        live = self.build(session_id, room)
+        live = self.build(session_id, room, language)
         self._sessions[session_id] = live
         live.task = asyncio.create_task(_run(live))
         live.task.add_done_callback(lambda _t: self._forget(session_id, live))
@@ -116,7 +116,7 @@ class PipecatVoiceController:
 
     # ---- assembly --------------------------------------------------------------------------------
 
-    def build(self, session_id: SessionId, room: Room) -> "_Live":
+    def build(self, session_id: SessionId, room: Room, language: Language) -> "_Live":
         transport = DailyTransport(
             room.room_url,
             room.bot_token,
@@ -125,13 +125,11 @@ class PipecatVoiceController:
         )
         stt = DeepgramSTTService(
             api_key=self._deepgram_api_key,
-            settings=DeepgramSTTSettings(model="nova-3", language="es", interim_results=True),
+            settings=DeepgramSTTSettings(model="nova-3", language="multi", interim_results=True),
         )
         tts = ElevenLabsTTSService(
             api_key=self._elevenlabs_api_key,
-            settings=ElevenLabsTTSSettings(
-                model="eleven_flash_v2_5", voice=self._voice_id, language="es"
-            ),
+            settings=ElevenLabsTTSSettings(model="eleven_flash_v2_5", voice=self._voice_id),
         )
         turns = LLMUserAggregator(
             LLMContext(),
@@ -159,6 +157,7 @@ class PipecatVoiceController:
             speak=speak,
             on_status=lambda _status: None,
             texts=self._texts,
+            language=language,
             clock=self._clock,
         )
         bridge = InboundBridge(session)

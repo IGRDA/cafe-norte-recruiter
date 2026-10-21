@@ -7,7 +7,9 @@ in-memory store, a canned retriever and voice off. Nothing else in the package r
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import get_args
 
 import httpx
 from fastapi import FastAPI, Request
@@ -19,13 +21,14 @@ from cafe_norte.api.access import AccessGate, gate_from_env
 from cafe_norte.api.contracts import ErrorResponse
 from cafe_norte.api.routes import TurnTasks, build_router
 from cafe_norte.conversation import prompts
-from cafe_norte.conversation.contracts import ConversationRuntime
+from cafe_norte.conversation.contracts import ConversationRuntime, SignalAnalyzer
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
+from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import ConfigId, StoreConfiguration
-from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
+from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.knowledge.hybrid import HybridRetriever
 from cafe_norte.knowledge.index import lexical_index, load_index
@@ -37,6 +40,7 @@ from cafe_norte.observability.contracts import ProcessVersions
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION
 from cafe_norte.persistence.memory import MemoryStore
+from cafe_norte.persistence.seed import seed_calendar
 from cafe_norte.voice.contracts import (
     RoomProvisioner,
     VoiceMode,
@@ -74,14 +78,17 @@ def create_app(
     max_voice_sessions: int = 2,
     session_seconds: float = 480.0,
     warm_up: Callable[[], Awaitable[None]] | None = None,
+    seed: bool = False,
 ) -> FastAPI:
-    """Build from typed collaborators. Lifespan: ``warm_up`` (the embedding model) before the
-    first request, cancel in-flight turns on shutdown. Later stages add store warm-up,
-    calendar seeding, lease renewal and the summary worker."""
+    """Build from typed collaborators. Lifespan: seed the simulated calendar when ``seed`` is
+    set, ``warm_up`` (the embedding model) before the first request, cancel in-flight turns on
+    shutdown. Later stages add lease renewal and the summary worker."""
     tasks = TurnTasks()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        if seed:
+            await seed_calendar(store, configurations, now=datetime.now(UTC))
         if warm_up is not None:
             await warm_up()
         yield
@@ -128,6 +135,13 @@ def _model(env: Mapping[str, str]) -> Model:
     return FakeModel([], fallback=demo)
 
 
+def _signals(env: Mapping[str, str]) -> SignalAnalyzer | None:
+    """The asynchronous classifier is opt-in: ``CAFE_NORTE_SIGNAL_MODEL`` names a small model
+    (same selector format as ``CAFE_NORTE_MODEL``); unset, no turn pays for a second call."""
+    selector = env.get("CAFE_NORTE_SIGNAL_MODEL", "")
+    return ModelSignalAnalyzer(model_from_env(selector, env)) if selector else None
+
+
 def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
     """Select adapters from ``env`` (default ``os.environ``) and call ``create_app``.
 
@@ -146,7 +160,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         tools=registry,
         store=store,
         configurations=configurations,
-        signals=None,
+        signals=_signals(env),
         limits=Limits(
             llm_first_output_seconds=float(env.get("CAFE_NORTE_LLM_FIRST_OUTPUT_SECONDS", "6")),
             tool_seconds=float(env.get("CAFE_NORTE_TOOL_SECONDS", "10")),
@@ -179,6 +193,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         max_voice_sessions=int(env.get("CAFE_NORTE_MAX_VOICE_SESSIONS", "2")),
         session_seconds=float(env.get("CAFE_NORTE_SESSION_SECONDS", "480")),
         warm_up=warm_up,
+        seed=True,
     )
 
 
@@ -215,13 +230,16 @@ def _voice_mode(env: Mapping[str, str]) -> VoiceMode:
     return value  # type: ignore[return-value]
 
 
-def voice_texts() -> VoiceTexts:
-    table = prompts.table("voice")
-    return VoiceTexts(
-        opening=prompts.load("opening").strip(),
-        filler=table["filler"],
-        idle_prompt=table["idle_prompt"],
-    )
+def voice_texts() -> dict[Language, VoiceTexts]:
+    def texts(language: Language) -> VoiceTexts:
+        table = prompts.table("voice", language)
+        return VoiceTexts(
+            opening=prompts.load("opening", language).strip(),
+            filler=table["filler"],
+            idle_prompt=table["idle_prompt"],
+        )
+
+    return {language: texts(language) for language in get_args(Language)}
 
 
 def _hosted_voice(

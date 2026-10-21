@@ -5,6 +5,7 @@ from typing import Literal
 from cafe_norte.domain.contracts import Lifecycle, Outcome, SessionState
 from cafe_norte.domain.fields import value_of
 from cafe_norte.domain.result import Err, Ok, Result
+from cafe_norte.domain.review import has_followup
 
 LifecycleEvent = Literal[
     "pause",  # silence, disconnect, SIGTERM
@@ -43,8 +44,9 @@ def transition(
     lifecycle when the event is not allowed from it.
 
     Outcomes: ``complete`` keeps a committed booking's ``reserved``, otherwise ``brief_only``;
-    ``stop`` is ``not_interested`` when interest is ``no``, else ``incomplete``; ``abandon``
-    and ``fail`` are ``incomplete``; non-terminal events keep the current outcome."""
+    ``stop`` is ``not_interested`` when interest is ``no``; otherwise an early end (``stop``,
+    ``abandon``, ``fail``) is ``human_followup_requested`` when a follow-up was asked for, else
+    ``incomplete``; non-terminal events keep the current outcome."""
     if event not in TRANSITIONS[state.lifecycle]:
         return Err(state.lifecycle)
     next_lifecycle = NEXT[event]
@@ -55,6 +57,8 @@ def transition(
         outcome = "reserved" if state.booking is not None else "brief_only"
     elif event == "stop" and value_of(state.candidate.interest) == "no":
         outcome = "not_interested"
+    elif has_followup(state):
+        outcome = "human_followup_requested"
     else:
         outcome = "incomplete"
     return Ok((next_lifecycle, outcome))

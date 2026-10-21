@@ -245,6 +245,7 @@ provider accounts in front of the first conversation; B defers the first convers
 **Consequences we accept, and what is deliberately missing.**
 - Only `update_candidate` is registered; the registry advertises registered tools only.
 - Spanish only in the prompt; `language` is carried and `en` is refused nowhere yet.
+  (English and the switch arrived with D28.)
 - No access code, resume tokens, snapshot endpoint, cancellation, repair budget, signals,
   leases, Postgres or tracing. Each stays `NotImplementedError` behind its port.
 - Sequence numbers live in the runtime per process; Postgres will own them.
@@ -518,6 +519,122 @@ no lexical match scored ≥ 0.40, and the unsupported questions with no lexical 
 
 **Not done.** ragas and Langfuse sync (not chosen), and a floor that uses the second-best
 chunk's margin (no evidence it would help on 24 questions).
+
+## D28 · English is a session fact; an explicit request switches it before the model runs
+
+_Added 21 October 2026, the language stage._
+
+**Context.** `Language` was carried everywhere but every candidate-facing sentence was
+Spanish, and `explicit_controls` was a stub. The spec wants either starting language, an
+explicit switch that applies to the current turn, and retained state.
+
+**Decisions.**
+- `SessionState.language` is the one current language. `CandidateRecord.preferred_language`
+  is removed: a preference, not a collected fact, and a second copy to keep in sync. Each
+  `TurnRecord.language` keeps the language of its own turn.
+- The switch is a pure pattern match (`signals.explicit_controls`) on the finalized text: a
+  language name with a request word around it ("in English", "en inglés", "English, please",
+  "en castellano"). A borrowed word or a mention ("I studied English") never matches. Exactly
+  one requested language switches; none or both leave it alone. No model tool.
+- The runtime applies it at the start of the turn and saves it in the same transaction as the
+  user turn, so the record, `TurnStarted.language`, the prompt and the reply all agree. The
+  model answers that turn in the new language; there is no fixed acknowledgement.
+- Instructions stay one Spanish `system.md` with an "Idioma" section: reply only in
+  `language`, never change it yourself, queries to the knowledge base stay Spanish (D26).
+  The system message ends with `language.<lang>.md`, one line written in the session
+  language. Measured live: without it, gpt-4o-mini answered an English session in Spanish
+  from the first turn; with it, every turn stayed English, and the switch turn was English
+  from its first sentence.
+- Text the system speaks word for word has one file per language, `<name>.<lang>.md`
+  (`brief`, `opening`, `voice`, `language`), with identical keys held by a test. Language-specific layout
+  is a template row (`date`), so `brief.py` has no Spanish logic.
+- Voice: the session's language is passed when voice starts; `VoiceSession` follows each
+  `TurnStarted.language` for the filler and idle prompt. Deepgram runs `multi`; ElevenLabs
+  takes the language from the text. Browser speech follows the turn the same way.
+- The page takes the opening language from `?lang=`; the picker reloads into a new session.
+- Scenario ids follow the spec: the old S02 (correction after the brief) is S04; S02 is the
+  English happy path in Arganzuela; S07 is the switch from Spanish to English.
+
+**Consequences we accept.**
+- No implicit switch: a candidate who simply writes in English without asking keeps getting
+  Spanish until they ask. Live S07 runs show whether the pattern list needs more phrasings.
+- A read-back pending at the moment of a switch stays pending and in the language it was
+  read in; a yes or no in either language answers it.
+- Postgres rows written before this change still carry `preferred_language` and no longer
+  validate; the demo runs on the memory store (D24), so only local test data is affected.
+
+## D29 · Booking on the memory store: generated slots, intent by tool, the yes is the reservation
+
+_Added 21 October 2026._
+
+**Context.** The first line of the definition of done (bookings need an explicit matching
+confirmation and survive duplicates) on the in-memory store, before Postgres. The five
+conditions of SPEC §9 were already written in `domain/booking.py`'s docstring.
+
+**Decisions.**
+- Slots are a rule, not a fixture: each store configuration names its `interview_times`
+  ("10:30", "17:00"); `domain/calendar.py` yields one 30-minute slot per time on each of the
+  next seven local days that has a shift, with deterministic ids
+  (`<config_id>-<YYYY-MM-DD>-<HHMM>`). Seeding at startup and in the scenario runner is
+  therefore idempotent, and a scenario with a fixed `today` always sees the same ids. A YAML
+  calendar would go stale and need a date-shifting trick in every test.
+- Explicit intent to schedule is a fact with evidence on the session, never a candidate
+  field: a patch bumps the revision and would void the brief confirmation the booking needs.
+  `list_interview_slots(evidence_text)` saves the candidate's words as
+  `SessionState.schedule_intent` in the same write that offers the slots.
+- `brief_confirmed_revision` on the session records the brief the candidate affirmed.
+  Presenting a slot replaces `pending_confirmation`, so "brief confirmed at the current
+  revision" can no longer be read from it; the handlers and the `brief_confirmed` scorer read
+  the field.
+- `reserve_interview(slot_id)` is the candidate's yes to the pending slot read-back and the
+  commit: the domain resolves the confirmation (`respond(affirm)`, so the same-turn and
+  not-delivered refusals apply), `reservation_allowed` checks the five conditions, and the
+  calendar row and the session are saved in one transaction. No `confirm_slot`: the allowlist
+  keeps its nine names and SPEC §4's "slot ID and matching confirmation". Another choice is
+  `present_confirmation` with the other slot, which supersedes the pending one.
+- The runtime speaks the slot offer and the slot read-back verbatim (D20), in Madrid local
+  time; the model only names slot ids, in the order they were offered.
+- The memory calendar enforces one booking per slot and per session and returns the original
+  booking for a known idempotency key, checked at enlist and again at commit.
+
+**Deferred.** Postgres row locks and S14/S15 across containers (persistence stage); automated
+rescheduling (a change request is a `request_human_followup` flag, per SPEC §9). The slot
+sentences took a language when D28 and D29 were merged.
+
+## D30 · Explicit requests are patterns in the runtime; frustration is an opt-in classifier
+
+_Added 21 October 2026, the signals stage (frustration bonus, S09)._
+
+**Decisions.**
+- `explicit_controls(text)` is pure: anchored phrases for `human` and `stop` in both
+  languages, matched per clause after lowercasing and removing accents; a negation in the three
+  words before a match cancels it, so "no quiero hablar con una persona" is not a request and
+  "para" as a preposition is not a stop. The same call returns the language requests of D28;
+  it takes no language, so a request for a person in the other language still counts, and the
+  runtime reads the controls once, before it resolves the turn's language.
+- A human request is handled by the runtime before the model: `add_followup` saves a
+  `human_followup` flag (one per turn; the tool handler uses the same function), `StateUpdated`
+  is emitted, then the fixed reply in `prompts/controls.<lang>.md` is said word for word: nobody can be
+  reached now, the interview will be with a person, the request is noted, the demo notifies
+  nobody real, the candidate may leave at any time. The conversation continues; the model runs
+  for any fact in the same sentence but voices nothing more.
+- A stop request is a hint (`explicit_requests` in the session facts); the model still calls
+  `end_session(candidate_stop)` and says goodbye. No second ending path in the runtime.
+- Outcome: an early end (`stop`, `abandon`, `fail`) with any `human_followup` flag is
+  `human_followup_requested`; withdrawn interest still wins as `not_interested`; `complete`
+  keeps `reserved`/`brief_only` with the flag beside it. The brief states the request in one
+  fixed sentence.
+- The classifier is opt-in (`CAFE_NORTE_SIGNAL_MODEL`), so the default setup and CI pay
+  nothing. It runs after `TurnFinished` in a background task, through the same `Model` port; a
+  verdict without verbatim evidence, late (5 s) or malformed is no signal. Verdicts are
+  journaled as `SignalRecorded` (the export's `signals` come from the journal;
+  `Events.record_signal` is removed) and the latest is kept in memory. Only a `frustrated` or
+  `uncertain` verdict from the immediately previous user turn reaches the prompt
+  (`candidate_sentiment`); the prompt then shortens the question and offers to skip a
+  nonessential field or ask for a person. Never a hiring input.
+
+**Not done.** Persisting the latest signal across resume (it is soft and per-turn); a
+frustration lexicon without a model.
 
 ## Assumptions recorded without a question
 

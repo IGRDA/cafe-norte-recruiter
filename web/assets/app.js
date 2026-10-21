@@ -3,6 +3,8 @@
 import { createVoice } from "./voice.js";
 
 const CONFIG_ID = "chamberi_barista_v1";
+// The opening language comes from ?lang=; the picker reloads the page into a new session.
+const LANGUAGE = new URLSearchParams(location.search).get("lang") === "en" ? "en" : "es";
 
 const state = {
   sessionId: null,
@@ -27,15 +29,26 @@ const el = {
   send: document.getElementById("send"),
   talk: document.getElementById("talk"),
   error: document.getElementById("error"),
+  language: document.getElementById("language"),
   candidate: document.getElementById("candidate"),
   confirmation: document.getElementById("confirmation"),
+  booking: document.getElementById("booking"),
+  bookingWhen: document.getElementById("booking-when"),
   review: document.getElementById("review"),
   sources: document.getElementById("sources"),
   export: document.getElementById("export"),
   exportLink: document.getElementById("export-link"),
 };
 
-let voice = { supported: false, start() {}, stop() {}, speak() {}, turnEnded() {}, closing() {} };
+let voice = {
+  supported: false,
+  start() {},
+  stop() {},
+  speak() {},
+  turnEnded() {},
+  closing() {},
+  setLanguage() {},
+};
 
 function buildVoice(mode) {
   return createVoice({
@@ -79,7 +92,7 @@ async function openSession() {
   const response = await fetch("/api/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ config_id: CONFIG_ID, language: "es", channel: "text" }),
+    body: JSON.stringify({ config_id: CONFIG_ID, language: LANGUAGE, channel: "text" }),
   });
   if (response.status === 401) {
     el.access.hidden = false;
@@ -109,6 +122,7 @@ function openStream() {
     "tool_finished",
     "state_updated",
     "sources_shown",
+    "signal_recorded",
     "turn_finished",
     "turn_failed",
     "voice_state",
@@ -130,6 +144,7 @@ function handle(event) {
       // The stream carries the user's words: bubbles never depend on the POST reply's timing.
       if (payload.text) addTurn(`${event.turn_id}:user`, "user", [payload.text]);
       addTurn(event.turn_id, "assistant", []);
+      voice.setLanguage(payload.language);
       setStatus("Ana está pensando…");
       break;
     }
@@ -137,6 +152,12 @@ function handle(event) {
       renderSources(payload);
       review(`fuentes para «${payload.question}»: ${payload.chunk_ids.length}`);
       break;
+    case "signal_recorded": {
+      const signal = payload.signal;
+      const evidence = signal.evidence_text ? ` («${signal.evidence_text}»)` : "";
+      review(`señal del turno: ${signal.sentiment}${evidence}`);
+      break;
+    }
     case "assistant_text": {
       const turn = state.turns.get(event.turn_id) ?? addTurn(event.turn_id, "assistant", []);
       turn.sentences.push(payload.text);
@@ -155,6 +176,7 @@ function handle(event) {
       state.candidate = payload;
       renderCandidate();
       renderConfirmation(payload.pending_confirmation);
+      renderBooking(payload.booking);
       review(`estado guardado, revisión ${payload.revision}`);
       if (TERMINAL.has(payload.lifecycle)) endConversation();
       break;
@@ -295,6 +317,21 @@ function renderConfirmation(confirmation) {
   el.confirmation.dataset.status = confirmation.status;
 }
 
+function renderBooking(booking) {
+  // Only a committed reservation reaches the stream, so showing it never runs ahead of storage.
+  el.booking.hidden = !booking;
+  if (!booking) return;
+  const when = new Date(booking.starts_at_utc).toLocaleString("es-ES", {
+    timeZone: "Europe/Madrid",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  el.bookingWhen.textContent = `${when} (hora de Madrid) · ${booking.slot_id}`;
+}
+
 function endConversation() {
   // The goodbye arrives after the terminal state: keep speaking, stop listening, freeze the UI.
   state.ended = true;
@@ -368,6 +405,11 @@ el.access.addEventListener("submit", async (event) => {
 el.composer.addEventListener("submit", (event) => {
   event.preventDefault();
   submitTurn(el.text.value);
+});
+
+el.language.value = LANGUAGE;
+el.language.addEventListener("change", () => {
+  location.search = `?lang=${el.language.value}`;
 });
 
 el.talk.addEventListener("click", () => {

@@ -11,8 +11,10 @@ spec means by "code-enforced validation": the LLM proposes, these functions deci
 | `fields.py` | Transitions of one field: `capture`, `confirm`, `mark_unknown`, `decline`, `value_of` |
 | `candidate.py` | Validating and applying a patch to the whole record; which fields are still unfinished. The brief's sentences are candidate-facing text, so rendering lives in `conversation/brief.py` |
 | `confirmation.py` | Presenting a pending confirmation and interpreting a response against it |
-| `booking.py` | The five conditions a reservation needs, as one total function |
-| `lifecycle.py` | Allowed `lifecycle` transitions (`transition`, `is_terminal`) and the outcome each terminal event implies |
+| `booking.py` | The five conditions a reservation needs (`reservation_allowed`), the slot half of them (`slot_offerable`) and the server-generated `idempotency_key` |
+| `calendar.py` | `interview_slots`: the simulated calendar as a deterministic rule over a store's shifts and `interview_times` (D29) |
+| `lifecycle.py` | Allowed `lifecycle` transitions (`transition`, `is_terminal`) and the outcome each terminal event implies: an early end with a follow-up flag is `human_followup_requested` |
+| `review.py` | `add_followup` (at most one `human_followup` flag per turn) and `has_followup`: the one place the tool handler and the runtime's explicit-request control add a follow-up |
 | `configuration.py` | Loading and validating the two store configurations from `config/` |
 
 ## Field algebra
@@ -36,5 +38,8 @@ second model.
 ## Revisions
 
 Every accepted patch increments `CandidateRecord.revision`. A brief confirmation names the
-revision it was shown for; a later patch invalidates it (see `confirmation.py`). A reservation
-needs a confirmed brief at the current revision (see `booking.py`).
+revision it was shown for; a later patch invalidates it (see `confirmation.py`). The session
+records the revision the candidate affirmed in `brief_confirmed_revision`, and the candidate's
+words asking for an interview in `schedule_intent`. A reservation needs the brief confirmed at
+the current revision, that intent, and a delivered, affirmed slot confirmation bound to the
+same revision (see `booking.py`).

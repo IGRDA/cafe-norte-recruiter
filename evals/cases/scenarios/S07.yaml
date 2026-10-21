@@ -1,0 +1,85 @@
+id: S07
+title: Spanish to English switch, Chamberí
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# The candidate asks for English on line 3. The switch is the runtime's, before the model is
+# called: that turn is already English, nothing captured is asked again, and the read-back
+# and brief come from the English table.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Sorry, can we continue in English, please?"
+  - "Yes, I have a work permit. Mondays, Tuesdays and Thursdays, mornings, about 30 hours."
+  - "I could start next Monday. Two years in a café."
+  - "Yes, that's right."
+  - "Yes, all correct."
+  - "No, thanks."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - say: "Of course. Do you have permission to work, and what is your availability?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Yes, I have a work permit. Mondays, Tuesdays and Thursdays, mornings, about 30 hours."
+    - say: "Great. When could you start, and what experience do you have?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: two years in a café }
+        evidence_text: "I could start next Monday. Two years in a café."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: confirm_brief
+      args: { answer: affirm }
+    - say: "Would you like an interview?"
+  - - tool: update_candidate
+      args: { patch: { note: does not want an interview }, evidence_text: "No, thanks." }
+    - tool: end_session
+      args: { reason: candidate_done }
+    - say: "Understood, Lucía. Thanks for your time."
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: next monday
+    experience: two years in a café
+  switch_language_after_turn: 2
+  wants_interview: false
+checks:
+  - name: field_equals
+    args: { field: name, value: Lucía Marín }
+  - name: field_equals
+    args: { field: interest, value: "yes" }
+  - name: field_equals
+    args: { field: hours_per_week, value: "30" }
+  - name: field_status
+    args: { field: earliest_start_date, status: confirmed }
+  - name: brief_confirmed
+  - name: brief_language
+    args: { language: en }
+  - name: language_of_last_assistant_turn
+    args: { language: en }
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+  - name: no_fabricated_confirmed_values
+  - name: max_repeated_questions
+    args: { max: "0" }
+rubric:
+  - From the switch on, every one of Ana's sentences was in English.
+  - Ana did not ask again for the name or the interest captured in Spanish.

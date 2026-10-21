@@ -2,13 +2,13 @@
 
 Writes taken through a transaction are buffered and applied on ``commit``; conditional checks
 (revision, uniqueness) run again at commit time so a conflict surfaces exactly where Postgres
-would raise it. Repositories the tracer bullet does not need yet raise ``NotImplementedError``.
+would raise it. Repositories later stages need still raise ``NotImplementedError``.
 """
 
 import asyncio
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import partial
 
 from cafe_norte.domain.contracts import (
@@ -18,7 +18,6 @@ from cafe_norte.domain.contracts import (
     InterviewSlot,
     SessionId,
     SessionState,
-    Signal,
     SlotId,
     TurnId,
 )
@@ -143,7 +142,6 @@ class MemoryEvents:
         self._events: dict[SessionId, list[EventRecord]] = {}
         self.usage: list[UsageRecord] = []
         self.timings: list[StageTiming] = []
-        self.signals: list[tuple[SessionId, Signal]] = []
         self._changed = asyncio.Condition()
 
     async def append(self, tx: Transaction, event: EventRecord) -> None:
@@ -191,18 +189,45 @@ class MemoryEvents:
     async def record_timing(self, tx: Transaction, timing: StageTiming) -> None:
         _tx(tx).enlist(lambda: self.timings.append(timing))
 
-    async def record_signal(self, tx: Transaction, session_id: SessionId, signal: Signal) -> None:
-        _tx(tx).enlist(lambda: self.signals.append((session_id, signal)))
 
+class MemoryCalendar:
+    """Slots and bookings of one process. ``clock`` stands in for Postgres ``now()`` on the
+    committed booking; the uniqueness checks run on enlist and again on commit."""
 
-class _CalendarLater:
+    def __init__(self, clock: Callable[[], datetime]) -> None:
+        self._clock = clock
+        self._slots: dict[SlotId, InterviewSlot] = {}
+        self._by_key: dict[str, Booking] = {}
+        self._by_session: dict[SessionId, Booking] = {}
+
     async def seed(self, slots: Sequence[InterviewSlot]) -> None:
-        raise NotImplementedError
+        """Insert unknown slots; an existing one, occupied or not, is left as it is."""
+        for slot in slots:
+            self._slots.setdefault(slot.slot_id, slot)
 
     async def available(
         self, config_id: ConfigId, *, after: datetime, limit: int
     ) -> tuple[InterviewSlot, ...]:
-        raise NotImplementedError
+        free = sorted(
+            (
+                s
+                for s in self._slots.values()
+                if s.config_id == config_id and s.status == "available" and s.starts_at_utc > after
+            ),
+            key=lambda s: s.starts_at_utc,
+        )
+        return tuple(free[:limit])
+
+    async def get(self, slot_id: SlotId) -> InterviewSlot | None:
+        return self._slots.get(slot_id)
+
+    def _refusal(self, slot_id: SlotId, session_id: SessionId) -> str | None:
+        slot = self._slots.get(slot_id)
+        if slot is None or slot.status != "available":
+            return "slot taken"
+        if session_id in self._by_session:
+            return "session already booked"
+        return None
 
     async def reserve(
         self,
@@ -212,10 +237,37 @@ class _CalendarLater:
         confirmation: Confirmation,
         idempotency_key: str,
     ) -> Booking:
-        raise NotImplementedError
+        """The same key returns the original booking; a taken slot or a second booking for the
+        session is a ``conflict``, checked now and again at commit."""
+        known = self._by_key.get(idempotency_key)
+        if known is not None:
+            return known
+        refusal = self._refusal(slot_id, session_id)
+        if refusal is not None:
+            raise ServiceError(refusal, code="conflict")
+        slot = self._slots[slot_id]
+        booking = Booking(
+            slot_id=slot_id,
+            config_id=slot.config_id,
+            starts_at_utc=slot.starts_at_utc,
+            confirmation_id=confirmation.confirmation_id,
+            idempotency_key=idempotency_key,
+            committed_at=self._clock(),
+        )
+
+        def apply() -> None:
+            refusal = self._refusal(slot_id, session_id)
+            if refusal is not None:
+                raise ServiceError(refusal, code="conflict")
+            self._slots[slot_id] = slot.model_copy(update={"status": "reserved"})
+            self._by_key[idempotency_key] = booking
+            self._by_session[session_id] = booking
+
+        _tx(tx).enlist(apply)
+        return booking
 
     async def booking_by_key(self, idempotency_key: str) -> Booking | None:
-        raise NotImplementedError
+        return self._by_key.get(idempotency_key)
 
 
 class _LeasesLater:
@@ -280,11 +332,11 @@ class _ExportsLater:
 
 
 class MemoryStore:
-    def __init__(self) -> None:
+    def __init__(self, clock: Callable[[], datetime] = lambda: datetime.now(UTC)) -> None:
         self.sessions = MemorySessions()
         self.turns = MemoryTurns()
         self.events = MemoryEvents()
-        self.calendar = _CalendarLater()
+        self.calendar = MemoryCalendar(clock)
         self.leases = _LeasesLater()
         self.admission = MemoryAdmission()
         self.summary_jobs = _SummaryJobsLater()

@@ -6,6 +6,7 @@ from typing import Literal, Protocol
 from pydantic import BaseModel, ConfigDict
 
 from cafe_norte.domain.contracts import SessionId, TurnId
+from cafe_norte.errors import Language
 from cafe_norte.observability.contracts import StageTiming
 
 
@@ -65,8 +66,9 @@ class RoomProvisioner(Protocol):
 class VoiceSessionController(Protocol):
     """Starts and stops the Pipecat task for one session inside this container."""
 
-    async def start(self, session_id: SessionId, room: Room) -> None:
-        """Returns once the bot has joined; provisioning failures leave no orphan task."""
+    async def start(self, session_id: SessionId, room: Room, language: Language) -> None:
+        """Returns once the bot has joined; provisioning failures leave no orphan task. Ana
+        opens in ``language``."""
         ...
 
     async def stop(self, session_id: SessionId, *, reason: str) -> None: ...

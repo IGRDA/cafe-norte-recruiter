@@ -114,7 +114,7 @@ def build_export(snapshot: SessionSnapshot) -> ExportDocument:
         booking=state.booking,
         review_flags=state.review_flags,
         retrieval_events=retrieval_events_from_events(snapshot.events),
-        signals=(),
+        signals=signals_from_events(snapshot.events),
         events=snapshot.events,
         summary=Summary(
             brief=brief_text(snapshot.confirmations), narrative=None, narrative_status="skipped"
@@ -163,6 +163,15 @@ def retrieval_events_from_events(events: tuple[EventRecord, ...]) -> tuple[Retri
             )
         )
     return tuple(found)
+
+
+def signals_from_events(events: tuple[EventRecord, ...]) -> tuple[Signal, ...]:
+    """Every journaled ``signal_recorded`` verdict, in order of arrival."""
+    return tuple(
+        Signal.model_validate(json.loads(event.payload_json)["signal"])
+        for event in events
+        if event.kind == "signal_recorded"
+    )
 
 
 def ended_at(events: tuple[EventRecord, ...]) -> datetime | None:

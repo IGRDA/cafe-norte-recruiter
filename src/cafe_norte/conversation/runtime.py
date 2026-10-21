@@ -15,6 +15,8 @@ from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
     SignalAnalyzer,
+    SignalRecorded,
+    StateUpdated,
     ToolContext,
     ToolFinished,
     ToolStarted,
@@ -25,22 +27,30 @@ from cafe_norte.conversation.contracts import (
 )
 from cafe_norte.conversation.prompt import (
     HISTORY_TURNS,
+    PromptHints,
     build_messages,
     clean_sentence,
     split_sentences,
 )
 from cafe_norte.conversation.registry import ToolRegistry
+from cafe_norte.conversation.signals import (
+    explicit_controls,
+    fresh_sentiment,
+    requested_language,
+)
 from cafe_norte.domain.contracts import (
     ConfigId,
     InputId,
     SessionId,
     SessionState,
+    Signal,
     StoreConfiguration,
     TurnId,
 )
 from cafe_norte.domain.lifecycle import LifecycleEvent, is_terminal, transition
 from cafe_norte.domain.result import Err
-from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
+from cafe_norte.domain.review import add_followup
+from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
 from cafe_norte.model.contracts import (
     Model,
     ModelEvent,
@@ -159,8 +169,9 @@ class Runtime:
     """One turn at a time per session. Every event is journaled to ``store.events`` before it is
     yielded, so the channel's stream and a later replay are the same data.
 
-    Tracer-bullet scope: prompt assembly, streamed sentences, bounded tool rounds, duplicate
-    input ids. Cancellation, repair counting, signals and leases arrive in later stages."""
+    Explicit stop and human requests are matched before the model runs; the signal analyzer,
+    when configured, classifies each user turn after it finished and its verdict shapes only
+    the next turn. Cancellation, repair counting and leases arrive in later stages."""
 
     def __init__(
         self,
@@ -185,6 +196,9 @@ class Runtime:
         self._locks: dict[SessionId, asyncio.Lock] = {}
         self._seq: dict[SessionId, int] = {}
         self._turn_sessions: dict[TurnId, SessionId] = {}  # for delivery acknowledgements
+        self._last_user_turn: dict[SessionId, TurnId] = {}
+        self._latest_signal: dict[SessionId, Signal] = {}
+        self._analyses: set[asyncio.Task[None]] = set()
 
     async def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]:
         lock = self._locks.setdefault(turn.session_id, asyncio.Lock())
@@ -213,7 +227,6 @@ class Runtime:
 
     async def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
         """The spec's opening sentence, word for word, before any candidate input."""
-        greeting = prompts.load("opening").strip()
         opening = TurnInput(
             session_id=session_id,
             input_id=InputId("opening"),
@@ -228,6 +241,7 @@ class Runtime:
                 yield await self._journal(session_id, TurnId(""), _NOT_FOUND)
                 return
             run = _Turn(input=opening, state=state)
+            greeting = prompts.load("opening", state.language).strip()
             try:
                 async with self._store.transaction() as tx:
                     await self._store.turns.append(
@@ -299,23 +313,51 @@ class Runtime:
                     expected_revision=state.candidate.revision,
                 )
 
+    async def settle(self) -> None:
+        """Wait for every signal analysis in flight; tests and the eval runner call this
+        between turns so the asynchronous path is deterministic there."""
+        while self._analyses:
+            await asyncio.gather(*self._analyses)
+
     # ---- the turn, step by step ------------------------------------------------------------------
 
     async def _turn(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        # An explicit language request applies to this very turn: saved with the user turn,
+        # before the model is called, so the record, the prompt and the reply all agree.
+        previous = run.state
+        controls = explicit_controls(run.input.text)
+        language = requested_language(controls, previous.language)
+        run.state = previous.model_copy(update={"language": language})
         async with self._store.transaction() as tx:  # duplicate input_id raises conflict here
             await self._store.turns.append(
                 tx, run.record("user", run.input.text, run.input.received_at)
             )
+            if language != previous.language:
+                await self._store.sessions.save(
+                    tx, run.state, expected_revision=previous.candidate.revision
+                )
         yield await self._emit(
             run,
             TurnStarted(turn_id=run.turn_id, language=run.state.language, text=run.input.text),
         )
 
+        hints = PromptHints(
+            explicit=controls,
+            sentiment=fresh_sentiment(
+                self._latest_signal.get(run.session_id),
+                self._last_user_turn.get(run.session_id),
+            ),
+        )
+        self._last_user_turn[run.session_id] = run.turn_id
+        if "human" in controls:
+            async for event in self._human_request(run):
+                yield event
+
         history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
         configuration = self._configurations[run.state.config_id]
         today = self._clock().astimezone(ZoneInfo(configuration.timezone)).date()
         run.messages = list(
-            build_messages(configuration, run.state, history[:-1], run.input.text, today)
+            build_messages(configuration, run.state, history[:-1], run.input.text, today, hints)
         )
 
         for round_index in range(self._limits.max_tool_rounds + 1):
@@ -346,6 +388,39 @@ class Runtime:
                 timings=tuple(run.timings),
             ),
         )
+        if self._signals is not None:
+            self._analyze_later(self._signals, run)
+
+    async def _human_request(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        """An explicit request for a person: the follow-up flag is saved, then the fixed reply
+        is said in full. The model still runs (the same sentence may carry a fact) but says
+        nothing more: the reply ends with this turn's question."""
+        state = add_followup(run.state, run.turn_id, run.input.text)
+        async with self._store.transaction() as tx:
+            await self._store.sessions.save(tx, state, expected_revision=state.candidate.revision)
+        run.state = state
+        yield await self._emit(run, StateUpdated.of(state))
+        async for event in self._verbatim(run, _control_reply("human", state.language)):
+            yield event
+
+    def _analyze_later(self, analyzer: SignalAnalyzer, run: _Turn) -> None:
+        """Off the critical path: the turn has finished; the verdict is journaled when it
+        arrives and kept for the next turn's prompt."""
+
+        async def analyze() -> None:
+            try:
+                signal = await analyzer.analyze(run.turn_id, run.input.text, run.state.language)
+                if signal is None:
+                    return
+                if self._last_user_turn.get(run.session_id) == run.turn_id:
+                    self._latest_signal[run.session_id] = signal  # a newer turn's never replaced
+                await self._journal(run.session_id, run.turn_id, SignalRecorded(signal=signal))
+            except Exception:  # advisory: a failed analysis never reaches the candidate
+                log.exception("signal analysis failed session=%s", run.session_id)
+
+        task = asyncio.create_task(analyze())
+        self._analyses.add(task)
+        task.add_done_callback(self._analyses.discard)
 
     async def _model_round(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """One model call: sentences out as they complete; tool calls collected in ``run.calls``;
@@ -444,13 +519,9 @@ class Runtime:
             for extra in outcome.events:
                 yield await self._emit(run, extra)
             if outcome.spoken:
-                # A read-back is authoritative: said in full even if the model already asked
-                # something this turn, then recorded as delivered (text channel).
-                run.asked = False
-                for sentence in _sentences(outcome.spoken):
-                    if self._say_once(run, run.spoken, sentence):
-                        yield await self._emit(run, _say(sentence))
-                run.asked = True
+                # A read-back is said in full, then recorded as delivered (text channel).
+                async for event in self._verbatim(run, outcome.spoken):
+                    yield event
                 if run.input.channel == "text":
                     await self._mark_delivered(run)
             yield await self._emit(
@@ -463,6 +534,15 @@ class Runtime:
                     tool_call_id=call.call_id,
                 )
             )
+
+    async def _verbatim(self, run: _Turn, text: str) -> AsyncIterator[RuntimeEvent]:
+        """Authoritative text (a read-back, a control reply): said in full even if the model
+        already asked something this turn; nothing else is voiced after it."""
+        run.asked = False
+        for sentence in _sentences(text):
+            if self._say_once(run, run.spoken, sentence):
+                yield await self._emit(run, _say(sentence))
+        run.asked = True
 
     async def _mark_delivered(self, run: _Turn) -> None:
         """The text channel has delivered the read-back once it is journaled; voice will do
@@ -518,6 +598,10 @@ def _tool_message(model_text: str, spoken: list[str]) -> str:
         f"{model_text} Already said to the candidate this turn: {said} "
         "Do not repeat or rephrase it; continue, or reply with nothing if it is enough."
     )
+
+
+def _control_reply(control: Literal["human"], language: Language) -> str:
+    return prompts.table("controls", language)[control]
 
 
 def _sentences(text: str) -> list[str]:

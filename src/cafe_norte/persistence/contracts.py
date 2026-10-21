@@ -16,7 +16,6 @@ from cafe_norte.domain.contracts import (
     InterviewSlot,
     SessionId,
     SessionState,
-    Signal,
     SlotId,
     TurnId,
 )
@@ -114,9 +113,6 @@ class Events(Protocol):
 
     async def record_usage(self, tx: Transaction, usage: UsageRecord) -> None: ...
     async def record_timing(self, tx: Transaction, timing: StageTiming) -> None: ...
-    async def record_signal(
-        self, tx: Transaction, session_id: SessionId, signal: Signal
-    ) -> None: ...
 
 
 class Calendar(Protocol):
@@ -127,6 +123,8 @@ class Calendar(Protocol):
     async def available(
         self, config_id: ConfigId, *, after: datetime, limit: int
     ) -> tuple[InterviewSlot, ...]: ...
+
+    async def get(self, slot_id: SlotId) -> InterviewSlot | None: ...
 
     async def reserve(
         self,

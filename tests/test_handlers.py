@@ -5,14 +5,16 @@ from datetime import UTC, date, datetime
 
 from pydantic import BaseModel
 
-from cafe_norte.conversation.brief import field_readback, render_brief_es
+from cafe_norte.conversation.brief import field_readback, render_brief
 from cafe_norte.conversation.contracts import StateUpdated, ToolContext, ToolOutcome
 from cafe_norte.conversation.handlers import (
     NEXT_STEP,
     ConfirmBriefHandler,
     ConfirmFieldHandler,
     EndSessionHandler,
+    ListInterviewSlotsHandler,
     PresentConfirmationHandler,
+    ReserveInterviewHandler,
     UpdateCandidateHandler,
 )
 from cafe_norte.conversation.tools import ARGUMENT_MODELS, ToolName
@@ -23,13 +25,18 @@ from cafe_norte.domain.contracts import (
     CandidatePatch,
     CandidateRecord,
     ConfigId,
+    Confirmation,
+    ConfirmationId,
     Evidence,
     FieldTarget,
     SessionId,
     SessionState,
+    SlotId,
+    SlotTarget,
     TurnId,
 )
 from cafe_norte.persistence.memory import MemoryStore
+from cafe_norte.persistence.seed import seed_calendar
 from tests.support import CONFIG_DIR
 
 CONFIGS = load_configurations(CONFIG_DIR)
@@ -120,7 +127,7 @@ async def test_only_phone_and_date_have_field_readbacks() -> None:
 async def test_presenting_the_brief_speaks_the_exact_text_that_becomes_pending() -> None:
     w = await World(full_record()).open()
     outcome = await w.present(context(), args("present_confirmation", target="brief"))
-    expected = render_brief_es(full_record(), CONFIG)
+    expected = render_brief(full_record(), CONFIG, "es")
     assert outcome.ok and outcome.spoken == expected
     assert "already spoken" in outcome.model_text
     state = await w.current()
@@ -160,7 +167,7 @@ async def test_capturing_a_date_or_phone_speaks_the_read_back_itself() -> None:
         ),
     )
     assert outcome.ok
-    assert outcome.spoken == field_readback("earliest_start_date", date(2026, 10, 26), CONFIG)
+    assert outcome.spoken == field_readback("earliest_start_date", date(2026, 10, 26), "es")
     assert "already spoken" in outcome.model_text
     state = await w.current()
     pending = state.pending_confirmation
@@ -244,7 +251,7 @@ async def test_candidate_done_with_an_unconfirmed_brief_reads_the_brief_again() 
     w = await World(full_record()).open()
     outcome = await w.end(context(), args("end_session", reason="candidate_done"))
     assert not outcome.ok and outcome.summary == "brief_re_presented"
-    assert outcome.spoken == render_brief_es(full_record(), CONFIG)
+    assert outcome.spoken == render_brief(full_record(), CONFIG, "es")
     assert "wait" in outcome.model_text.lower()
     state = await w.current()
     assert state.lifecycle == "active"
@@ -374,3 +381,210 @@ async def test_not_interested_stops_with_that_outcome() -> None:
 
 def test_tool_outcome_spoken_defaults_to_nothing() -> None:
     assert ToolOutcome(ok=True, model_text="x", summary="y").spoken == ""
+
+
+# ---- interview: offer, read-back, reservation --------------------------------------------------
+
+
+SLOT = "chamberi_barista_v1-2026-10-21-1030"
+
+
+class Interview(World):
+    """A world with the calendar seeded and the brief confirmed at revision 1."""
+
+    def __init__(self) -> None:
+        super().__init__(full_record())
+        self.store = MemoryStore(clock=lambda: NOW)
+        self.update = UpdateCandidateHandler(store=self.store, configurations=CONFIGS)
+        self.present = PresentConfirmationHandler(store=self.store, configurations=CONFIGS)
+        self.confirm_brief = ConfirmBriefHandler(store=self.store)
+        self.end = EndSessionHandler(store=self.store, configurations=CONFIGS)
+        self.slots = ListInterviewSlotsHandler(store=self.store, configurations=CONFIGS)
+        self.reserve = ReserveInterviewHandler(store=self.store, configurations=CONFIGS)
+
+    async def ready(self) -> "Interview":
+        await self.open()
+        await seed_calendar(self.store, CONFIGS, now=NOW)
+        await self.present(context("t1"), args("present_confirmation", target="brief"))
+        await self.deliver()
+        await self.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+        return self
+
+    async def offered(self) -> "Interview":
+        await self.slots(context("t3"), args("list_interview_slots", evidence_text="Sí, quiero."))
+        return self
+
+    async def read_back(self, slot_id: str = SLOT, turn: str = "t4") -> ToolOutcome:
+        outcome = await self.present(
+            context(turn), args("present_confirmation", target="slot", slot_id=slot_id)
+        )
+        await self.deliver()
+        return outcome
+
+
+async def test_slots_come_after_the_confirmed_brief_and_record_the_intent() -> None:
+    w = Interview()
+    await w.open()
+    await seed_calendar(w.store, CONFIGS, now=NOW)
+    early = await w.slots(context(), args("list_interview_slots", evidence_text="Sí, quiero."))
+    assert not early.ok and early.summary == "brief_not_confirmed"
+    assert (await w.current()).schedule_intent is None
+    await w.present(context("t1"), args("present_confirmation", target="brief"))
+    await w.deliver()
+    await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+    outcome = await w.slots(
+        context("t3"), args("list_interview_slots", evidence_text="Sí, quiero.")
+    )
+    assert outcome.ok and outcome.summary == "offered:3"
+    assert outcome.spoken.startswith(
+        "Tengo estos huecos para la entrevista en Café Norte Chamberí:"
+    )
+    assert "miércoles 21 de octubre de 2026 a las 10:30" in outcome.spoken
+    assert outcome.spoken.endswith("¿Cuál te viene mejor?")
+    assert (
+        f"2: slot_id={SLOT}" in outcome.model_text and "present_confirmation" in outcome.model_text
+    )
+    state = await w.current()
+    assert state.schedule_intent == Evidence(source_turn_id=TurnId("t3"), text="Sí, quiero.")
+    assert state.brief_confirmed_revision == 1 and state.candidate.revision == 1
+
+
+async def test_a_date_preference_narrows_the_offer_when_it_can() -> None:
+    w = await Interview().ready()
+    outcome = await w.slots(
+        context("t3"),
+        args("list_interview_slots", evidence_text="El jueves.", date_preference="2026-10-22"),
+    )
+    assert outcome.ok and outcome.summary == "offered:2"
+    assert "jueves 22 de octubre" in outcome.spoken and "miércoles" not in outcome.spoken
+    none = await w.slots(
+        context("t3"),
+        args(
+            "list_interview_slots", evidence_text="El año que viene.", date_preference="2027-01-01"
+        ),
+    )
+    assert none.ok and none.summary == "offered:3"  # no match: the first three are offered
+
+
+async def test_the_slot_read_back_needs_an_offer_and_a_known_future_slot_of_this_store() -> None:
+    w = await Interview().ready()
+    no_offer = await w.present(
+        context("t3"), args("present_confirmation", target="slot", slot_id=SLOT)
+    )
+    assert not no_offer.ok and no_offer.summary == "slot_not_offerable:no_offer"
+    await w.offered()
+    unknown = await w.present(
+        context("t4"), args("present_confirmation", target="slot", slot_id="x")
+    )
+    assert not unknown.ok and unknown.summary == "slot_not_offerable:slot_unavailable"
+    other = await w.present(
+        context("t4"),
+        args(
+            "present_confirmation", target="slot", slot_id="arganzuela_barista_v1-2026-10-21-1030"
+        ),
+    )
+    assert not other.ok and other.summary == "slot_not_offerable:slot_other_store"
+    outcome = await w.present(
+        context("t4"), args("present_confirmation", target="slot", slot_id=SLOT)
+    )
+    assert outcome.ok and outcome.summary == "presented:slot"
+    assert outcome.spoken == (
+        "He apuntado la entrevista en Café Norte Chamberí el miércoles 21 de octubre de 2026 "
+        "a las 10:30, hora de Madrid. ¿Te la reservo?"
+    )
+    pending = (await w.current()).pending_confirmation
+    assert pending is not None and pending.target == SlotTarget(
+        slot_id=SlotId(SLOT), brief_revision=1
+    )
+    again = await w.present(
+        context("t4"), args("present_confirmation", target="slot", slot_id=SLOT)
+    )
+    assert (
+        again.ok
+        and again.summary == "already_pending:slot"
+        and "reserve_interview" in again.model_text
+    )
+
+
+async def test_reserve_needs_that_slot_read_back_and_the_candidates_own_answer() -> None:
+    w = await (await Interview().ready()).offered()
+    nothing = await w.reserve(context("t4"), args("reserve_interview", slot_id=SLOT))
+    assert not nothing.ok and nothing.summary == "confirmation_mismatch"
+    await w.read_back()
+    other = await w.reserve(
+        context("t5"), args("reserve_interview", slot_id="chamberi_barista_v1-2026-10-21-1700")
+    )
+    assert not other.ok and other.summary == "confirmation_mismatch"
+    same_turn = await w.reserve(context("t4"), args("reserve_interview", slot_id=SLOT))
+    assert not same_turn.ok and same_turn.summary == "confirmation_refused:same_turn"
+    assert (await w.current()).booking is None
+
+
+async def test_reserving_commits_calendar_and_session_together_and_only_then_announces() -> None:
+    w = await (await Interview().ready()).offered()
+    await w.read_back()
+    outcome = await w.reserve(context("t5"), args("reserve_interview", slot_id=SLOT))
+    assert outcome.ok and outcome.summary == "reserved"
+    assert "miércoles 21 de octubre de 2026 a las 10:30" in outcome.model_text
+    assert "simulated" in outcome.model_text and "end_session" in outcome.model_text
+    state = await w.current()
+    booking = state.booking
+    assert booking is not None and booking.slot_id == SLOT and booking.simulated is True
+    assert booking.starts_at_utc == datetime(2026, 10, 21, 8, 30, tzinfo=UTC)
+    assert booking.committed_at == NOW
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "confirmed"
+    assert booking.confirmation_id == state.pending_confirmation.confirmation_id
+    assert isinstance(outcome.events[0], StateUpdated) and outcome.events[0].booking == booking
+    taken = await w.store.calendar.get(SlotId(SLOT))
+    assert taken is not None and taken.status == "reserved"
+    assert await w.store.calendar.booking_by_key(booking.idempotency_key) == booking
+    done = await w.end(context("t6"), args("end_session", reason="candidate_done"))
+    assert done.ok and done.summary == "ended:completed:reserved"
+
+
+async def test_a_second_reserve_call_is_refused_and_a_taken_slot_offers_fresh_ones() -> None:
+    w = await (await Interview().ready()).offered()
+    await w.read_back()
+    await w.reserve(context("t5"), args("reserve_interview", slot_id=SLOT))
+    twice = await w.reserve(context("t6"), args("reserve_interview", slot_id=SLOT))
+    assert not twice.ok and twice.summary == "confirmation_refused:already_answered"
+    more = await w.slots(context("t6"), args("list_interview_slots", evidence_text="Otro."))
+    assert not more.ok and more.summary == "already_booked"
+    # Another session took the slot between the read-back and the yes.
+    rival = await (await Interview().ready()).offered()
+    await rival.read_back()
+    async with rival.store.transaction() as tx:
+        await rival.store.calendar.reserve(
+            tx, SlotId(SLOT), SessionId("someone-else"), full_confirmation(), "their-key"
+        )
+    lost = await rival.reserve(context("t5"), args("reserve_interview", slot_id=SLOT))
+    assert not lost.ok and lost.summary == "booking_refused:slot_unavailable"
+    assert "list_interview_slots" in lost.model_text
+    assert (await rival.current()).booking is None
+
+
+async def test_a_correction_after_the_slot_read_back_voids_it_and_the_brief() -> None:
+    w = await (await Interview().ready()).offered()
+    await w.read_back()
+    await w.update(
+        context("t5"),
+        args("update_candidate", patch={"hours_per_week": 25}, evidence_text="25 horas"),
+    )
+    state = await w.current()
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "invalidated"
+    assert state.brief_confirmed_revision == 1 and state.candidate.revision == 2
+    refused = await w.reserve(context("t6"), args("reserve_interview", slot_id=SLOT))
+    assert not refused.ok and refused.summary == "confirmation_refused:already_answered"
+
+
+def full_confirmation() -> Confirmation:
+    return Confirmation(
+        confirmation_id=ConfirmationId("rival"),
+        target=SlotTarget(slot_id=SlotId(SLOT), brief_revision=1),
+        presentation_text="…",
+        presented_turn_id=TurnId("r1"),
+        fully_delivered=True,
+        status="confirmed",
+    )

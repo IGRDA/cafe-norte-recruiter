@@ -70,7 +70,7 @@
     },
     "CandidateRecord": {
       "additionalProperties": false,
-      "description": "Server-held candidate facts. ``preferred_language`` is a preference, not a collected fact.",
+      "description": "Server-held candidate facts. The language is a session preference (``SessionState``),\nnot a collected fact.",
       "properties": {
         "revision": {
           "default": 0,
@@ -374,15 +374,6 @@
             }
           ],
           "title": "Experience"
-        },
-        "preferred_language": {
-          "default": "es",
-          "enum": [
-            "es",
-            "en"
-          ],
-          "title": "Preferred Language",
-          "type": "string"
         },
         "notes": {
           "default": [],

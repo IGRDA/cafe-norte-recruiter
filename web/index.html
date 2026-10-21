@@ -12,6 +12,13 @@
     <header>
       <h1>Ana · Café Norte Chamberí</h1>
       <p class="notice">Demostración ficticia de selección. Usa datos inventados. Se guardan los textos y transcripciones; no se graba audio.</p>
+      <p class="language">
+        <label for="language">Idioma · Language</label>
+        <select id="language">
+          <option value="es">Español</option>
+          <option value="en">English</option>
+        </select>
+      </p>
       <p class="status" id="status" aria-live="polite">Conectando…</p>
       <form id="access" class="access" hidden autocomplete="off">
         <label for="code">Código de acceso</label>
@@ -38,6 +45,12 @@
         <dl id="candidate"></dl>
         <h2>Confirmación</h2>
         <p id="confirmation" class="confirmation">—</p>
+        <section id="booking" class="booking" hidden aria-live="polite">
+          <h2>Entrevista</h2>
+          <p id="booking-when"></p>
+          <p class="notice">Reserva simulada: no se ha creado ninguna cita real.</p>
+          <p class="notice">Simulated reservation — no real appointment created</p>
+        </section>
         <h2>Fuentes</h2>
         <ul id="sources" class="sources" aria-label="Fragmentos consultados"><li>—</li></ul>
         <h2>Panel de revisión</h2>

@@ -7,15 +7,15 @@ its own.
 
 | File | Contents |
 | --- | --- |
-| `contracts.py` | `TurnInput`, the `RuntimeEvent` union, `ToolContext`, `ToolOutcome`, ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
+| `contracts.py` | `TurnInput`, the `RuntimeEvent` union (`SignalRecorded` included), `ToolContext`, `ToolOutcome`, ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
-| `handlers.py` | `all_handlers()`: update, search knowledge, present (read-backs and the brief), confirm field/brief, request human follow-up, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
-| `brief.py` | The deterministic brief and the phone/date read-backs, filled from `prompts/brief.md`; spoken verbatim by the runtime (D20) |
-| `prompt.py` | System message from the versioned prompt plus session facts as JSON; history window; sentence splitting |
-| `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines. Cancellation and repair counting: later stages |
+| `handlers.py` | `all_handlers()`: update, search knowledge, list interview slots, present (read-backs, the brief, a slot), confirm field/brief, reserve interview, request human follow-up, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
+| `brief.py` | The deterministic brief, the phone/date read-backs, the slot offer and the slot read-back, filled from `prompts/brief.<lang>.md` in the session language; spoken verbatim by the runtime (D20). A requested follow-up adds one sentence |
+| `prompt.py` | System message from the versioned prompt plus session facts as JSON (`PromptHints`: this turn's explicit requests and the previous turn's fresh sentiment); history window; sentence splitting |
+| `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines, the explicit-request fast path (language switch, D28; human request, D30), signal analysis after the turn (`settle` waits for it). Cancellation and repair counting: later stages |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |
-| `signals.py` | Synchronous stop/human/language fast path and the asynchronous sentiment classifier port |
+| `signals.py` | `explicit_controls` (pure patterns for stop, human and language requests, es/en), `requested_language`, `ModelSignalAnalyzer` (the asynchronous classifier adapter) and `fresh_sentiment` |
 
 ## Questions and the knowledge base
 
@@ -30,10 +30,25 @@ floor is dropped (D27); beyond that, abstention is the prompt's job. When nothin
 Ana offers human follow-up and `request_human_followup(reason)` saves one review flag. After
 the confirmed brief the next step is to invite questions, then the interview.
 
+## The interview
+
+After the confirmed brief and the questions, Ana asks about an interview. A yes is
+`list_interview_slots(evidence_text)`: the handler saves the candidate's words as the explicit
+intent to schedule, reads up to three future free slots of this store (preferring a stated
+date), and the runtime speaks the offer; the model gets the slot ids in the same order. The
+candidate's choice is `present_confirmation(target=slot, slot_id)`: a read-back bound to the
+current brief revision, spoken by the runtime and marked delivered like the brief. The yes to
+it is `reserve_interview(slot_id)`: the domain resolves the confirmation and checks the five
+conditions, then the calendar row and the session are written in one transaction, and only
+the committed `StateUpdated` carries the booking (D29). A taken slot comes back as a refusal
+that asks for fresh slots; a second call for the same confirmation is refused as already
+answered. After booking the next step is `end_session`, which yields `completed / reserved`.
+
 ## Turn execution
 
 1. Accept one finalized `TurnInput` with a unique `input_id`; persist the user turn.
-2. Apply explicit stop, language switch and human-request controls; cancel stale output.
+2. Apply explicit controls: a language request is saved with the user turn, before the
+   model is called (D28). Stop and human requests and stale-output cancellation follow.
 3. Build messages from: system prompt, configuration facts, validated candidate state, pending
    confirmation, unfinished fields, recent turns.
 4. Stream the model. Each `ToolCall` is validated by `ToolRegistry`, then by the domain, then
@@ -42,6 +57,20 @@ the confirmed brief the next step is to invite questions, then the interview.
 6. Stream `AssistantText` sentence by sentence. Record what was generated and, later, what was
    delivered.
 7. Persist timings and usage. Hand nonessential analysis to `SignalAnalyzer` asynchronously.
+
+## Explicit requests and signals (D28)
+
+Step 2 is `explicit_controls(text)`: anchored phrases per clause, a negation in the
+three words before a match cancels it. A human request saves a `human_followup` flag
+(`domain/review.py`), emits `StateUpdated`, then says `prompts/controls.<lang>.md` word for word; the
+model still runs (the sentence may carry a fact) but voices nothing more. A stop request is a
+hint: `explicit_requests: ["stop"]` in the session facts, and the model calls `end_session`.
+
+When `CAFE_NORTE_SIGNAL_MODEL` is set, every finished user turn is classified in a background
+task. A verdict needs the candidate's own words as evidence or it is dropped; it is journaled
+as `SignalRecorded` (SSE, reviewer panel, export) and kept in memory. The next turn's prompt
+gets `candidate_sentiment` only when the verdict is `frustrated` or `uncertain` and comes from
+the immediately previous user turn; a late or older verdict never reaches a prompt.
 
 Bounds: four tool rounds per turn, one malformed-call repair, six seconds to first model output,
 ten seconds per tool, the session's remaining active seconds as the hard deadline.

@@ -294,6 +294,18 @@ def build_router(
             headers=headers,
         )
 
+    @router.post("/api/sessions/{session_id}/end", status_code=status.HTTP_204_NO_CONTENT)
+    async def end_session(session_id: str, request: Request) -> Response:
+        """The owner finishes the conversation: a voice call still running is stopped, then
+        the session is finalized like any other stop. Idempotent."""
+        sid = owner(request, session_id)
+        if await store.sessions.get(sid) is None:
+            raise ServiceError("session not found", code="not_found")
+        if voice is not None and voice.status(sid) is not None:
+            await voice.stop(sid, reason="stop")
+        await runtime.end(sid, "stop")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
     @router.delete("/api/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_session(session_id: str, request: Request) -> Response:
         """The owner's delete action (spec §8): the session and everything that belongs to it,

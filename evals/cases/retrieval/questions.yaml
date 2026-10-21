@@ -1,11 +1,155 @@
-# 24 RetrievalCase entries: 16 answerable (balanced es/en × chamberi/arganzuela), 4 unsupported,
-# 4 leakage. Filled in with the knowledge base. Template:
-#
-# - id: R01
-#   question: "¿Cuántas horas semanales son en Chamberí?"
-#   config_id: chamberi_barista_v1
-#   language: es
-#   kind: answerable
-#   expected_sections: ["offer_chamberi#horas"]
-#   expected_facts: ["35 horas"]
-[]
+# 24 RetrievalCase entries: 16 answerable (4 per language × store), 4 unsupported, 4 leakage.
+# expected_sections are chunk ids (doc_id#section-slug); recall@3 counts a hit when any of them
+# is among the three returned chunks. Leakage cases expect no chunk from the other store.
+- id: R01
+  question: "¿Cuántas horas a la semana son en Chamberí?"
+  config_id: chamberi_barista_v1
+  language: es
+  kind: answerable
+  expected_sections: ["offer_chamberi#horas"]
+  expected_facts: ["35 horas"]
+- id: R02
+  question: "¿Cuánto se cobra?"
+  config_id: chamberi_barista_v1
+  language: es
+  kind: answerable
+  expected_sections: ["offer_chamberi#salario"]
+  expected_facts: ["1.380 euros", "14 pagas"]
+- id: R03
+  question: "¿A qué hora abre y cierra la tienda?"
+  config_id: chamberi_barista_v1
+  language: es
+  kind: answerable
+  expected_sections: ["store_chamberi#horario"]
+  expected_facts: ["07:00", "21:00", "domingos"]
+- id: R04
+  question: "¿Cómo llego a la tienda en metro?"
+  config_id: chamberi_barista_v1
+  language: es
+  kind: answerable
+  expected_sections: ["store_chamberi#direccion"]
+  expected_facts: ["Iglesia", "línea 1"]
+- id: R05
+  question: "What kind of contract is it?"
+  config_id: chamberi_barista_v1
+  language: en
+  kind: answerable
+  expected_sections: ["offer_chamberi#contrato"]
+  expected_facts: ["indefinido", "2 meses"]
+- id: R06
+  question: "How many holiday days do I get?"
+  config_id: chamberi_barista_v1
+  language: en
+  kind: answerable
+  expected_sections: ["offer_chamberi#vacaciones"]
+  expected_facts: ["30 días"]
+- id: R07
+  question: "How long is the interview and who does it?"
+  config_id: chamberi_barista_v1
+  language: en
+  kind: answerable
+  expected_sections: ["interview_process#como-es-la-entrevista", "store_chamberi#equipo"]
+  expected_facts: ["30 minutos"]
+- id: R08
+  question: "Do I need to bring my own shoes?"
+  config_id: chamberi_barista_v1
+  language: en
+  kind: answerable
+  expected_sections: ["uniform#que-trae-el-barista"]
+  expected_facts: ["antideslizante"]
+- id: R09
+  question: "¿Cuántas horas a la semana son en Arganzuela?"
+  config_id: arganzuela_barista_v1
+  language: es
+  kind: answerable
+  expected_sections: ["offer_arganzuela#horas"]
+  expected_facts: ["20 horas"]
+- id: R10
+  question: "¿Qué turnos hay el fin de semana?"
+  config_id: arganzuela_barista_v1
+  language: es
+  kind: answerable
+  expected_sections: ["store_arganzuela#turnos"]
+  expected_facts: ["09:00 a 17:00"]
+- id: R11
+  question: "¿Hay descuento para la familia?"
+  config_id: arganzuela_barista_v1
+  language: es
+  kind: answerable
+  expected_sections: ["benefits#descuento"]
+  expected_facts: ["30 por ciento"]
+- id: R12
+  question: "¿Cómo es la formación al principio?"
+  config_id: arganzuela_barista_v1
+  language: es
+  kind: answerable
+  expected_sections: ["training#induccion", "training#curso-de-barista"]
+  expected_facts: ["tres primeros días", "dos semanas"]
+- id: R13
+  question: "How much is the salary?"
+  config_id: arganzuela_barista_v1
+  language: en
+  kind: answerable
+  expected_sections: ["offer_arganzuela#salario"]
+  expected_facts: ["800 euros", "14 pagas"]
+- id: R14
+  question: "Which metro station is closest to the store?"
+  config_id: arganzuela_barista_v1
+  language: en
+  kind: answerable
+  expected_sections: ["store_arganzuela#direccion"]
+  expected_facts: ["Legazpi"]
+- id: R15
+  question: "Is previous experience required?"
+  config_id: arganzuela_barista_v1
+  language: en
+  kind: answerable
+  expected_sections: ["faq#hace-falta-experiencia", "barista_role#requisitos"]
+  expected_facts: ["No se exige experiencia", "No"]
+- id: R16
+  question: "When do I get paid?"
+  config_id: arganzuela_barista_v1
+  language: en
+  kind: answerable
+  expected_sections: ["faq#cuando-se-cobra", "offer_arganzuela#salario"]
+  expected_facts: ["último día laborable"]
+- id: R17
+  question: "¿Hay parking para empleados?"
+  config_id: chamberi_barista_v1
+  language: es
+  kind: unsupported
+- id: R18
+  question: "Can I bring my dog to work?"
+  config_id: arganzuela_barista_v1
+  language: en
+  kind: unsupported
+- id: R19
+  question: "¿Cuánto cobra la encargada?"
+  config_id: arganzuela_barista_v1
+  language: es
+  kind: unsupported
+- id: R20
+  question: "What is the dress code for the Christmas party?"
+  config_id: chamberi_barista_v1
+  language: en
+  kind: unsupported
+- id: R21
+  question: "¿Cuánto se cobra en Arganzuela?"
+  config_id: chamberi_barista_v1
+  language: es
+  kind: leakage
+- id: R22
+  question: "What are the morning shift hours?"
+  config_id: arganzuela_barista_v1
+  language: en
+  kind: leakage
+- id: R23
+  question: "Is the Arganzuela store open on Sundays?"
+  config_id: chamberi_barista_v1
+  language: en
+  kind: leakage
+- id: R24
+  question: "¿Quién es Marta?"
+  config_id: arganzuela_barista_v1
+  language: es
+  kind: leakage

@@ -27,4 +27,6 @@ keywords: [salario, salary, horas, hours, contrato, contract]
 | `unknown_policy` | both | Unknown questions and human follow-up |
 
 `scripts/build_index.py` produces `kb/index/<kb_version>/` (git-ignored, built into the image).
-Bodies are written in the RAG stage; the files below hold front matter only.
+Every body is fictional. Pay, hours and shifts in the offer and store documents must match
+`config/*.yaml` (`tests/test_kb.py` checks it): the configuration is the canonical source.
+Sections are `## ` headings; each becomes one chunk `doc_id#slug`, at most 90 words.

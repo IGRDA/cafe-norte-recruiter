@@ -44,5 +44,7 @@ Using the answering model as judge is a known bias and is labelled in the report
 ## Cost
 
 `observability/cost.py` prices usage from a versioned table. Reports separate measured usage,
-estimated usage (cancelled generations) and unpriced kinds. The €100 ceiling is tracked by
+estimated usage (generations cut before their usage report, at 4 characters per token) and
+unpriced kinds. A voice call's speech usage is measured (D44); `cost_is_partial` means
+something is missing, not that something is estimated. The €100 ceiling is tracked by
 admission reservation in Postgres plus the Google Cloud budget alerts; neither is a hard cap.

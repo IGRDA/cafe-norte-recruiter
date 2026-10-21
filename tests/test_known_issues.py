@@ -3,7 +3,7 @@
 Each test reproduces one problem offline and is marked ``xfail(strict=True)``: it fails today,
 as it should, and the suite stays green. The fix makes it pass, strict xfail then fails the
 suite, and the marker comes off in the same commit as the fix. KI-03, KI-04 and KI-05 are fixed
-(D40); their tests stay as regression guards. KI-07 and KI-08 are reproduced for D44.
+(D40), KI-07 and KI-08 (D44); their tests stay as regression guards.
 """
 
 import asyncio

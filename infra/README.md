@@ -9,8 +9,7 @@ or secret version that does not exist yet (D23).
 | `app/` | Artifact Registry repository, runtime service account (secret accessor, image reader, log writer), Secret Manager secrets (names only), a static address, an ingress rule for 80/443, and one `e2-small` Container-Optimized OS instance whose startup script runs the app image by digest and Caddy (automatic HTTPS on `<ip-with-dashes>.sslip.io`) with host networking (D24). The page is public; the app enforces the access code | CI on every push to `main` (`deploy.yml`) with the image digest it built, then an instance reset; the first time by a person | `gs://<bucket>/app` |
 | `environments/` | `demo.tfvars.example` (project, region, sizing, image digest, end date) and `demo.backend.hcl.example` | copied to ignored files | |
 
-Not provisioned yet: Cloud SQL (`enable_database = false`, Postgres stage), uptime check and
-5xx alert (observability stage).
+Cloud SQL is provisioned in `app/` (D33). Not provisioned yet: the uptime check and 5xx alert.
 
 Sequence, first time: `scripts/bootstrap.sh` → `make infra-init` → targeted apply of the
 repository → build and push the image by digest → targeted apply of the secret names →
@@ -25,8 +24,8 @@ GitHub Actions needs these repository variables: `GCP_PROJECT_ID`, `GCP_REGION`,
 repository secret `SMOKE_ACCESS_CODE`. `demo.tfvars` is local and git-ignored; CI passes the
 same non-secret values as `TF_VAR_*`. The `demo` environment exists without required reviewers.
 
-Terraform is pinned to 1.5.7 and the Google provider to `~> 6.0`; both lock files are
-committed. `make infra-check` formats and validates both stacks without a backend. Both
+Terraform is 1.11 or later (write-only arguments, D33; CI runs `~> 1.12`) and the Google provider
+`~> 6.0`; both lock files are committed. `make infra-check` formats and validates both stacks without a backend. Both
 providers set `user_project_override` with the project as quota project so user-credential
 calls (the budget API) work.
 

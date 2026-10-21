@@ -3,7 +3,9 @@
 Everything the running demo needs. The image is an input (`image_digest`), so a deployment is a
 Terraform change plus an instance reset, and cannot drift from infrastructure state. Secrets
 exist by name; their versions come from `scripts/set_secrets.py`. Runtime configuration that is
-not a secret is plain env in instance metadata: model, voice mode, voice id, voice session cap.
+not a secret is plain env in instance metadata (`plain_env` in `main.tf`): model, voice mode, voice id,
+voice session cap, the Langfuse host and environment, and `CAFE_NORTE_TRACE_CONTENT=on` (D42: redacted
+words and tool arguments in hosted traces, fictional data only; delete the line to turn it off).
 
 The app runs on one Compute Engine VM because Cloud Run containers have no routable address
 for WebRTC (D24). `startup.sh` is the deploy: metadata → env file (secrets from Secret

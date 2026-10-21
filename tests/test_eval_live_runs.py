@@ -118,3 +118,28 @@ def test_a_free_live_run_writes_its_report(
     assert (run_dir / "exports" / "S01-1.json").exists()
     assert "## Misses" in (run_dir / "report.md").read_text()
     assert "S01" in capsys.readouterr().out
+
+
+async def test_a_run_cut_by_the_turn_cap_says_so() -> None:
+    (scenario,) = load_scenarios(only=["S03"])
+    scripts = [r for steps in scenario.fake_script for r in script_events(steps)]
+    async with (
+        serve(build_test_app(model=FakeModel(scripts))) as base_url,
+        httpx.AsyncClient(base_url=base_url) as client,
+    ):
+        conversation = HttpConversation(
+            client,
+            config_id=ConfigId(scenario.config_id),
+            language=scenario.language,
+            allowed_doc_ids=frozenset(),
+        )
+        record = await run_live(
+            scenario,
+            conversation,
+            ScriptedCandidate(scenario.scripted_turns),
+            model="fake",
+            repetition=1,
+            max_turns=1,
+        )
+    assert record.lines == 1
+    assert record.hit_turn_cap  # the session was still active when the cap stopped it

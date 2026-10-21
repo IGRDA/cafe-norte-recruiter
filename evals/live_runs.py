@@ -117,7 +117,9 @@ async def run_live(
         first_text_ms=tuple(t.client_first_text_ms for t in turns if t.client_first_text_ms),
         turn_ms=tuple(t.client_total_ms for t in turns if t.client_total_ms is not None),
         lines=len(turns),
-        hit_turn_cap=len(turns) >= max_turns and export.session.lifecycle == "active",
+        # read from the turns: finish() has already ended the session the export shows
+        hit_turn_cap=len(turns) >= max_turns
+        and all(t.lifecycle in (None, "active") for t in turns),
         cost_is_partial=export.metrics.cost_is_partial,
     )
 

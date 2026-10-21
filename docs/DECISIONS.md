@@ -1096,7 +1096,7 @@ plain yes and no away from the model; the choice of slot is the same kind of ans
   - `NoMatch`: `list_interview_slots` again, for the day named if any.
   - `NotAChoice`: nothing; the words are the model's.
 
-  The model reads what happened in `slot_choice` (prompt `ana_v14`).
+  The model reads what happened in `slot_choice` (prompt `ana_v15`).
 - The five conditions of D29 are unchanged: every path goes through the handlers and
   `reservation_allowed`.
 - Vocabulary lives in the domain module, with accents removed; numbers come from

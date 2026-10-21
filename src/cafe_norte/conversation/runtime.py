@@ -518,9 +518,9 @@ class Runtime:
         said: list[str] = []
         buffer = ""
         first = True
-        stream = self._stream_model(run)
+        events = self._round_events(run)
         try:
-            async for event in self._stream_model_events(stream):
+            async for event in events:
                 if first:
                     first = False
                     run.time("llm_first_output", run.started)
@@ -542,7 +542,7 @@ class Runtime:
                 elif isinstance(event, ModelUsage):
                     run.count(event)
         finally:
-            await stream.aclose()
+            await events.aclose()
         tail = clean_sentence(buffer)
         if tail and self._say_once(run, said, tail):
             yield await self._emit(run, _say(tail))
@@ -570,22 +570,42 @@ class Runtime:
         deadline = self._clock() + timedelta(seconds=remaining)
         return self._model.stream(tuple(run.messages), self._tools.schemas(), deadline=deadline)
 
-    async def _stream_model_events(
-        self, stream: AsyncIterator[ModelEvent]
-    ) -> AsyncIterator[ModelText | ToolCall | ModelUsage]:
-        """The model stream with the first-output bound applied around the first event."""
+    async def _round_events(
+        self, run: _Turn
+    ) -> AsyncGenerator[ModelText | ToolCall | ModelUsage, None]:
+        """One model round with the first-output bound. A round that says nothing in time is
+        abandoned and asked once more (spec §12: one bounded retry for safe generation;
+        nothing of it was spoken); a second miss fails the turn with ``timeout``."""
+        bound = self._limits.llm_first_output_seconds
+        for attempt in (1, 2):
+            stream = self._stream_model(run)
+            started = time.monotonic()
+            try:
+                async with asyncio.timeout(bound):
+                    first = await anext(stream, None)
+            except TimeoutError as error:
+                await stream.aclose()
+                if attempt == 1:
+                    log.warning("model round: no output in %.1f s, asking once more", bound)
+                    continue
+                raise ServiceError("no model output in time", code="timeout") from error
+            break
+        log.info(
+            "model round: first output after %d ms (attempt %d)",
+            (time.monotonic() - started) * 1000,
+            attempt,
+        )
         try:
-            async with asyncio.timeout(self._limits.llm_first_output_seconds):
-                first = await anext(stream, None)
-        except TimeoutError as error:
-            raise ServiceError("no model output in time", code="timeout") from error
-        if first is None:
-            raise ServiceError("empty model stream", code="invalid_response")
-        if not isinstance(first, ModelFinished):
-            yield first
-        async for event in stream:
-            if not isinstance(event, ModelFinished):
-                yield event
+            if first is None:
+                raise ServiceError("empty model stream", code="invalid_response")
+            if not isinstance(first, ModelFinished):
+                yield first
+            async for event in stream:
+                if not isinstance(event, ModelFinished):
+                    yield event
+        finally:
+            await stream.aclose()
+            log.info("model round: done after %d ms", (time.monotonic() - started) * 1000)
 
     async def _tool_calls(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """Dispatch every call of the round in order; each result becomes a tool message."""

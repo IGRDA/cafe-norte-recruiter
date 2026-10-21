@@ -3,7 +3,7 @@
 Each test reproduces one problem offline and is marked ``xfail(strict=True)``: it fails today,
 as it should, and the suite stays green. The fix makes it pass, strict xfail then fails the
 suite, and the marker comes off in the same commit as the fix. KI-03, KI-04 and KI-05 are fixed
-(D40); their tests stay as regression guards.
+(D40), KI-06 (D41), KI-01 and KI-02 (D39); their tests stay as regression guards.
 """
 
 import asyncio
@@ -86,7 +86,6 @@ async def test_ki05_the_apology_waits_for_the_sentences_still_playing() -> None:
     await s.close()
 
 
-@pytest.mark.xfail(strict=True, reason="KI-02: a yes to a summary cut short by speech is lost")
 async def test_ki02_a_yes_over_the_summary_earns_one_offer_and_carrying_on_confirms_it() -> None:
     """Live: the summary takes about 12 s to speak and is shown at once on the page. Iñaki read
     it and answered "Sí, está todo bien" at 10.8 s, before "¿Es todo correcto?" played; the

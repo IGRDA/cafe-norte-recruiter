@@ -54,7 +54,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Simulated calendar | 7 days ahead, 30-minute slots at each store's `interview_times` on shift days (D29) |
 | Bookings | one per slot, one per session, same idempotency key returns the same booking |
 | Coverage floor | 80% of the package |
-| Voice: filler after a tool runs | 1.5 s |
+| Voice: filler while a tool runs | after 1.5 s in which the candidate heard nothing (D40) |
 | Voice: bot join timeout | 15 s |
 | Voice: user speech timeout before a turn ends | 1.0 s; a transcript can start a turn when VAD misses it (D35) |
 | Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
@@ -83,7 +83,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Text turn | 1–2000 characters |
 | Voice sessions per container | 2 (Postgres-enforced) |
 | Session starts per access session per hour | 3 |
-| Silence | 8 s, then one "¿Sigues ahí?"; a live call is never paused, the session pauses when the call ends (D35) |
+| Silence | 8 s of audible silence (queued audio played, no speech heard), then one "¿Sigues ahí?" per listening period; speech restarts the count; a live call is never paused, the session pauses when the call ends (D35, D40) |
 | Database connections per container | 5 |
 | Database statement timeout | 3 s |
 | Database lock wait | 2 s |

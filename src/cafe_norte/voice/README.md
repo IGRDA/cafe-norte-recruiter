@@ -9,19 +9,20 @@ Python with no Pipecat import (D22).
 | --- | --- |
 | `contracts.py` | `Room`, `VoiceStatus`, `VoiceMode`, `VoiceTexts`, `VoiceTiming`, `room_expiry`, ports `RoomProvisioner`, `VoiceSessionController` |
 | `delivery.py` | Pure ledger: sentences sent to TTS, sentences finished playing, `heard`, `readback_heard` |
-| `session.py` | `VoiceSession`: transcript → runtime turn, sentences → `speak` and the ledger, playback → `delivered(complete=True)`, interruption → cancel and `delivered(heard, complete=False)`, opening on join, filler while a tool runs long (journaled with `aside`), one silence prompt and the apology after a failed turn (both spoken through the runtime's journaled `say`), any raw transcript resets the silence clock, `close` pauses the session once, a language change reported so STT follows; each in the language of the latest turn (D28, D35) |
+| `session.py` | `VoiceSession`: transcript → runtime turn, sentences → `speak` and the ledger, playback → `delivered(complete=True)`, interruption → cancel and `delivered(heard, complete=False)`, opening on join, filler while a tool runs long (journaled with `aside`), one silence prompt per listening period and the apology after a failed turn (both spoken through the runtime's journaled `say`), speech (an interruption or any raw transcript) restarts the silence clock, nothing system-said jumps the audio queue: every sentence goes through `_voice` into the ledger, and the apology, the silence prompt and the filler wait until what was sent has played (D40), `close` pauses the session once, a language change reported so STT follows; each in the language of the latest turn (D28, D35) |
 | `bridge.py` | `SpeechTap` (before the aggregator, which consumes transcripts), `InboundBridge` (before TTS) and `PlaybackTap` (after the output transport): frames in, session methods out |
 | `pipeline.py` | `user_side` (tap, aggregator, bridge: one assembly for the pipeline and its tests), `PipecatVoiceController`: one pipeline task per session, join wait, stop, status, timing observations |
 | `daily.py` | Private expiring rooms and two scoped tokens over Daily REST |
 | `fake.py` | `FakeRooms`, `FakeVoiceController` for the API tests |
 
 Required behaviours: barge-in stops queued speech and cancels generation; a committed booking
-stays committed; an unplayed read-back is not "heard"; eight seconds of silence prompts once and never pauses a live call; the session pauses when
+stays committed; an unplayed read-back is not "heard"; eight seconds in which the candidate heard nothing prompts once per listening period and never pauses a live call; a system sentence never plays ahead of or glued to audio still queued (D40); the session pauses when
 the call ends (D35); everything Ana says is journaled. Timings are browser-observable
 where possible and labelled as proxies otherwise.
 
 Tests: `test_delivery.py` (pure, property-based), `test_voice_session.py` (fake runtime,
-recorder, fast timers), `test_bridge.py` (Pipecat frames in memory), `test_daily.py` (scripted
+recorder, fast timers), `test_bridge.py` (Pipecat frames in memory; the transcript tap through
+the real user aggregator via `user_side`), `test_daily.py` (scripted
 transport), `test_api_voice.py` (fakes). The real providers are touched only by
 `make voice-listen` and `make voice-smoke`, both manual.
 

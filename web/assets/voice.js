@@ -39,9 +39,30 @@ function createDailyVoice({ onStatus, onError, startVoice, postTiming }) {
       audio = audio ?? new Audio();
       audio.autoplay = true;
       audio.srcObject = new MediaStream([event.track]);
-      audio.play().catch(() => {});
       postTiming("first_audio", ms());
-      onStatus("Ana está hablando…");
+      audio
+        .play()
+        .then(() => onStatus("Audio de Ana activo. Escuchando…"))
+        .catch((error) => onError(`El navegador bloqueó el audio de Ana (${error.name}). Pulsa en la página y vuelve a intentarlo.`));
+    });
+    // The local microphone track state is the one diagnostic the server cannot see: a
+    // "blocked" or "off" track means no audio ever reaches Ana.
+    call.on("participant-updated", (event) => {
+      if (!event.participant?.local) return;
+      const track = event.participant.tracks?.audio;
+      if (!track) return;
+      if (track.state === "playable" || track.state === "sendable") {
+        onStatus("Conectada. Micrófono activo. Escuchando…");
+      } else {
+        const reason = track.blocked ? Object.keys(track.blocked).join(", ") : track.off ? Object.keys(track.off).join(", ") : "";
+        onError(`Micrófono ${track.state}${reason ? ` (${reason})` : ""}: Ana no te oye. Revisa el permiso del micrófono o la VPN.`);
+      }
+    });
+    call.on("camera-error", (event) => {
+      onError(`Error de micrófono: ${event.errorMsg?.errorMsg ?? event.error?.type ?? "desconocido"}.`);
+    });
+    call.on("nonfatal-error", (event) => {
+      if (event.type) onStatus(`Aviso de la llamada: ${event.type}`);
     });
     call.on("participant-left", (event) => {
       if (!event.participant?.local) onStatus("Ana ha salido de la sala.");

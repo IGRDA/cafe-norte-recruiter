@@ -68,6 +68,7 @@ class PipecatVoiceController:
         live = self.build(session_id, room)
         self._sessions[session_id] = live
         live.task = asyncio.create_task(_run(live))
+        live.task.add_done_callback(lambda _t: self._forget(session_id, live))
         try:
             await asyncio.wait_for(live.joined.wait(), JOIN_TIMEOUT_SECONDS)
         except TimeoutError as error:
@@ -89,6 +90,16 @@ class PipecatVoiceController:
         await live.pipeline_task.cancel()
         if live.task is not None:
             await asyncio.gather(live.task, return_exceptions=True)
+
+    async def wait(self, session_id: SessionId) -> None:
+        live = self._sessions.get(session_id)
+        if live is not None and live.task is not None:
+            await asyncio.gather(live.task, return_exceptions=True)
+
+    def _forget(self, session_id: SessionId, live: "_Live") -> None:
+        """The pipeline ended for any reason: the session is no longer running here."""
+        if self._sessions.get(session_id) is live:
+            self._sessions.pop(session_id, None)
 
     def status(self, session_id: SessionId) -> VoiceStatus | None:
         live = self._sessions.get(session_id)

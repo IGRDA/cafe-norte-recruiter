@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
+from cafe_norte.domain.contracts import SessionId
 from cafe_norte.model.contracts import ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.voice.fake import FakeRooms, FakeVoiceController
@@ -60,6 +61,26 @@ def test_starting_voice_twice_for_one_session_is_a_conflict_not_a_second_room(
     again = client.post(f"/api/sessions/{session_id}/voice")
     assert again.status_code == 409 and again.json()["code"] == "conflict"
     assert rooms.created == [session_id]
+
+
+def test_when_a_voice_session_ends_its_slot_and_room_are_released(
+    client: TestClient, voice: FakeVoiceController, rooms: FakeRooms
+) -> None:
+    """Live: slots leaked after the candidate left the room, and every later start was busy."""
+    first, second, third = (create_session(client) for _ in range(3))
+    for session_id in (first, second):
+        client.cookies.set("cafe_norte_session", cookie_for(client, session_id))
+        assert client.post(f"/api/sessions/{session_id}/voice").status_code == 200
+
+    voice.end(SessionId(first))  # the candidate left; the pipeline finished on its own
+    client.cookies.set("cafe_norte_session", cookie_for(client, third))
+    assert client.post(f"/api/sessions/{third}/voice").status_code == 200
+    assert rooms.destroyed == [first]
+    # The first session may start voice again: the controller forgot the finished pipeline.
+    client.cookies.set("cafe_norte_session", cookie_for(client, first))
+    assert client.post(f"/api/sessions/{first}/voice").status_code == 503  # three running now
+    voice.end(SessionId(second))
+    assert client.post(f"/api/sessions/{first}/voice").status_code == 200
 
 
 def test_a_third_concurrent_voice_session_is_busy(client: TestClient) -> None:

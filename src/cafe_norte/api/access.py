@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from cafe_norte.domain.contracts import SessionId
 
 SESSION_COOKIE = "cafe_norte_session"
+ACCESS_COOKIE = "cafe_norte_access"
 
 
 class AccessGate:
@@ -21,8 +22,21 @@ class AccessGate:
         self._code = code or None
         self._secret = secret
 
+    @property
+    def requires_code(self) -> bool:
+        return self._code is not None
+
     def check_code(self, supplied: str) -> bool:
         return self._code is None or hmac.compare_digest(self._code, supplied)
+
+    def issue_access_cookie(self) -> str:
+        """A signature over the code, never the code itself; valid until the code rotates."""
+        return self._sign(f"access:{self._code or ''}")
+
+    def access_cookie_valid(self, cookie: str | None) -> bool:
+        if self._code is None:
+            return True
+        return bool(cookie) and hmac.compare_digest(self.issue_access_cookie(), cookie or "")
 
     def issue_session_cookie(self, session_id: SessionId) -> str:
         return f"{session_id}.{self._sign(session_id)}"

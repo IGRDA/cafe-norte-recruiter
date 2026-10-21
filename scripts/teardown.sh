@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-# Drain active sessions, then destroy infra/app. State bucket and Cloud SQL backups are kept.
+# Drain and destroy the demo: the VM, its address and friends first, then the images, then bootstrap.
+# Usage: PROJECT_ID=cafe-norte-orbio BUCKET=cafe-norte-orbio-tfstate scripts/teardown.sh
 set -euo pipefail
-echo "TODO: stop admission, wait for sessions, terraform -chdir=infra/app destroy" >&2
-exit 1
+: "${PROJECT_ID:?set PROJECT_ID}"
+: "${BUCKET:?set BUCKET}"
+REGION="${REGION:-europe-west1}"
+
+terraform -chdir=infra/app init -input=false -backend-config="bucket=$BUCKET" -backend-config="prefix=app" >/dev/null
+terraform -chdir=infra/app destroy -input=false -var-file=../environments/demo.tfvars
+gcloud artifacts repositories delete app --location="$REGION" --project="$PROJECT_ID" --quiet || true
+echo "App stack destroyed. The bootstrap stack (state bucket, WIF, deployer) is kept; destroy it by hand if the project is being retired."

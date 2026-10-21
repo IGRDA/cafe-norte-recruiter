@@ -1,5 +1,6 @@
 """Fakes for the API tests: rooms that exist only in memory, a controller that records calls."""
 
+import asyncio
 from datetime import datetime
 
 from cafe_norte.domain.contracts import SessionId
@@ -34,6 +35,7 @@ class FakeVoiceController:
         self.observed: list[VoiceTiming] = []
         self.fail_next_start = False
         self._status: dict[SessionId, VoiceStatus] = {}
+        self._ended: dict[SessionId, asyncio.Event] = {}
 
     async def start(self, session_id: SessionId, room: Room) -> None:
         if self.fail_next_start:
@@ -41,10 +43,22 @@ class FakeVoiceController:
             raise ServiceError("fake bot could not join", code="provider_unavailable")
         self.started.append(session_id)
         self._status[session_id] = "listening"
+        self._ended[session_id] = asyncio.Event()
 
     async def stop(self, session_id: SessionId, *, reason: str) -> None:
         self.stopped.append((session_id, reason))
-        self._status[session_id] = "ended"
+        self.end(session_id)
+
+    def end(self, session_id: SessionId) -> None:
+        """The pipeline finished on its own (candidate left, room expired, failure)."""
+        self._status.pop(session_id, None)
+        if session_id in self._ended:
+            self._ended[session_id].set()
+
+    async def wait(self, session_id: SessionId) -> None:
+        event = self._ended.get(session_id)
+        if event is not None:
+            await event.wait()
 
     def status(self, session_id: SessionId) -> VoiceStatus | None:
         return self._status.get(session_id)

@@ -32,6 +32,7 @@ class RuntimeInfo(Frozen):
 
     voice: VoiceMode
     config_ids: tuple[ConfigId, ...]
+    access_required: bool
 
 
 class CreateSessionRequest(Frozen):

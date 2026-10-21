@@ -236,7 +236,8 @@ async def test_the_filler_follows_a_language_switched_in_the_turn() -> None:
 
 
 async def test_silence_prompts_once_and_never_pauses_a_live_call() -> None:
-    """The hosted call: the session went "paused" while the candidate was still talking."""
+    """S18 (silence): one prompt and the state untouched. The hosted call of 21 October: the
+    session went "paused" while the candidate was still talking."""
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
     recorder = Recorder()
     s = session(runtime, recorder, prompt=0.02)

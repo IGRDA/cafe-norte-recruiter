@@ -2,6 +2,7 @@
 fixture of ``conftest.py``. Only port methods are used; nothing implementation-specific."""
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -9,9 +10,14 @@ import pytest
 from cafe_norte.domain.contracts import (
     CandidateRecord,
     ConfigId,
+    Confirmation,
+    ConfirmationId,
     InputId,
+    InterviewSlot,
     SessionId,
     SessionState,
+    SlotId,
+    SlotTarget,
     TurnId,
 )
 from cafe_norte.errors import ServiceError
@@ -396,3 +402,80 @@ async def test_a_token_hash_is_issued_once(store: Store) -> None:
     with pytest.raises(ServiceError) as twice:
         await store.resume_tokens.issue(SID, "hash-1", expires_at=NOW + timedelta(days=1))
     assert twice.value.code == "conflict"
+
+
+# ---- exports and deletion ------------------------------------------------------------------------
+
+
+async def test_the_export_snapshot_is_written_once_per_session_and_read_back(store: Store) -> None:
+    await created(store)
+    assert await store.exports.read_snapshot(SID) is None
+    async with store.transaction() as tx:
+        await store.exports.write_snapshot(tx, SID, '{"schema_version": "1", "n": 1}')
+    async with store.transaction() as tx:  # a later close overwrites: one snapshot per session
+        await store.exports.write_snapshot(tx, SID, '{"schema_version": "1", "n": 2}')
+    stored = await store.exports.read_snapshot(SID)
+    assert stored is not None and json.loads(stored) == {"schema_version": "1", "n": 2}
+
+
+async def test_expired_lists_the_oldest_sessions_first_up_to_the_limit(store: Store) -> None:
+    for session_id, age in (("old", 8), ("older", 9), ("new", 1)):
+        await store.sessions.create(
+            state(session_id=SessionId(session_id)).model_copy(
+                update={"created_at": NOW - timedelta(days=age)}
+            ),
+            access_hash="",
+        )
+    assert await store.sessions.expired(NOW - timedelta(days=7), limit=10) == ("older", "old")
+    assert await store.sessions.expired(NOW - timedelta(days=7), limit=1) == ("older",)
+    assert await store.sessions.expired(NOW - timedelta(days=30), limit=10) == ()
+
+
+async def test_delete_removes_the_session_and_everything_that_belongs_to_it(store: Store) -> None:
+    await created(store)
+    await store.calendar.seed(
+        [
+            InterviewSlot(
+                slot_id=SlotId("x"), config_id=ConfigId("c"), starts_at_utc=NOW + timedelta(days=1)
+            )
+        ]
+    )
+    async with store.transaction() as tx:
+        await store.turns.append(tx, turn("a"))
+        await store.events.append(tx, event(1))
+        await store.calendar.reserve(tx, SlotId("x"), SID, slot_confirmation(), "key")
+        await store.exports.write_snapshot(tx, SID, "{}")
+    await store.resume_tokens.issue(SID, "hash", expires_at=NOW + timedelta(days=1))
+    await store.sessions.delete(SID)
+    assert await store.sessions.get(SID) is None
+    assert await store.turns.recent(SID, 10) == ()
+    assert await store.snapshot(SID, versions=VERSIONS, taken_at=NOW) is None
+    assert await store.exports.read_snapshot(SID) is None
+    assert await store.resume_tokens.redeem("hash", now=NOW) is None
+    assert await store.calendar.booking_by_key("key") is None
+    free = await store.calendar.available(ConfigId("c"), after=NOW, limit=5)
+    assert [s.slot_id for s in free] == ["x"]  # the simulated reservation went with it
+    await store.sessions.delete(SID)  # unknown: no error
+
+
+def slot_confirmation() -> Confirmation:
+    return Confirmation(
+        confirmation_id=ConfirmationId("c1"),
+        target=SlotTarget(slot_id=SlotId("x"), brief_revision=0),
+        presentation_text="¿Te la reservo?",
+        presented_turn_id=TurnId("t1"),
+        fully_delivered=True,
+        status="confirmed",
+    )
+
+
+# ---- maintenance lock ----------------------------------------------------------------------------
+
+
+async def test_the_maintenance_lock_is_held_by_one_holder_at_a_time(store: Store) -> None:
+    async with store.maintenance() as first:
+        assert first is True
+        async with store.maintenance() as second:
+            assert second is False
+    async with store.maintenance() as again:
+        assert again is True

@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator, Sequence
+from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -100,6 +100,7 @@ class Harness:
         signals: SignalAnalyzer | None = None,
         store: MemoryStore | None = None,
         slow_calls: int = 0,
+        on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
     ):
         self.store = store or MemoryStore()
         configurations = load_configurations(CONFIG_DIR)
@@ -117,6 +118,7 @@ class Harness:
             limits=limits or Limits(),
             owner="test",
             clock=lambda: NOW,
+            on_closed=on_closed,
         )
 
     async def open_session(self, language: Language = "es") -> None:
@@ -933,3 +935,29 @@ async def test_an_aside_is_journaled_under_the_running_turn() -> None:
     last = h.store.events.all(SESSION)[-1]
     assert last.kind == "assistant_text" and last.turn_id == turn_id
     assert "Un momento." in last.payload_json
+
+
+# ---- closing -------------------------------------------------------------------------------------
+
+
+async def test_a_terminal_state_from_a_tool_or_from_end_runs_the_close_hook_once() -> None:
+    closed: list[SessionId] = []
+
+    async def on_closed(session_id: SessionId) -> None:
+        closed.append(session_id)
+
+    end = ToolCall(call_id="e1", name="end_session", arguments_json='{"reason": "not_interested"}')
+    h = Harness([[end, WANTS_TOOLS], says("Adiós.")], on_closed=on_closed)
+    await h.open_session()
+    await h.run("no me interesa")
+    await h.runtime.settle()
+    assert closed == [SESSION]
+    await h.runtime.end(SESSION, "stop")  # already terminal: nothing happens
+    await h.runtime.settle()
+    assert closed == [SESSION]
+
+    other = Harness([], on_closed=on_closed)
+    await other.open_session()
+    await other.runtime.end(SESSION, "limit")
+    await other.runtime.settle()
+    assert closed == [SESSION, SESSION]

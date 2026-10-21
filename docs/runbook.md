@@ -19,6 +19,10 @@
   with the password from `gcloud secrets versions access latest --secret CAFE_NORTE_DB_PASSWORD`.
   Migrations run at every app start (`schema_migrations` says what is applied). Backups: daily,
   three kept, restore with `gcloud sql backups restore`.
+- **Retention and deletion**: sessions older than seven days are deleted at startup and every
+  hour (`retention: deleted N expired sessions` in the logs); a candidate deletes their own
+  session from the page. Both remove the turns, events, export, resume link and the simulated
+  reservation; the rows stay in Cloud SQL backups for up to three days.
 - **Read logs**: `gcloud logging read 'resource.type="gce_instance" AND
   jsonPayload.container.name="/app"' --project cafe-norte-orbio --freshness=1h`, or on the
   box `gcloud compute ssh cafe-norte --zone europe-west1-b -- docker logs app`. The startup

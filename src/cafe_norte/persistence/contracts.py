@@ -226,6 +226,11 @@ class Store(Protocol):
     async def close(self) -> None: ...
     async def check_ready(self) -> bool: ...
 
+    def maintenance(self) -> AbstractAsyncContextManager[bool]:
+        """Try to hold the one maintenance lock of the database for the block; yields whether
+        it was obtained, so overlapping containers never purge the same rows."""
+        ...
+
     async def snapshot(
         self, session_id: SessionId, *, versions: VersionStamp, taken_at: datetime
     ) -> "SessionSnapshot | None":

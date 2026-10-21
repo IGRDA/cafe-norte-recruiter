@@ -776,6 +776,31 @@ longer applies. The owner's rule: the database is infrastructure as code too, no
 allowance for the demo window. A reset of the VM during an instance creation would fail the
 readiness wait; the next deploy recovers. Backups keep deleted rows for up to three days.
 
+## D34 · The export is stored at close; retention purges under one lock; delete takes everything
+
+_Added 21 October 2026, the fourth and last persistence pull request._
+
+**Decisions.**
+- When a session reaches a terminal state, from a tool or from `end()`, the runtime runs a close
+  hook after the state is committed and announced; the hook (`persist_export`) builds the export
+  from one snapshot and stores it (`exports` table, one row per session, upsert). The export
+  endpoint serves the stored document for a closed session and still builds on demand while the
+  session is open, so a correction before the close needs no regeneration step. The narrative
+  summary stays `skipped`: the deterministic brief is the deliverable and the model-written
+  summary is optional in the spec.
+- Retention: sessions created more than `CAFE_NORTE_RETENTION_DAYS` (7) days ago are deleted at
+  startup and every hour, at most 100 per round, only by the container holding the store's
+  maintenance lock (a Postgres advisory lock on a dedicated connection; a flag in memory).
+  Deleting a session cascades to its turns, events, usage, timings, lease, admission rows, resume
+  token, export and simulated reservation; the slot is free again. Schema `0003` adds the
+  exports table and the cascade on bookings, which PR1 had left strict on purpose.
+- `DELETE /api/sessions/{id}` is the owner's delete action from the page, idempotent; a running
+  voice session is stopped first.
+
+**Consequences we accept.** Deleted rows remain in Cloud SQL backups for up to three days (D33);
+provider-side retention stays the providers'. A session whose close hook fails keeps serving
+its export on demand, and the failure is logged.
+
 ## D35 · The hosted voice call of 21 October: the flow stops depending on the model's obedience
 
 _Added 21 October 2026, after a hosted voice interview on gpt-4o-mini (session `f5f84f57…`)._

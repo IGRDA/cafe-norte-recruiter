@@ -32,7 +32,11 @@ async def test_open_applies_the_migrations_once_and_is_idempotent(empty_database
     await store.close()
     async with await psycopg.AsyncConnection.connect(empty_database) as conn:
         rows = await (await conn.execute("select name from schema_migrations")).fetchall()
-    assert [row[0] for row in rows] == ["0001_initial.sql", "0002_leases_admission_resume.sql"]
+    assert [row[0] for row in rows] == [
+        "0001_initial.sql",
+        "0002_leases_admission_resume.sql",
+        "0003_exports_and_cascades.sql",
+    ]
 
 
 async def test_check_ready_is_false_when_the_database_is_unreachable() -> None:

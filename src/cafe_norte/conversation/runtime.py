@@ -5,7 +5,7 @@ import json
 import logging
 import time
 import uuid
-from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
@@ -51,7 +51,7 @@ from cafe_norte.domain.contracts import (
     StoreConfiguration,
     TurnId,
 )
-from cafe_norte.domain.lifecycle import LifecycleEvent, is_terminal, transition
+from cafe_norte.domain.lifecycle import TERMINAL, LifecycleEvent, is_terminal, transition
 from cafe_norte.domain.result import Err
 from cafe_norte.domain.review import add_followup
 from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
@@ -200,7 +200,9 @@ class Runtime:
         limits: Limits,
         owner: str,
         clock: Callable[[], datetime] = _utcnow,
+        on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
     ) -> None:
+        self._on_closed = on_closed
         self._model = model
         self._tools = tools
         self._store = store
@@ -390,6 +392,8 @@ class Runtime:
                     state.model_copy(update={"lifecycle": lifecycle, "outcome": outcome}),
                     expected_revision=state.candidate.revision,
                 )
+            if lifecycle in TERMINAL:
+                self._close_later(session_id)
 
     async def _claim(self, run: _Turn) -> bool:
         """The session lease for this turn (D32). ``False`` when another container holds it."""
@@ -722,7 +726,25 @@ class Runtime:
     # ---- the journal -----------------------------------------------------------------------------
 
     async def _emit(self, run: _Turn, event: RuntimeEvent) -> RuntimeEvent:
-        return await self._journal(run.session_id, run.turn_id, event, run.generation)
+        journaled = await self._journal(run.session_id, run.turn_id, event, run.generation)
+        if isinstance(event, StateUpdated) and event.lifecycle in TERMINAL:
+            self._close_later(run.session_id)  # a tool ended the session: the export follows
+        return journaled
+
+    def _close_later(self, session_id: SessionId) -> None:
+        """After the terminal state is committed and announced: the stored export (D34)."""
+        if self._on_closed is None:
+            return
+
+        async def close() -> None:
+            try:
+                await self._on_closed(session_id)  # type: ignore[misc]
+            except Exception:
+                log.exception("close hook failed session=%s", session_id)
+
+        task = asyncio.create_task(close())
+        self._analyses.add(task)
+        task.add_done_callback(self._analyses.discard)
 
     async def _journal(
         self,

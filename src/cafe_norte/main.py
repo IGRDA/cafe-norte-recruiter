@@ -4,6 +4,7 @@ Defaults are fakes: ``make run`` with no ``.env`` serves the page with a scripte
 in-memory store, a canned retriever and voice off. Nothing else in the package reads
 ``os.environ``."""
 
+import asyncio
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
@@ -27,7 +28,7 @@ from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import ConfigId, StoreConfiguration
+from cafe_norte.domain.contracts import ConfigId, SessionId, StoreConfiguration
 from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.knowledge.hybrid import HybridRetriever
@@ -36,11 +37,12 @@ from cafe_norte.knowledge.loader import load_documents
 from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
-from cafe_norte.observability.contracts import ProcessVersions
+from cafe_norte.observability.contracts import ProcessVersions, stamp
 from cafe_norte.persistence.contracts import Store
-from cafe_norte.persistence.export import SCHEMA_VERSION
+from cafe_norte.persistence.export import SCHEMA_VERSION, persist_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.postgres import PostgresStore
+from cafe_norte.persistence.retention import purge_periodically
 from cafe_norte.persistence.seed import seed_calendar
 from cafe_norte.voice.contracts import (
     RoomProvisioner,
@@ -80,6 +82,8 @@ def create_app(
     session_seconds: float = 480.0,
     warm_up: Callable[[], Awaitable[None]] | None = None,
     seed: bool = False,
+    retention_days: int | None = None,
+    retention_interval_seconds: float = 3600.0,
 ) -> FastAPI:
     """Build from typed collaborators. Lifespan: open the store (migrations), seed the
     simulated calendar when ``seed`` is set, ``warm_up`` (the embedding model) before the first
@@ -94,7 +98,16 @@ def create_app(
             await seed_calendar(store, configurations, now=datetime.now(UTC))
         if warm_up is not None:
             await warm_up()
+        purge: asyncio.Task[None] | None = None
+        if retention_days is not None:
+            purge = asyncio.create_task(
+                purge_periodically(
+                    store, days=retention_days, interval_seconds=retention_interval_seconds
+                )
+            )
         yield
+        if purge is not None:
+            purge.cancel()
         await tasks.shutdown()
         await store.close()
 
@@ -157,6 +170,13 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         all_handlers(store=store, configurations=configurations, retriever=retriever)
     )
     model = _model(env)
+    process = ProcessVersions(
+        model_id=model.model_id,
+        prompt_version=prompts.PROMPT_VERSION,
+        schema_version=SCHEMA_VERSION,
+        commit_sha=env.get("CAFE_NORTE_COMMIT_SHA", "local"),
+        voice_id=env.get("ELEVENLABS_VOICE_ID", "") if voice_mode == "pipecat" else "",
+    )
     runtime = Runtime(
         model=model,
         tools=registry,
@@ -170,6 +190,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
             max_answer_characters=int(env.get("CAFE_NORTE_MAX_ANSWER_CHARACTERS", "600")),
         ),
         owner=env.get("K_REVISION", "local"),
+        on_closed=close_hook(store, configurations, process),
     )
     rooms: RoomProvisioner | None = None
     voice: VoiceSessionController | None = None
@@ -180,13 +201,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         store=store,
         configurations=configurations,
         gate=gate_from_env(env),
-        versions=ProcessVersions(
-            model_id=model.model_id,
-            prompt_version=prompts.PROMPT_VERSION,
-            schema_version=SCHEMA_VERSION,
-            commit_sha=env.get("CAFE_NORTE_COMMIT_SHA", "local"),
-            voice_id=env.get("ELEVENLABS_VOICE_ID", "") if voice_mode == "pipecat" else "",
-        ),
+        versions=process,
         web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web")),
         voice_mode=voice_mode,
         rooms=rooms,
@@ -195,7 +210,26 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         session_seconds=float(env.get("CAFE_NORTE_SESSION_SECONDS", "480")),
         warm_up=warm_up,
         seed=True,
+        retention_days=int(env.get("CAFE_NORTE_RETENTION_DAYS", "7")),
     )
+
+
+def close_hook(
+    store: Store,
+    configurations: Mapping[ConfigId, StoreConfiguration],
+    process: ProcessVersions,
+) -> Callable[[SessionId], Awaitable[None]]:
+    """What the runtime runs when a session reaches a terminal state: the stored export."""
+
+    async def closed(session_id: SessionId) -> None:
+        await persist_export(
+            store,
+            session_id,
+            versions_for=lambda config_id: stamp(configurations[config_id], process),
+            now=datetime.now(UTC),
+        )
+
+    return closed
 
 
 def _store(env: Mapping[str, str]) -> Store:

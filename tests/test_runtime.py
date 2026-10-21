@@ -1813,7 +1813,55 @@ async def test_the_classifiers_tokens_are_recorded_under_the_turn_it_classified(
     events = await h.run("Hola.")
     await h.runtime.settle()
     source = events[0].turn_id  # type: ignore[union-attr]
-    assert {(u.turn_id, u.unit_detail, u.quantity, u.estimated) for u in h.store.events.usage} == {
+    measured = [u for u in h.store.events.usage if not u.estimated]  # the turn's own is not
+    assert {(u.turn_id, u.unit_detail, u.quantity, u.estimated) for u in measured} == {
         (source, "fake:input", 210, False),
         (source, "fake:output", 12, False),
     }
+
+
+# ---- a generation with no usage report is estimated (D44) ----------------------------------------
+
+
+def estimated(h: Harness) -> list[tuple[str, float]]:
+    return [(u.unit_detail, u.quantity) for u in h.store.events.usage if u.estimated]
+
+
+async def test_a_generation_closed_by_a_barge_in_is_estimated_from_its_characters() -> None:
+    h = Harness([says("Hola. ", "Te cuento algo. ", "¿Y tú?")])
+    await h.open_session()
+    stream = h.runtime.run_turn(turn("Hola"))
+    async for event in stream:
+        if isinstance(event, AssistantText):
+            break
+    await stream.aclose()
+    (input_tokens, output_tokens) = estimated(h)
+    assert input_tokens[0] == "fake:input" and input_tokens[1] > 100  # the system prompt
+    assert output_tokens == ("fake:output", 2)  # "Hola. ": what was read before the close
+
+
+async def test_a_cut_runaway_answer_is_estimated() -> None:
+    junk = [ModelText(text="(Esperando respuesta)") for _ in range(200)]
+    h = Harness(
+        [[ModelText(text="¿Tienes permiso de trabajo? "), *junk, STOP]],
+        limits=Limits(max_answer_characters=100),
+    )
+    await h.open_session()
+    await h.run("Maialen")
+    assert [detail for detail, _ in estimated(h)] == ["fake:input", "fake:output"]
+
+
+async def test_a_silent_attempt_and_its_retry_are_each_estimated() -> None:
+    h = Harness([says("Vale, apuntado.")], limits=FAST_DEADLINE, slow_calls=1)
+    await h.open_session()
+    await h.run("De lunes a viernes")
+    silent, retried = estimated(h)[:2], estimated(h)[2:]
+    assert silent[1] == ("fake:output", 0) and retried[1] == ("fake:output", 4)
+
+
+async def test_a_round_the_provider_reported_is_not_estimated() -> None:
+    usage = ModelUsage(input_tokens=120, output_tokens=14, model_id="fake")
+    h = Harness([[ModelText(text="Hola."), usage, STOP]])
+    await h.open_session()
+    await h.run("Hola")
+    assert estimated(h) == [] and len(h.store.events.usage) == 2

@@ -63,6 +63,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
+| A generation with no usage report (barge-in, answer cut, silent or failed attempt) | estimated at 4 characters per token, from the messages and tools sent and the text streamed; marked `estimated` (D44) |
 | Recent turns in the prompt | 20 |
 | Knowledge chunk | one `## ` section, at most 90 words |
 | Chunks per `search_knowledge` call | 3; RRF k = 60; 1–3 phrasings per call |

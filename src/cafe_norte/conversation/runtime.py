@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import math
 import time
 import uuid
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Sequence
@@ -141,6 +142,9 @@ def _utcnow() -> datetime:
 
 # What a generation's trace keeps of the conversation it saw (docs/architecture.md).
 _TRACE_CONTEXT_CHARACTERS = 1800
+
+# A generation with no usage report is estimated at this many characters per token (D44).
+CHARACTERS_PER_TOKEN = 4
 
 
 def conversation_tail(
@@ -821,6 +825,7 @@ class Runtime:
                     first = await anext(stream, None)
             except TimeoutError as error:
                 await stream.aclose()
+                self._estimate(run, output_characters=0)
                 if attempt == 1:
                     chat.annotate(silent_attempts=1)
                     self._event(
@@ -832,16 +837,21 @@ class Runtime:
         first_output_ms = int((time.monotonic() - started) * 1000)
         chat.first_output()
         chat.annotate(attempt=attempt, first_output_ms=first_output_ms)
+        reported = False
+        output_characters = 0
         try:
             if first is None:
                 raise ServiceError("empty model stream", code="invalid_response")
-            if not isinstance(first, ModelFinished):
-                yield first
-            async for event in stream:
+            async for event in _prepend(first, stream):
+                reported = reported or isinstance(event, ModelUsage)
+                if isinstance(event, ModelText):
+                    output_characters += len(event.text)
                 if not isinstance(event, ModelFinished):
                     yield event
         finally:
             await stream.aclose()
+            if not reported:
+                self._estimate(run, output_characters=output_characters)
             self._event(
                 run,
                 "model_round",
@@ -850,6 +860,25 @@ class Runtime:
                 first_output_ms=first_output_ms,
                 total_ms=int((time.monotonic() - started) * 1000),
             )
+
+    def _estimate(self, run: _Turn, *, output_characters: int) -> None:
+        """A generation that ended with no usage report (cut by a barge-in or the answer
+        limit, silent, or failed) still cost tokens: they are estimated from its characters,
+        the prompt and tools it was sent and the text it streamed, and marked so (D44)."""
+        input_characters = sum(len(m.content) for m in run.messages) + sum(
+            len(schema.model_dump_json())
+            for schema in _offered(self._tools.schemas(), run.withheld)
+        )
+        run.usage.extend(
+            token_usage(
+                run.session_id,
+                run.turn_id,
+                self._model.model_id,
+                math.ceil(input_characters / CHARACTERS_PER_TOKEN),
+                math.ceil(output_characters / CHARACTERS_PER_TOKEN),
+                estimated=True,
+            )
+        )
 
     async def _tool_calls(self, run: _Turn, step: Span) -> AsyncIterator[RuntimeEvent]:
         """Dispatch every call of the round in order; each result becomes a tool message."""
@@ -1154,6 +1183,14 @@ def _analysis_usage(run: _Turn, analysis: SignalAnalysis) -> tuple[UsageRecord, 
         usage.output_tokens,
         estimated=False,
     )
+
+
+async def _prepend(
+    first: ModelEvent, rest: AsyncIterator[ModelEvent]
+) -> AsyncGenerator[ModelEvent, None]:
+    yield first
+    async for event in rest:
+        yield event
 
 
 def _nothing_left_to_do(run: _Turn) -> bool:

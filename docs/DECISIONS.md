@@ -1033,15 +1033,20 @@ plain yes and no away from the model; the choice of slot is the same kind of ans
   (`OfferedSlot`: id and start) and a `shortlist`. `list_interview_slots` writes it in the same
   save as the intent. A later offer keeps the first `schedule_intent` as the evidence.
 - `domain/slot_choice.py` is pure and takes no language. `read_slot_words(text)` reads
-  positions, weekdays, days of the month, relative days, clock times and a part of the day, flags
-  a refusal, and returns the words it did not explain. `choose_slot(words, offered, today,
+  positions, weekdays, days of the month, relative days ("esta mañana" is today), clock times and
+  a part of the day, and returns the words it did not explain. `choose_slot(words, offered, today,
   shortlist)` returns `Chosen | Ambiguous | NoMatch | NotAChoice`. Each feature said is a filter,
   features intersect, and values of one feature are alternatives. An hour below twelve also
   means the same hour after noon. A shortlist narrows the next answer while it keeps any match.
+- Only an answer that is all about the slot is a choice, the rule D35 applies to a plain yes. Every
+  word left over must be the talk around a choice ("me va bien", "mejor", "vale", "sí",
+  "¿tienes algo…?"). One other word ("no", "ninguno", "otro", "presencial", "dura") leaves the
+  answer to the model. That one rule covers refusals and questions: "¿La entrevista dura treinta
+  minutos?" is not the 30th, and "¿es presencial el martes?" is not Tuesday's slot.
 - The runtime calls the existing tools after `_plain_answer`, through the registry, as D35 does:
-  - `Chosen`: `present_confirmation`. If the heard read-back of that same slot is pending and the
-    leftover words are a plain yes ("Exacto, sí, el viernes a las diez y media"),
-    `reserve_interview`.
+  - `Chosen`: `present_confirmation`. If the heard read-back of that same slot is pending, the
+    answer is to "¿Te la reservo?": with a plain yes among the words ("Exacto, sí, el viernes a
+    las diez y media") it is `reserve_interview`, without one it is the model's.
   - `Ambiguous`: the shortlist is saved and the model is told which slots fit, to ask which one in
     its own words.
   - `NoMatch`: `list_interview_slots` again, for the day named if any.
@@ -1054,10 +1059,8 @@ plain yes and no away from the model; the choice of slot is the same kind of ans
   `numbers.spelled`. A property test says every slot back in Ana's own words (`brief.slot_time`)
   in both languages and gets that slot, so the module and the brief tables cannot drift apart.
 
-**Consequences we accept.** A question asked after the offer that contains a slot word ("¿el
-sueldo es el mismo por la mañana?") is read as a choice, and the read-back is said instead of an
-answer. The read-back still guards the booking, but the question waits a turn. Any negation word
-leaves the answer to the model, so "sí, el viernes, no hay problema" costs a model round.
-"Otro"/"another" counts as a refusal. Tool arguments are still not in the journal (KI-06's
+**Consequences we accept.** A choice said with a word outside the list ("el viernes, que es
+cuando libro", "sí, el viernes, no hay problema") goes to the model, as every choice did before
+D41: a missed word costs the old path, never a wrong action. The list grows from the journal. Tool arguments are still not in the journal (KI-06's
 observability half); the Langfuse span carries them.
 

@@ -950,18 +950,20 @@ class Runtime:
             today=self._clock().astimezone(zone).date(),
             shortlist=tuple(i for i, slot_id in enumerate(ids) if slot_id in offer.shortlist),
         )
+        arguments: dict[str, str]
         match choice:
+            case Chosen(index=index) if _heard_read_back_of(run, ids[index]):
+                if answer_to_readback(words.rest) != "affirm":
+                    return  # the slot said again without a yes: the model's to read
+                name, arguments = "reserve_interview", {"slot_id": ids[index]}
             case Chosen(index=index):
-                slot_id = {"slot_id": str(ids[index])}
-                if _yes_to_this_slot(run, ids[index], words.rest):
-                    calls = self._runtime_call(run, "reserve_interview", slot_id)
-                else:
-                    calls = self._runtime_call(
-                        run, "present_confirmation", {"target": "slot", **slot_id}
-                    )
-                async for event in calls:
-                    yield event
-                run.slot_choice = run.outcome.model_text
+                name, arguments = "present_confirmation", {"target": "slot", "slot_id": ids[index]}
+            case NoMatch(day=day):
+                intent = state.schedule_intent
+                name = "list_interview_slots"
+                arguments = {"evidence_text": intent.text if intent else run.input.text}
+                if day is not None:
+                    arguments["date_preference"] = day.isoformat()
             case Ambiguous(indices=indices):
                 await self._save_shortlist(run, tuple(ids[i] for i in indices))
                 options = "; ".join(
@@ -973,16 +975,12 @@ class Runtime:
                     f"The candidate's words fit more than one offered slot ({options}). Ask in "
                     "one short sentence which of these they prefer; the system reads it back."
                 )
-            case NoMatch(day=day):
-                evidence = state.schedule_intent.text if state.schedule_intent else run.input.text
-                again = {"evidence_text": evidence}
-                if day is not None:
-                    again["date_preference"] = day.isoformat()
-                async for event in self._runtime_call(run, "list_interview_slots", again):
-                    yield event
-                run.slot_choice = run.outcome.model_text
-            case _:  # NotAChoice: the words are the model's
-                pass
+                return
+            case _:
+                return  # NotAChoice: the words are the model's
+        async for event in self._runtime_call(run, name, arguments):
+            yield event
+        run.slot_choice = run.outcome.model_text
 
     async def _save_shortlist(self, run: _Turn, shortlist: tuple[SlotId, ...]) -> None:
         """The slots an ambiguous answer left in question; the next answer is held to them."""
@@ -1109,9 +1107,9 @@ def _open_offer(run: _Turn) -> SlotOffer | None:
     return offer
 
 
-def _yes_to_this_slot(run: _Turn, slot_id: SlotId, rest: str) -> bool:
-    """ "Sí, el viernes a las diez y media" to the heard read-back of that very slot: the
-    words besides the slot are a plain yes, as ``_plain_answer`` would take them alone."""
+def _heard_read_back_of(run: _Turn, slot_id: SlotId) -> bool:
+    """That very slot was read back in an earlier turn and heard to the end: naming it again is
+    an answer to "¿Te la reservo?", not a new choice."""
     pending = run.state.pending_confirmation
     return (
         pending is not None
@@ -1120,7 +1118,6 @@ def _yes_to_this_slot(run: _Turn, slot_id: SlotId, rest: str) -> bool:
         and pending.target.slot_id == slot_id
         and pending.fully_delivered
         and pending.presented_turn_id != run.turn_id
-        and answer_to_readback(rest) == "affirm"
     )
 
 

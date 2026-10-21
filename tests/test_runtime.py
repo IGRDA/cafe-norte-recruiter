@@ -1700,7 +1700,7 @@ async def test_the_slot_restated_without_a_yes_is_not_a_booking() -> None:
     await slots_offered(h)
     await h.run("El primero.", "in-2")
     events = await h.run("El martes a las cinco.", "in-3")
-    assert tools_started(events) == ["present_confirmation"]  # already pending: said once
+    assert tools_started(events) == []  # the model's to read; it asks again here
     assert await booking_of(h) is None and await pending_slot(h) == TUE_17
 
 
@@ -1711,3 +1711,14 @@ async def test_a_yes_with_another_slot_reads_that_one_back_instead() -> None:
     events = await h.run("Sí, mejor el segundo.", "in-3")
     assert tools_started(events) == ["present_confirmation"]
     assert await booking_of(h) is None and await pending_slot(h) == WED_1030
+
+
+async def test_a_question_after_the_offer_is_answered_by_the_model() -> None:
+    """ "Treinta" is not the 30th: the runtime neither offers again nor reads a slot back, so
+    the model's answer is said."""
+    h = with_slots_offered(says("Unos treinta minutos. ¿Qué hueco prefieres?"))
+    await slots_offered(h)
+    events = await h.run("¿La entrevista dura treinta minutos?", "in-2")
+    assert tools_started(events) == []
+    said = [e.text for e in events if isinstance(e, AssistantText)]
+    assert said == ["Unos treinta minutos.", "¿Qué hueco prefieres?"]

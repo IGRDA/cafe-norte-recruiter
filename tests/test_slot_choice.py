@@ -43,7 +43,7 @@ def words(text: str) -> SlotWords:
 def test_a_weekday_alone_is_only_a_weekday() -> None:
     w = words("El viernes.")
     assert w.weekdays == {4} and not (w.positions or w.days or w.times or w.offsets or w.part)
-    assert w.rest == "" and not w.negated
+    assert w.rest == ""
 
 
 @pytest.mark.parametrize(
@@ -135,6 +135,17 @@ def test_a_time_with_its_part_of_day(text: str, time: tuple[int, int | None], pa
 # ---- relative days and parts of the day ----------------------------------------------------------
 
 
+def test_esta_manana_is_this_morning_never_tomorrow() -> None:
+    for text in ("esta mañana", "this morning"):
+        assert words(text).offsets == {0} and words(text).part == "morning"
+    assert words("esta tarde").offsets == {0} and words("esta tarde").part == "afternoon"
+
+
+def test_a_m_and_p_m_with_points() -> None:
+    w = words("10:30 a.m.")
+    assert w.times == {(10, 30)} and w.part == "morning" and w.rest == ""
+
+
 def test_manana_is_tomorrow_but_por_la_manana_is_the_morning() -> None:
     assert words("mañana").offsets == {1} and words("mañana").part is None
     assert words("por la mañana").part == "morning" and not words("por la mañana").offsets
@@ -182,14 +193,6 @@ def test_a_yes_with_the_slot_restated_leaves_the_yes_in_the_rest() -> None:
     assert words("Yes, the 23rd at ten thirty, please").rest == "yes"
 
 
-@pytest.mark.parametrize(
-    "text",
-    ["no, el viernes no", "ninguno me va bien", "not on Friday", "otro día", "none of them"],
-)
-def test_a_refusal_is_flagged(text: str) -> None:
-    assert words(text).negated
-
-
 # ---- properties ----------------------------------------------------------------------------------
 
 FILLERS = ["eh", "pues", "bueno", "mm", "ok", "um"]
@@ -205,7 +208,7 @@ def test_any_text_is_read_without_error(text: str) -> None:
 @given(st.lists(st.sampled_from(FILLERS), min_size=1, max_size=4))
 def test_filler_words_say_nothing_about_a_slot(fillers: list[str]) -> None:
     w = read_slot_words(" ".join(fillers))
-    assert not (w.positions or w.weekdays or w.days or w.offsets or w.times or w.part or w.negated)
+    assert not (w.positions or w.weekdays or w.days or w.offsets or w.times or w.part)
 
 
 # ---- choosing among the slots offered ------------------------------------------------------------
@@ -283,9 +286,54 @@ def test_a_day_beyond_the_horizon_is_no_match_without_a_day() -> None:
     assert choose("el 15", OFFER) == NoMatch(day=None)
 
 
-@pytest.mark.parametrize("text", ["Exacto, sí.", "¿Dónde está la tienda?", "no, el viernes no"])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Exacto, sí.",
+        "¿Dónde está la tienda?",
+        "no, el viernes no",
+        "ninguno me va bien",
+        "not on Friday",
+        "otro día",
+        "none of them",
+    ],
+)
 def test_no_slot_words_or_a_refusal_is_not_a_choice(text: str) -> None:
     assert choose(text, FRIDAYS) == NotAChoice()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "¿La entrevista dura treinta minutos?",
+        "Tengo dos preguntas.",
+        "¿El sueldo es el mismo por la mañana?",
+        "¿Es presencial el martes?",
+        "Is it in person on Tuesday?",
+    ],
+)
+def test_a_question_that_happens_to_hold_a_slot_word_is_not_a_choice(text: str) -> None:
+    """Only an answer all about the slot is the runtime's (as a plain yes is, D35); anything
+    more is the model's, which can answer it."""
+    assert choose(text, OFFER) == NotAChoice()
+
+
+@pytest.mark.parametrize(
+    ("text", "index"),
+    [
+        ("El primero me va bien.", 0),
+        ("Mejor el miércoles por la tarde, gracias.", 2),
+        ("Vale, el martes.", 0),
+        ("That works, the second one please.", 1),
+        ("I'd prefer Wednesday morning.", 1),
+    ],
+)
+def test_the_talk_around_a_choice_keeps_it_a_choice(text: str, index: int) -> None:
+    assert choose(text, OFFER) == Chosen(index=index)
+
+
+def test_asking_for_another_day_is_a_choice_of_that_day() -> None:
+    assert choose("¿Tienes algo el sábado?", OFFER) == NoMatch(day=date(2026, 10, 24))
 
 
 # The calendar the stores really offer, seen from any instant in a month: what Ana can say.

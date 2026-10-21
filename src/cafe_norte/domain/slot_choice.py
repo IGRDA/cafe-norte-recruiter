@@ -2,9 +2,12 @@
 argument: the words of one language never collide with the other's in a slot answer.
 
 ``read_slot_words`` says what was said (an ordinal, a weekday, a day of the month, a relative
-day, a clock time, a part of the day, a refusal) and what was left over; ``choose_slot`` holds
-those words against the slots just offered. Nothing is guessed: a feature that was not said
-does not filter, and a word that is not recognised stays in ``rest`` for the caller."""
+day, a clock time, a part of the day) and what was left over; ``choose_slot`` holds those words
+against the slots just offered. As with a plain yes (D35), only an answer that is all about the
+slot is a choice: one word that is neither a slot word nor the talk around a choice ("me va
+bien", "mejor", "sí") makes it the model's, which covers refusals ("no, ninguno") and questions
+("¿dura treinta minutos?") alike. Nothing is guessed: a feature that was not said does not
+filter."""
 
 import re
 from collections.abc import Callable, Sequence
@@ -29,7 +32,6 @@ class SlotWords(Frozen):
     offsets: frozenset[int] = frozenset()  # days from today: hoy 0, mañana 1
     times: frozenset[Clock] = frozenset()
     part: Part | None = None
-    negated: bool = False  # a refusal or a request for something else
     rest: str = ""  # the words nothing above explained, normalised
 
 
@@ -53,7 +55,7 @@ class NoMatch(Frozen):
 
 
 class NotAChoice(Frozen):
-    """No slot words, or a refusal: the words are not a choice of slot."""
+    """No slot words, or words besides them that are not the talk around a choice."""
 
 
 SlotChoice = Chosen | Ambiguous | NoMatch | NotAChoice
@@ -109,6 +111,15 @@ _GLUE = frozenset(
     "el la los las un una de del al a en para por favor please the at on for of o or y and one "
     "slot hueco opcion option day dia hora time around about sobre hacia this esta este que".split()
 )
+# What people say around a choice, kept in ``rest`` (a yes in it still counts) but no reason to
+# leave the answer to the model. Anything else is: "no", "ninguno", "otro", "presencial"...
+_CHOICE_TALK = frozenset(
+    "si vale exacto perfecto claro correcto genial estupendo bien va viene me mejor prefiero "
+    "quiero puedo gracias eso es asi acuerdo venga entonces hay algo tienes tiene pues bueno "
+    "yes yeah yep sure ok okay great perfect fine good works that thats sounds right correct "
+    "exactly i id like prefer want take thanks thank you is there anything have do then lets "
+    "suits better best eh mm mhm mhmm hmm um uh so well".split()
+)
 _AFTERNOON_FROM = 14  # a slot at 14:00 or later is "de la tarde"
 
 
@@ -139,7 +150,6 @@ def _p(pattern: str) -> re.Pattern[str]:
 
 
 _YEAR = _p(r"\b(?:19|20)\d{2}\b")
-_NEGATION = _p(r"\b(?:no|ni|nunca|ninguno|ninguna|not|none|neither|never|otro|otra|another|dont)\b")
 _CLOCK = _p(r"\b(\d{1,2})\x01(\d{2})\b")
 _HOUR_AND = _p(rf"\b{_NUM}\s+y\s+({_any(_MINUTES)})\b")
 _HOUR_LESS = _p(
@@ -156,8 +166,9 @@ _ORDINAL_OF_MONTH = _p(
 )
 _TENS_ORDINAL = _p(rf"\b(twenty|thirty)\s+({_any(_ORDINAL_UNITS)})\b")
 _BARE_ORDINAL = _p(rf"\b({_any(_ORDINAL_DAYS)})\b")
+_THIS_PART = _p(r"\b(?:esta|this)\s+(manana|tarde|noche|morning|afternoon|evening)\b")
 _PART_OF_DAY = _p(
-    r"\b(?:(?:por|de|en|esta)\s+)?la\s+(manana|tarde|noche)\b|\b(morning|afternoon|evening|night)\b"
+    r"\b(?:(?:por|de|en)\s+)?la\s+(manana|tarde|noche)\b|\b(morning|afternoon|evening|night)\b"
 )
 _AM_PM_WORD = _p(r"\b(am|pm)\b")
 _AFTER_TOMORROW = _p(r"\b(?:pasado\s+manana|day\s+after\s+tomorrow)\b")
@@ -173,6 +184,7 @@ def _normal(text: str) -> str:
     """Lower case, no accents or apostrophes, words and digits only; a clock's colon or point
     between digits is kept as \\x01 so "10:30" survives and a full stop does not."""
     spaced = plain(text).replace("'", "").replace("’", "")
+    spaced = re.sub(r"\b([ap])\.\s?m\b\.?", r"\1m", spaced)  # "10:30 a.m."
     clocked = re.sub(r"(?<=\d)[:.](?=\d)", "\x01", spaced)
     return " " + " ".join(re.sub(r"[^a-z0-9\x01]+", " ", clocked).split()) + " "
 
@@ -220,7 +232,6 @@ def read_slot_words(text: str) -> SlotWords:
     scan = _Scan(text)
     scan.text = re.sub(r"\bla una\b", "las uno", scan.text)  # "a la una" is one o'clock
     scan.eat(_YEAR, lambda m: True)
-    negated = bool(scan.eat(_NEGATION, lambda m: True))
 
     times: set[Clock] = set()
     parts: set[Part] = set()
@@ -245,12 +256,15 @@ def read_slot_words(text: str) -> SlotWords:
     )
     days.update(scan.eat(_BARE_ORDINAL, lambda m: _ORDINAL_DAYS[m[1]]))
 
+    offsets: set[int] = set()
+    for name in scan.eat(_THIS_PART, lambda m: m[1]):  # "esta mañana" is today, not tomorrow
+        parts.add(_part(name))
+        offsets.add(0)
     for name in scan.eat(_PART_OF_DAY, lambda m: m[1] or m[2]):
-        parts.add("morning" if name in {"manana", "morning"} else "afternoon")
+        parts.add(_part(name))
     for word in scan.eat(_AM_PM_WORD, lambda m: m[1]):
         parts.add("morning" if word == "am" else "afternoon")
 
-    offsets: set[int] = set()
     offsets.update(scan.eat(_AFTER_TOMORROW, lambda m: 2))
     offsets.update(scan.eat(_TOMORROW, lambda m: 1))
     offsets.update(scan.eat(_TODAY, lambda m: 0))
@@ -267,9 +281,12 @@ def read_slot_words(text: str) -> SlotWords:
         offsets=frozenset(offsets),
         times=frozenset(times),
         part=next(iter(parts)) if len(parts) == 1 else None,
-        negated=negated,
         rest=rest,
     )
+
+
+def _part(name: str) -> Part:
+    return "morning" if name in {"manana", "morning"} else "afternoon"
 
 
 def _before(hour: int, minute: int) -> Clock | None:
@@ -304,7 +321,7 @@ def choose_slot(
     feature are alternatives. A ``shortlist`` left by an earlier ambiguous answer narrows the
     matches when it keeps any of them; when it keeps none, the words left it, and it is
     dropped."""
-    if words.negated or not _says_a_slot(words):
+    if not _says_a_slot(words) or not _CHOICE_TALK.issuperset(words.rest.split()):
         return NotAChoice()
     fits = tuple(
         i for i, start in enumerate(offered) if _fits(words, i, len(offered), start, today)

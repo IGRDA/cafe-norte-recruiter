@@ -8,6 +8,6 @@
 | `evaluation.md` | Evaluation and observability design |
 | `runbook.md` | Operations |
 | `known-issues.md` | Problems seen in real calls, with evidence, cause, reproduction and the proposed fix |
-| `production.md` | Production discussion: scaling, replicas, telephony, speech-to-speech |
+| `production.md` | Production discussion (spec §17): today, what breaks first, next step and trade-off for each pressure, citing decisions |
 | `evaluation-report.md` | Measured results; written at the evaluation stage |
 | `audio/` | Script of the spoken scaffold walkthrough; the recording is attached to the scaffold PR |

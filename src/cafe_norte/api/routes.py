@@ -266,6 +266,17 @@ def build_router(
             headers=headers,
         )
 
+    @router.delete("/api/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+    async def delete_session(session_id: str, request: Request) -> Response:
+        """The owner's delete action (spec §8): the session and everything that belongs to it,
+        the stored export, the resume token and the simulated reservation included. A voice
+        session still running is stopped first. Idempotent."""
+        sid = owner(request, session_id)
+        if voice is not None and voice.status(sid) is not None:
+            await voice.stop(sid, reason="stop")
+        await store.sessions.delete(sid)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
     @router.get("/api/sessions/{session_id}/events")
     async def session_events(session_id: str, request: Request) -> StreamingResponse:
         sid = owner(request, session_id)

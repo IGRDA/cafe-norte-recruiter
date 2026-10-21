@@ -66,3 +66,20 @@ def test_a_closed_session_is_served_from_the_stored_snapshot() -> None:
         assert document.session.lifecycle == "stopped" and document.session.ended_at is not None
         response = client.get(f"/api/sessions/{session_id}/export")
         assert response.status_code == 200 and response.text == stored
+
+
+def test_the_owner_deletes_the_session_and_nothing_of_it_remains() -> None:
+    store = MemoryStore()
+    with TestClient(
+        build_test_app(model=FakeModel([TOOL_TURN, ANSWER_TURN]), store=store)
+    ) as client:
+        session_id = create_session(client)
+        client.post(f"/api/sessions/{session_id}/turns", json={"input_id": "in-1", "text": "Lucía"})
+        read_turn(client, session_id, after=OPENING_EVENTS)
+        stranger = TestClient(client.app)
+        assert stranger.delete(f"/api/sessions/{session_id}").status_code == 401
+        assert client.delete(f"/api/sessions/{session_id}").status_code == 204
+        assert client.get(f"/api/sessions/{session_id}/export").status_code == 404
+        assert client.get(f"/api/sessions/{session_id}/events").status_code == 404
+        assert client.delete(f"/api/sessions/{session_id}").status_code == 204  # idempotent
+        assert asyncio.run(store.turns.recent(SessionId(session_id), 10)) == ()

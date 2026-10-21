@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import AsyncGenerator, Sequence
 from datetime import datetime
 
+from cafe_norte.errors import ErrorCode
 from cafe_norte.model.contracts import ModelError, ModelEvent, ModelMessage, ToolSchema
 
 
@@ -27,6 +28,12 @@ class FakeModel:
         self._delay = delay_seconds
         self._calls: list[tuple[ModelMessage, ...]] = []
         self._tools: list[tuple[ToolSchema, ...]] = []
+        self._failures: list[ErrorCode] = []
+
+    def fail_next(self, code: ErrorCode = "provider_unavailable") -> None:
+        """The next call raises ``ModelError`` instead of replaying a script; the scripts stay
+        for the call after it. A provider outage for one turn."""
+        self._failures.append(code)
 
     async def stream(
         self,
@@ -37,6 +44,8 @@ class FakeModel:
     ) -> AsyncGenerator[ModelEvent, None]:
         self._calls.append(messages)
         self._tools.append(tools)
+        if self._failures:
+            raise ModelError("scripted provider failure", code=self._failures.pop(0))
         if self._scripts:
             script = self._scripts.pop(0)
         elif self._fallback is not None:

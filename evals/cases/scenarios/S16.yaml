@@ -1,0 +1,60 @@
+id: S16
+title: Provider and storage failure, honest fallback, Chamberí
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# Line 2: the model provider is down for that turn; the turn fails and nothing is saved.
+# Line 3: the candidate repeats it and it works. Line 4: the store refuses the save of what the
+# candidate just said; the turn fails before anything is announced, and the record keeps only
+# what was saved before. Line 2 has no script: the model is never reached.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Perdona, me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+faults:
+  - { turn: 2, kind: model }
+  - { turn: 4, kind: storage }
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - []
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Perdona, me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    # Never reached: the turn fails at the tool. If a failed save were swallowed, the model
+    # would get here and say it, and `turn_failed` on line 4 would fail.
+    - say: "Perfecto, lo he apuntado. ¿Cuándo podrías empezar?"
+persona:
+  facts:
+    name: Lucía Marín
+  wants_interview: false
+checks:
+  - name: turn_failed
+    args: { turn: "2", code: provider_unavailable }
+  - name: turn_failed
+    args: { turn: "3", code: none }
+  - name: turn_failed
+    args: { turn: "4", code: provider_unavailable }
+  - name: field_equals
+    args: { field: name, value: Lucía Marín }
+  - name: field_status
+    args: { field: work_authorization, status: unset }
+  - name: field_status
+    args: { field: hours_per_week, status: unset }
+  - name: booking_absent
+  - name: lifecycle_is
+    args: { lifecycle: active }
+  - name: no_fabricated_confirmed_values
+rubric:
+  - After each failure the candidate was told the truth (a service did not answer) and was not told anything was saved.
+  - The failed turns did not ask the candidate to start again from the beginning.

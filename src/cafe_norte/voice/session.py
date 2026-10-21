@@ -7,7 +7,8 @@ delivery ledger decides what was heard. Tested with a fake runtime and a recorde
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Mapping
+from contextlib import aclosing
 from datetime import UTC, datetime
 from typing import Literal, Protocol
 
@@ -32,7 +33,7 @@ Speak = Callable[[str], Awaitable[None]]
 class VoiceRuntime(Protocol):
     """What voice needs from the conversation runtime."""
 
-    def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]: ...
+    def run_turn(self, turn: TurnInput) -> AsyncGenerator[RuntimeEvent, None]: ...
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None: ...
     async def end(
         self, session_id: SessionId, reason: Literal["stop", "limit", "shutdown"]
@@ -165,25 +166,28 @@ class VoiceSession:
     async def _run(self, turn: TurnInput) -> None:
         failed = False
         try:
-            async for event in self._runtime.run_turn(turn):
-                if isinstance(event, TurnStarted):
-                    self._turn_id = event.turn_id
-                    if event.language != self._language and self._on_language is not None:
-                        self._on_language(event.language)  # recognition follows the switch
-                    self._language = event.language
-                elif isinstance(event, AssistantText):
-                    self._cancel_filler()
-                    self._ledger = sent(self._ledger, event.spoken_form)
-                    self._set("speaking")
-                    await self._speak(event.spoken_form)
-                elif isinstance(event, ToolStarted):
-                    self._filler_task = asyncio.create_task(self._filler())
-                elif isinstance(event, ToolFinished):
-                    self._cancel_filler()
-                elif isinstance(event, TurnFinished):
-                    self._turn_done = True
-                elif isinstance(event, TurnFailed):
-                    failed = True
+            # aclosing: a cancel while a sentence is being spoken closes the runtime's turn now,
+            # so it is journaled as interrupted instead of waiting for the generator's collection.
+            async with aclosing(self._runtime.run_turn(turn)) as events:
+                async for event in events:
+                    if isinstance(event, TurnStarted):
+                        self._turn_id = event.turn_id
+                        if event.language != self._language and self._on_language is not None:
+                            self._on_language(event.language)  # recognition follows the switch
+                        self._language = event.language
+                    elif isinstance(event, AssistantText):
+                        self._cancel_filler()
+                        self._ledger = sent(self._ledger, event.spoken_form)
+                        self._set("speaking")
+                        await self._speak(event.spoken_form)
+                    elif isinstance(event, ToolStarted):
+                        self._filler_task = asyncio.create_task(self._filler())
+                    elif isinstance(event, ToolFinished):
+                        self._cancel_filler()
+                    elif isinstance(event, TurnFinished):
+                        self._turn_done = True
+                    elif isinstance(event, TurnFailed):
+                        failed = True
         finally:
             self._cancel_filler()
             self._turn_done = True

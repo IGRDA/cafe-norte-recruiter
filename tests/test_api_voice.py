@@ -84,6 +84,7 @@ def test_when_a_voice_session_ends_its_slot_and_room_are_released(
 
 
 def test_a_third_concurrent_voice_session_is_busy(client: TestClient) -> None:
+    """S18 (overload): the third call is refused before a room or a provider is opened."""
     first, second, third = (create_session(client) for _ in range(3))
     # Each create_session replaces the cookie; re-set it per call.
     for session_id in (first, second):

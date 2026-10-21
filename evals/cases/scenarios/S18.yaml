@@ -1,0 +1,59 @@
+id: S18
+title: The time cap ends the session and keeps what was said, Chamberí
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# Every turn lasts 150 s on the runtime's clock, so line 4 takes the session past 480 s. That
+# turn is finished normally and saved; then the session is abandoned and Ana says the fixed
+# goodbye (controls `time_cap`). Silence (one prompt, never a pause) and overload (a third voice
+# session is refused before any provider is opened) are not conversations: they are covered by
+# tests/test_voice_session.py and tests/test_api_voice.py, as S12 and S13 are (D32, D37).
+seconds_per_turn: 150
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+persona:
+  facts:
+    name: Lucía Marín
+  wants_interview: false
+checks:
+  - name: said_control_reply
+    args: { turn: "4", control: time_cap }
+  - name: lifecycle_is
+    args: { lifecycle: abandoned }
+  - name: outcome_is
+    args: { outcome: incomplete }
+  - name: field_equals
+    args: { field: name, value: Lucía Marín }
+  - name: field_equals
+    args: { field: hours_per_week, value: "30" }
+  - name: field_equals
+    args: { field: earliest_start_date, value: "2026-10-26" }
+  - name: booking_absent
+  - name: no_fabricated_confirmed_values
+rubric:
+  - The goodbye said that the time was over and that what the candidate said was saved.
+  - Nothing the candidate said in the last turn was lost.

@@ -2,7 +2,7 @@
 events; a recorder stands in for TTS; a controllable clock drives the idle timers."""
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -61,7 +61,7 @@ class FakeRuntime:
         self.closed = 0
         self.slow = slow
 
-    async def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]:
+    async def run_turn(self, turn: TurnInput) -> AsyncGenerator[RuntimeEvent, None]:
         self.turns.append(turn)
         events = self.scripts.pop(0)
         try:
@@ -158,6 +158,29 @@ async def test_an_interruption_cancels_the_turn_and_reports_what_was_heard() -> 
     assert len(runtime.acks) == 1
 
 
+async def test_an_interruption_while_a_sentence_is_being_spoken_closes_the_runtime_turn() -> None:
+    runtime = FakeRuntime([[say("Te resumo lo que tengo."), say("¿Es todo correcto?"), finished()]])
+    recorder = Recorder()
+    gate = asyncio.Event()
+
+    async def blocked(text: str) -> None:  # TTS still busy with the first sentence
+        recorder.spoken.append(text)
+        await gate.wait()
+
+    s = VoiceSession(
+        runtime,
+        SID,
+        speak=blocked,
+        on_status=recorder.status.append,
+        texts=TEXTS,
+        language="es",
+    )
+    await s.transcript("ya está")
+    await asyncio.sleep(0.01)
+    await s.interrupted()
+    assert runtime.closed == 1  # closed now, not whenever the generator is collected
+
+
 async def test_the_opening_is_spoken_once_on_join_and_a_second_join_is_silent() -> None:
     runtime = FakeRuntime([])
     recorder = Recorder()
@@ -213,7 +236,8 @@ async def test_the_filler_follows_a_language_switched_in_the_turn() -> None:
 
 
 async def test_silence_prompts_once_and_never_pauses_a_live_call() -> None:
-    """The hosted call: the session went "paused" while the candidate was still talking."""
+    """S18 (silence): one prompt and the state untouched. The hosted call of 21 October: the
+    session went "paused" while the candidate was still talking."""
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
     recorder = Recorder()
     s = session(runtime, recorder, prompt=0.02)

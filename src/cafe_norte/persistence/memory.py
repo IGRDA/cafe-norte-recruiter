@@ -66,6 +66,7 @@ class MemorySessions:
         self._seq: dict[SessionId, int] = {}
         self.fence: Callable[[SessionId, int], bool] = lambda session_id, generation: True
         self.cascade: list[Callable[[SessionId], None]] = []  # what delete takes with it
+        self.fail_next_save: ServiceError | None = None  # a scripted outage, for one save
 
     def _fenced(self, session_id: SessionId, lease_generation: int | None) -> None:
         if lease_generation is not None and not self.fence(session_id, lease_generation):
@@ -87,6 +88,10 @@ class MemorySessions:
         expected_revision: int,
         lease_generation: int | None = None,
     ) -> None:
+        if self.fail_next_save is not None:  # raised at the call, as a dropped connection is
+            error, self.fail_next_save = self.fail_next_save, None
+            raise error
+
         def apply() -> None:
             current = self._states.get(state.session_id)
             if current is None:

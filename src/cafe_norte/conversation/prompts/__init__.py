@@ -4,7 +4,7 @@ from pathlib import Path
 
 from cafe_norte.errors import Language
 
-PROMPT_VERSION = "ana_v12"
+PROMPT_VERSION = "ana_v13"
 PROMPTS_DIR = Path(__file__).parent
 
 

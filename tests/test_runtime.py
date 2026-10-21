@@ -3,7 +3,7 @@
 import asyncio
 import json
 from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 import pytest
@@ -113,6 +113,7 @@ class Harness:
         store: MemoryStore | None = None,
         slow_calls: int = 0,
         on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
+        clock: Callable[[], datetime] | None = None,
     ):
         self.store = store or MemoryStore()
         self.telemetry = RecordingTelemetry()
@@ -130,7 +131,7 @@ class Harness:
             signals=signals,
             limits=limits or Limits(),
             owner="test",
-            clock=lambda: NOW,
+            clock=clock or (lambda: NOW),
             on_closed=on_closed,
             telemetry=self.telemetry,
         )
@@ -248,6 +249,198 @@ async def test_tool_rounds_are_bounded() -> None:
     assert len([e for e in events if isinstance(e, ToolFinished)]) == 2
     assert isinstance(events[-1], TurnFailed) and events[-1].code == "limit_exceeded"
     assert len(h.model.calls) == 3
+
+
+class Clock:
+    """A settable clock: a test puts it where the turn ends and gives the turn an earlier
+    ``received_at``, so the turn lasted exactly that long."""
+
+    def __init__(self) -> None:
+        self.now = NOW
+
+    def __call__(self) -> datetime:
+        return self.now
+
+    def turn(self, text: str, input_id: str, *, since: float, lasted: float) -> TurnInput:
+        """A turn received ``lasted`` seconds before ``self.now`` moves to ``since`` seconds
+        after the previous ``now`` (the gap the candidate took)."""
+        received = self.now + timedelta(seconds=since)
+        self.now = received + timedelta(seconds=lasted)
+        return TurnInput(
+            session_id=SESSION,
+            input_id=InputId(input_id),
+            text=text,
+            channel="text",
+            received_at=received,
+        )
+
+
+async def run_at(h: Harness, given: TurnInput) -> list[RuntimeEvent]:
+    return [event async for event in h.runtime.run_turn(given)]
+
+
+async def test_active_seconds_add_up_across_turns_with_a_capped_gap() -> None:
+    clock = Clock()
+    h = Harness([says("Uno."), says("Dos.")], clock=clock)
+    await h.open_session()
+    await run_at(h, clock.turn("a", "in-1", since=10, lasted=4))  # nothing before it: 4 s
+    await run_at(h, clock.turn("b", "in-2", since=100, lasted=3))  # gap capped at 30 + 3 s
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.lifecycle == "active"
+    assert state.active_seconds == 37.0
+
+
+async def test_the_turn_that_crosses_the_cap_saves_its_facts_then_ends_the_session() -> None:
+    clock = Clock()
+    h = Harness(
+        [[name_call(), WANTS_TOOLS], says("Encantada.")],
+        limits=Limits(session_seconds=60),
+        clock=clock,
+    )
+    await h.open_session()
+    events = await run_at(h, clock.turn("Soy Lucía", "in-1", since=0, lasted=70))
+    kinds = [type(e).__name__ for e in events]
+    states = [e for e in events if isinstance(e, StateUpdated)]
+    assert states[0].lifecycle == "active"  # the capture, committed first
+    assert states[-1].lifecycle == "abandoned"
+    goodbye = prompts.table("controls", "es")["time_cap"]
+    said = " ".join(e.text for e in events if isinstance(e, AssistantText))
+    assert said.endswith(goodbye)
+    assert kinds.index("StateUpdated", kinds.index("ToolFinished")) < len(kinds) - 1
+    assert isinstance(events[-1], TurnFinished)
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.lifecycle == "abandoned"
+    assert state.candidate.name is not None  # nothing the candidate said is lost
+    later = await run_at(h, clock.turn("Hola", "in-2", since=1, lasted=1))
+    assert isinstance(later[-1], TurnFailed) and later[-1].code == "session_ended"
+
+
+async def test_the_goodbye_is_in_the_session_language_and_is_part_of_the_stored_turn() -> None:
+    clock = Clock()
+    h = Harness([says("Nice.")], limits=Limits(session_seconds=60), clock=clock)
+    await h.open_session("en")
+    events = await run_at(h, clock.turn("Hi", "in-1", since=0, lasted=70))
+    goodbye = prompts.table("controls", "en")["time_cap"]
+    assert " ".join(e.text for e in events if isinstance(e, AssistantText)).endswith(goodbye)
+    stored = await h.store.turns.recent(SESSION, 5)
+    assert stored[-1].role == "assistant" and stored[-1].text.endswith(goodbye)
+
+
+async def test_a_turn_under_the_cap_leaves_the_session_active() -> None:
+    clock = Clock()
+    h = Harness([says("Hola.")], limits=Limits(session_seconds=60), clock=clock)
+    await h.open_session()
+    events = await run_at(h, clock.turn("Hola", "in-1", since=0, lasted=20))
+    assert not any(isinstance(e, StateUpdated) for e in events)
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.lifecycle == "active"
+
+
+class Watched(FakeModel):
+    """A fake model that notes when its stream was closed."""
+
+    closed = False
+
+    async def stream(
+        self, messages: tuple[ModelMessage, ...], tools: tuple[Any, ...], *, deadline: datetime
+    ) -> AsyncGenerator[ModelEvent, None]:
+        try:
+            async for event in super().stream(messages, tools, deadline=deadline):
+                yield event
+        finally:
+            self.closed = True
+
+
+async def assert_interrupted_and_released(h: Harness) -> None:
+    kinds = [e.kind for e in h.store.events.all(SESSION)]
+    last = h.store.events.all(SESSION)[-1]
+    assert kinds[-1] == "turn_finished" and '"interrupted":true' in last.payload_json
+    stored = await h.store.turns.recent(SESSION, 5)
+    assert stored[-1].role == "assistant" and stored[-1].interrupted
+    assert await h.store.leases.claim(SESSION, "intruder", ttl_seconds=60) is not None
+
+
+async def test_closing_a_turn_mid_stream_journals_it_as_interrupted() -> None:
+    h = Harness([])
+    watched = Watched([says("Hola. ", "Te cuento algo. ", "¿Y tú?")])
+    h.runtime._model = watched
+    await h.open_session()
+    stream = h.runtime.run_turn(turn("Hola"))
+    first = ""
+    async for event in stream:
+        if isinstance(event, AssistantText):
+            first = event.text
+            break
+    await stream.aclose()
+    assert watched.closed
+    await assert_interrupted_and_released(h)
+    stored = await h.store.turns.recent(SESSION, 5)
+    assert stored[-1].text == first  # what was generated before the close, nothing more
+
+
+async def test_cancelling_a_turn_inside_a_model_call_journals_it_as_interrupted() -> None:
+    h = Harness([says("Hola.")], slow_calls=1)
+    await h.open_session()
+
+    async def consume() -> None:
+        async for _ in h.runtime.run_turn(turn("Hola")):
+            pass
+
+    task = asyncio.create_task(consume())
+    await asyncio.sleep(0.1)  # the model has said nothing yet
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await assert_interrupted_and_released(h)
+
+
+async def test_a_scripted_model_failure_fails_one_turn_and_leaves_the_script_for_the_next() -> None:
+    h = Harness([says("Hola.")])
+    await h.open_session()
+    h.model.fail_next()
+    failed = await h.run("Hola", "in-1")
+    assert isinstance(failed[-1], TurnFailed) and failed[-1].code == "provider_unavailable"
+    ok = await h.run("Hola otra vez", "in-2")
+    assert [e.text for e in ok if isinstance(e, AssistantText)] == ["Hola."]
+
+
+def malformed_call(call_id: str = "bad") -> ToolCall:
+    return ToolCall(call_id=call_id, name="update_candidate", arguments_json='{"patch": {}}')
+
+
+async def test_one_malformed_call_is_repaired_and_the_turn_finishes() -> None:
+    h = Harness([[malformed_call(), WANTS_TOOLS], [name_call(), WANTS_TOOLS], says("¿Cuándo?")])
+    await h.open_session()
+    events = await h.run("Soy Lucía")
+    assert not any(isinstance(e, TurnFailed) for e in events)
+    assert isinstance(events[-1], TurnFinished)
+    assert "Invalid arguments for update_candidate" in h.model.calls[1][-1].content
+
+
+async def test_a_second_malformed_call_ends_the_turn_with_invalid_response() -> None:
+    h = Harness(
+        [[malformed_call("a"), WANTS_TOOLS], [malformed_call("b"), WANTS_TOOLS], says("Hola.")]
+    )
+    await h.open_session()
+    events = await h.run("Soy Lucía")
+    failed = events[-1]
+    assert isinstance(failed, TurnFailed) and failed.code == "invalid_response"
+    assert len(h.model.calls) == 2  # no third round
+    assert not any(isinstance(e, AssistantText) for e in events)
+
+
+async def test_a_domain_refusal_is_not_a_malformed_call() -> None:
+    past = ToolCall(
+        call_id="p",
+        name="update_candidate",
+        arguments_json=json.dumps(
+            {"patch": {"earliest_start_date": "2020-01-01"}, "evidence_text": "en 2020"}
+        ),
+    )
+    h = Harness([[past, WANTS_TOOLS], [past, WANTS_TOOLS], [past, WANTS_TOOLS], says("¿Cuándo?")])
+    await h.open_session()
+    events = await h.run("Empecé en 2020")
+    assert not any(isinstance(e, TurnFailed) for e in events)
 
 
 async def test_a_duplicate_input_id_fails_once_with_conflict_and_calls_no_model() -> None:

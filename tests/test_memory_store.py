@@ -72,3 +72,26 @@ async def test_the_race_is_decided_at_commit_not_at_enlist() -> None:
     winner = await store.calendar.booking_by_key("kb")
     assert winner is not None and winner.committed_at == NOW
     assert await store.calendar.booking_by_key("ka") is None
+
+
+async def test_a_scripted_save_failure_fails_one_save_and_writes_nothing() -> None:
+    store = MemoryStore(clock=lambda: NOW)
+    state = SessionState(
+        session_id=SessionId("s"),
+        config_id=ConfigId("c"),
+        config_version="1",
+        language="es",
+        channel="text",
+        created_at=NOW,
+    )
+    await store.sessions.create(state, access_hash="")
+    changed = state.model_copy(update={"language": "en"})
+    store.sessions.fail_next_save = ServiceError("down", code="provider_unavailable")
+    with pytest.raises(ServiceError) as error:
+        async with store.transaction() as tx:
+            await store.sessions.save(tx, changed, expected_revision=0)
+    assert error.value.code == "provider_unavailable"
+    assert (await store.sessions.get(SessionId("s"))) == state  # nothing was written
+    async with store.transaction() as tx:  # one-shot: the next save goes through
+        await store.sessions.save(tx, changed, expected_revision=0)
+    assert (await store.sessions.get(SessionId("s"))) == changed

@@ -213,6 +213,7 @@ class ToolOutcome(Frozen):
     summary: str  # content-free note for the reviewer panel
     events: tuple[StateUpdated | SourcesShown, ...] = ()
     spoken: str = ""  # text the runtime says verbatim (read-backs): shown == spoken == pending
+    malformed: bool = False  # unknown tool or invalid arguments: spends the repair budget
 
 
 class ToolHandler(Protocol):

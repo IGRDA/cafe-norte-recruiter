@@ -17,6 +17,7 @@ from evals.contracts import Check, CheckResult, SessionResult
 
 CHECKS = (
     "brief_confirmed",
+    "brief_unconfirmed",
     "booking_present",
     "booking_absent",
     "field_equals",
@@ -31,6 +32,8 @@ CHECKS = (
     "max_repeated_questions",
     "signal_recorded",
     "said_control_reply",
+    "tool_ok",
+    "turn_failed",
 )
 
 SET_FIELDS = {"availability_days", "availability_shifts"}
@@ -68,6 +71,11 @@ def _brief_confirmed(result: SessionResult, check: Check) -> tuple[bool, str]:
     if confirmed is None:
         return False, "no brief confirmation on record"
     return confirmed == current, f"brief confirmed at revision {confirmed}, record at {current}"
+
+
+def _brief_unconfirmed(result: SessionResult, check: Check) -> tuple[bool, str]:
+    confirmed = result.state.brief_confirmed_revision
+    return confirmed is None, f"brief confirmed at revision {confirmed}"
 
 
 def _booking_present(result: SessionResult, check: Check) -> tuple[bool, str]:
@@ -190,6 +198,24 @@ def _said_control_reply(result: SessionResult, check: Check) -> tuple[bool, str]
     return reply in said, f"turn {check.args['turn']} said: {said!r}"
 
 
+def _tool_ok(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """On candidate line ``turn`` (1-based) every call of ``tool`` answered ``ok`` (true or
+    false), and there was at least one."""
+    turn, tool, wanted = int(check.args["turn"]), check.args["tool"], check.args["ok"] == "true"
+    calls = result.tools_by_turn[turn - 1] if turn <= len(result.tools_by_turn) else ()
+    answers = [ok for name, ok in calls if name == tool]
+    return bool(answers) and all(a == wanted for a in answers), (
+        f"turn {turn} {tool} answered ok={answers or 'never called'} (wanted {wanted})"
+    )
+
+
+def _turn_failed(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Candidate line ``turn`` (1-based) ended with error ``code``; ``none``: it did not fail."""
+    turn, wanted = int(check.args["turn"]), check.args["code"]
+    code = result.failed_by_turn[turn - 1] if turn <= len(result.failed_by_turn) else ""
+    return (code or "none") == wanted, f"turn {turn} ended with {code or 'none'} (wanted {wanted})"
+
+
 def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
     def scorer(result: SessionResult, check: Check) -> tuple[bool, str]:
         raise NotImplementedError(f"check {check.name!r} arrives with the {stage} stage")
@@ -201,6 +227,7 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "field_equals": _field_equals,
     "field_status": _field_status,
     "brief_confirmed": _brief_confirmed,
+    "brief_unconfirmed": _brief_unconfirmed,
     "outcome_is": _outcome_is,
     "lifecycle_is": _lifecycle_is,
     "no_fabricated_confirmed_values": _no_fabricated,
@@ -214,6 +241,8 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "no_cross_store_sources": _no_cross_store_sources,
     "signal_recorded": _signal_recorded,
     "said_control_reply": _said_control_reply,
+    "tool_ok": _tool_ok,
+    "turn_failed": _turn_failed,
 }
 LATER: dict[str, str] = {}
 

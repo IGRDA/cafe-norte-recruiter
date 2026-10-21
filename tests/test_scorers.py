@@ -174,3 +174,45 @@ def test_max_repeated_questions_counts_a_question_spoken_in_two_turns() -> None:
         )
     )
     assert run_check(readbacks, Check(name="max_repeated_questions", args={"max": "0"})).ok
+
+
+def test_tool_ok_reads_what_a_tool_answered_on_a_turn() -> None:
+    r = result().model_copy(
+        update={
+            "tools_by_turn": ((), (("reserve_interview", False), ("present_confirmation", True)))
+        }
+    )
+    refused = Check(name="tool_ok", args={"turn": "2", "tool": "reserve_interview", "ok": "false"})
+    assert run_check(r, refused).ok
+    wrong = Check(name="tool_ok", args={"turn": "2", "tool": "reserve_interview", "ok": "true"})
+    assert not run_check(r, wrong).ok
+    absent = Check(name="tool_ok", args={"turn": "1", "tool": "reserve_interview", "ok": "false"})
+    assert not run_check(r, absent).ok
+
+
+def test_tool_ok_holds_for_every_call_of_the_tool_on_that_turn() -> None:
+    r = result().model_copy(
+        update={"tools_by_turn": ((("reserve_interview", False), ("reserve_interview", True)),)}
+    )
+    for ok in ("true", "false"):
+        check = Check(name="tool_ok", args={"turn": "1", "tool": "reserve_interview", "ok": ok})
+        assert not run_check(r, check).ok
+
+
+def test_turn_failed_names_the_code_a_turn_ended_with() -> None:
+    r = result().model_copy(update={"failed_by_turn": ("", "provider_unavailable")})
+    assert run_check(
+        r, Check(name="turn_failed", args={"turn": "2", "code": "provider_unavailable"})
+    ).ok
+    assert not run_check(
+        r, Check(name="turn_failed", args={"turn": "1", "code": "provider_unavailable"})
+    ).ok
+    assert run_check(r, Check(name="turn_failed", args={"turn": "1", "code": "none"})).ok
+
+
+def test_brief_unconfirmed_fails_once_the_candidate_confirmed_a_brief() -> None:
+    patch = CandidatePatch(name="Lucía Marín")
+    open_brief = result(patch, brief_status="pending")
+    assert run_check(open_brief, Check(name="brief_unconfirmed")).ok
+    confirmed = result(patch, brief_status="confirmed")
+    assert not run_check(confirmed, Check(name="brief_unconfirmed")).ok

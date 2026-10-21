@@ -1,13 +1,22 @@
 """API request and response models and the event envelope."""
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from cafe_norte.conversation.contracts import RuntimeEvent
-from cafe_norte.domain.contracts import Channel, ConfigId, InputId, SessionId, TurnId
+from cafe_norte.domain.contracts import (
+    Channel,
+    ConfigId,
+    InputId,
+    SessionId,
+    SessionState,
+    TurnId,
+)
 from cafe_norte.errors import ErrorCode, Language
+from cafe_norte.observability.contracts import VersionStamp
+from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.voice.contracts import VoiceMode, VoiceStatus
 
 
@@ -44,6 +53,7 @@ class CreateSessionRequest(Frozen):
 class CreateSessionResponse(Frozen):
     session_id: SessionId
     resume_url: str  # the private link, token in the fragment; shown once on the page
+    versions: VersionStamp  # what the reviewer panel shows before the first turn
 
 
 class ResumeResponse(Frozen):
@@ -105,9 +115,11 @@ class SessionEvent(Frozen):
 
 
 class SessionSnapshotResponse(Frozen):
-    """What `GET /api/sessions/{id}` returns; shape finalized with the routes."""
+    """What `GET /api/sessions/{id}` returns: one consistent read for the owner. The pending
+    confirmation is ``state.pending_confirmation``; ``last_seq`` is where the stream resumes."""
 
     session_id: SessionId
     last_seq: int
-    state: dict[str, Any]
-    transcript: tuple[dict[str, Any], ...]
+    state: SessionState
+    transcript: tuple[TurnRecord, ...]
+    versions: VersionStamp

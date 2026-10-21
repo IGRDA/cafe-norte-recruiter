@@ -19,6 +19,7 @@ from cafe_norte.api.contracts import (
     ResumeRequest,
     ResumeResponse,
     RuntimeInfo,
+    SessionSnapshotResponse,
     TurnAccepted,
     TurnRequest,
     VoiceStartResponse,
@@ -200,7 +201,11 @@ def build_router(
         await store.resume_tokens.issue(session_id, token_hash, gate.expiry(state.created_at))
         tasks.start(_drain(runtime.open_session(session_id)))
         _set_session_cookie(response, session_id)
-        return CreateSessionResponse(session_id=session_id, resume_url=f"/#resume={token}")
+        return CreateSessionResponse(
+            session_id=session_id,
+            resume_url=f"/#resume={token}",
+            versions=stamp(configuration, versions),
+        )
 
     @router.post("/api/resume")
     async def resume(body: ResumeRequest, response: Response) -> ResumeResponse:
@@ -240,6 +245,29 @@ def build_router(
         )
         tasks.start(_drain(runtime.run_turn(turn)))
         return TurnAccepted(input_id=body.input_id)
+
+    @router.get("/api/sessions/{session_id}")
+    async def get_session(session_id: str, request: Request) -> SessionSnapshotResponse:
+        """The owner's consistent snapshot; after a reload the page rebuilds from it and then
+        follows the stream from ``last_seq``."""
+        sid = owner(request, session_id)
+        state = await store.sessions.get(sid)
+        if state is None:
+            raise ServiceError("session not found", code="not_found")
+        snapshot = await store.snapshot(
+            sid,
+            versions=stamp(configurations[state.config_id], versions),
+            taken_at=datetime.now(UTC),
+        )
+        if snapshot is None:
+            raise ServiceError("session not found", code="not_found")
+        return SessionSnapshotResponse(
+            session_id=sid,
+            last_seq=max((e.seq for e in snapshot.events), default=0),
+            state=snapshot.state,
+            transcript=snapshot.turns,
+            versions=snapshot.versions,
+        )
 
     @router.get("/api/sessions/{session_id}/export")
     async def export_session(session_id: str, request: Request) -> Response:

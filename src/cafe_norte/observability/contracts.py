@@ -2,11 +2,19 @@
 
 from collections.abc import Callable, Sequence
 from datetime import datetime
-from typing import Any, Literal
+from types import TracebackType
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
-from cafe_norte.domain.contracts import ConfigId, SessionId, StoreConfiguration, TurnId
+from cafe_norte.domain.contracts import (
+    Channel,
+    ConfigId,
+    SessionId,
+    StoreConfiguration,
+    TurnId,
+)
+from cafe_norte.errors import Language
 
 
 class Frozen(BaseModel):
@@ -126,3 +134,58 @@ class StructuredEvent(Frozen):
     turn_id: TurnId | None
     event: EventName
     payload: dict[str, Any]
+
+
+# What a span is, in Langfuse's words: a generation is a model call, a tool a handler call, a
+# retriever a knowledge lookup, an agent the round loop and a chain one round of it.
+ObservationKind = Literal["span", "agent", "chain", "generation", "tool", "retriever"]
+SpanValue = str | int | float | bool
+
+
+class Span(Protocol):
+    """One timed step of a turn. Parents are explicit (``child``), not ambient: a turn is an
+    async generator, and a context variable does not survive its ``yield``."""
+
+    def child(self, name: str, kind: ObservationKind = "span", **metadata: SpanValue) -> "Span": ...
+
+    def annotate(self, **metadata: SpanValue) -> None: ...
+
+    def set_usage(self, *, model_id: str, input_tokens: int, output_tokens: int) -> None:
+        """Tokens of a generation; the adapter prices them."""
+        ...
+
+    def set_content(self, *, input: str | None = None, output: str | None = None) -> None:
+        """Text of the step. A trace carries it only when the operator turned content on."""
+        ...
+
+    def fail(self, code: str) -> None: ...
+
+    def end(self) -> None: ...
+
+    def __enter__(self) -> "Span": ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None: ...
+
+
+class Telemetry(Protocol):
+    """Structured events and one trace per turn. The runtime holds this port; ``main`` picks
+    the adapter, so a run without keys traces nothing and logs the same lines."""
+
+    def emit(self, event: StructuredEvent) -> None: ...
+
+    def turn(
+        self,
+        *,
+        session_id: SessionId,
+        turn_id: TurnId,
+        configuration: StoreConfiguration,
+        channel: Channel,
+        language: Language,
+    ) -> Span:
+        """The root span of a turn. The adapter stamps the trace with the version stamp."""
+        ...

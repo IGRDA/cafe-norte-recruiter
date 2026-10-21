@@ -5,7 +5,10 @@ import re
 import sys
 from typing import Any, TextIO
 
-from cafe_norte.observability.contracts import StructuredEvent
+from cafe_norte.domain.contracts import Channel, SessionId, StoreConfiguration, TurnId
+from cafe_norte.errors import Language
+from cafe_norte.observability.contracts import Span, StructuredEvent
+from cafe_norte.observability.fakes import NullSpan
 
 # Keys that would carry what a candidate or Ana said. A log line is metadata only.
 TRANSCRIPT_KEYS = frozenset({"text", "transcript", "content", "message"})
@@ -61,3 +64,21 @@ def _masked(value: Any) -> Any:
     if isinstance(value, list | tuple):
         return [_masked(item) for item in value]
     return value
+
+
+class StdoutTelemetry:
+    """Events as JSON lines on stdout, no traces: what a run without Langfuse keys uses."""
+
+    def emit(self, event: StructuredEvent) -> None:
+        emit(event)
+
+    def turn(
+        self,
+        *,
+        session_id: SessionId,
+        turn_id: TurnId,
+        configuration: StoreConfiguration,
+        channel: Channel,
+        language: Language,
+    ) -> Span:
+        return NullSpan()

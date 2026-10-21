@@ -54,7 +54,8 @@ One file `evals/cases/scenarios/Snn.yaml`:
   shifts, hours, start date; corrections applied, declined fields left out) against the final
   record; free text such as `experience` is the judge's to read.
 - `persona`: what the simulated candidate knows (`facts`, the first value of a field it later
-  `corrects`), `asks`, `declines`, `mood`, `switch_language_after_turn`, `wants_interview`.
+  `corrects`), `asks`, `declines`, `mood`, `switch_language_after_turn`, `withdraws_after_turn`,
+  `wants_interview`.
 - `today`: the fake clock's date, so relative dates in the script stay fixed.
 - `seconds_per_turn` (optional): how long each turn lasts on the runtime's clock; the active-time
   cap needs it (`S18`).
@@ -75,7 +76,7 @@ is built as well, and the checks move to it when the remaining checks land (D21)
 - `retrieval.py`: the retrieval suite: fixture questions through a retriever, recall@3, leakage, timings; one committed JSON per embedding model and KB version.
 - `runner.py`: loads cases, drives a session through the HTTP API (live) or the runtime with fakes (CI), collects the export and timings, applies scorers, writes a report with a `VersionStamp`.
 - `scorers.py`: pure functions over `ExportDocument` and retrieval results.
-- `simulator.py`: an LLM playing the candidate from a persona fixture; adapts to Ana's question order, applies the scripted corrections, frustration and language switches.
+- `simulator.py`: the simulated candidate. `cue(persona, language, transcript)` decides deterministically what the next line does (raise `asks[k]` on line k+2, correct on the first brief read-back only, switch language after line N, withdraw after line N, the persona's mood); an LLM through the `Model` port only words it, so every behaviour happens and on a line the report can name.
 - `judge.py`: rubric judge through the same `Model` port; secondary signal, never pass/fail.
 - `ragas_bridge.py`: converts retrieval runs into ragas samples.
 - `langfuse_sync.py`: pushes cases as a Langfuse dataset and runs as experiments, so traces, scores and prompt versions line up in one place.

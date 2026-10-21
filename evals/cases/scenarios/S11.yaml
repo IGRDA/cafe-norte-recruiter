@@ -50,6 +50,7 @@ persona:
     availability_shifts: morning
     earliest_start_date: next monday
     experience: dos años en una cafetería de barrio
+  withdraws_after_turn: 5
   declines:
     - hours_per_week
   wants_interview: false

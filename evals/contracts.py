@@ -23,9 +23,22 @@ class Persona(Frozen):
     corrections: tuple[tuple[str, str], ...] = ()  # (field, new value) applied mid-conversation
     mood: Literal["neutral", "frustrated"] = "neutral"
     switch_language_after_turn: int | None = None
+    withdraws_after_turn: int | None = None  # leaves politely on the next line
     declines: tuple[str, ...] = ()
     asks: tuple[str, ...] = ()  # questions to raise during the interview
     wants_interview: bool = True
+
+
+class Cue(Frozen):
+    """What the simulated candidate does on one line, decided by ``evals.simulator.cue``;
+    the model only words it. Facts, declines and the interview wish are standing
+    instructions from the persona."""
+
+    language: Language
+    mood: Literal["neutral", "frustrated"]
+    ask: str | None = None  # raise this question on this line
+    corrections: tuple[tuple[str, str], ...] = ()  # (field, new value) to correct now
+    withdraw: bool = False  # leave the conversation politely
 
 
 class Check(Frozen):

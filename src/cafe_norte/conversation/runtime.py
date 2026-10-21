@@ -10,7 +10,7 @@ from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, 
 from contextlib import aclosing
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import Literal, TypeGuard
 from zoneinfo import ZoneInfo
 
 from cafe_norte.conversation import prompts
@@ -845,21 +845,19 @@ class Runtime:
         first_output_ms = int((time.monotonic() - started) * 1000)
         chat.first_output()
         chat.annotate(attempt=attempt, first_output_ms=first_output_ms)
-        reported = False
-        output_characters = 0
+        seen = _Attempt()
         try:
             if first is None:
                 raise ServiceError("empty model stream", code="invalid_response")
-            async for event in _prepend(first, stream):
-                reported = reported or isinstance(event, ModelUsage)
-                if isinstance(event, ModelText):
-                    output_characters += len(event.text)
-                if not isinstance(event, ModelFinished):
+            if seen.note(first):
+                yield first
+            async for event in stream:
+                if seen.note(event):
                     yield event
         finally:
             await stream.aclose()
-            if not reported:
-                self._estimate(run, output_characters=output_characters)
+            if not seen.reported:
+                self._estimate(run, output_characters=seen.output_characters)
             self._event(
                 run,
                 "model_round",
@@ -1193,12 +1191,20 @@ def _analysis_usage(run: _Turn, analysis: SignalAnalysis) -> tuple[UsageRecord, 
     )
 
 
-async def _prepend(
-    first: ModelEvent, rest: AsyncIterator[ModelEvent]
-) -> AsyncGenerator[ModelEvent, None]:
-    yield first
-    async for event in rest:
-        yield event
+@dataclass
+class _Attempt:
+    """What one model attempt streamed: whether the provider reported its usage, and the
+    characters of text, for the estimate when it did not (D44)."""
+
+    reported: bool = False
+    output_characters: int = 0
+
+    def note(self, event: ModelEvent) -> TypeGuard[ModelText | ToolCall | ModelUsage]:
+        """Count the event; ``True`` when it is for the round to read (not the finish)."""
+        self.reported = self.reported or isinstance(event, ModelUsage)
+        if isinstance(event, ModelText):
+            self.output_characters += len(event.text)
+        return not isinstance(event, ModelFinished)
 
 
 def _nothing_left_to_do(run: _Turn) -> bool:

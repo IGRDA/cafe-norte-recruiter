@@ -13,12 +13,19 @@ from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.main import create_app
 from cafe_norte.model.contracts import Model
 from cafe_norte.persistence.memory import MemoryStore
+from cafe_norte.voice.contracts import RoomProvisioner, VoiceMode, VoiceSessionController
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "config"
 
 
-def build_test_app(*, model: Model) -> FastAPI:
+def build_test_app(
+    *,
+    model: Model,
+    voice_mode: VoiceMode = "off",
+    rooms: RoomProvisioner | None = None,
+    voice: VoiceSessionController | None = None,
+) -> FastAPI:
     store = MemoryStore()
     configurations = load_configurations(CONFIG_DIR)
     registry = ToolRegistry(all_handlers(store=store, configurations=configurations))
@@ -38,4 +45,7 @@ def build_test_app(*, model: Model) -> FastAPI:
         configurations=configurations,
         gate=AccessGate(code=None, secret=b"test-secret"),
         web_dir=ROOT / "web",
+        voice_mode=voice_mode,
+        rooms=rooms,
+        voice=voice,
     )

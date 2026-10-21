@@ -2,7 +2,7 @@ INFRA_APP := infra/app
 INFRA_BOOTSTRAP := infra/bootstrap
 
 .PHONY: setup check lint typecheck test test-db db-up db-down run migrate build-index export-schema \
-        evals evals-retrieval compare smoke infra-check infra-init infra-plan infra-apply
+        evals evals-retrieval compare smoke voice-listen voice-smoke infra-check infra-init infra-plan infra-apply
 
 # Locked install with every extra; CI and local use the same command.
 setup:
@@ -56,6 +56,14 @@ compare:
 
 smoke:
 	uv run python scripts/smoke.py $${SMOKE_URL:-http://localhost:8000}
+
+# Manual, paid: the ElevenLabs listening check (writes /tmp/voices/*.mp3).
+voice-listen:
+	uv run python scripts/voice_listen.py $(ARGS)
+
+# Manual, paid: hosted voice from the laptop. Needs the Daily, Deepgram and ElevenLabs keys in .env.
+voice-smoke:
+	CAFE_NORTE_VOICE=pipecat uv run uvicorn cafe_norte.main:create_default_app --factory --port 8000 --env-file .env
 
 infra-check:
 	terraform -chdir=$(INFRA_BOOTSTRAP) fmt -check -recursive

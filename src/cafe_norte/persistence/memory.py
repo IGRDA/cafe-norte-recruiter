@@ -20,6 +20,7 @@ from cafe_norte.domain.contracts import (
     SessionState,
     Signal,
     SlotId,
+    TurnId,
 )
 from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import StageTiming, UsageRecord
@@ -113,6 +114,25 @@ class MemoryTurns:
         turns = self._turns.get(session_id, [])
         return tuple(turns[-limit:]) if limit else ()
 
+    async def mark_delivered(
+        self,
+        tx: Transaction,
+        session_id: SessionId,
+        turn_id: TurnId,
+        *,
+        delivered_text: str,
+        interrupted: bool,
+    ) -> None:
+        def apply() -> None:
+            turns = self._turns.get(session_id, [])
+            for index, turn in enumerate(turns):
+                if turn.turn_id == turn_id and turn.role == "assistant":
+                    turns[index] = turn.model_copy(
+                        update={"delivered_text": delivered_text, "interrupted": interrupted}
+                    )
+
+        _tx(tx).enlist(apply)
+
 
 class MemoryEvents:
     def __init__(self) -> None:
@@ -202,12 +222,27 @@ class _LeasesLater:
         raise NotImplementedError
 
 
-class _AdmissionLater:
+class MemoryAdmission:
+    """Voice capacity for one process: a set of active session ids. Postgres makes it
+    cross-container; the spend reservation is recorded, not enforced, until pricing lands."""
+
+    def __init__(self) -> None:
+        self._active: dict[SessionId, float] = {}
+
     async def acquire(self, session_id: SessionId, *, max_active: int, reserve_eur: float) -> bool:
-        raise NotImplementedError
+        if session_id in self._active:
+            return True
+        if len(self._active) >= max_active:
+            return False
+        self._active[session_id] = reserve_eur
+        return True
 
     async def release(self, session_id: SessionId, *, actual_eur: float) -> None:
-        raise NotImplementedError
+        self._active.pop(session_id, None)
+
+    @property
+    def active(self) -> frozenset[SessionId]:
+        return frozenset(self._active)
 
 
 class _SummaryJobsLater:
@@ -244,7 +279,7 @@ class MemoryStore:
         self.events = MemoryEvents()
         self.calendar = _CalendarLater()
         self.leases = _LeasesLater()
-        self.admission = _AdmissionLater()
+        self.admission = MemoryAdmission()
         self.summary_jobs = _SummaryJobsLater()
         self.resume_tokens = _ResumeTokensLater()
         self.exports = _ExportsLater()

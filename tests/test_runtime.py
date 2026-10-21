@@ -420,6 +420,55 @@ async def test_a_turn_on_an_ended_session_fails_with_session_ended_and_persists_
     assert h.model.calls == ()
 
 
+async def voice_run(h: Harness, text: str, input_id: str = "v-1") -> list[RuntimeEvent]:
+    voice_turn = TurnInput(
+        session_id=SESSION, input_id=InputId(input_id), text=text, channel="voice", received_at=NOW
+    )
+    return [event async for event in h.runtime.run_turn(voice_turn)]
+
+
+async def test_a_voice_read_back_is_delivered_only_when_the_channel_says_so() -> None:
+    """Text marks a read-back delivered when journaled; voice waits for playback."""
+    h = Harness([[present_brief(), WANTS_TOOLS], says("")])
+    await h.open_session()
+    await fill_record(h)
+    events = await voice_run(h, "ya está todo")
+    turn_id = next(e for e in events if isinstance(e, TurnStarted)).turn_id
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.fully_delivered is False
+
+    # Interrupted after the first sentence: not delivered, and a "sí" cannot confirm it.
+    await h.runtime.delivered(turn_id, text="Te resumo lo que tengo.", complete=False)
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.fully_delivered is False
+    assistant = [t for t in await h.store.turns.recent(SESSION, 10) if t.role == "assistant"][-1]
+    assert assistant.delivered_text == "Te resumo lo que tengo." and assistant.interrupted is True
+
+    # Heard to the end on a later playback: delivered.
+    await h.runtime.delivered(
+        turn_id, text=state.pending_confirmation.presentation_text, complete=True
+    )
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.fully_delivered is True
+
+
+async def test_end_stops_or_abandons_through_the_lifecycle_table() -> None:
+    h = Harness([])
+    await h.open_session()
+    await h.runtime.end(SESSION, "limit")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and (state.lifecycle, state.outcome) == ("abandoned", "incomplete")
+    h2 = Harness([])
+    await h2.open_session()
+    await h2.runtime.end(SESSION, "stop")
+    state = await h2.store.sessions.get(SESSION)
+    assert state is not None and (state.lifecycle, state.outcome) == ("stopped", "incomplete")
+    await h2.runtime.end(SESSION, "stop")  # already terminal: a no-op, not an error
+
+
 async def test_an_unknown_session_fails_with_not_found() -> None:
     h = Harness([])
     events = await h.run("Hola")

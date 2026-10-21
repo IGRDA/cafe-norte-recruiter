@@ -1,14 +1,88 @@
-// Browser voice for the tracer bullet: the Web Speech API in, speechSynthesis out.
-// Temporary by decision D18; the hosted path (Daily + Pipecat) replaces this module and
-// leaves app.js untouched. Microphone permission is requested only when "Hablar" is pressed.
+// Voice for the page, in two modes chosen by the server (GET /api/runtime):
+//   pipecat  hosted voice: join the session's Daily room; STT, VAD, barge-in and TTS run on the
+//            server (D01). The browser only carries audio and reports timings.
+//   browser  the Web Speech API, free and local, kept until hosted voice is verified (D18).
+// Both expose the same small surface to app.js: supported, start(), stop(), speak(), turnEnded(),
+// closing(), and events through the callbacks.
 
 const LANG = "es-ES";
-// A final transcript below this confidence, or shorter than this, is treated as background
-// speech and discarded. "Sí" and "no" are two characters and must pass. Browsers that report
-// no confidence (Safari) pass the first check. Discarded text is shown, never silently lost.
+
+export function createVoice(options) {
+  return options.mode === "pipecat" ? createDailyVoice(options) : createBrowserVoice(options);
+}
+
+// ---- hosted voice through Daily ------------------------------------------------------------------
+
+function createDailyVoice({ onStatus, onError, startVoice, postTiming }) {
+  let call = null;
+  let audio = null;
+  const t0 = performance.now();
+  const ms = () => Math.round(performance.now() - t0);
+
+  async function start() {
+    onStatus("Conectando…");
+    let grant;
+    try {
+      grant = await startVoice(); // POST /api/sessions/{id}/voice → room_url, candidate_token
+    } catch (error) {
+      onError(error.message || "No se pudo iniciar la voz.");
+      return;
+    }
+    const { default: Daily } = await import("/vendor/daily-js.esm.js");
+    call = Daily.createCallObject({ audioSource: true, videoSource: false });
+    call.on("joined-meeting", () => {
+      onStatus("Conectada. Escuchando…");
+      postTiming("connected", ms());
+    });
+    call.on("track-started", (event) => {
+      if (event.participant?.local || event.track.kind !== "audio") return;
+      audio = audio ?? new Audio();
+      audio.autoplay = true;
+      audio.srcObject = new MediaStream([event.track]);
+      audio.play().catch(() => {});
+      postTiming("first_audio", ms());
+      onStatus("Ana está hablando…");
+    });
+    call.on("participant-left", (event) => {
+      if (!event.participant?.local) onStatus("Ana ha salido de la sala.");
+    });
+    call.on("left-meeting", () => onStatus("Llamada terminada."));
+    call.on("error", (event) => onError(`Error de la llamada: ${event.errorMsg ?? "desconocido"}`));
+    try {
+      await call.join({ url: grant.room_url, token: grant.candidate_token });
+    } catch (error) {
+      onError("No se pudo entrar en la sala. Puedes seguir por texto.");
+    }
+  }
+
+  async function stop() {
+    if (call) {
+      await call.leave().catch(() => {});
+      await call.destroy().catch(() => {});
+      call = null;
+    }
+    if (audio) {
+      audio.srcObject = null;
+      audio = null;
+    }
+  }
+
+  return {
+    supported: true,
+    start,
+    stop,
+    speak() {}, // the server speaks
+    turnEnded() {},
+    closing() {
+      stop();
+    },
+  };
+}
+
+// ---- browser speech (temporary, D18) ---------------------------------------------------------------
+
 const MIN_CONFIDENCE = 0.4;
 const MIN_CHARACTERS = 2;
-// Preferred synthesis voices, best first; anything else falls back to the first es-* voice.
 const PREFERRED_VOICES = [
   /M[oó]nica.*(Enhanced|Premium|Mejorada)/i,
   /Paulina.*(Enhanced|Premium|Mejorada)/i,
@@ -27,17 +101,17 @@ function pickVoice(synth) {
   return voices.find((v) => v.lang === LANG) ?? voices[0] ?? null;
 }
 
-export function createVoice({ onInterim, onFinal, onStatus, onError }) {
+function createBrowserVoice({ onInterim, onFinal, onStatus, onError }) {
   const Recognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
   const synth = globalThis.speechSynthesis;
   const supported = Boolean(Recognition && synth);
 
   let recognition = null;
-  let active = false; // the user wants the voice loop on
+  let active = false;
   let listening = false;
-  let queued = 0; // utterances not yet finished
-  let anaTalking = false; // from her first sentence until the turn ends and the queue drains
-  let closing = false; // the conversation ended: finish speaking, never listen again
+  let queued = 0;
+  let anaTalking = false;
+  let closing = false;
   let voice = null;
   const refreshVoice = () => {
     voice = supported ? pickVoice(synth) : null;
@@ -48,8 +122,6 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
   }
 
   function listen() {
-    // The microphone opens only between turns: never between two of Ana's sentences, where
-    // reopening it cut her speech and swallowed the candidate's first words.
     if (!active || closing || listening || queued > 0 || anaTalking) return;
     recognition = new Recognition();
     recognition.lang = LANG;
@@ -80,7 +152,7 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
       const text = finalText.trim();
       if (text.length < MIN_CHARACTERS || confidence < MIN_CONFIDENCE) {
         onStatus(`Descartado (${confidence.toFixed(2)}): "${text}". Escuchando…`);
-        return; // onend will listen again
+        return;
       }
       onFinal(text);
     };
@@ -95,7 +167,6 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
     };
     recognition.onend = () => {
       listening = false;
-      // No final result (silence) and Ana is not talking: listen again.
       if (active) setTimeout(listen, 250);
     };
     recognition.start();
@@ -124,12 +195,10 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
       queued = 0;
       anaTalking = false;
     },
-    // The conversation ended: no more listening; sentences still arriving are spoken.
     closing() {
       closing = true;
       stopListening();
     },
-    // Speak one sentence as soon as it arrives; stop the microphone so Ana does not hear herself.
     speak(text) {
       if (!active) return;
       anaTalking = true;
@@ -148,7 +217,6 @@ export function createVoice({ onInterim, onFinal, onStatus, onError }) {
       utterance.onerror = done;
       synth.speak(utterance);
     },
-    // Called when Ana's turn has ended: listen once her last sentence has finished playing.
     turnEnded() {
       anaTalking = false;
       if (queued === 0) listen();

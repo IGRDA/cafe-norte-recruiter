@@ -13,8 +13,9 @@ stores, the pay, the candidates. No real hiring decision is made or suggested.
 > SSE back to the page. Ana opens with the disclosure and collects the whole candidate record
 > in Spanish (D19), reads back phone and date, presents the brief, and ends the session once
 > it is confirmed (D20). Voice is the browser's own speech recognition and synthesis on the
-> same path. Booking, knowledge, Postgres and hosted voice keep their contracts and raise
-> `NotImplementedError`.
+> same path, or hosted voice through Daily, Deepgram and ElevenLabs with `CAFE_NORTE_VOICE=pipecat`
+> (D22, local half; Cloud Run next). Booking, knowledge and Postgres keep their contracts and
+> raise `NotImplementedError`.
 
 ## Run and test
 

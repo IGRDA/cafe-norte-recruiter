@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -31,7 +32,12 @@ from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.memory import MemoryStore
-from cafe_norte.voice.contracts import RoomProvisioner, VoiceSessionController
+from cafe_norte.voice.contracts import (
+    RoomProvisioner,
+    VoiceMode,
+    VoiceSessionController,
+    VoiceTexts,
+)
 
 STATUS: dict[ErrorCode, int] = {
     "busy": 503,
@@ -58,6 +64,9 @@ def create_app(
     rooms: RoomProvisioner | None = None,
     voice: VoiceSessionController | None = None,
     web_dir: Path | None = None,
+    voice_mode: VoiceMode = "off",
+    max_voice_sessions: int = 2,
+    session_seconds: float = 480.0,
 ) -> FastAPI:
     """Build from typed collaborators. Lifespan today: cancel in-flight turns on shutdown.
     Later stages add store warm-up, calendar seeding, lease renewal and the summary worker."""
@@ -78,6 +87,9 @@ def create_app(
             voice=voice,
             gate=gate,
             tasks=tasks,
+            voice_mode=voice_mode,
+            max_voice_sessions=max_voice_sessions,
+            session_seconds=session_seconds,
         )
     )
 
@@ -129,10 +141,67 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         ),
         owner=env.get("K_REVISION", "local"),
     )
+    voice_mode = _voice_mode(env)
+    rooms: RoomProvisioner | None = None
+    voice: VoiceSessionController | None = None
+    if voice_mode == "pipecat":
+        rooms, voice = _hosted_voice(env, runtime)
     return create_app(
         runtime=runtime,
         store=store,
         configurations=configurations,
         gate=gate_from_env(env),
         web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web")),
+        voice_mode=voice_mode,
+        rooms=rooms,
+        voice=voice,
+        max_voice_sessions=int(env.get("CAFE_NORTE_MAX_VOICE_SESSIONS", "2")),
+        session_seconds=float(env.get("CAFE_NORTE_SESSION_SECONDS", "480")),
     )
+
+
+def _voice_mode(env: Mapping[str, str]) -> VoiceMode:
+    value = env.get("CAFE_NORTE_VOICE", "off")
+    if value not in ("off", "browser", "pipecat"):
+        raise ValueError(f"CAFE_NORTE_VOICE must be off, browser or pipecat, not {value!r}")
+    return value  # type: ignore[return-value]
+
+
+def voice_texts() -> VoiceTexts:
+    table = prompts.table("voice")
+    return VoiceTexts(
+        opening=prompts.load("opening").strip(),
+        filler=table["filler"],
+        idle_prompt=table["idle_prompt"],
+    )
+
+
+def _hosted_voice(
+    env: Mapping[str, str], runtime: Runtime
+) -> tuple[RoomProvisioner, VoiceSessionController]:
+    """Pipecat voice needs the three provider keys and a voice; imported lazily so the
+    optional extra is never touched otherwise."""
+    from cafe_norte.voice.daily import DailyRooms
+    from cafe_norte.voice.pipeline import PipecatVoiceController
+
+    missing = [
+        name
+        for name in (
+            "DAILY_API_KEY",
+            "DEEPGRAM_API_KEY",
+            "ELEVENLABS_API_KEY",
+            "ELEVENLABS_VOICE_ID",
+        )
+        if not env.get(name)
+    ]
+    if missing:
+        raise ValueError(f"CAFE_NORTE_VOICE=pipecat needs {', '.join(missing)}")
+    rooms = DailyRooms(env["DAILY_API_KEY"], httpx.AsyncClient(timeout=15))
+    controller = PipecatVoiceController(
+        runtime,
+        deepgram_api_key=env["DEEPGRAM_API_KEY"],
+        elevenlabs_api_key=env["ELEVENLABS_API_KEY"],
+        voice_id=env["ELEVENLABS_VOICE_ID"],
+        texts=voice_texts(),
+    )
+    return rooms, controller

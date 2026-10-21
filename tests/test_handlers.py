@@ -73,7 +73,7 @@ class World:
         self.present = PresentConfirmationHandler(store=self.store, configurations=CONFIGS)
         self.confirm_field = ConfirmFieldHandler(store=self.store)
         self.confirm_brief = ConfirmBriefHandler(store=self.store)
-        self.end = EndSessionHandler(store=self.store)
+        self.end = EndSessionHandler(store=self.store, configurations=CONFIGS)
 
     async def open(self) -> "World":
         await self.store.sessions.create(self.state, access_hash="")
@@ -236,11 +236,30 @@ async def test_the_brief_waits_for_an_unanswered_field_read_back() -> None:
     assert "confirm_field" in outcome.model_text
 
 
+async def test_candidate_done_with_an_unconfirmed_brief_reads_the_brief_again() -> None:
+    """Live: the model closed anyway and the session hung open. Instead of a refusal the
+    candidate hears the brief and a "sí" closes it properly."""
+    w = await World(full_record()).open()
+    outcome = await w.end(context(), args("end_session", reason="candidate_done"))
+    assert not outcome.ok and outcome.summary == "brief_re_presented"
+    assert outcome.spoken == render_brief_es(full_record(), CONFIG)
+    assert "wait" in outcome.model_text.lower()
+    state = await w.current()
+    assert state.lifecycle == "active"
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "pending"
+
+
+async def test_candidate_done_with_fields_missing_names_the_next_field() -> None:
+    w = await World().open()
+    refused = await w.end(context(), args("end_session", reason="candidate_done"))
+    assert not refused.ok and refused.summary == "brief_not_ready:name"
+
+
 async def test_candidate_done_needs_the_brief_confirmed_at_the_current_revision() -> None:
     w = await World(full_record()).open()
     refused = await w.end(context(), args("end_session", reason="candidate_done"))
-    assert not refused.ok and refused.summary == "brief_not_confirmed"
-    assert "present_confirmation(target=brief)" in refused.model_text
+    assert not refused.ok
     await w.present(context(), args("present_confirmation", target="brief"))
     await w.deliver()
     await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))

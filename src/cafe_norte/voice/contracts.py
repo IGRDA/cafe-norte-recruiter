@@ -1,6 +1,6 @@
 """Voice types and ports. No Pipecat import here."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
@@ -11,6 +11,13 @@ from cafe_norte.observability.contracts import StageTiming
 
 class Frozen(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+ROOM_MARGIN_SECONDS = 120  # a room outlives the session cap by this much, then ejects
+
+
+def room_expiry(now: datetime, *, session_seconds: float) -> datetime:
+    return now + timedelta(seconds=session_seconds + ROOM_MARGIN_SECONDS)
 
 
 class Room(Frozen):
@@ -24,6 +31,18 @@ class Room(Frozen):
 
 
 VoiceStatus = Literal["connecting", "listening", "thinking", "speaking", "paused", "ended"]
+VoiceMode = Literal[
+    "off", "browser", "pipecat"
+]  # browser = Web Speech until hosted voice is verified
+
+
+class VoiceTexts(Frozen):
+    """The three fixed sentences voice needs. They live in ``conversation/prompts`` and are
+    handed in by the composition root, because this package may not import prompts."""
+
+    opening: str
+    filler: str  # spoken only while a tool is running longer than the filler delay
+    idle_prompt: str  # after the first silence window
 
 
 class VoiceTiming(Frozen):
@@ -52,4 +71,8 @@ class VoiceSessionController(Protocol):
 
     async def stop(self, session_id: SessionId, *, reason: str) -> None: ...
     def status(self, session_id: SessionId) -> VoiceStatus | None: ...
+    def observe(self, timing: VoiceTiming) -> None:
+        """A browser- or server-observed audible event; paired into ``StageTiming`` later."""
+        ...
+
     def timings(self, session_id: SessionId) -> tuple[StageTiming, ...]: ...

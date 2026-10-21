@@ -12,7 +12,7 @@ runs both. `live`-marked tests are paid and manual.
 | Knowledge | Front matter, chunking, store filtering before ranking, fusion, abstention fixtures | local index of the fixture KB |
 | Persistence | Lease claim/renew/supersede, admission, slot race, idempotent reservation, export snapshot consistency, cleanup lock | Postgres |
 | API | Validation without echo, ownership on every endpoint, SSE replay, cookie and resume token rules, security headers | fakes |
-| Voice | Bridge behaviour on interruption and delivery acknowledgement | fake processor frames, no Pipecat |
+| Voice | Delivery ledger (pure), `VoiceSession` with a fake runtime and fast timers, the two processors with Pipecat frames in memory, Daily REST with a scripted transport, the voice routes with fakes | Pipecat installed (dev extra), no provider |
 
 Scenario fixtures `S01`–`S18` from `evals/cases/scenarios/` run here against the fake model as
 the deterministic release gate; their live counterparts run from `evals/`.

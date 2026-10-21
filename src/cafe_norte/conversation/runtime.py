@@ -925,13 +925,9 @@ class Runtime:
             name, arguments = "reserve_interview", {"slot_id": str(pending.target.slot_id)}
         else:
             name, arguments = f"confirm_{pending.target.kind}", {"answer": answer}
-        call = ToolCall(call_id="runtime-answer", name=name, arguments_json=json.dumps(arguments))
-        async for event in self._run_tool(run, call, run.trace):
+        async for event in self._runtime_call(run, name, arguments):
             yield event
         run.answered = run.outcome.model_text
-        refreshed = await self._store.sessions.get(run.session_id)
-        if refreshed is not None:
-            run.state = refreshed
 
     async def _slot_choice(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """The candidate's answer to the slot offer, matched against it here (D41), so a model

@@ -11,6 +11,7 @@ from cafe_norte.conversation.contracts import (
     RuntimeEvent,
     ToolFinished,
     ToolStarted,
+    TurnFailed,
     TurnFinished,
     TurnInput,
     TurnStarted,
@@ -21,8 +22,18 @@ from cafe_norte.voice.contracts import VoiceTexts
 from cafe_norte.voice.session import VoiceSession
 
 TEXTS: dict[Language, VoiceTexts] = {
-    "es": VoiceTexts(opening="Hola, soy Ana.", filler="Un momento.", idle_prompt="¿Sigues ahí?"),
-    "en": VoiceTexts(opening="Hi, I'm Ana.", filler="One moment.", idle_prompt="Still there?"),
+    "es": VoiceTexts(
+        opening="Hola, soy Ana.",
+        filler="Un momento.",
+        idle_prompt="¿Sigues ahí?",
+        failure="Perdona, se me ha cortado. ¿Me lo repites?",
+    ),
+    "en": VoiceTexts(
+        opening="Hi, I'm Ana.",
+        filler="One moment.",
+        idle_prompt="Still there?",
+        failure="Sorry, I lost you there. Could you say that again?",
+    ),
 }
 
 SID = SessionId("s")
@@ -45,6 +56,8 @@ class FakeRuntime:
         self.turns: list[TurnInput] = []
         self.acks: list[tuple[TurnId, str, bool]] = []
         self.ended: list[str] = []
+        self.said: list[str] = []
+        self.asides: list[tuple[TurnId, str]] = []
         self.closed = 0
         self.slow = slow
 
@@ -67,6 +80,16 @@ class FakeRuntime:
         self, session_id: SessionId, reason: Literal["stop", "limit", "shutdown"]
     ) -> None:
         self.ended.append(reason)
+
+    async def say(self, session_id: SessionId, text: str) -> AsyncIterator[RuntimeEvent]:
+        """A journaled system turn: what the real runtime yields for a fixed sentence."""
+        self.said.append(text)
+        yield TurnStarted(turn_id=TurnId("sys"), language=self.language, text="")
+        yield AssistantText(text=text, spoken_form=text)
+        yield TurnFinished(turn_id=TurnId("sys"), interrupted=False, usage=(), timings=())
+
+    async def aside(self, turn_id: TurnId, text: str) -> None:
+        self.asides.append((turn_id, text))
 
 
 class Recorder:
@@ -165,6 +188,7 @@ async def test_a_filler_is_spoken_only_while_a_tool_runs_long() -> None:
     await s.wait()
     assert recorder.spoken[0] == "Un momento."
     assert recorder.spoken[-1] == "¿Y tu nombre?"
+    assert runtime.asides == [(TurnId("t1"), "Un momento.")]  # journaled, so it is on screen
 
 
 async def test_the_opening_is_spoken_in_the_session_language() -> None:
@@ -226,3 +250,29 @@ async def test_the_call_ending_pauses_the_session_once() -> None:
     await s.close()
     await s.close()
     assert runtime.ended == ["shutdown"]
+
+
+async def test_the_silence_prompt_is_a_journaled_turn() -> None:
+    """The hosted call: "¿Sigues ahí?" was heard but never appeared in the transcript."""
+    runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
+    recorder = Recorder()
+    s = session(runtime, recorder, prompt=0.01)
+    await s.transcript("hola")
+    await s.wait()
+    await s.played_one()
+    await asyncio.sleep(0.03)
+    assert runtime.said == ["¿Sigues ahí?"]
+    assert recorder.spoken[-1] == "¿Sigues ahí?"
+    await s.close()
+
+
+async def test_a_failed_turn_is_followed_by_a_spoken_and_journaled_apology() -> None:
+    """The hosted call: after a timeout Ana said nothing and the candidate waited."""
+    failed = TurnFailed(turn_id=TurnId("t1"), code="timeout", message="La operación tardó.")
+    runtime = FakeRuntime([[failed]])
+    recorder = Recorder()
+    s = session(runtime, recorder)
+    await s.transcript("De lunes a viernes")
+    await s.wait()
+    assert runtime.said == ["Perdona, se me ha cortado. ¿Me lo repites?"]
+    assert recorder.spoken[-1] == "Perdona, se me ha cortado. ¿Me lo repites?"

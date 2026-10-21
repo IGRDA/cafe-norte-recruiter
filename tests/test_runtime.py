@@ -910,3 +910,26 @@ async def test_two_slow_rounds_fail_the_turn_with_timeout() -> None:
     await h.open_session()
     events = await h.run("De lunes a viernes")
     assert isinstance(events[-1], TurnFailed) and events[-1].code == "timeout"
+
+
+# ---- sentences the system says ------------------------------------------------------------------
+
+
+async def test_say_journals_a_fixed_sentence_as_its_own_turn() -> None:
+    h = Harness([])
+    await h.open_session()
+    events = [e async for e in h.runtime.say(SESSION, "¿Sigues ahí?")]
+    assert [type(e).__name__ for e in events] == ["TurnStarted", "AssistantText", "TurnFinished"]
+    last = (await h.store.turns.recent(SESSION, 1))[0]
+    assert (last.role, last.text) == ("assistant", "¿Sigues ahí?")
+
+
+async def test_an_aside_is_journaled_under_the_running_turn() -> None:
+    h = Harness([says("Hola.")])
+    await h.open_session()
+    events = await h.run("Hola")
+    turn_id = next(e.turn_id for e in events if isinstance(e, TurnStarted))
+    await h.runtime.aside(turn_id, "Un momento.")
+    last = h.store.events.all(SESSION)[-1]
+    assert last.kind == "assistant_text" and last.turn_id == turn_id
+    assert "Un momento." in last.payload_json

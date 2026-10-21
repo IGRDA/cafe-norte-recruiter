@@ -5,3 +5,4 @@
 
 filler: One moment, please.
 idle_prompt: Are you still there?
+failure: Sorry, I lost you there. Could you say that again?

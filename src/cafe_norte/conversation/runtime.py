@@ -258,6 +258,21 @@ class Runtime:
         async for event in self._system_turn(session_id, input_id, _resume, reactivate=True):
             yield event
 
+    async def say(self, session_id: SessionId, text: str) -> AsyncIterator[RuntimeEvent]:
+        """A fixed sentence the system says outside a candidate turn (the silence prompt, the
+        apology after a failed turn), journaled as its own turn so the page and the export
+        show everything Ana said (D35)."""
+        input_id = InputId(f"system-{uuid.uuid4().hex[:8]}")
+        async for event in self._system_turn(session_id, input_id, lambda _: [text]):
+            yield event
+
+    async def aside(self, turn_id: TurnId, text: str) -> None:
+        """A sentence voice said inside a running turn (the filler while a tool works),
+        journaled under that turn. Unknown turns are ignored."""
+        session_id = self._turn_sessions.get(turn_id)
+        if session_id is not None:
+            await self._journal(session_id, turn_id, _say(text))
+
     async def _system_turn(
         self,
         session_id: SessionId,

@@ -5,3 +5,4 @@
 
 filler: Un momento, por favor.
 idle_prompt: ¿Sigues ahí?
+failure: Perdona, se me ha cortado. ¿Me lo repites?

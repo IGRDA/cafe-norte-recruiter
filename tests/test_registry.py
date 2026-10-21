@@ -81,3 +81,23 @@ async def test_unknown_keys_in_arguments_are_rejected() -> None:
     )
     outcome = await registry.dispatch(call, CONTEXT)
     assert not outcome.ok and "session_id" in outcome.model_text
+
+
+async def test_an_unknown_tool_and_invalid_arguments_are_malformed_calls() -> None:
+    registry = ToolRegistry({"update_candidate": Recorder()})
+    unknown = await registry.dispatch(
+        ToolCall(call_id="c", name="drop_tables", arguments_json="{}"), CONTEXT
+    )
+    invalid = await registry.dispatch(
+        ToolCall(call_id="c", name="update_candidate", arguments_json='{"patch": {}}'), CONTEXT
+    )
+    valid = await registry.dispatch(
+        ToolCall(
+            call_id="c",
+            name="update_candidate",
+            arguments_json='{"patch": {"name": "Lucía"}, "evidence_text": "soy Lucía"}',
+        ),
+        CONTEXT,
+    )
+    assert unknown.malformed and invalid.malformed
+    assert not valid.malformed

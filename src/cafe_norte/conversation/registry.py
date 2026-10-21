@@ -11,8 +11,9 @@ from cafe_norte.model.contracts import ToolCall, ToolSchema
 
 class ToolRegistry:
     """Rejects unknown names, validates ``arguments_json`` against the tool's model, and calls
-    the handler. A validation failure returns a ``ToolOutcome`` the model can repair from,
-    at most once per turn; the runtime counts. Only tools with a handler are advertised."""
+    the handler. A validation failure returns a ``ToolOutcome`` (``malformed``) the model can
+    repair from, at most once per turn; the runtime counts. Only tools with a handler are
+    advertised."""
 
     def __init__(self, handlers: Mapping[ToolName, ToolHandler]) -> None:
         self._handlers: dict[str, ToolHandler] = {name: h for name, h in handlers.items()}
@@ -32,6 +33,7 @@ class ToolRegistry:
                 ok=False,
                 model_text=f"Unknown tool '{call.name}'. Available tools: {available}.",
                 summary="unknown_tool",
+                malformed=True,
             )
         try:
             arguments = self._models[call.name].model_validate_json(call.arguments_json)
@@ -44,5 +46,6 @@ class ToolRegistry:
                 ok=False,
                 model_text=f"Invalid arguments for {call.name}: {problems}. Fix them and retry.",
                 summary=f"invalid_arguments:{len(error.errors())}",
+                malformed=True,
             )
         return await handler(context, arguments)

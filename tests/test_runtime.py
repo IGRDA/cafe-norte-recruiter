@@ -236,6 +236,45 @@ async def test_tool_rounds_are_bounded() -> None:
     assert len(h.model.calls) == 3
 
 
+def malformed_call(call_id: str = "bad") -> ToolCall:
+    return ToolCall(call_id=call_id, name="update_candidate", arguments_json='{"patch": {}}')
+
+
+async def test_one_malformed_call_is_repaired_and_the_turn_finishes() -> None:
+    h = Harness([[malformed_call(), WANTS_TOOLS], [name_call(), WANTS_TOOLS], says("¿Cuándo?")])
+    await h.open_session()
+    events = await h.run("Soy Lucía")
+    assert not any(isinstance(e, TurnFailed) for e in events)
+    assert isinstance(events[-1], TurnFinished)
+    assert "Invalid arguments for update_candidate" in h.model.calls[1][-1].content
+
+
+async def test_a_second_malformed_call_ends_the_turn_with_invalid_response() -> None:
+    h = Harness(
+        [[malformed_call("a"), WANTS_TOOLS], [malformed_call("b"), WANTS_TOOLS], says("Hola.")]
+    )
+    await h.open_session()
+    events = await h.run("Soy Lucía")
+    failed = events[-1]
+    assert isinstance(failed, TurnFailed) and failed.code == "invalid_response"
+    assert len(h.model.calls) == 2  # no third round
+    assert not any(isinstance(e, AssistantText) for e in events)
+
+
+async def test_a_domain_refusal_is_not_a_malformed_call() -> None:
+    past = ToolCall(
+        call_id="p",
+        name="update_candidate",
+        arguments_json=json.dumps(
+            {"patch": {"earliest_start_date": "2020-01-01"}, "evidence_text": "en 2020"}
+        ),
+    )
+    h = Harness([[past, WANTS_TOOLS], [past, WANTS_TOOLS], [past, WANTS_TOOLS], says("¿Cuándo?")])
+    await h.open_session()
+    events = await h.run("Empecé en 2020")
+    assert not any(isinstance(e, TurnFailed) for e in events)
+
+
 async def test_a_duplicate_input_id_fails_once_with_conflict_and_calls_no_model() -> None:
     h = Harness([says("Hola.")])
     await h.open_session()

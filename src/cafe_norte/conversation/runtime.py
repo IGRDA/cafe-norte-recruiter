@@ -75,6 +75,7 @@ class Limits:
         "lease_seconds",
         "llm_first_output_seconds",
         "max_answer_characters",
+        "max_repairs",
         "max_tool_rounds",
         "session_seconds",
         "tool_seconds",
@@ -84,6 +85,7 @@ class Limits:
         self,
         *,
         max_tool_rounds: int = 4,
+        max_repairs: int = 1,
         llm_first_output_seconds: float = 6.0,
         tool_seconds: float = 10.0,
         session_seconds: float = 480.0,
@@ -92,6 +94,7 @@ class Limits:
     ) -> None:
         self.lease_seconds = lease_seconds
         self.max_tool_rounds = max_tool_rounds
+        self.max_repairs = max_repairs
         self.max_answer_characters = max_answer_characters
         self.llm_first_output_seconds = llm_first_output_seconds
         self.tool_seconds = tool_seconds
@@ -122,6 +125,7 @@ class _Turn:
     usage: list[UsageRecord] = field(default_factory=list)
     timings: list[StageTiming] = field(default_factory=list)
     asked: bool = False  # a question has been spoken; the turn says nothing more
+    repairs: int = 0  # malformed tool calls this turn; the budget is ``Limits.max_repairs``
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
     outcome: ToolOutcome = field(
         default_factory=lambda: ToolOutcome(ok=True, model_text="", summary="")
@@ -187,7 +191,7 @@ class Runtime:
 
     Explicit stop and human requests are matched before the model runs; the signal analyzer,
     when configured, classifies each user turn after it finished and its verdict shapes only
-    the next turn. Cancellation, repair counting and leases arrive in later stages."""
+    the next turn. A second malformed tool call in one turn ends it with ``invalid_response``."""
 
     def __init__(
         self,
@@ -631,6 +635,10 @@ class Runtime:
         for call in run.calls:
             async for event in self._run_tool(run, call):
                 yield event
+            if run.outcome.malformed:
+                run.repairs += 1
+                if run.repairs > self._limits.max_repairs:
+                    raise ServiceError("malformed tool call after repair", code="invalid_response")
             run.messages.append(
                 ModelMessage(
                     role="tool",

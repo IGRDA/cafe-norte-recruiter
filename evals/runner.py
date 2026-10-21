@@ -47,6 +47,7 @@ from evals.contracts import (
 from evals.live import MAX_LIVE_TURNS
 from evals.live_runs import DEFAULT_SIMULATOR, Planned, execute
 from evals.observation import fold, session_result
+from evals.ragas_bridge import score_with_ragas, to_ragas_samples
 from evals.retrieval import load_cases, run_retrieval, write_report
 from evals.scorers import run_check
 
@@ -252,6 +253,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--retriever", choices=["hybrid", "lexical"], default="hybrid")
     parser.add_argument("--out", default=None, help="results directory (per suite default)")
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--ragas", action="store_true", help="retrieval: add ragas' ID metrics")
     live = parser.add_argument_group("live runs (paid; the estimate is printed first)")
     live.add_argument("--model", default=os.environ.get("CAFE_NORTE_MODEL") or DEFAULT_MODEL)
     live.add_argument("--simulator", default=DEFAULT_SIMULATOR)
@@ -267,7 +269,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{scenario.id}  {scenario.title}")
         return 0
     if args.suite == "retrieval":
-        return retrieval_main(args.retriever, args.only, Path(args.out or RETRIEVAL_RESULTS))
+        out = Path(args.out or RETRIEVAL_RESULTS)
+        return retrieval_main(args.retriever, args.only, out, ragas=args.ragas)
     if args.suite == "scenarios" and args.mode == "live":
         return live_main(args)
     if args.suite == "comparison":
@@ -355,9 +358,10 @@ def comparison_main(args: argparse.Namespace) -> int:
     )
 
 
-def retrieval_main(mode: str, only: Sequence[str], out: Path) -> int:
+def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = False) -> int:
     """The 24 questions through the real retriever: ``hybrid`` needs the knowledge extra and
-    downloads the model once; ``lexical`` is BM25 only and runs anywhere."""
+    downloads the model once; ``lexical`` is BM25 only and runs anywhere. ``ragas`` adds its
+    ID-based context precision and recall over the answerable questions (offline, free)."""
     configurations = load_configurations(CONFIG_DIR)
     (kb_version,) = {c.kb_version for c in configurations.values()}
     documents = load_documents(KB_DIR)
@@ -371,6 +375,9 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path) -> int:
     retriever = HybridRetriever(index, embedder)
     cases = [c for c in load_cases() if not only or c.id in set(only)]
     report = asyncio.run(run_retrieval(cases, retriever, configurations))
+    if ragas:
+        scores = asyncio.run(score_with_ragas(to_ragas_samples(report.runs, cases)))
+        report = report.model_copy(update={"ragas": scores})
     path = write_report(report, out)
     for run in report.runs:
         mark = {True: "hit ", False: "MISS", None: "    "}[run.hit] + (
@@ -382,4 +389,11 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path) -> int:
         f"{len(report.runs)}  unsupported with sources {report.unsupported_with_sources}/4  "
         f"median {report.median_ms} ms  {report.embedding_model}  -> {path}"
     )
+    if report.ragas is not None:
+        precision = report.ragas.mean_precision
+        print(
+            f"ragas id-based: precision {'–' if precision is None else f'{precision:.2f}'} "
+            f"(n={report.ragas.samples - report.ragas.nothing_retrieved}), recall "
+            f"{report.ragas.mean_recall:.2f} (n={report.ragas.samples})"
+        )
     return 0 if report.leaked == 0 else 1

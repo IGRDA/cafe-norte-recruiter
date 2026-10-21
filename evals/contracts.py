@@ -151,6 +151,33 @@ class RetrievalCase(Frozen):
     expected_facts: tuple[str, ...] = ()
 
 
+class RagasSample(Frozen):
+    """One answerable retrieval question in ragas' terms (``SingleTurnSample``): what came
+    back and what should have, as chunk ids."""
+
+    case_id: str
+    user_input: str
+    retrieved_context_ids: tuple[str, ...]
+    reference_context_ids: tuple[str, ...]
+
+
+class RagasCaseScore(Frozen):
+    case_id: str
+    precision: float | None  # None when nothing was retrieved: ragas has no precision then
+    recall: float
+
+
+class RagasScores(Frozen):
+    """ragas' ID-based context precision and recall, reported next to recall@3, never
+    instead of it (D06)."""
+
+    samples: int
+    mean_precision: float | None  # over questions that retrieved something
+    mean_recall: float
+    nothing_retrieved: int
+    per_case: tuple[RagasCaseScore, ...]
+
+
 class RetrievalRun(Frozen):
     """One question through the retriever: what came back, scored against the fixture."""
 
@@ -175,6 +202,7 @@ class RetrievalReport(Frozen):
     leaked: int  # over every case
     unsupported_with_sources: int  # stage 1 has no floor: reported, not judged
     median_ms: int
+    ragas: RagasScores | None = None  # ``--ragas``: a second opinion on the answerable ones
 
 
 class ComparisonCase(Frozen):

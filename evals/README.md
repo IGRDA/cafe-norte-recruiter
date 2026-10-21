@@ -6,7 +6,7 @@ are part of CI; live runs call paid providers and are manual.
 | Suite | Cases | Scorers | Mode |
 | --- | --- | --- | --- |
 | `scenarios` | S01–S18 (`cases/scenarios/*.yaml`): scripted turns for CI, persona for the simulator | deterministic checks on the final `ExportDocument` (fields, confirmations, booking, flags, no fabricated confirmed value) + optional rubric judge | CI (fake) and live |
-| `retrieval` | 24 questions (`cases/retrieval/questions.yaml`): 16 answerable, 4 unsupported, 4 leakage | recall@3 of expected sections, zero cross-store sources; unsupported questions reported with what came back after the floor (D27); ragas as a second opinion later | `make evals-retrieval` (`--retriever hybrid` needs the extra; `lexical` runs in CI) |
+| `retrieval` | 24 questions (`cases/retrieval/questions.yaml`): 16 answerable, 4 unsupported, 4 leakage | recall@3 of expected sections, zero cross-store sources; unsupported questions reported with what came back after the floor (D27); ragas ID-based context precision and recall with `--ragas` | `make evals-retrieval` (`--retriever hybrid` needs the extra; `lexical` runs in CI) |
 | `comparison` | 6 multi-turn cases × 2 models × 2 repetitions (`cases/comparison/cases.yaml`), 24 runs on one loopback server per model, same prompt, tools, KB and configuration | each case's scenario `live_checks`, extraction accuracy, tool calls ok, grounding checks, runs passed, latency, cost; summary and runs (no exports) committed under `results/comparison/` | live, bounded, `--yes` |
 
 ```bash
@@ -15,6 +15,7 @@ make evals ARGS="--suite scenarios --mode live --only S01 S02"          # prints
 make evals ARGS="--suite scenarios --mode live --only S01 S02 --yes"    # spends
 make evals ARGS="--suite scenarios --mode live --only S01 --model fake --simulator fake --yes"  # free dry run
 make evals-retrieval ARGS="--retriever hybrid"   # lexical: BM25 only, no extra
+make evals-retrieval ARGS="--retriever lexical --ragas"   # adds ragas' ID-based metrics, offline
 make compare                                   # 6 cases x 2 models x 2 runs: prints the estimate only
 make compare ARGS="--yes"                      # spends; default models openai/gpt-4o-mini openai/gpt-4o
 make compare ARGS="--models fake --repeat 1 --simulator fake --max-turns 2 --yes"  # free dry run
@@ -91,7 +92,7 @@ is built as well, and the checks move to it when the remaining checks land (D21)
 - `scorers.py`: pure functions over `ExportDocument` and retrieval results.
 - `simulator.py`: the simulated candidate. `cue(persona, language, transcript)` decides deterministically what the next line does (raise `asks[k]` on line k+2, correct on the first brief read-back only, switch language after line N, withdraw after line N, the persona's mood); an LLM through the `Model` port only words it, so every behaviour happens and on a line the report can name.
 - `judge.py`: rubric judge through the same `Model` port (`--judge provider/model`, prompt `prompts/judge.md`): one JSON boolean per scenario `rubric` bullet over the exported transcript, or `unparsable` with the reason (a string "true" is not a boolean). Secondary signal, never pass/fail: the report shows it in its own section and flags a judge that is also the answering model.
-- `ragas_bridge.py`: converts retrieval runs into ragas samples.
+- `ragas_bridge.py`: answerable retrieval runs as ragas samples (chunk ids retrieved and expected) scored by ragas' ID-based context precision and recall: offline, no model, next to recall@3 (`make evals-retrieval ARGS="--ragas"`). A question that retrieved nothing has no precision and is counted apart. Faithfulness needs answers and a paid judge and is not computed.
 - `langfuse_sync.py`: pushes cases as a Langfuse dataset and runs as experiments, so traces, scores and prompt versions line up in one place.
 - `report.py`: `summarize` (pure) gives one row per answering model: runs passed, extraction (exact facts), no fabricated field, tool calls ok, grounding checks, median first sentence and turn time, cost of the priced runs; then by configuration and language, by case, and every miss with its reason. Every rate is k/n and every median says its n ("2.0 s (n=96 turns)"). `render_markdown` states the spec's targets next to the numbers; `render_json` is the same without exports.
 

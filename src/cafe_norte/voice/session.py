@@ -86,8 +86,7 @@ class VoiceSession:
         self._opened = False
         self._filler_task: asyncio.Task[None] | None = None
         self._idle_task: asyncio.Task[None] | None = None
-        self._prompted = False  # the one silence prompt of this listening period was said
-        self._listening = False  # this listening period has started
+        self._prompted = False  # the one silence prompt since the candidate's last turn was said
         self._owed: str | None = None  # the apology to say once the queued audio has played
 
     # ---- inputs from the audio side --------------------------------------------------------------
@@ -106,7 +105,7 @@ class VoiceSession:
         self._cancel_idle()
         if self._turn_task is not None and not self._turn_task.done():
             return  # an interruption frame precedes any new speech; nothing to do here
-        self._listening = False  # the candidate has spoken: a new period starts after this turn
+        self._prompted = False  # the candidate has spoken: the next silence earns a prompt again
         turn = TurnInput(
             session_id=self._session_id,
             input_id=InputId(uuid.uuid4().hex),
@@ -132,25 +131,19 @@ class VoiceSession:
         """The candidate started speaking over Ana: stop generating, record what was heard."""
         self._cancel_filler()
         task, self._turn_task = self._turn_task, None
-        cut = False  # whether Ana was cut off mid-turn
         if task is not None and not task.done():
-            cut = True
             task.cancel()
             try:
                 await task
             except asyncio.CancelledError:
                 pass
         if self._turn_id is not None and not self._acknowledged:
-            cut = True
             text, _ = heard(self._ledger)
             self._acknowledged = True
             await self._runtime.delivered(self._turn_id, text=text, complete=False)
         self._ledger = Ledger()
         self._owed = None  # the candidate is already speaking: the apology has no job left
-        self._listening = True
         self._set("listening")
-        if cut:
-            self._prompted = False  # Ana was cut off: a new listening period starts
         self._restart_idle()
 
     async def wait(self) -> None:
@@ -218,33 +211,30 @@ class VoiceSession:
     async def _drained(self) -> None:
         """Called whenever playback finishes and when a turn ends. Once the turn is over and
         every sentence sent has played: tell the runtime what was heard (once), say the apology
-        that was owed, and only then start the listening period (once)."""
+        that was owed, and only then listen. Decides before awaiting, so a second call while
+        the first is still reporting cannot say the apology twice."""
         text, complete = heard(self._ledger)
         if not (self._turn_done and complete):
             return
-        if not self._acknowledged:
-            self._acknowledged = True
-            if self._turn_id is not None:
-                await self._runtime.delivered(self._turn_id, text=text, complete=True)
-        if self._owed is not None:
-            owed, self._owed = self._owed, None
+        acknowledge, self._acknowledged = not self._acknowledged, True
+        owed, self._owed = self._owed, None
+        if acknowledge and self._turn_id is not None:
+            await self._runtime.delivered(self._turn_id, text=text, complete=True)
+        if owed is not None:
             self._set("speaking")
             await self._say(owed)  # its own playback calls this again
-            return
-        if not self._listening:
-            self._listening = True
-            self._prompted = False
+        elif self.status != "listening":
             self._set("listening")
-            self._start_idle()
+            self._restart_idle()
 
     @property
     def _ledger(self) -> Ledger:
-        return self.__ledger
+        return self._audio
 
     @_ledger.setter
     def _ledger(self, ledger: Ledger) -> None:
         """Every change to the ledger goes through here, so ``_quiet`` never disagrees."""
-        self.__ledger = ledger
+        self._audio = ledger
         if heard(ledger)[1]:
             self._quiet.set()
         else:
@@ -257,14 +247,11 @@ class VoiceSession:
     # ---- silence ---------------------------------------------------------------------------------
 
     def _restart_idle(self) -> None:
-        """Speech while listening restarts the countdown; once the prompt was said, it does
-        not earn another."""
+        """Listening starts the countdown and speech restarts it; once the prompt was said,
+        only the candidate's next turn earns another (D40)."""
         if self.status == "listening" and not self._prompted:
-            self._start_idle()
-
-    def _start_idle(self) -> None:
-        self._cancel_idle()
-        self._idle_task = asyncio.create_task(self._idle())
+            self._cancel_idle()
+            self._idle_task = asyncio.create_task(self._idle())
 
     async def _idle(self) -> None:
         """One "¿Sigues ahí?" after the silence; a live call is never paused for silence."""

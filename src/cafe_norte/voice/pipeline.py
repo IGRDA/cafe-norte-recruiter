@@ -21,7 +21,6 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregator,
     LLMUserAggregatorParams,
 )
-from pipecat.processors.frame_processor import FrameProcessor
 from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
 from pipecat.transcriptions.language import Language as PipecatLanguage
@@ -81,17 +80,19 @@ def user_turn_strategies() -> UserTurnStrategies:
     )
 
 
-def user_side(session: SessionPort, vad: VADAnalyzer | None) -> list[FrameProcessor]:
+def user_side(
+    session: SessionPort, vad: VADAnalyzer | None
+) -> tuple[SpeechTap, LLMUserAggregator, InboundBridge]:
     """What sits between STT and TTS, in order: the speech tap, Pipecat's user aggregator and
-    our bridge.
-    One function, so the pipeline and the tests that run the real aggregator share it."""
+    our bridge. One function, so the pipeline and the test that runs the real aggregator
+    share it."""
     turns = LLMUserAggregator(
         LLMContext(),
         params=LLMUserAggregatorParams(
             vad_analyzer=vad, user_turn_strategies=user_turn_strategies()
         ),
     )
-    return [SpeechTap(session), turns, InboundBridge(session)]
+    return SpeechTap(session), turns, InboundBridge(session)
 
 
 class PipecatVoiceController:
@@ -208,9 +209,7 @@ class PipecatVoiceController:
             on_language=lambda new: tasks.add(asyncio.ensure_future(recognise_in(new))),
         )
         user = user_side(session, SileroVADAnalyzer())
-        bridge = user[-1]
-        assert isinstance(bridge, InboundBridge)
-        holder["bridge"] = bridge
+        holder["bridge"] = user[-1]
         pipeline = Pipeline(
             [
                 transport.input(),

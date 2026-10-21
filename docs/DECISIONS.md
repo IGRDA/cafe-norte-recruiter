@@ -1032,13 +1032,14 @@ the apology did not wait for the audio already sent to TTS.
   queue: what was sent and what has played.
 - A system sentence never jumps that queue. A failed turn's queued sentences play to the end;
   then the turn is acknowledged with what was heard (its summary may be a read-back), the
-  apology is journaled and spoken, and only after it has played does the listening period start.
+  apology is journaled and spoken, and only after it has played does Ana listen.
   One place decides this, `_drained`, which runs whenever playback empties and when a turn ends.
 - Silence is audible silence: the filler (1.5 s, while a tool runs) and the silence prompt
   (8 s) share `_after_silence`, which counts only once the queue has played and restarts if
   anything is said meanwhile.
-- One silence prompt per listening period. A listening period starts once per finished turn,
-  or when the candidate cuts Ana off. Speech evidence (the aggregator's interruption, by VAD or
+- One silence prompt per candidate turn: the allowance resets when the candidate's words become
+  a turn, never on a timer or on Ana's own playback. Listening starts in one place, `_drained`,
+  and is a status, not a second flag. Speech evidence (the aggregator's interruption, by VAD or
   transcript, and any raw transcript) restarts the countdown; a cough with no turn still gets
   its one prompt later; speech after the prompt does not earn another.
 - Raw transcripts are seen by `SpeechTap`, between STT and the aggregator. `user_side` builds

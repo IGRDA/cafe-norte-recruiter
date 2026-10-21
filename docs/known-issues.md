@@ -81,8 +81,8 @@ the session never paused during the call; no model round timed out.
 - **Reproduce.** `test_ki04_…`.
 - **Fix.** One clock per listening period: the failure path acknowledges the turn first, or
   `_maybe_acknowledge` does not re-arm a clock that is already running.
-- **Fixed (D40).** A listening period starts in one place, `VoiceSession._drained`, once per
-  finished turn.
+- **Fixed (D40).** Listening starts in one place, `VoiceSession._drained`, and the one prompt
+  is earned again only by the candidate's next turn.
 
 ## KI-05 · System sentences are said ahead of the audio still playing
 

@@ -83,7 +83,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Text turn | 1–2000 characters |
 | Voice sessions per container | 2 (Postgres-enforced) |
 | Session starts per access session per hour | 3 |
-| Silence | 8 s of audible silence (queued audio played, no speech heard), then one "¿Sigues ahí?" per listening period; speech restarts the count; a live call is never paused, the session pauses when the call ends (D35, D40) |
+| Silence | 8 s of audible silence (queued audio played, no speech heard), then one "¿Sigues ahí?" per candidate turn; speech restarts the count; a live call is never paused, the session pauses when the call ends (D35, D40) |
 | Database connections per container | 5 |
 | Database statement timeout | 3 s |
 | Database lock wait | 2 s |

@@ -307,7 +307,7 @@ async def test_speech_that_comes_to_nothing_still_earns_one_prompt_later() -> No
 
 
 async def test_speech_after_the_prompt_does_not_earn_a_second_one() -> None:
-    """One prompt per listening period; only a new turn starts a new period."""
+    """One prompt per candidate turn: speech that does not become a turn earns no other."""
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
     recorder = Recorder()
     s = session(runtime, recorder, prompt=0.02)
@@ -319,6 +319,26 @@ async def test_speech_after_the_prompt_does_not_earn_a_second_one() -> None:
     await s.interrupted()
     await asyncio.sleep(0.05)
     assert recorder.spoken.count("¿Sigues ahí?") == 1
+    await s.close()
+
+
+async def test_a_new_turn_earns_a_new_prompt_even_when_its_apology_is_cut() -> None:
+    """The prompt of one period does not carry over: the candidate answered, the turn failed,
+    they spoke over the apology and went quiet. Silence is prompted again."""
+    failed = TurnFailed(turn_id=TurnId("t1"), code="timeout", message="La operación tardó.")
+    runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()], [failed]])
+    recorder = Recorder()
+    s = session(runtime, recorder, prompt=0.02)
+    await s.transcript("hola")
+    await s.wait()
+    await s.played_one()
+    await asyncio.sleep(0.03)  # first period: the prompt is said
+    await s.played_one()
+    await s.transcript("Lucía")  # a new turn, which fails: the apology is said at once
+    await s.wait()
+    await s.interrupted()  # the candidate speaks over the apology, then nothing follows
+    await asyncio.sleep(0.04)
+    assert recorder.spoken.count("¿Sigues ahí?") == 2
     await s.close()
 
 

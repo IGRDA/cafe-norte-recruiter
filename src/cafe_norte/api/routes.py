@@ -100,6 +100,8 @@ def build_router(
             raise ServiceError("voice is not configured", code="provider_unavailable")
         if await store.sessions.get(sid) is None:
             raise ServiceError("no such session", code="not_found")
+        if voice.status(sid) is not None:
+            raise ServiceError("voice already running for this session", code="conflict")
         if not await store.admission.acquire(
             sid, max_active=max_voice_sessions, reserve_eur=VOICE_RESERVE_EUR
         ):

@@ -52,6 +52,16 @@ def test_starting_voice_provisions_a_room_and_starts_the_bot(
     assert datetime.fromisoformat(body["expires_at"]) > datetime.now(UTC)
 
 
+def test_starting_voice_twice_for_one_session_is_a_conflict_not_a_second_room(
+    client: TestClient, rooms: FakeRooms
+) -> None:
+    session_id = create_session(client)
+    assert client.post(f"/api/sessions/{session_id}/voice").status_code == 200
+    again = client.post(f"/api/sessions/{session_id}/voice")
+    assert again.status_code == 409 and again.json()["code"] == "conflict"
+    assert rooms.created == [session_id]
+
+
 def test_a_third_concurrent_voice_session_is_busy(client: TestClient) -> None:
     first, second, third = (create_session(client) for _ in range(3))
     # Each create_session replaces the cookie; re-set it per call.

@@ -190,6 +190,15 @@ def test_tool_ok_reads_what_a_tool_answered_on_a_turn() -> None:
     assert not run_check(r, absent).ok
 
 
+def test_tool_ok_holds_for_every_call_of_the_tool_on_that_turn() -> None:
+    r = result().model_copy(
+        update={"tools_by_turn": ((("reserve_interview", False), ("reserve_interview", True)),)}
+    )
+    for ok in ("true", "false"):
+        check = Check(name="tool_ok", args={"turn": "1", "tool": "reserve_interview", "ok": ok})
+        assert not run_check(r, check).ok
+
+
 def test_turn_failed_names_the_code_a_turn_ended_with() -> None:
     r = result().model_copy(update={"failed_by_turn": ("", "provider_unavailable")})
     assert run_check(

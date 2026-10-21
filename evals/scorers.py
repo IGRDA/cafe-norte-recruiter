@@ -193,11 +193,14 @@ def _said_control_reply(result: SessionResult, check: Check) -> tuple[bool, str]
 
 
 def _tool_ok(result: SessionResult, check: Check) -> tuple[bool, str]:
-    """On candidate line ``turn`` (1-based) the tool ``tool`` answered ``ok`` (true or false)."""
+    """On candidate line ``turn`` (1-based) every call of ``tool`` answered ``ok`` (true or
+    false), and there was at least one."""
     turn, tool, wanted = int(check.args["turn"]), check.args["tool"], check.args["ok"] == "true"
     calls = result.tools_by_turn[turn - 1] if turn <= len(result.tools_by_turn) else ()
     answers = [ok for name, ok in calls if name == tool]
-    return wanted in answers, f"turn {turn} {tool} answered ok={answers or 'never called'}"
+    return bool(answers) and all(a == wanted for a in answers), (
+        f"turn {turn} {tool} answered ok={answers or 'never called'} (wanted {wanted})"
+    )
 
 
 def _turn_failed(result: SessionResult, check: Check) -> tuple[bool, str]:

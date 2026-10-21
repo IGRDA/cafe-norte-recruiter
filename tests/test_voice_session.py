@@ -2,7 +2,7 @@
 events; a recorder stands in for TTS; a controllable clock drives the idle timers."""
 
 import asyncio
-from collections.abc import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
@@ -18,6 +18,7 @@ from cafe_norte.conversation.contracts import (
 )
 from cafe_norte.domain.contracts import SessionId, TurnId
 from cafe_norte.errors import Language
+from cafe_norte.observability.contracts import UsageRecord
 from cafe_norte.voice.contracts import VoiceTexts
 from cafe_norte.voice.session import VoiceSession
 
@@ -60,6 +61,7 @@ class FakeRuntime:
         self.asides: list[tuple[TurnId, str]] = []
         self.closed = 0
         self.slow = slow
+        self.usage: list[UsageRecord] = []
 
     async def run_turn(self, turn: TurnInput) -> AsyncGenerator[RuntimeEvent, None]:
         self.turns.append(turn)
@@ -90,6 +92,9 @@ class FakeRuntime:
 
     async def aside(self, turn_id: TurnId, text: str) -> None:
         self.asides.append((turn_id, text))
+
+    async def record_usage(self, session_id: SessionId, usage: Sequence[UsageRecord]) -> None:
+        self.usage.extend(usage)
 
 
 class Recorder:

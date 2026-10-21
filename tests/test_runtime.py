@@ -55,7 +55,7 @@ from cafe_norte.model.contracts import (
     ToolSchema,
 )
 from cafe_norte.model.fake import FakeModel
-from cafe_norte.observability.contracts import StructuredEvent
+from cafe_norte.observability.contracts import StructuredEvent, UsageRecord
 from cafe_norte.observability.fakes import RecordedSpan, RecordingTelemetry
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
@@ -1865,3 +1865,46 @@ async def test_a_round_the_provider_reported_is_not_estimated() -> None:
     await h.open_session()
     await h.run("Hola")
     assert estimated(h) == [] and len(h.store.events.usage) == 2
+
+
+# ---- usage measured outside a turn (D44) ---------------------------------------------------------
+
+
+def speech_usage() -> UsageRecord:
+    return UsageRecord(
+        session_id=SESSION,
+        turn_id=None,
+        kind="stt_seconds",
+        quantity=95.5,
+        unit_detail="nova-3",
+        estimated=False,
+    )
+
+
+async def test_usage_recorded_after_the_session_ended_stores_the_export_again() -> None:
+    closed: list[SessionId] = []
+
+    async def on_closed(session_id: SessionId) -> None:
+        closed.append(session_id)
+
+    h = Harness([], on_closed=on_closed)
+    await h.open_session()
+    await h.runtime.end(SESSION, "stop")
+    await h.runtime.settle()
+    await h.runtime.record_usage(SESSION, [speech_usage()])
+    await h.runtime.settle()
+    assert h.store.events.usage == [speech_usage()]
+    assert closed == [SESSION, SESSION]
+
+
+async def test_usage_recorded_while_the_session_is_open_is_only_stored() -> None:
+    closed: list[SessionId] = []
+
+    async def on_closed(session_id: SessionId) -> None:
+        closed.append(session_id)
+
+    h = Harness([], on_closed=on_closed)
+    await h.open_session()
+    await h.runtime.record_usage(SESSION, [speech_usage()])
+    await h.runtime.settle()
+    assert h.store.events.usage == [speech_usage()] and closed == []

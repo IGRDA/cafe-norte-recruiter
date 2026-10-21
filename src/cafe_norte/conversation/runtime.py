@@ -391,6 +391,14 @@ class Runtime:
         if session_id is not None:
             await self._journal(session_id, turn_id, _say(text))
 
+    async def record_usage(self, session_id: SessionId, usage: Sequence[UsageRecord]) -> None:
+        """Usage measured outside a turn, such as a call's speech providers. A session that
+        has already ended stores its export again, so the cost in it includes this (D44)."""
+        await self._record(usage)
+        state = await self._store.sessions.get(session_id)
+        if state is not None and is_terminal(state):
+            self._close_later(session_id)
+
     async def _system_turn(
         self,
         session_id: SessionId,

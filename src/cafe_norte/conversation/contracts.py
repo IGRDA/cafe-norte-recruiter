@@ -1,6 +1,6 @@
 """Runtime boundary: what channels put in, what they get out, and the ports it needs."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from datetime import datetime
 from typing import Literal, Protocol
 
@@ -190,6 +190,11 @@ class ConversationRuntime(Protocol):
 
     async def aside(self, turn_id: TurnId, text: str) -> None:
         """A sentence voice said inside a running turn, journaled under it."""
+        ...
+
+    async def record_usage(self, session_id: SessionId, usage: Sequence[UsageRecord]) -> None:
+        """Usage measured outside a turn (a call's speech providers); a session already
+        ended stores its export again so the cost includes it (D44)."""
         ...
 
     async def end(

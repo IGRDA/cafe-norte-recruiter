@@ -10,7 +10,14 @@ recorder."""
 
 import asyncio
 import uuid
-from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Mapping
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Mapping,
+    Sequence,
+)
 from contextlib import aclosing
 from datetime import UTC, datetime
 from typing import Literal, Protocol
@@ -27,6 +34,7 @@ from cafe_norte.conversation.contracts import (
 )
 from cafe_norte.domain.contracts import InputId, SessionId, TurnId
 from cafe_norte.errors import Language
+from cafe_norte.observability.contracts import UsageRecord
 from cafe_norte.voice.contracts import VoiceStatus, VoiceTexts
 from cafe_norte.voice.delivery import Ledger, finished, heard, sent
 
@@ -43,6 +51,7 @@ class VoiceRuntime(Protocol):
     ) -> None: ...
     def say(self, session_id: SessionId, text: str) -> AsyncIterator[RuntimeEvent]: ...
     async def aside(self, turn_id: TurnId, text: str) -> None: ...
+    async def record_usage(self, session_id: SessionId, usage: Sequence[UsageRecord]) -> None: ...
 
 
 def _utcnow() -> datetime:

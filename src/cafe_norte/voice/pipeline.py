@@ -1,15 +1,17 @@
 """Pipeline assembly for one session. Pipecat is imported here and in ``bridge.py`` only.
 
 ``Daily in → Deepgram → SpeechTap → user aggregator → InboundBridge → ElevenLabs → Daily out →
-PlaybackTap``.
+PlaybackTap``, watched by ``UsageObserver``: what the call used of each provider is measured and
+recorded when the pipeline ends (D44).
 Pipecat 1.13's ``LLMUserAggregator`` owns Silero VAD, the VAD start strategy (which interrupts
 the bot), the speech-timeout stop strategy that waits for a transcript, and segment joining; it
 emits the finished user message, which the bridge turns into one runtime turn. No smart-turn
 model and no Pipecat LLM (D01, D22)."""
 
 import asyncio
-from collections.abc import Callable, Mapping
-from datetime import datetime
+import logging
+from collections.abc import Awaitable, Callable, Mapping
+from datetime import UTC, datetime
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADAnalyzer
@@ -38,7 +40,13 @@ from pipecat.workers.runner import WorkerRunner
 from cafe_norte.domain.contracts import SessionId
 from cafe_norte.errors import Language, ServiceError
 from cafe_norte.observability.contracts import StageTiming
-from cafe_norte.voice.bridge import InboundBridge, PlaybackTap, SessionPort, SpeechTap
+from cafe_norte.voice.bridge import (
+    InboundBridge,
+    PlaybackTap,
+    SessionPort,
+    SpeechTap,
+    UsageObserver,
+)
 from cafe_norte.voice.contracts import (
     STT_MODEL,
     TTS_MODEL,
@@ -47,7 +55,10 @@ from cafe_norte.voice.contracts import (
     VoiceTexts,
     VoiceTiming,
 )
+from cafe_norte.voice.metering import SpeechMeter
 from cafe_norte.voice.session import VoiceRuntime, VoiceSession
+
+log = logging.getLogger(__name__)
 
 JOIN_TIMEOUT_SECONDS = 15.0
 USER_SPEECH_TIMEOUT_SECONDS = 1.0  # a pause inside a sentence does not end the turn (D35)
@@ -78,6 +89,12 @@ def user_turn_strategies() -> UserTurnStrategies:
             )
         ],
     )
+
+
+def pipeline_params() -> PipelineParams:
+    """Usage metrics on: Deepgram's seconds and ElevenLabs' characters reach the meter only
+    as usage reports (D44). Latency metrics stay off."""
+    return PipelineParams(enable_metrics=False, enable_usage_metrics=True)
 
 
 def user_side(
@@ -123,7 +140,7 @@ class PipecatVoiceController:
         """Returns once the bot has joined; a failure leaves no task, room slot or session."""
         live = self.build(session_id, room, language)
         self._sessions[session_id] = live
-        live.task = asyncio.create_task(_run(live))
+        live.task = asyncio.create_task(_run(live, lambda: self._report(session_id, live)))
         live.task.add_done_callback(lambda _t: self._forget(session_id, live))
         try:
             await asyncio.wait_for(live.joined.wait(), JOIN_TIMEOUT_SECONDS)
@@ -151,6 +168,20 @@ class PipecatVoiceController:
         live = self._sessions.get(session_id)
         if live is not None and live.task is not None:
             await asyncio.gather(live.task, return_exceptions=True)
+
+    def _now(self) -> datetime:
+        return self._clock() if self._clock is not None else datetime.now(UTC)
+
+    async def _report(self, session_id: SessionId, live: "_Live") -> None:
+        """What the call used, measured, once the pipeline has ended and the providers have
+        flushed their last reports. A failure is logged: it never stops the call closing."""
+        usage = live.meter.records(
+            session_id, at=self._now(), stt_model=STT_MODEL, tts_model=TTS_MODEL
+        )
+        try:
+            await self._runtime.record_usage(session_id, usage)
+        except Exception:
+            log.exception("speech usage not recorded session=%s", session_id)
 
     def _forget(self, session_id: SessionId, live: "_Live") -> None:
         """The pipeline ended for any reason: the session is no longer running here."""
@@ -220,11 +251,15 @@ class PipecatVoiceController:
                 PlaybackTap(session),
             ]
         )
-        pipeline_task = PipelineTask(pipeline, params=PipelineParams(enable_metrics=False))
+        meter = SpeechMeter()
+        pipeline_task = PipelineTask(
+            pipeline, params=pipeline_params(), observers=[UsageObserver(meter)]
+        )
         task_holder["task"] = pipeline_task
-        live = _Live(session=session, pipeline_task=pipeline_task)
+        live = _Live(session=session, pipeline_task=pipeline_task, meter=meter)
 
         async def on_joined(_transport: object, _data: object) -> None:
+            meter.entered("bot", self._now())
             live.joined.set()
 
         async def on_error(_transport: object, message: object) -> None:
@@ -233,9 +268,11 @@ class PipecatVoiceController:
             live.joined.set()
 
         async def on_first_participant_joined(_transport: object, _participant: object) -> None:
+            meter.entered("candidate", self._now())
             await session.joined()
 
         async def on_participant_left(_transport: object, _p: object, _reason: object) -> None:
+            meter.left("candidate", self._now())
             await pipeline_task.cancel()
 
         transport.add_event_handler("on_joined", on_joined)
@@ -245,21 +282,26 @@ class PipecatVoiceController:
         return live
 
 
-async def _run(live: "_Live") -> None:
-    """The pipeline until it ends for any reason; then the call is over and the session
-    pauses (``VoiceSession.close`` is idempotent, so ``stop`` closing it first is fine)."""
+async def _run(live: "_Live", report: Callable[[], Awaitable[None]]) -> None:
+    """The pipeline until it ends for any reason; then what it used is recorded, the call is
+    over and the session pauses (``VoiceSession.close`` is idempotent, so ``stop`` closing it
+    first is fine)."""
     runner = WorkerRunner(handle_sigint=False)
     try:
         await runner.add_workers(live.pipeline_task)
         await runner.run()
     finally:
+        await report()
         await live.session.close()
 
 
 class _Live:
-    def __init__(self, *, session: VoiceSession, pipeline_task: PipelineTask) -> None:
+    def __init__(
+        self, *, session: VoiceSession, pipeline_task: PipelineTask, meter: SpeechMeter
+    ) -> None:
         self.session = session
         self.pipeline_task = pipeline_task
+        self.meter = meter
         self.joined = asyncio.Event()
         self.error: str | None = None
         self.task: asyncio.Task[None] | None = None

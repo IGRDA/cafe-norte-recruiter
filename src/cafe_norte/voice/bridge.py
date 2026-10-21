@@ -1,4 +1,5 @@
-"""The three Pipecat ``FrameProcessor``s. They only map frames to ``VoiceSession`` methods.
+"""The three Pipecat ``FrameProcessor``s, which only map frames to ``VoiceSession`` methods, and
+``UsageObserver``, which reads the providers' usage reports into the ``SpeechMeter``.
 
 ``SpeechTap`` sits before Pipecat's user aggregator, which consumes every transcript frame, so
 it is the only place raw transcripts can be seen. ``InboundBridge`` sits after the aggregator
@@ -15,11 +16,16 @@ from pipecat.frames.frames import (
     InterimTranscriptionFrame,
     InterruptionFrame,
     LLMContextFrame,
+    MetricsFrame,
     TranscriptionFrame,
     TTSSpeakFrame,
     TTSStoppedFrame,
 )
+from pipecat.metrics.metrics import STTUsageMetricsData, TTSUsageMetricsData
+from pipecat.observers.base_observer import BaseObserver, FramePushed
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+
+from cafe_norte.voice.metering import SpeechMeter
 
 
 class SessionPort(Protocol):
@@ -79,6 +85,25 @@ class PlaybackTap(FrameProcessor):
         if isinstance(frame, TTSStoppedFrame):
             await self._session.played_one()
         await self.push_frame(frame, direction)
+
+
+class UsageObserver(BaseObserver):
+    """Deepgram reports the audio seconds it was sent and ElevenLabs the characters it was
+    given, as ``MetricsFrame``s pushed on by every later processor; the first push is the
+    provider's own report, so each is counted once wherever it travels (D44)."""
+
+    def __init__(self, meter: SpeechMeter) -> None:
+        super().__init__()
+        self._meter = meter
+
+    async def on_push_frame(self, data: FramePushed) -> None:
+        if not (data.first_push and isinstance(data.frame, MetricsFrame)):
+            return
+        for item in data.frame.data:
+            if isinstance(item, STTUsageMetricsData):
+                self._meter.heard(item.value.audio_seconds)
+            elif isinstance(item, TTSUsageMetricsData):
+                self._meter.spoke(item.value)
 
 
 def _last_user_message(frame: LLMContextFrame) -> str:

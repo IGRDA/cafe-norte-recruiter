@@ -37,8 +37,9 @@ One file `evals/cases/scenarios/Snn.yaml`:
   {...}}` rounds, then `{say: "…"}` to end the turn (`say: ""` when the system speaks, as after
   a read-back or the brief). One model round per step.
 - `checks`: names from `evals/scorers.py` (`field_equals`, `field_status`, `brief_confirmed`,
-  `lifecycle_is`, `outcome_is`, `no_fabricated_confirmed_values`, `max_repeated_questions`;
-  the rest raise until their stage).
+  `lifecycle_is`, `outcome_is`, `no_fabricated_confirmed_values`, `max_repeated_questions`,
+  `sources_shown_for_policy_answer`, `no_cross_store_sources`, `review_flag_present`,
+  `language_of_last_assistant_turn`, `brief_language`; the rest raise until their stage).
 - `today`: the fake clock's date, so relative dates in the script stay fixed.
 
 Checks run over `SessionResult` (final state, transcript, what Ana said per turn); the export

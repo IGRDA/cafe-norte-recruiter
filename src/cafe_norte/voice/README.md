@@ -9,7 +9,7 @@ Python with no Pipecat import (D22).
 | --- | --- |
 | `contracts.py` | `Room`, `VoiceStatus`, `VoiceMode`, `VoiceTexts`, `VoiceTiming`, `room_expiry`, ports `RoomProvisioner`, `VoiceSessionController` |
 | `delivery.py` | Pure ledger: sentences sent to TTS, sentences finished playing, `heard`, `readback_heard` |
-| `session.py` | `VoiceSession`: transcript → runtime turn, sentences → `speak` and the ledger, playback → `delivered(complete=True)`, interruption → cancel and `delivered(heard, complete=False)`, opening on join, filler while a tool runs long, silence prompt then pause |
+| `session.py` | `VoiceSession`: transcript → runtime turn, sentences → `speak` and the ledger, playback → `delivered(complete=True)`, interruption → cancel and `delivered(heard, complete=False)`, opening on join, filler while a tool runs long, silence prompt then pause; each in the language of the latest turn (D28) |
 | `bridge.py` | `InboundBridge` (before TTS) and `PlaybackTap` (after the output transport): frames in, session methods out |
 | `pipeline.py` | `PipecatVoiceController`: one pipeline task per session, join wait, stop, status, timing observations |
 | `daily.py` | Private expiring rooms and two scoped tokens over Daily REST |

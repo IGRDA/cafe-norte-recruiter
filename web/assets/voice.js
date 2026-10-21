@@ -3,9 +3,9 @@
 //            server (D01). The browser only carries audio and reports timings.
 //   browser  the Web Speech API, free and local, kept until hosted voice is verified (D18).
 // Both expose the same small surface to app.js: supported, start(), stop(), speak(), turnEnded(),
-// closing(), and events through the callbacks.
+// closing(), setLanguage(), and events through the callbacks.
 
-const LANG = "es-ES";
+const LOCALES = { es: "es-ES", en: "en-GB" };
 
 export function createVoice(options) {
   return options.mode === "pipecat" ? createDailyVoice(options) : createBrowserVoice(options);
@@ -94,6 +94,7 @@ function createDailyVoice({ onStatus, onError, startVoice, postTiming }) {
     stop,
     speak() {}, // the server speaks
     turnEnded() {},
+    setLanguage() {}, // the server's STT is multilingual and TTS follows the text
     closing() {
       stop();
     },
@@ -113,13 +114,14 @@ const PREFERRED_VOICES = [
   /Paulina/i,
 ];
 
-function pickVoice(synth) {
-  const voices = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith("es"));
-  for (const pattern of PREFERRED_VOICES) {
+function pickVoice(synth, locale) {
+  const prefix = locale.slice(0, 2);
+  const voices = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith(prefix));
+  for (const pattern of prefix === "es" ? PREFERRED_VOICES : []) {
     const match = voices.find((v) => pattern.test(v.name));
     if (match) return match;
   }
-  return voices.find((v) => v.lang === LANG) ?? voices[0] ?? null;
+  return voices.find((v) => v.lang === locale) ?? voices[0] ?? null;
 }
 
 function createBrowserVoice({ onInterim, onFinal, onStatus, onError }) {
@@ -134,8 +136,9 @@ function createBrowserVoice({ onInterim, onFinal, onStatus, onError }) {
   let anaTalking = false;
   let closing = false;
   let voice = null;
+  let locale = LOCALES.es;
   const refreshVoice = () => {
-    voice = supported ? pickVoice(synth) : null;
+    voice = supported ? pickVoice(synth, locale) : null;
   };
   if (supported) {
     refreshVoice();
@@ -145,7 +148,7 @@ function createBrowserVoice({ onInterim, onFinal, onStatus, onError }) {
   function listen() {
     if (!active || closing || listening || queued > 0 || anaTalking) return;
     recognition = new Recognition();
-    recognition.lang = LANG;
+    recognition.lang = locale;
     recognition.interimResults = true;
     recognition.continuous = false;
     recognition.maxAlternatives = 1;
@@ -225,7 +228,7 @@ function createBrowserVoice({ onInterim, onFinal, onStatus, onError }) {
       anaTalking = true;
       if (listening) stopListening();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = LANG;
+      utterance.lang = locale;
       if (voice) utterance.voice = voice;
       utterance.rate = 1.05;
       queued += 1;
@@ -241,6 +244,14 @@ function createBrowserVoice({ onInterim, onFinal, onStatus, onError }) {
     turnEnded() {
       anaTalking = false;
       if (queued === 0) listen();
+    },
+    // Each turn says which language it is in; the next recognition and utterance follow it.
+    setLanguage(language) {
+      const next = LOCALES[language] ?? locale;
+      if (next === locale) return;
+      locale = next;
+      if (supported) refreshVoice();
+      if (listening) stopListening();
     },
   };
 }

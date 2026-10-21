@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime
 
 from cafe_norte.domain.contracts import SessionId
-from cafe_norte.errors import ServiceError
+from cafe_norte.errors import Language, ServiceError
 from cafe_norte.observability.contracts import StageTiming
 from cafe_norte.voice.contracts import Room, VoiceStatus, VoiceTiming
 
@@ -37,7 +37,7 @@ class FakeVoiceController:
         self._status: dict[SessionId, VoiceStatus] = {}
         self._ended: dict[SessionId, asyncio.Event] = {}
 
-    async def start(self, session_id: SessionId, room: Room) -> None:
+    async def start(self, session_id: SessionId, room: Room, language: Language) -> None:
         if self.fail_next_start:
             self.fail_next_start = False
             raise ServiceError("fake bot could not join", code="provider_unavailable")

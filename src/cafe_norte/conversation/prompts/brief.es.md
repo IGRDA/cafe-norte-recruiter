@@ -1,7 +1,7 @@
-# Brief and read-back sentences (ana_v4, es)
+# Brief and read-back sentences (ana_v6, es)
 
 One `key: sentence` per line; `#` lines and blank lines are ignored. `{value}` is filled by
-`conversation/brief.py`. English arrives with the language stage.
+`conversation/brief.py`. `brief.en.md` has exactly the same keys.
 
 intro: Te resumo lo que tengo.
 question: ¿Es todo correcto?
@@ -37,3 +37,4 @@ label.contact_phone: Teléfono
 weekdays: lunes,martes,miércoles,jueves,viernes,sábado,domingo
 months: enero,febrero,marzo,abril,mayo,junio,julio,agosto,septiembre,octubre,noviembre,diciembre
 and: y
+date: {weekday} {day} de {month} de {year}

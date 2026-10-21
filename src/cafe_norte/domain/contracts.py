@@ -94,7 +94,8 @@ type FieldState[T] = Unset | Captured[T] | Confirmed[T] | Unknown | Declined
 
 
 class CandidateRecord(Frozen):
-    """Server-held candidate facts. ``preferred_language`` is a preference, not a collected fact."""
+    """Server-held candidate facts. The language is a session preference (``SessionState``),
+    not a collected fact."""
 
     revision: int = Field(ge=0, default=0)
     name: Annotated[FieldState[Name], Field(discriminator="status")] = Unset()
@@ -112,7 +113,6 @@ class CandidateRecord(Frozen):
     hours_per_week: Annotated[FieldState[HoursPerWeek], Field(discriminator="status")] = Unset()
     earliest_start_date: Annotated[FieldState[date], Field(discriminator="status")] = Unset()
     experience: Annotated[FieldState[Experience], Field(discriminator="status")] = Unset()
-    preferred_language: Language = "es"
     notes: tuple[str, ...] = ()  # specific restrictions the candidate mentioned, verbatim
 
 

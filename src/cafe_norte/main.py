@@ -8,6 +8,7 @@ import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import get_args
 
 import httpx
 from fastapi import FastAPI, Request
@@ -25,7 +26,7 @@ from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import ConfigId, StoreConfiguration
-from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
+from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.knowledge.hybrid import HybridRetriever
 from cafe_norte.knowledge.index import lexical_index, load_index
@@ -215,13 +216,16 @@ def _voice_mode(env: Mapping[str, str]) -> VoiceMode:
     return value  # type: ignore[return-value]
 
 
-def voice_texts() -> VoiceTexts:
-    table = prompts.table("voice")
-    return VoiceTexts(
-        opening=prompts.load("opening").strip(),
-        filler=table["filler"],
-        idle_prompt=table["idle_prompt"],
-    )
+def voice_texts() -> dict[Language, VoiceTexts]:
+    def texts(language: Language) -> VoiceTexts:
+        table = prompts.table("voice", language)
+        return VoiceTexts(
+            opening=prompts.load("opening", language).strip(),
+            filler=table["filler"],
+            idle_prompt=table["idle_prompt"],
+        )
+
+    return {language: texts(language) for language in get_args(Language)}
 
 
 def _hosted_voice(

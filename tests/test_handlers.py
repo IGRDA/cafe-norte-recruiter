@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 
 from pydantic import BaseModel
 
-from cafe_norte.conversation.brief import field_readback, render_brief_es
+from cafe_norte.conversation.brief import field_readback, render_brief
 from cafe_norte.conversation.contracts import StateUpdated, ToolContext, ToolOutcome
 from cafe_norte.conversation.handlers import (
     NEXT_STEP,
@@ -120,7 +120,7 @@ async def test_only_phone_and_date_have_field_readbacks() -> None:
 async def test_presenting_the_brief_speaks_the_exact_text_that_becomes_pending() -> None:
     w = await World(full_record()).open()
     outcome = await w.present(context(), args("present_confirmation", target="brief"))
-    expected = render_brief_es(full_record(), CONFIG)
+    expected = render_brief(full_record(), CONFIG, "es")
     assert outcome.ok and outcome.spoken == expected
     assert "already spoken" in outcome.model_text
     state = await w.current()
@@ -160,7 +160,7 @@ async def test_capturing_a_date_or_phone_speaks_the_read_back_itself() -> None:
         ),
     )
     assert outcome.ok
-    assert outcome.spoken == field_readback("earliest_start_date", date(2026, 10, 26), CONFIG)
+    assert outcome.spoken == field_readback("earliest_start_date", date(2026, 10, 26), "es")
     assert "already spoken" in outcome.model_text
     state = await w.current()
     pending = state.pending_confirmation
@@ -244,7 +244,7 @@ async def test_candidate_done_with_an_unconfirmed_brief_reads_the_brief_again() 
     w = await World(full_record()).open()
     outcome = await w.end(context(), args("end_session", reason="candidate_done"))
     assert not outcome.ok and outcome.summary == "brief_re_presented"
-    assert outcome.spoken == render_brief_es(full_record(), CONFIG)
+    assert outcome.spoken == render_brief(full_record(), CONFIG, "es")
     assert "wait" in outcome.model_text.lower()
     state = await w.current()
     assert state.lifecycle == "active"

@@ -16,10 +16,14 @@ from cafe_norte.conversation.contracts import (
     TurnStarted,
 )
 from cafe_norte.domain.contracts import SessionId, TurnId
+from cafe_norte.errors import Language
 from cafe_norte.voice.contracts import VoiceTexts
 from cafe_norte.voice.session import VoiceSession
 
-TEXTS = VoiceTexts(opening="Hola, soy Ana.", filler="Un momento.", idle_prompt="¿Sigues ahí?")
+TEXTS: dict[Language, VoiceTexts] = {
+    "es": VoiceTexts(opening="Hola, soy Ana.", filler="Un momento.", idle_prompt="¿Sigues ahí?"),
+    "en": VoiceTexts(opening="Hi, I'm Ana.", filler="One moment.", idle_prompt="Still there?"),
+}
 
 SID = SessionId("s")
 
@@ -33,8 +37,11 @@ def finished(turn: str = "t1") -> TurnFinished:
 
 
 class FakeRuntime:
-    def __init__(self, scripts: list[list[RuntimeEvent]], *, slow: bool = False) -> None:
+    def __init__(
+        self, scripts: list[list[RuntimeEvent]], *, slow: bool = False, language: Language = "es"
+    ) -> None:
         self.scripts = scripts
+        self.language = language
         self.turns: list[TurnInput] = []
         self.acks: list[tuple[TurnId, str, bool]] = []
         self.ended: list[str] = []
@@ -45,7 +52,7 @@ class FakeRuntime:
         self.turns.append(turn)
         events = self.scripts.pop(0)
         try:
-            yield TurnStarted(turn_id=TurnId("t1"), language="es", text=turn.text)
+            yield TurnStarted(turn_id=TurnId("t1"), language=self.language, text=turn.text)
             for event in events:
                 if self.slow:
                     await asyncio.sleep(0.01)
@@ -71,13 +78,16 @@ class Recorder:
         self.spoken.append(text)
 
 
-def session(runtime: FakeRuntime, recorder: Recorder, **limits: float) -> VoiceSession:
+def session(
+    runtime: FakeRuntime, recorder: Recorder, language: Language = "es", **limits: float
+) -> VoiceSession:
     return VoiceSession(
         runtime,
         SID,
         speak=recorder.speak,
         on_status=recorder.status.append,
         texts=TEXTS,
+        language=language,
         clock=lambda: datetime(2026, 10, 20, tzinfo=UTC),
         idle_prompt_seconds=limits.get("prompt", 8.0),
         idle_pause_seconds=limits.get("pause", 12.0),
@@ -156,6 +166,27 @@ async def test_a_filler_is_spoken_only_while_a_tool_runs_long() -> None:
     await s.wait()
     assert recorder.spoken[0] == "Un momento."
     assert recorder.spoken[-1] == "¿Y tu nombre?"
+
+
+async def test_the_opening_is_spoken_in_the_session_language() -> None:
+    recorder = Recorder()
+    s = session(FakeRuntime([]), recorder, language="en")
+    await s.joined()
+    assert recorder.spoken == ["Hi, I'm Ana."]
+
+
+async def test_the_filler_follows_a_language_switched_in_the_turn() -> None:
+    runtime = FakeRuntime(
+        [[ToolStarted(name="update_candidate"), say("What is your name?"), finished()]],
+        slow=True,
+        language="en",
+    )
+    recorder = Recorder()
+    s = session(runtime, recorder)  # opened in Spanish; the runtime switched this turn
+    s.filler_after_seconds = 0.0
+    await s.transcript("Can we continue in English?")
+    await s.wait()
+    assert recorder.spoken[0] == "One moment."
 
 
 async def test_silence_prompts_once_then_pauses_the_session() -> None:

@@ -30,6 +30,7 @@ from cafe_norte.conversation.prompt import (
     split_sentences,
 )
 from cafe_norte.conversation.registry import ToolRegistry
+from cafe_norte.conversation.signals import explicit_controls, requested_language
 from cafe_norte.domain.contracts import (
     ConfigId,
     InputId,
@@ -213,7 +214,6 @@ class Runtime:
 
     async def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
         """The spec's opening sentence, word for word, before any candidate input."""
-        greeting = prompts.load("opening").strip()
         opening = TurnInput(
             session_id=session_id,
             input_id=InputId("opening"),
@@ -228,6 +228,7 @@ class Runtime:
                 yield await self._journal(session_id, TurnId(""), _NOT_FOUND)
                 return
             run = _Turn(input=opening, state=state)
+            greeting = prompts.load("opening", state.language).strip()
             try:
                 async with self._store.transaction() as tx:
                     await self._store.turns.append(
@@ -302,10 +303,19 @@ class Runtime:
     # ---- the turn, step by step ------------------------------------------------------------------
 
     async def _turn(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        # An explicit language request applies to this very turn: saved with the user turn,
+        # before the model is called, so the record, the prompt and the reply all agree.
+        previous = run.state
+        language = requested_language(explicit_controls(run.input.text), previous.language)
+        run.state = previous.model_copy(update={"language": language})
         async with self._store.transaction() as tx:  # duplicate input_id raises conflict here
             await self._store.turns.append(
                 tx, run.record("user", run.input.text, run.input.received_at)
             )
+            if language != previous.language:
+                await self._store.sessions.save(
+                    tx, run.state, expected_revision=previous.candidate.revision
+                )
         yield await self._emit(
             run,
             TurnStarted(turn_id=run.turn_id, language=run.state.language, text=run.input.text),

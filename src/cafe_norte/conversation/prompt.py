@@ -54,6 +54,8 @@ def system_message(
         prompts.load("system")
         + "\n\n## Datos de esta sesión (JSON)\n"
         + json.dumps(facts, ensure_ascii=False, default=str)
+        + "\n\n"
+        + prompts.load("language", state.language).strip()  # last, where it weighs most
     )
     return ModelMessage(role="system", content=content)
 

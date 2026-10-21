@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from cafe_norte.conversation.brief import ReadbackField, field_readback, render_brief_es
+from cafe_norte.conversation.brief import ReadbackField, field_readback, render_brief
 from cafe_norte.conversation.contracts import (
     SourcesShown,
     StateUpdated,
@@ -200,7 +200,7 @@ class UpdateCandidateHandler(_Handler):
         if readback is not None:
             # Phone and date are read back the moment they are saved; no model step between.
             value = fields.value_of(getattr(candidate, readback))
-            spoken = field_readback(readback, value, configuration)
+            spoken = field_readback(readback, value, state.language)
             pending = confirmation.present(
                 state,
                 FieldTarget(field=readback, revision=candidate.revision),
@@ -369,7 +369,7 @@ class PresentConfirmationHandler(_Handler):
                     "call confirm_field with the candidate's answer first.",
                 )
             target: FieldTarget | BriefTarget = BriefTarget(revision=revision)
-            text = render_brief_es(state.candidate, configuration)
+            text = render_brief(state.candidate, configuration, state.language)
         elif arguments.target == "field" and arguments.field in READBACK_FIELDS:
             field_name: ReadbackField = arguments.field
             value = fields.value_of(getattr(state.candidate, field_name))
@@ -378,7 +378,7 @@ class PresentConfirmationHandler(_Handler):
                     f"nothing_to_read_back:{field_name}", f"{field_name} has no value yet."
                 )
             target = FieldTarget(field=field_name, revision=revision)
-            text = field_readback(field_name, value, configuration)
+            text = field_readback(field_name, value, state.language)
         else:
             return self._refuse(
                 f"no_readback_for:{arguments.field or arguments.target}",

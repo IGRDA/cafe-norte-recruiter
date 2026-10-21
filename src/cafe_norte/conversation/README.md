@@ -11,11 +11,11 @@ its own.
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
 | `handlers.py` | `all_handlers()`: update, search knowledge, present (read-backs and the brief), confirm field/brief, request human follow-up, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
-| `brief.py` | The deterministic brief and the phone/date read-backs, filled from `prompts/brief.md`; spoken verbatim by the runtime (D20) |
+| `brief.py` | The deterministic brief and the phone/date read-backs, filled from `prompts/brief.<lang>.md` in the session language; spoken verbatim by the runtime (D20) |
 | `prompt.py` | System message from the versioned prompt plus session facts as JSON; history window; sentence splitting |
 | `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines. Cancellation and repair counting: later stages |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |
-| `signals.py` | Synchronous stop/human/language fast path and the asynchronous sentiment classifier port |
+| `signals.py` | Synchronous fast path (today: explicit language requests, D28) and the asynchronous sentiment classifier port |
 
 ## Questions and the knowledge base
 
@@ -33,7 +33,8 @@ the confirmed brief the next step is to invite questions, then the interview.
 ## Turn execution
 
 1. Accept one finalized `TurnInput` with a unique `input_id`; persist the user turn.
-2. Apply explicit stop, language switch and human-request controls; cancel stale output.
+2. Apply explicit controls: a language request is saved with the user turn, before the
+   model is called (D28). Stop and human requests and stale-output cancellation follow.
 3. Build messages from: system prompt, configuration facts, validated candidate state, pending
    confirmation, unfinished fields, recent turns.
 4. Stream the model. Each `ToolCall` is validated by `ToolRegistry`, then by the domain, then

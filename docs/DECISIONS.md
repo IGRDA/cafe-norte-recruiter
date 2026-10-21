@@ -245,6 +245,7 @@ provider accounts in front of the first conversation; B defers the first convers
 **Consequences we accept, and what is deliberately missing.**
 - Only `update_candidate` is registered; the registry advertises registered tools only.
 - Spanish only in the prompt; `language` is carried and `en` is refused nowhere yet.
+  (English and the switch arrived with D28.)
 - No access code, resume tokens, snapshot endpoint, cancellation, repair budget, signals,
   leases, Postgres or tracing. Each stays `NotImplementedError` behind its port.
 - Sequence numbers live in the runtime per process; Postgres will own them.
@@ -518,6 +519,49 @@ no lexical match scored ≥ 0.40, and the unsupported questions with no lexical 
 
 **Not done.** ragas and Langfuse sync (not chosen), and a floor that uses the second-best
 chunk's margin (no evidence it would help on 24 questions).
+
+## D28 · English is a session fact; an explicit request switches it before the model runs
+
+_Added 21 October 2026, the language stage._
+
+**Context.** `Language` was carried everywhere but every candidate-facing sentence was
+Spanish, and `explicit_controls` was a stub. The spec wants either starting language, an
+explicit switch that applies to the current turn, and retained state.
+
+**Decisions.**
+- `SessionState.language` is the one current language. `CandidateRecord.preferred_language`
+  is removed: a preference, not a collected fact, and a second copy to keep in sync. Each
+  `TurnRecord.language` keeps the language of its own turn.
+- The switch is a pure pattern match (`signals.explicit_controls`) on the finalized text: a
+  language name with a request word around it ("in English", "en inglés", "English, please",
+  "en castellano"). A borrowed word or a mention ("I studied English") never matches. Exactly
+  one requested language switches; none or both leave it alone. No model tool.
+- The runtime applies it at the start of the turn and saves it in the same transaction as the
+  user turn, so the record, `TurnStarted.language`, the prompt and the reply all agree. The
+  model answers that turn in the new language; there is no fixed acknowledgement.
+- Instructions stay one Spanish `system.md` with an "Idioma" section: reply only in
+  `language`, never change it yourself, queries to the knowledge base stay Spanish (D26).
+  The system message ends with `language.<lang>.md`, one line written in the session
+  language. Measured live: without it, gpt-4o-mini answered an English session in Spanish
+  from the first turn; with it, every turn stayed English, and the switch turn was English
+  from its first sentence.
+- Text the system speaks word for word has one file per language, `<name>.<lang>.md`
+  (`brief`, `opening`, `voice`, `language`), with identical keys held by a test. Language-specific layout
+  is a template row (`date`), so `brief.py` has no Spanish logic.
+- Voice: the session's language is passed when voice starts; `VoiceSession` follows each
+  `TurnStarted.language` for the filler and idle prompt. Deepgram runs `multi`; ElevenLabs
+  takes the language from the text. Browser speech follows the turn the same way.
+- The page takes the opening language from `?lang=`; the picker reloads into a new session.
+- Scenario ids follow the spec: the old S02 (correction after the brief) is S04; S02 is the
+  English happy path in Arganzuela; S07 is the switch from Spanish to English.
+
+**Consequences we accept.**
+- No implicit switch: a candidate who simply writes in English without asking keeps getting
+  Spanish until they ask. Live S07 runs show whether the pattern list needs more phrasings.
+- A read-back pending at the moment of a switch stays pending and in the language it was
+  read in; a yes or no in either language answers it.
+- Postgres rows written before this change still carry `preferred_language` and no longer
+  validate; the demo runs on the memory store (D24), so only local test data is affected.
 
 ## Assumptions recorded without a question
 

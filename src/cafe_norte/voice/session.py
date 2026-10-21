@@ -7,7 +7,7 @@ delivery ledger decides what was heard. Tested with a fake runtime and a recorde
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from typing import Literal, Protocol
 
@@ -21,6 +21,7 @@ from cafe_norte.conversation.contracts import (
     TurnStarted,
 )
 from cafe_norte.domain.contracts import InputId, SessionId, TurnId
+from cafe_norte.errors import Language
 from cafe_norte.voice.contracts import VoiceStatus, VoiceTexts
 from cafe_norte.voice.delivery import Ledger, finished, heard, sent
 
@@ -51,7 +52,8 @@ class VoiceSession:
         *,
         speak: Speak,
         on_status: Callable[[VoiceStatus], None],
-        texts: VoiceTexts,
+        texts: Mapping[Language, VoiceTexts],
+        language: Language,
         clock: Callable[[], datetime] | None = None,
         idle_prompt_seconds: float = 8.0,
         idle_pause_seconds: float = 12.0,
@@ -60,7 +62,8 @@ class VoiceSession:
         self._session_id = session_id
         self._speak = speak
         self._on_status = on_status
-        self._texts = texts
+        self._texts_by_language = texts
+        self._language = language  # follows each turn, so a switch changes the next filler
         self._clock = clock or _utcnow
         self._idle_prompt_seconds = idle_prompt_seconds
         self._idle_pause_seconds = idle_pause_seconds
@@ -148,6 +151,7 @@ class VoiceSession:
             async for event in self._runtime.run_turn(turn):
                 if isinstance(event, TurnStarted):
                     self._turn_id = event.turn_id
+                    self._language = event.language
                 elif isinstance(event, AssistantText):
                     self._cancel_filler()
                     self._ledger = sent(self._ledger, event.spoken_form)
@@ -179,6 +183,10 @@ class VoiceSession:
             await self._runtime.delivered(self._turn_id, text=text, complete=True)
         self._set("listening")
         self._start_idle()
+
+    @property
+    def _texts(self) -> VoiceTexts:
+        return self._texts_by_language[self._language]
 
     # ---- silence ---------------------------------------------------------------------------------
 

@@ -7,10 +7,12 @@ from collections import Counter
 from collections.abc import Callable
 from datetime import date
 from functools import cache
+from typing import get_args
 
 from cafe_norte.conversation import prompts
 from cafe_norte.domain.contracts import BriefTarget, CandidateFieldName, Captured, Confirmed
 from cafe_norte.domain.fields import value_of
+from cafe_norte.errors import Language
 from evals.contracts import Check, CheckResult, SessionResult
 
 CHECKS = (
@@ -134,6 +136,23 @@ def _review_flag_present(result: SessionResult, check: Check) -> tuple[bool, str
     return wanted in kinds, f"review flags: {kinds or 'none'} (wanted {wanted})"
 
 
+def _language_of_last_assistant_turn(result: SessionResult, check: Check) -> tuple[bool, str]:
+    last = next((t for t in reversed(result.turns) if t.role == "assistant"), None)
+    language = last.language if last is not None else None
+    wanted = check.args["language"]
+    return language == wanted, f"expected {wanted}, got {language}"
+
+
+def _brief_language(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """The last brief was read back from the ``language`` table, word for word."""
+    pending = result.state.pending_confirmation
+    if pending is None or not isinstance(pending.target, BriefTarget):
+        return False, "no brief on record"
+    wanted: Language = "en" if check.args["language"] == "en" else "es"
+    intro = prompts.table("brief", wanted)["intro"]
+    return pending.presentation_text.startswith(intro), f"brief: {pending.presentation_text[:40]}…"
+
+
 def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
     def scorer(result: SessionResult, check: Check) -> tuple[bool, str]:
         raise NotImplementedError(f"check {check.name!r} arrives with the {stage} stage")
@@ -152,7 +171,8 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "booking_present": _later("booking"),
     "booking_absent": _later("booking"),
     "review_flag_present": _review_flag_present,
-    "language_of_last_assistant_turn": _later("language"),
+    "language_of_last_assistant_turn": _language_of_last_assistant_turn,
+    "brief_language": _brief_language,
     "sources_shown_for_policy_answer": _sources_shown,
     "no_cross_store_sources": _no_cross_store_sources,
 }
@@ -164,13 +184,15 @@ LATER: dict[str, str] = {}
 
 @cache
 def _system_questions() -> frozenset[str]:
-    """The fixed questions of prompts/brief.md: the brief's closing question and the last
-    sentence of each read-back template."""
-    table = prompts.table("brief")
-    questions = {table["question"]}
-    for key, template in table.items():
-        if key.startswith("readback."):
-            questions.add(template.rsplit(". ", 1)[-1])
+    """The fixed questions of prompts/brief.<language>.md, in every language: the brief's
+    closing question and the last sentence of each read-back template."""
+    questions: set[str] = set()
+    for language in get_args(Language):
+        table = prompts.table("brief", language)
+        questions.add(table["question"])
+        for key, template in table.items():
+            if key.startswith("readback."):
+                questions.add(template.rsplit(". ", 1)[-1])
     return frozenset(questions)
 
 

@@ -3,6 +3,8 @@
 import { createVoice } from "./voice.js";
 
 const CONFIG_ID = "chamberi_barista_v1";
+// The opening language comes from ?lang=; the picker reloads the page into a new session.
+const LANGUAGE = new URLSearchParams(location.search).get("lang") === "en" ? "en" : "es";
 
 const state = {
   sessionId: null,
@@ -27,6 +29,7 @@ const el = {
   send: document.getElementById("send"),
   talk: document.getElementById("talk"),
   error: document.getElementById("error"),
+  language: document.getElementById("language"),
   candidate: document.getElementById("candidate"),
   confirmation: document.getElementById("confirmation"),
   review: document.getElementById("review"),
@@ -35,7 +38,15 @@ const el = {
   exportLink: document.getElementById("export-link"),
 };
 
-let voice = { supported: false, start() {}, stop() {}, speak() {}, turnEnded() {}, closing() {} };
+let voice = {
+  supported: false,
+  start() {},
+  stop() {},
+  speak() {},
+  turnEnded() {},
+  closing() {},
+  setLanguage() {},
+};
 
 function buildVoice(mode) {
   return createVoice({
@@ -79,7 +90,7 @@ async function openSession() {
   const response = await fetch("/api/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ config_id: CONFIG_ID, language: "es", channel: "text" }),
+    body: JSON.stringify({ config_id: CONFIG_ID, language: LANGUAGE, channel: "text" }),
   });
   if (response.status === 401) {
     el.access.hidden = false;
@@ -130,6 +141,7 @@ function handle(event) {
       // The stream carries the user's words: bubbles never depend on the POST reply's timing.
       if (payload.text) addTurn(`${event.turn_id}:user`, "user", [payload.text]);
       addTurn(event.turn_id, "assistant", []);
+      voice.setLanguage(payload.language);
       setStatus("Ana está pensando…");
       break;
     }
@@ -368,6 +380,11 @@ el.access.addEventListener("submit", async (event) => {
 el.composer.addEventListener("submit", (event) => {
   event.preventDefault();
   submitTurn(el.text.value);
+});
+
+el.language.value = LANGUAGE;
+el.language.addEventListener("change", () => {
+  location.search = `?lang=${el.language.value}`;
 });
 
 el.talk.addEventListener("click", () => {

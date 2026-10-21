@@ -1,0 +1,80 @@
+id: S04
+title: Correction after the brief, Chamberí
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# Same collection as S01; at the brief the candidate corrects the hours. The brief must be
+# invalidated, presented again at the new revision and confirmed there.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
+  - "Perdona, son 25 horas."
+  - "Sí, ahora sí."
+  - "No, gracias, sin entrevista."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: update_candidate
+      args: { patch: { hours_per_week: 25 }, evidence_text: "Perdona, son 25 horas." }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: confirm_brief
+      args: { answer: affirm }
+    - say: "¿Te gustaría tener una entrevista?"
+  - - tool: update_candidate
+      args: { patch: { note: no quiere entrevista }, evidence_text: "No, gracias, sin entrevista." }
+    - tool: end_session
+      args: { reason: candidate_done }
+    - say: "Entendido, Lucía. Gracias por tu tiempo."
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "25"
+    earliest_start_date: next monday
+    experience: dos años en una cafetería
+  corrections:
+    - [hours_per_week, "25"]
+  wants_interview: false
+checks:
+  - name: field_equals
+    args: { field: hours_per_week, value: "25" }
+  - name: brief_confirmed
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+  - name: outcome_is
+    args: { outcome: brief_only }
+  - name: no_fabricated_confirmed_values
+  - name: max_repeated_questions
+    args: { max: "0" }
+rubric:
+  - Ana re-read the brief after the correction instead of assuming the old one.

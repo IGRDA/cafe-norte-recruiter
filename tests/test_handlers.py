@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from cafe_norte.conversation.brief import field_readback, render_brief_es
 from cafe_norte.conversation.contracts import StateUpdated, ToolContext, ToolOutcome
 from cafe_norte.conversation.handlers import (
+    NEXT_STEP,
     ConfirmBriefHandler,
     ConfirmFieldHandler,
     EndSessionHandler,
@@ -282,6 +283,23 @@ async def test_a_note_after_the_confirmed_brief_keeps_it_confirmed() -> None:
     assert state.candidate.revision == 1 and state.candidate.notes == ("quiere entrevista",)
     assert state.pending_confirmation is not None
     assert state.pending_confirmation.status == "confirmed"
+
+
+async def test_the_interview_answer_after_the_confirmed_brief_leads_to_the_end() -> None:
+    """Issue #10: a note saved on a confirmed brief is the interview answer; the model is
+    told to end the session, not to ask about the interview again."""
+    w = await World(full_record()).open()
+    await w.present(context(), args("present_confirmation", target="brief"))
+    await w.deliver()
+    await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+    saved = await w.update(
+        context("t3"),
+        args("update_candidate", patch={"note": "quiere entrevista"}, evidence_text="sí"),
+    )
+    assert saved.ok and "end_session" in saved.model_text
+    assert NEXT_STEP["interview"] not in saved.model_text
+    done = await w.end(context("t4"), args("end_session", reason="candidate_done"))
+    assert done.ok and done.summary == "ended:completed:brief_only"
 
 
 async def test_the_model_cannot_answer_a_read_back_in_the_turn_it_was_presented() -> None:

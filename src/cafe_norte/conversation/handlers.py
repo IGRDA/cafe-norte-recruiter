@@ -48,6 +48,8 @@ READBACK_FIELDS: tuple[ReadbackField, ...] = ("contact_phone", "earliest_start_d
 NEXT_STEP = {
     "brief": "Now call present_confirmation(target=brief).",
     "interview": "Now ask, in one short sentence, whether they would like an interview.",
+    "end": "Interviews are not booked in this version. Say so in one short sentence and call "
+    "end_session(reason=candidate_done).",
     "goodbye": "Session ended. Say goodbye in one short sentence.",
 }
 
@@ -200,6 +202,9 @@ class UpdateCandidateHandler(_Handler):
             step = "The read-back was already spoken. Reply with nothing and wait."
         elif pending is not None and pending.status == "invalidated":
             step = "The pending read-back is void; present the brief again when ready."
+        elif not changed and _brief_confirmed(new_state):
+            # A note on a confirmed brief is the interview answer: nothing is left to ask.
+            step = NEXT_STEP["end"]
         else:
             step = _next_question(new_state)
         return ToolOutcome(

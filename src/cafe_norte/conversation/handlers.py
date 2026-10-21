@@ -184,6 +184,8 @@ def _next_question(state: SessionState) -> str:
     brief, or the interview."""
     pending = state.pending_confirmation
     if pending is not None and pending.status == "pending":
+        if not confirmation.ready_to_confirm(pending):
+            return f"A read-back is unanswered. {NOT_HEARD}"
         if isinstance(pending.target, SlotTarget):
             return (
                 "The slot read-back is unanswered; on a yes call reserve_interview with "

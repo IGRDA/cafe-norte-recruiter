@@ -780,3 +780,16 @@ async def test_reserve_on_a_cut_slot_read_back_points_at_the_review() -> None:
     refused = await w.reserve(context("t5"), args("reserve_interview", slot_id=SLOT))
     assert refused.summary == "confirmation_refused:not_delivered"
     assert "review_readback" in refused.model_text
+
+
+async def test_a_save_beside_a_cut_read_back_points_at_the_review() -> None:
+    w = await World(full_record()).open()
+    await w.present(
+        context("t1"), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    saved = await w.update(
+        context("t2"),
+        args("update_candidate", patch={"note": "tiene coche"}, evidence_text="tengo coche"),
+    )
+    assert saved.ok and "review_readback" in saved.model_text
+    assert "confirm_field" not in saved.model_text

@@ -15,7 +15,7 @@
 | Layer | Tooling | Runs |
 | --- | --- | --- |
 | Unit and property tests of the domain | pytest, hypothesis | CI |
-| Scenario integrity (S01–S18) against fakes | own runner, deterministic scorers | CI |
+| Scenario integrity (S01–S22) against fakes | own runner, deterministic scorers | CI |
 | Scenario behaviour live, candidate simulated | own runner over the HTTP API + `ModelCandidateSimulator` worded from deterministic cues (D43) | local, paid, `--yes` |
 | Retrieval quality (24 questions) | own scorers (recall@3, abstention, leakage) + ragas ID-based context precision/recall (`--ragas`, offline) | local, free |
 | Rubric judge | `evals/judge.py` through the `Model` port (`--judge provider/model`) | local, optional |

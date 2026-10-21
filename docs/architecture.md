@@ -1,7 +1,9 @@
 # Architecture
 
-Status: scaffold. The contracts below exist in code; the behaviours are specified and will be
-tested when each module lands. Numbers are the defaults in `.env.example`.
+Every port below has a production adapter and a fake beside it, and every behaviour named here
+is covered by an offline test (`make check`); the Postgres adapter also by `make test-db`. The
+one port with no adapter is the optional narrative summary (`persistence/later.py`). Numbers are
+the defaults in `.env.example`; decisions are cited by number from `DECISIONS.md`.
 
 ## Ports and their contracts
 
@@ -82,7 +84,6 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | SSE heartbeat while idle | 15 s |
 | Request body | 64 KiB, then 413 `limit_exceeded` (D38) |
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
-| Browser speech final accepted (D18 path) | confidence ≥ 0.4, ≥ 2 characters |
 | Malformed-call repairs per turn | 1; a second malformed call ends the turn with `invalid_response` (D37) |
 | Signal classifier | opt-in (`CAFE_NORTE_SIGNAL_MODEL`), one call per user turn, after the turn, 5 s deadline |
 | Signal freshness | the previous user turn only; `frustrated`/`uncertain` reach the prompt, others never |
@@ -123,7 +124,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Destination | Data |
 | --- | --- |
 | Browser | Own session only: transcript, brief, confirmations, sources (title › section › excerpt), reviewer panel, the JSON export |
-| Groq | System prompt, configuration facts, candidate state, recent turns, tool calls and results (US-hosted) |
+| Model provider (OpenAI in the hosted demo, Groq or OpenAI locally) | System prompt, configuration facts, candidate state, recent turns, tool calls and results (US-hosted) |
 | Deepgram / ElevenLabs / Daily | Audio and text of the voice session; no raw audio stored by us |
 | Postgres | Everything the export contains; access codes and tokens only as hashes |
 | Logs | Metadata keyed by session and turn; redacted free text; never transcripts |
@@ -131,4 +132,14 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 
 ## Failure contract
 
-The spec's table (§12) is the contract; each row becomes a deterministic test with fakes.
+The spec's table (§12) is the contract. Each row that a fake can produce is a deterministic
+offline test: malformed or invalid tool arguments and unknown tools (`test_registry.py`,
+`test_runtime.py`), a slow first token and rate limits (`test_runtime.py`,
+`test_chat_completions.py`), the call ending and the pause (`test_voice_session.py`), a taken
+slot offering fresh ones and two reservers for one slot (`test_handlers.py`,
+`test_calendar_contract.py`), idempotent booking keys (`test_booking.py`), a write fenced on a
+stale lease (`test_store_contract.py`), voice admission limits (`test_store_contract.py`), and a
+dropped store connection through `MemoryStore.sessions.fail_next_save` (the evals' `storage`
+fault). There is no narrative summary, so the deterministic brief is always the one delivered and
+there is no summary job to recover. Rows that failed in a real call are tracked in
+`known-issues.md`.

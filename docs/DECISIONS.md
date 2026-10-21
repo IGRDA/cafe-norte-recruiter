@@ -252,7 +252,7 @@ provider accounts in front of the first conversation; B defers the first convers
 - Ana does not open the conversation; the candidate greets first. The opening turn is part
   of the lifecycle stage.
 - Browser speech has no barge-in and no meaningful latency figures; nothing from it is a
-  measurement.
+  measurement. (Removed by D45.)
 
 ## D19 · Ana opens with fixed text; the model resolves dates and marks unknown or declined
 
@@ -338,7 +338,7 @@ _Added 20 October 2026, with the voice stage (local half)._
   read-back is `fully_delivered` only when its last sentence was. The text channel still
   marks on journaling.
 - `CAFE_NORTE_VOICE = off | browser | pipecat`. `browser` (Web Speech, D18) stays until the
-  hosted exchange is verified and is removed in the deploy PR.
+  hosted exchange is verified and is removed in the deploy PR. (Removed by D45.)
 - Cost guards from day one: two voice sessions per container, the session cap plus a
   two-minute margin as room expiry with ejection, 8 s silence prompt then pause, Daily rooms
   destroyed on stop. The hosted checkpoint runs on the memory store with one instance.
@@ -1013,7 +1013,7 @@ endpoint and a hardened boundary.
 
 **Consequences we accept.** A new conversation is a page load. A button answer to a read-back
 the voice has not finished saying counts as read. The browser speech mode (D22) stays until a
-follow-up removes it. `ui.<lang>.md` is new candidate-facing text; `PROMPT_VERSION` is unchanged
+follow-up removes it. (Removed by D45.) `ui.<lang>.md` is new candidate-facing text; `PROMPT_VERSION` is unchanged
 because the model never sees it.
 
 ---
@@ -1374,3 +1374,32 @@ for the next turn. A join puts a cut part in front of words that may start a new
 stores it again. A crash before the pipeline ends loses the measurement, and the export then
 derives that call's speech and says it is partial. Pipecat's latency metrics are not stored.
 Real latency is checked on the next hosted call (Langfuse `rounds`, time to first token).
+
+---
+
+## D45 · Browser speech is removed; voice is hosted or off
+
+_Added 21 October 2026, with the documentation refresh._
+
+**Context.** D18 put the browser's own Web Speech API in front of the runtime as a stand-in for
+voice, and D22 kept it as `CAFE_NORTE_VOICE=browser` until the hosted exchange was verified. It
+is: two hosted calls on 21 October (D35, `docs/known-issues.md`) and the fixes after them
+(D40, D41) run on Daily, Deepgram and ElevenLabs. The page still carried about 150 lines of
+recognition and synthesis code, and a seven-call voice surface shaped for it.
+
+**Decision.** `VoiceMode = off | pipecat`. The Web Speech path leaves `web/assets/voice.js`;
+the page's voice module is the Daily call alone and offers `app.js` three calls: `start`,
+`stop`, `closing`. With voice `off` the **Hablar** button is hidden. `CAFE_NORTE_VOICE=browser`
+stops the process at startup with "browser speech was removed in D45"; the allowed values are
+read from `VoiceMode`, so the list in the message cannot drift from the type.
+
+**Why.** Two voice paths meant two behaviours for the same read-back: browser speech has no
+barge-in and no "delivered means heard" (D22), so nothing measured or fixed on one held for the
+other. Keeping a mode nobody verifies costs a test matrix and a page surface for no evidence.
+
+**Not changed.** A timing's `source = "browser"` stays: it means "measured on the page's clock"
+(the hosted page posts `connected` and `first_audio`), not the speech mode.
+
+**Consequences we accept.** There is no free local voice: speaking to Ana locally needs the
+Daily, Deepgram and ElevenLabs keys (`make voice-smoke`, `.env.example`). The text channel is
+unchanged and remains the offline path; CI never needed browser speech.

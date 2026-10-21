@@ -19,14 +19,12 @@ const state = {
   reviews: new Map(), // turn_id | "session" -> { summary, list }
   turnCount: 0,
   voiceOn: false,
-  voiceMode: "off",
   ended: false,
 };
 
 const el = {
   status: document.getElementById("status"),
   transcript: document.getElementById("transcript"),
-  interim: document.getElementById("interim"),
   composer: document.getElementById("composer"),
   access: document.getElementById("access"),
   code: document.getElementById("code"),
@@ -57,26 +55,10 @@ const el = {
   delete: document.getElementById("delete"),
 };
 
-let voice = {
-  supported: false,
-  start() {},
-  stop() {},
-  speak() {},
-  turnEnded() {},
-  closing() {},
-  setLanguage() {},
-};
+let voice = { start() {}, stop() {}, closing() {} }; // until the server offers hosted voice
 
-function buildVoice(mode) {
+function buildVoice() {
   return createVoice({
-    mode,
-    onInterim: (text) => {
-      el.interim.textContent = text ? `… ${text}` : "";
-    },
-    onFinal: (text) => {
-      el.interim.textContent = "";
-      submitTurn(text);
-    },
     onStatus: setStatus,
     onError: showError,
     startVoice: async () => {
@@ -102,9 +84,8 @@ async function main() {
   ]);
   state.stores = stores;
   renderChooser();
-  state.voiceMode = runtime.voice;
-  if (runtime.voice === "off") el.talk.hidden = true;
-  else voice = buildVoice(runtime.voice);
+  if (runtime.voice === "pipecat") voice = buildVoice();
+  else el.talk.hidden = true;
   const token = new URLSearchParams(location.hash.slice(1)).get("resume");
   if (token) await resumeSession(token);
   else if (stores.some((store) => store.config_id === CONFIG_ID)) await openSession();
@@ -267,7 +248,6 @@ function handle(event) {
       reviewEntry(event.turn_id).summary.textContent = `Turno ${state.turnCount}`;
       if (payload.text) addTurn(`${event.turn_id}:user`, "user", [payload.text]);
       addTurn(event.turn_id, "assistant", []);
-      voice.setLanguage(payload.language);
       setStatus("Ana está pensando…");
       break;
     }
@@ -288,7 +268,6 @@ function handle(event) {
       const turn = state.turns.get(event.turn_id) ?? addTurn(event.turn_id, "assistant", []);
       turn.sentences.push(payload.text);
       renderTranscript();
-      if (state.voiceOn) voice.speak(payload.spoken_form);
       if (!state.ended) setStatus("Ana está hablando…");
       break;
     }
@@ -310,12 +289,8 @@ function handle(event) {
       hideError(); // a later turn went through: an old error no longer applies
       finishReview(event.turn_id, payload);
       renderConfirmation(state.candidate?.pending_confirmation);
-      if (state.ended) {
-        voice.turnEnded();
-        break;
-      }
+      if (state.ended) break;
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
-      if (state.voiceOn) voice.turnEnded();
       break;
     }
     case "turn_failed":
@@ -325,7 +300,6 @@ function handle(event) {
       if (payload.code === "session_ended") endConversation();
       if (state.ended) break;
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
-      if (state.voiceOn) voice.turnEnded();
       break;
     default:
       review(`evento ${payload.type}`, event.turn_id);
@@ -659,14 +633,9 @@ el.end.addEventListener("click", async () => {
 });
 
 el.talk.addEventListener("click", () => {
-  if (!voice.supported) {
-    showError("Este navegador no soporta reconocimiento de voz. Puedes seguir por texto.");
-    return;
-  }
   state.voiceOn = !state.voiceOn;
   el.talk.setAttribute("aria-pressed", String(state.voiceOn));
   el.talk.textContent = state.voiceOn ? "⏹ Parar" : "🎙 Hablar";
-  if (state.voiceMode === "pipecat") el.talk.title = "Voz alojada: Daily + Deepgram + ElevenLabs";
   if (state.voiceOn) {
     hideError();
     voice.start();

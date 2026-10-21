@@ -1,7 +1,7 @@
 # Known issues
 
-Problems seen in real calls that are documented, reproduced where possible, and left for a
-later stage. Each entry says what happened, the evidence, the cause, how to reproduce it and
+Problems seen in real calls, documented and reproduced where possible. A fixed entry stays,
+with the decision or commit that fixed it, so the evidence trail is complete. Each entry says what happened, the evidence, the cause, how to reproduce it and
 the fix proposed. A reproduction in `tests/test_known_issues.py` is a strict `xfail`: it fails
 today, and the commit that fixes the issue removes the marker.
 
@@ -36,8 +36,12 @@ the session never paused during the call; no model round timed out.
 - **Fix.** Add "está todo bien", "todo bien", "está bien todo", "todo está bien" (and the
   English "all good", "that's all right") to the affirmations; consider word-set matching for
   the "todo / bien / correcto" family.
-- **Fixed (D39).** A plain yes is a family of words in any order, with fillers, at least one
-  core word and no negation; a carry-on ("sigue", "adelante") is its own answer.
+- **Fixed** (commit `bdc588d`, merged in PR #26). `signals.answer_to_readback` takes a yes as an
+  answer made only of yes-words and fillers, in any order, with at least one core yes-word and
+  no negation; "todo" or "está" alone only support a core word. "Está todo bien", "Todo bien",
+  "Está bien todo", "All good" and "That is all right" are a plain yes; `test_ki01_…` passes
+  with no marker, and a no still wins first. Since D39 a
+  carry-on ("sigue", "adelante") is its own answer.
 
 ## KI-02 · A yes to the summary on screen is lost when its audio was cut
 
@@ -137,9 +141,10 @@ the session never paused during the call; no model round timed out.
   the running one; cancellation is not journaled (runtime robustness item).
 - **Fix.** Journal the cancelled turn as interrupted (runtime robustness stream); consider a
   longer timeout after a question that expects a date or a number, or Pipecat's smart-turn.
-- **Fixed (D44).** D37 journals the cancelled turn as interrupted. A turn cut before any of
-  its answer was heard is joined to the next transcript within 5 s, so the model reads "El
-  lunes, uno, de, dos de noviembre." as one answer (`test_ki07_…`).
+- **Fixed (D37, D44).** D37 journals a cancelled turn as an interrupted assistant turn that ends
+  with `turn_finished` (`interrupted: true`), so the page closes it instead of showing "…". D44
+  joins a turn cut before any of its answer was heard to the next transcript within 5 s, so the
+  model reads "El lunes, uno, de, dos de noviembre." as one answer (`test_ki07_…`).
 
 ## KI-08 · Wasted model rounds add latency
 

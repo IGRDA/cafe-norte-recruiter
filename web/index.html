@@ -34,12 +34,11 @@
     <section class="layout">
       <div class="conversation">
         <ol id="transcript" class="transcript" aria-label="Conversación"></ol>
-        <p id="interim" class="interim" aria-live="polite"></p>
         <form id="composer" class="composer" autocomplete="off">
           <label for="text" class="visually-hidden">Tu mensaje</label>
           <input id="text" name="text" maxlength="2000" placeholder="Escribe a Ana…" required>
           <button type="submit" id="send">Enviar</button>
-          <button type="button" id="talk" aria-pressed="false">🎙 Hablar</button>
+          <button type="button" id="talk" aria-pressed="false" title="Voz alojada: Daily + Deepgram + ElevenLabs">🎙 Hablar</button>
         </form>
         <p id="error" class="error" role="alert" hidden></p>
       </div>

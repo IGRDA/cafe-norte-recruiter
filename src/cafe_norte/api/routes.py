@@ -16,6 +16,8 @@ from cafe_norte.api.contracts import (
     ConfigurationSummary,
     CreateSessionRequest,
     CreateSessionResponse,
+    ResumeRequest,
+    ResumeResponse,
     RuntimeInfo,
     TurnAccepted,
     TurnRequest,
@@ -194,7 +196,26 @@ def build_router(
             created_at=datetime.now(UTC),
         )
         await store.sessions.create(state, access_hash="")
+        token, token_hash = gate.new_resume_token()
+        await store.resume_tokens.issue(session_id, token_hash, gate.expiry(state.created_at))
         tasks.start(_drain(runtime.open_session(session_id)))
+        _set_session_cookie(response, session_id)
+        return CreateSessionResponse(session_id=session_id, resume_url=f"/#resume={token}")
+
+    @router.post("/api/resume")
+    async def resume(body: ResumeRequest, response: Response) -> ResumeResponse:
+        """A private resume link: the token alone is the credential (spec §8). It opens only
+        its own session, as long as it has not expired; Ana then picks the conversation up."""
+        session_id = await store.resume_tokens.redeem(
+            gate.token_hash(body.token), now=datetime.now(UTC)
+        )
+        if session_id is None:
+            raise ServiceError("unknown or expired resume token", code="unauthorized")
+        tasks.start(_drain(runtime.resume_session(session_id)))
+        _set_session_cookie(response, session_id)
+        return ResumeResponse(session_id=session_id)
+
+    def _set_session_cookie(response: Response, session_id: SessionId) -> None:
         response.set_cookie(
             SESSION_COOKIE,
             gate.issue_session_cookie(session_id),
@@ -202,7 +223,6 @@ def build_router(
             samesite="lax",
             path="/api/sessions",
         )
-        return CreateSessionResponse(session_id=session_id, resume_url=None)
 
     @router.post("/api/sessions/{session_id}/turns", status_code=status.HTTP_202_ACCEPTED)
     async def post_turn(session_id: str, body: TurnRequest, request: Request) -> TurnAccepted:

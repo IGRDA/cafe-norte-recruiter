@@ -32,7 +32,7 @@ async def test_open_applies_the_migrations_once_and_is_idempotent(empty_database
     await store.close()
     async with await psycopg.AsyncConnection.connect(empty_database) as conn:
         rows = await (await conn.execute("select name from schema_migrations")).fetchall()
-    assert [row[0] for row in rows] == ["0001_initial.sql"]
+    assert [row[0] for row in rows] == ["0001_initial.sql", "0002_leases_admission_resume.sql"]
 
 
 async def test_check_ready_is_false_when_the_database_is_unreachable() -> None:
@@ -79,4 +79,18 @@ async def test_pool_exhaustion_is_busy(empty_database: str) -> None:
             pass
     assert full.value.code == "busy"
     await holder
+    await store.close()
+
+
+async def test_an_admission_older_than_its_ttl_no_longer_counts(empty_database: str) -> None:
+    """A crashed container never releases its place; the row ages out instead."""
+    store = PostgresStore(empty_database, admission_ttl_seconds=0)
+    await store.open()
+    for session_id in ("s1", "s2"):
+        await store.sessions.create(
+            STATE.model_copy(update={"session_id": SessionId(session_id)}), access_hash=""
+        )
+    assert await store.admission.acquire(SessionId("s1"), max_active=1, reserve_eur=0.5)
+    await asyncio.sleep(0.01)
+    assert await store.admission.acquire(SessionId("s2"), max_active=1, reserve_eur=0.5)
     await store.close()

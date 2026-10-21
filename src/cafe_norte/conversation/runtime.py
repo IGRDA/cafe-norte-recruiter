@@ -61,13 +61,14 @@ from cafe_norte.model.contracts import (
     ToolCall,
 )
 from cafe_norte.observability.contracts import Stage, StageTiming, UsageRecord
-from cafe_norte.persistence.contracts import EventRecord, Store, TurnRecord
+from cafe_norte.persistence.contracts import EventRecord, Lease, Store, TurnRecord
 
 
 class Limits:
     """Per-turn and per-session bounds, all configurable from the environment."""
 
     __slots__ = (
+        "lease_seconds",
         "llm_first_output_seconds",
         "max_answer_characters",
         "max_tool_rounds",
@@ -83,7 +84,9 @@ class Limits:
         tool_seconds: float = 10.0,
         session_seconds: float = 480.0,
         max_answer_characters: int = 600,
+        lease_seconds: int = 60,
     ) -> None:
+        self.lease_seconds = lease_seconds
         self.max_tool_rounds = max_tool_rounds
         self.max_answer_characters = max_answer_characters
         self.llm_first_output_seconds = llm_first_output_seconds
@@ -115,10 +118,15 @@ class _Turn:
     usage: list[UsageRecord] = field(default_factory=list)
     timings: list[StageTiming] = field(default_factory=list)
     asked: bool = False  # a question has been spoken; the turn says nothing more
+    lease: Lease | None = None  # held for the turn; every write is fenced on its generation
 
     @property
     def session_id(self) -> SessionId:
         return self.input.session_id
+
+    @property
+    def generation(self) -> int | None:
+        return None if self.lease is None else self.lease.generation
 
     def failed(self, code: ErrorCode) -> TurnFailed:
         message = MESSAGES[self.state.language][code]
@@ -211,6 +219,9 @@ class Runtime:
             if is_terminal(state):
                 yield await self._emit(run, run.failed("session_ended"))
                 return
+            if not await self._claim(run):
+                yield await self._emit(run, run.failed("conflict"))
+                return
             try:
                 async for event in self._turn(run):
                     yield event
@@ -222,13 +233,35 @@ class Runtime:
                     error.code,
                     error,
                 )
+                run.lease = None  # the fence may be what failed; journal the failure unfenced
                 yield await self._emit(run, run.failed(error.code))
+            finally:
+                await self._release(run)
 
     async def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
         """The spec's opening sentence, word for word, before any candidate input."""
-        opening = TurnInput(
+        async for event in self._system_turn(session_id, InputId("opening"), _opening):
+            yield event
+
+    async def resume_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
+        """A resume link reopened the session: ``paused`` becomes ``active``, then the fixed
+        resume sentence and, when a read-back is still unanswered, its text again."""
+        input_id = InputId(f"resume-{uuid.uuid4().hex[:8]}")
+        async for event in self._system_turn(session_id, input_id, _resume, reactivate=True):
+            yield event
+
+    async def _system_turn(
+        self,
+        session_id: SessionId,
+        input_id: InputId,
+        sentences: Callable[[SessionState], list[str]],
+        *,
+        reactivate: bool = False,
+    ) -> AsyncIterator[RuntimeEvent]:
+        """A turn the system speaks by itself, journaled like any other, under the lease."""
+        system = TurnInput(
             session_id=session_id,
-            input_id=InputId("opening"),
+            input_id=input_id,
             text="",
             channel="text",
             received_at=self._clock(),
@@ -239,23 +272,46 @@ class Runtime:
             if state is None:
                 yield _NOT_FOUND
                 return
-            run = _Turn(input=opening, state=state)
-            greeting = prompts.load("opening", state.language).strip()
-            try:
-                async with self._store.transaction() as tx:
-                    await self._store.turns.append(
-                        tx, run.record("assistant", greeting, self._clock())
-                    )
-            except ServiceError as error:  # a second opening for the same session
-                yield await self._emit(run, run.failed(error.code))
+            run = _Turn(input=system, state=state)
+            if is_terminal(state):
+                yield await self._emit(run, run.failed("session_ended"))
                 return
-            yield await self._emit(
-                run, TurnStarted(turn_id=run.turn_id, language=state.language, text="")
-            )
-            yield await self._emit(run, _say(greeting))
-            yield await self._emit(
-                run, TurnFinished(turn_id=run.turn_id, interrupted=False, usage=(), timings=())
-            )
+            if not await self._claim(run):
+                yield await self._emit(run, run.failed("conflict"))
+                return
+            try:
+                spoken = sentences(state)
+                async with self._store.transaction() as tx:
+                    if reactivate and state.lifecycle == "paused":
+                        result = transition(state, "resume")
+                        if not isinstance(result, Err):
+                            lifecycle, outcome = result.value
+                            run.state = state.model_copy(
+                                update={"lifecycle": lifecycle, "outcome": outcome}
+                            )
+                            await self._store.sessions.save(
+                                tx,
+                                run.state,
+                                expected_revision=state.candidate.revision,
+                                lease_generation=run.generation,
+                            )
+                    await self._store.turns.append(
+                        tx, run.record("assistant", " ".join(spoken), self._clock())
+                    )
+                yield await self._emit(
+                    run, TurnStarted(turn_id=run.turn_id, language=state.language, text="")
+                )
+                for sentence in spoken:
+                    yield await self._emit(run, _say(sentence))
+                yield await self._emit(
+                    run,
+                    TurnFinished(turn_id=run.turn_id, interrupted=False, usage=(), timings=()),
+                )
+            except ServiceError as error:  # a second opening for the same session
+                run.lease = None
+                yield await self._emit(run, run.failed(error.code))
+            finally:
+                await self._release(run)
 
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:
         """Playback acknowledgement from the voice channel: what was actually heard. Updates
@@ -312,6 +368,18 @@ class Runtime:
                     expected_revision=state.candidate.revision,
                 )
 
+    async def _claim(self, run: _Turn) -> bool:
+        """The session lease for this turn (D32). ``False`` when another container holds it."""
+        run.lease = await self._store.leases.claim(
+            run.session_id, self._owner, ttl_seconds=self._limits.lease_seconds
+        )
+        return run.lease is not None
+
+    async def _release(self, run: _Turn) -> None:
+        if run.lease is not None:
+            await self._store.leases.release(run.lease)
+            run.lease = None
+
     async def settle(self) -> None:
         """Wait for every signal analysis in flight; tests and the eval runner call this
         between turns so the asynchronous path is deterministic there."""
@@ -333,7 +401,10 @@ class Runtime:
             )
             if language != previous.language:
                 await self._store.sessions.save(
-                    tx, run.state, expected_revision=previous.candidate.revision
+                    tx,
+                    run.state,
+                    expected_revision=previous.candidate.revision,
+                    lease_generation=run.generation,
                 )
         yield await self._emit(
             run,
@@ -507,7 +578,7 @@ class Runtime:
                 turn_id=run.turn_id,
                 now=self._clock(),
                 language=run.state.language,
-                lease_generation=0,
+                lease_generation=run.generation,
             )
             try:
                 async with asyncio.timeout(self._limits.tool_seconds):
@@ -561,14 +632,20 @@ class Runtime:
     # ---- the journal -----------------------------------------------------------------------------
 
     async def _emit(self, run: _Turn, event: RuntimeEvent) -> RuntimeEvent:
-        return await self._journal(run.session_id, run.turn_id, event)
+        return await self._journal(run.session_id, run.turn_id, event, run.generation)
 
     async def _journal(
-        self, session_id: SessionId, turn_id: TurnId, event: RuntimeEvent
+        self,
+        session_id: SessionId,
+        turn_id: TurnId,
+        event: RuntimeEvent,
+        lease_generation: int | None = None,
     ) -> RuntimeEvent:
         """Persist the event with the store's next sequence number, then hand it back."""
         async with self._store.transaction() as tx:
-            seq = await self._store.sessions.next_seq(tx, session_id)
+            seq = await self._store.sessions.next_seq(
+                tx, session_id, lease_generation=lease_generation
+            )
             await self._store.events.append(
                 tx,
                 EventRecord(
@@ -581,6 +658,19 @@ class Runtime:
                 ),
             )
         return event
+
+
+def _opening(state: SessionState) -> list[str]:
+    return [prompts.load("opening", state.language).strip()]
+
+
+def _resume(state: SessionState) -> list[str]:
+    """The resume sentence, then the unanswered read-back so a yes or no still has a target."""
+    spoken = [prompts.load("resume", state.language).strip()]
+    pending = state.pending_confirmation
+    if pending is not None and pending.status == "pending":
+        spoken.append(pending.presentation_text)
+    return spoken
 
 
 _NOT_FOUND = TurnFailed(turn_id=TurnId(""), code="not_found", message=MESSAGES["es"]["not_found"])

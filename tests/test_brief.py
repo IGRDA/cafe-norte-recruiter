@@ -108,7 +108,7 @@ def test_every_language_has_the_same_sentence_keys(name: str) -> None:
     assert keys["en"] == keys["es"]
 
 
-@pytest.mark.parametrize("name", ["opening", "language"])
+@pytest.mark.parametrize("name", ["opening", "language", "resume"])
 @pytest.mark.parametrize("language", get_args(Language))
 def test_every_language_has_its_own_text(name: str, language: Language) -> None:
     assert prompts.load(name, language).strip()

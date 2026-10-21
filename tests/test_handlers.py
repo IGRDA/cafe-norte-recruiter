@@ -3,6 +3,7 @@
 import json
 from datetime import UTC, date, datetime
 
+import pytest
 from pydantic import BaseModel
 
 from cafe_norte.conversation.brief import field_readback, render_brief
@@ -35,6 +36,7 @@ from cafe_norte.domain.contracts import (
     SlotTarget,
     TurnId,
 )
+from cafe_norte.errors import ServiceError
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
 from tests.support import CONFIG_DIR
@@ -58,7 +60,7 @@ FULL = CandidatePatch(
 
 def context(turn: str = "t1") -> ToolContext:
     return ToolContext(
-        session_id=SID, turn_id=TurnId(turn), now=NOW, language="es", lease_generation=0
+        session_id=SID, turn_id=TurnId(turn), now=NOW, language="es", lease_generation=None
     )
 
 
@@ -588,3 +590,16 @@ def full_confirmation() -> Confirmation:
         fully_delivered=True,
         status="confirmed",
     )
+
+
+async def test_a_handler_save_is_fenced_on_the_contexts_lease_generation() -> None:
+    w = World()
+    await w.store.sessions.create(w.state, access_hash="")
+    stale = ToolContext(
+        session_id=SID, turn_id=TurnId("t1"), now=NOW, language="es", lease_generation=7
+    )
+    with pytest.raises(ServiceError) as refused:
+        await UpdateCandidateHandler(store=w.store, configurations=CONFIGS)(
+            stale, args("update_candidate", patch={"name": "Ane"}, evidence_text="Ane")
+        )
+    assert refused.value.code == "conflict"

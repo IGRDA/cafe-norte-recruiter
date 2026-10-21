@@ -150,7 +150,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
     """Select adapters from ``env`` (default ``os.environ``) and call ``create_app``."""
     env = env if env is not None else os.environ
     voice_mode = _voice_mode(env)
-    store = _store(env, voice_mode=voice_mode)
+    store = _store(env)
     configurations = load_configurations(Path(env.get("CAFE_NORTE_CONFIG_DIR", "config")))
     retriever, warm_up = _retriever(env, configurations)
     registry = ToolRegistry(
@@ -198,16 +198,12 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
     )
 
 
-def _store(env: Mapping[str, str], *, voice_mode: VoiceMode) -> Store:
+def _store(env: Mapping[str, str]) -> Store:
     """Postgres when ``CAFE_NORTE_DATABASE_URL`` is set, the memory store otherwise, so
-    ``make run`` with no ``.env`` needs no Docker. Hosted voice on Postgres waits for the
-    admission rows of the next persistence stage: a per-process cap would be forgotten by a
-    restart, and refusing at startup is better than a cap that is not one."""
+    ``make run`` with no ``.env`` needs no Docker."""
     dsn = env.get("CAFE_NORTE_DATABASE_URL", "")
     if not dsn:
         return MemoryStore()
-    if voice_mode == "pipecat":
-        raise ValueError("CAFE_NORTE_VOICE=pipecat on Postgres needs the admission rows (PR2)")
     return PostgresStore(dsn, pool_size=int(env.get("CAFE_NORTE_DB_POOL_SIZE", "5")))
 
 

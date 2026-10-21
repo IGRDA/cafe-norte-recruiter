@@ -16,6 +16,22 @@ from cafe_norte.persistence.postgres.support import (
     writing,
 )
 
+# With a generation, the write also needs a live lease of that generation: the fence of D32.
+FENCE = (
+    "and (%(generation)s::integer is null or exists (select 1 from leases l "
+    "where l.session_id = sessions.session_id and l.generation = %(generation)s "
+    "and l.expires_at > now()))"
+)
+
+
+async def _refusal(conn: Connection, session_id: SessionId) -> ServiceError:
+    """Why a conditional write touched no row: the session is missing, or the revision or the
+    lease it was fenced on is stale."""
+    exists = await fetch_one(conn, "select 1 from sessions where session_id = %s", (session_id,))
+    if exists is None:
+        return ServiceError("session missing", code="not_found")
+    return ServiceError("revision or lease mismatch", code="conflict")
+
 
 async def select_state(conn: Connection, session_id: SessionId) -> SessionState | None:
     row = await fetch_one(
@@ -40,30 +56,41 @@ class PostgresSessions:
         async with reading(self._connect) as conn:
             return await select_state(conn, session_id)
 
-    async def save(self, tx: Transaction, state: SessionState, *, expected_revision: int) -> None:
+    async def save(
+        self,
+        tx: Transaction,
+        state: SessionState,
+        *,
+        expected_revision: int,
+        lease_generation: int | None = None,
+    ) -> None:
         conn = connection(tx)
         cursor = await conn.execute(
-            "update sessions set state_json = %s::jsonb, updated_at = now() "
-            "where session_id = %s and revision = %s",
-            (state.model_dump_json(), state.session_id, expected_revision),
+            "update sessions set state_json = %(state_json)s::jsonb, updated_at = now() "
+            f"where session_id = %(session_id)s and revision = %(revision)s {FENCE}",
+            {
+                "state_json": state.model_dump_json(),
+                "session_id": state.session_id,
+                "revision": expected_revision,
+                "generation": lease_generation,
+            },
         )
         if cursor.rowcount == 1:
             return
-        exists = await fetch_one(
-            conn, "select 1 from sessions where session_id = %s", (state.session_id,)
-        )
-        if exists is None:
-            raise ServiceError("session missing", code="not_found")
-        raise ServiceError("revision mismatch", code="conflict")
+        raise await _refusal(conn, state.session_id)
 
-    async def next_seq(self, tx: Transaction, session_id: SessionId) -> int:
+    async def next_seq(
+        self, tx: Transaction, session_id: SessionId, *, lease_generation: int | None = None
+    ) -> int:
+        conn = connection(tx)
         row = await fetch_one(
-            connection(tx),
-            "update sessions set next_seq = next_seq + 1 where session_id = %s returning next_seq",
-            (session_id,),
+            conn,
+            "update sessions set next_seq = next_seq + 1 "
+            f"where session_id = %(session_id)s {FENCE} returning next_seq",
+            {"session_id": session_id, "generation": lease_generation},
         )
         if row is None:
-            raise ServiceError("session missing", code="not_found")
+            raise await _refusal(conn, session_id)
         return int(row["next_seq"])
 
     async def delete(self, session_id: SessionId) -> None:

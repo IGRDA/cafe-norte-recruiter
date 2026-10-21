@@ -38,6 +38,8 @@ const el = {
   sources: document.getElementById("sources"),
   export: document.getElementById("export"),
   exportLink: document.getElementById("export-link"),
+  resume: document.getElementById("resume"),
+  resumeLink: document.getElementById("resume-link"),
 };
 
 let voice = {
@@ -83,7 +85,31 @@ async function main() {
   state.voiceMode = runtime.voice;
   if (runtime.voice === "off") el.talk.hidden = true;
   else voice = buildVoice(runtime.voice);
-  await openSession();
+  const token = new URLSearchParams(location.hash.slice(1)).get("resume");
+  if (token) await resumeSession(token);
+  else await openSession();
+}
+
+// A private resume link: the token travels in the fragment, is exchanged once for the session
+// cookie and leaves the address bar. The stream then replays the whole conversation.
+async function resumeSession(token) {
+  history.replaceState(null, "", location.pathname + location.search);
+  const response = await fetch("/api/resume", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!response.ok) {
+    showError("Este enlace ya no es válido. Empieza una conversación nueva.");
+    await openSession();
+    return;
+  }
+  const body = await response.json();
+  state.sessionId = body.session_id;
+  renderCandidate();
+  openStream();
+  review("conversación recuperada con el enlace privado");
+  setStatus("Conversación recuperada.");
 }
 
 // A shared demo code guards the hosted page; the server says whether one is needed. A 401 on
@@ -107,6 +133,10 @@ async function openSession() {
   el.access.hidden = true;
   const body = await response.json();
   state.sessionId = body.session_id;
+  el.resumeLink.href = body.resume_url;
+  el.resumeLink.textContent = `${location.origin}${body.resume_url}`;
+  el.resume.hidden = false;
+  review("enlace privado de reanudación emitido (válido 7 días)");
   renderCandidate();
   openStream();
   setStatus("Conectada.");

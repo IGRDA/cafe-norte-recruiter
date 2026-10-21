@@ -52,7 +52,11 @@ class AccessGate:
     def new_resume_token(self) -> tuple[str, str]:
         """``(token, token_hash)``; only the hash is stored."""
         token = secrets.token_urlsafe(32)
-        return token, hashlib.sha256(token.encode()).hexdigest()
+        return token, self.token_hash(token)
+
+    @staticmethod
+    def token_hash(token: str) -> str:
+        return hashlib.sha256(token.encode()).hexdigest()
 
     @staticmethod
     def expiry(now: datetime, *, days: int = 7) -> datetime:

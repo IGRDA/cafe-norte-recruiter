@@ -12,6 +12,7 @@ Instructions to the model are one Spanish file; the language it answers in is a 
 | File | Purpose |
 | --- | --- |
 | `opening.<lang>.md` | The spec's disclosure greeting, journaled at session creation without a model call (D19) |
+| `resume.<lang>.md` | What Ana says when a private resume link reopens the session, followed by the pending read-back if one is open; journaled, no model call (D32) |
 | `system.md` | Ana's role, disclosure, one-question-at-a-time rules, confirmation discipline, language policy, what she must never infer |
 | `fake_model.md` | The one sentence the fake model says in `make run` without a real model |
 | `brief.<lang>.md` | `key: sentence` table for the brief and the read-backs, including the date layout |

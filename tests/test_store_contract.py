@@ -2,7 +2,7 @@
 fixture of ``conftest.py``. Only port methods are used; nothing implementation-specific."""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -273,3 +273,126 @@ async def test_open_and_close_are_idempotent(store: Store) -> None:
     await store.open()
     assert await store.check_ready()
     await store.close()
+
+
+# ---- leases --------------------------------------------------------------------------------------
+
+
+async def test_a_lease_is_held_by_one_owner_until_it_expires_or_is_released(store: Store) -> None:
+    await created(store)
+    first = await store.leases.claim(SID, "a", ttl_seconds=60)
+    assert first is not None and (first.owner, first.generation) == ("a", 1)
+    assert await store.leases.claim(SID, "b", ttl_seconds=60) is None  # live, someone else's
+    again = await store.leases.claim(SID, "a", ttl_seconds=60)  # the owner may claim again
+    assert again is not None and again.generation == 2
+    await store.leases.release(again)
+    taken = await store.leases.claim(SID, "b", ttl_seconds=60)
+    assert taken is not None and (taken.owner, taken.generation) == ("b", 3)
+
+
+async def test_an_expired_lease_can_be_claimed_by_another_owner(store: Store) -> None:
+    await created(store)
+    short = await store.leases.claim(SID, "a", ttl_seconds=0)
+    assert short is not None
+    await asyncio.sleep(0.01)
+    other = await store.leases.claim(SID, "b", ttl_seconds=60)
+    assert other is not None and other.owner == "b" and other.generation == 2
+    assert await store.leases.renew(short, ttl_seconds=60) is None  # superseded
+    renewed = await store.leases.renew(other, ttl_seconds=60)
+    assert (
+        renewed is not None and renewed.generation == 2 and renewed.expires_at >= other.expires_at
+    )
+
+
+async def test_a_lease_needs_a_session_and_release_of_a_stale_lease_is_harmless(
+    store: Store,
+) -> None:
+    assert await store.leases.claim(SessionId("nope"), "a", ttl_seconds=60) is None
+    await created(store)
+    mine = await store.leases.claim(SID, "a", ttl_seconds=60)
+    assert mine is not None
+    theirs = mine.model_copy(update={"generation": mine.generation + 5})
+    await store.leases.release(theirs)  # not the current lease: nothing happens
+    assert await store.leases.claim(SID, "b", ttl_seconds=60) is None
+
+
+# ---- fenced writes -------------------------------------------------------------------------------
+
+
+async def test_a_write_fenced_on_a_stale_lease_generation_is_a_conflict(store: Store) -> None:
+    await created(store)
+    mine = await store.leases.claim(SID, "a", ttl_seconds=60)
+    assert mine is not None
+    async with store.transaction() as tx:
+        await store.sessions.save(
+            tx, state(1), expected_revision=0, lease_generation=mine.generation
+        )
+        assert await store.sessions.next_seq(tx, SID, lease_generation=mine.generation) == 1
+    await store.leases.release(mine)
+    theirs = await store.leases.claim(SID, "b", ttl_seconds=60)
+    assert theirs is not None
+    with pytest.raises(ServiceError) as stale_save:
+        async with store.transaction() as tx:
+            await store.sessions.save(
+                tx, state(2), expected_revision=1, lease_generation=mine.generation
+            )
+    assert stale_save.value.code == "conflict"
+    with pytest.raises(ServiceError) as stale_seq:
+        async with store.transaction() as tx:
+            await store.sessions.next_seq(tx, SID, lease_generation=mine.generation)
+    assert stale_seq.value.code == "conflict"
+    current = await store.sessions.get(SID)
+    assert current is not None and current.candidate.revision == 1
+    async with store.transaction() as tx:  # unfenced writes still work
+        await store.sessions.save(tx, state(2), expected_revision=1)
+
+
+# ---- admission -----------------------------------------------------------------------------------
+
+
+async def test_at_most_max_active_voice_sessions_and_release_frees_a_place(store: Store) -> None:
+    a, b, c = SessionId("a"), SessionId("b"), SessionId("c")
+    for session_id in (a, b, c):
+        await store.sessions.create(state(session_id=session_id), access_hash="")
+    admission = store.admission
+    assert await admission.acquire(a, max_active=2, reserve_eur=0.5)
+    assert await admission.acquire(b, max_active=2, reserve_eur=0.5)
+    assert not await admission.acquire(c, max_active=2, reserve_eur=0.5)
+    assert await admission.acquire(a, max_active=2, reserve_eur=0.5)  # already in: idempotent
+    await admission.release(a, actual_eur=0.3)
+    assert await admission.acquire(c, max_active=2, reserve_eur=0.5)
+    await admission.release(SessionId("never"), actual_eur=0.0)  # unknown: no error
+
+
+async def test_concurrent_admissions_never_exceed_the_cap(store: Store) -> None:
+    ids = [SessionId(f"s{i}") for i in range(6)]
+    for session_id in ids:
+        await store.sessions.create(state(session_id=session_id), access_hash="")
+    results = await asyncio.gather(
+        *(store.admission.acquire(s, max_active=2, reserve_eur=0.5) for s in ids)
+    )
+    assert sum(results) == 2
+
+
+# ---- resume tokens -------------------------------------------------------------------------------
+
+
+async def test_a_resume_token_opens_only_its_session_until_it_expires(store: Store) -> None:
+    await created(store)
+    await store.sessions.create(state(session_id=SessionId("s2")), access_hash="")
+    later = NOW + timedelta(days=7)
+    await store.resume_tokens.issue(SID, "hash-1", expires_at=later)
+    await store.resume_tokens.issue(SessionId("s2"), "hash-2", expires_at=later)
+    assert await store.resume_tokens.redeem("hash-1", now=NOW) == SID
+    assert await store.resume_tokens.redeem("hash-1", now=NOW) == SID  # reusable until expiry
+    assert await store.resume_tokens.redeem("hash-2", now=NOW) == SessionId("s2")
+    assert await store.resume_tokens.redeem("hash-1", now=later) is None  # expired
+    assert await store.resume_tokens.redeem("no-such-hash", now=NOW) is None
+
+
+async def test_a_token_hash_is_issued_once(store: Store) -> None:
+    await created(store)
+    await store.resume_tokens.issue(SID, "hash-1", expires_at=NOW + timedelta(days=1))
+    with pytest.raises(ServiceError) as twice:
+        await store.resume_tokens.issue(SID, "hash-1", expires_at=NOW + timedelta(days=1))
+    assert twice.value.code == "conflict"

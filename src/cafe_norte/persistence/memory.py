@@ -9,7 +9,7 @@ would raise it. Repositories of later stages come from ``later.py`` and raise
 import asyncio
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import partial
 
 from cafe_norte.domain.contracts import (
@@ -27,17 +27,13 @@ from cafe_norte.observability.contracts import StageTiming, UsageRecord, Version
 from cafe_norte.persistence.contracts import (
     SNAPSHOT_TURNS,
     EventRecord,
+    Lease,
     SessionSnapshot,
     Transaction,
     TurnRecord,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-from cafe_norte.persistence.later import (
-    ExportsLater,
-    LeasesLater,
-    ResumeTokensLater,
-    SummaryJobsLater,
-)
+from cafe_norte.persistence.later import ExportsLater, SummaryJobsLater
 
 
 class MemoryTransaction:
@@ -68,6 +64,11 @@ class MemorySessions:
     def __init__(self) -> None:
         self._states: dict[SessionId, SessionState] = {}
         self._seq: dict[SessionId, int] = {}
+        self.fence: Callable[[SessionId, int], bool] = lambda session_id, generation: True
+
+    def _fenced(self, session_id: SessionId, lease_generation: int | None) -> None:
+        if lease_generation is not None and not self.fence(session_id, lease_generation):
+            raise ServiceError("stale lease", code="conflict")
 
     async def create(self, state: SessionState, *, access_hash: str) -> None:
         if state.session_id in self._states:
@@ -77,22 +78,33 @@ class MemorySessions:
     async def get(self, session_id: SessionId) -> SessionState | None:
         return self._states.get(session_id)
 
-    async def save(self, tx: Transaction, state: SessionState, *, expected_revision: int) -> None:
+    async def save(
+        self,
+        tx: Transaction,
+        state: SessionState,
+        *,
+        expected_revision: int,
+        lease_generation: int | None = None,
+    ) -> None:
         def apply() -> None:
             current = self._states.get(state.session_id)
             if current is None:
                 raise ServiceError("session missing", code="not_found")
             if current.candidate.revision != expected_revision:
                 raise ServiceError("revision mismatch", code="conflict")
+            self._fenced(state.session_id, lease_generation)
             self._states[state.session_id] = state
 
         _tx(tx).enlist(apply)
 
-    async def next_seq(self, tx: Transaction, session_id: SessionId) -> int:
+    async def next_seq(
+        self, tx: Transaction, session_id: SessionId, *, lease_generation: int | None = None
+    ) -> int:
         """Counted at once, not at commit: a rolled-back transaction leaves a gap, which the
         sequence tolerates (``since`` asks for "after seq", never "exactly seq")."""
         if session_id not in self._states:
             raise ServiceError("session missing", code="not_found")
+        self._fenced(session_id, lease_generation)
         self._seq[session_id] = self._seq.get(session_id, 0) + 1
         return self._seq[session_id]
 
@@ -283,6 +295,54 @@ class MemoryCalendar:
         return self._by_key.get(idempotency_key)
 
 
+class MemoryLeases:
+    """One lease per session; ``clock`` decides expiry, as ``now()`` does in Postgres."""
+
+    def __init__(self, clock: Callable[[], datetime], sessions: MemorySessions) -> None:
+        self._clock = clock
+        self._sessions = sessions
+        self._leases: dict[SessionId, Lease] = {}
+
+    def _live(self, session_id: SessionId) -> Lease | None:
+        lease = self._leases.get(session_id)
+        return lease if lease is not None and lease.expires_at > self._clock() else None
+
+    async def claim(self, session_id: SessionId, owner: str, ttl_seconds: int) -> Lease | None:
+        if session_id not in self._sessions._states:
+            return None
+        live = self._live(session_id)
+        if live is not None and live.owner != owner:
+            return None
+        previous = self._leases.get(session_id)
+        lease = Lease(
+            session_id=session_id,
+            owner=owner,
+            generation=(previous.generation if previous else 0) + 1,
+            expires_at=self._clock() + timedelta(seconds=ttl_seconds),
+        )
+        self._leases[session_id] = lease
+        return lease
+
+    async def renew(self, lease: Lease, ttl_seconds: int) -> Lease | None:
+        live = self._live(lease.session_id)
+        if live != lease:
+            return None
+        renewed = lease.model_copy(
+            update={"expires_at": self._clock() + timedelta(seconds=ttl_seconds)}
+        )
+        self._leases[lease.session_id] = renewed
+        return renewed
+
+    async def release(self, lease: Lease) -> None:
+        """Expire, never forget: the generation keeps growing across claims."""
+        if self._leases.get(lease.session_id) == lease:
+            self._leases[lease.session_id] = lease.model_copy(update={"expires_at": self._clock()})
+
+    def generation_is_live(self, session_id: SessionId, generation: int) -> bool:
+        live = self._live(session_id)
+        return live is not None and live.generation == generation
+
+
 class MemoryAdmission:
     """Voice capacity for one process: a set of active session ids. Postgres makes it
     cross-container; the spend reservation is recorded, not enforced, until pricing lands."""
@@ -306,16 +366,33 @@ class MemoryAdmission:
         return frozenset(self._active)
 
 
+class MemoryResumeTokens:
+    def __init__(self) -> None:
+        self._tokens: dict[str, tuple[SessionId, datetime]] = {}
+
+    async def issue(self, session_id: SessionId, token_hash: str, expires_at: datetime) -> None:
+        if token_hash in self._tokens:
+            raise ServiceError("token exists", code="conflict")
+        self._tokens[token_hash] = (session_id, expires_at)
+
+    async def redeem(self, token_hash: str, now: datetime) -> SessionId | None:
+        found = self._tokens.get(token_hash)
+        if found is None or found[1] <= now:
+            return None
+        return found[0]
+
+
 class MemoryStore:
     def __init__(self, clock: Callable[[], datetime] = lambda: datetime.now(UTC)) -> None:
         self.sessions = MemorySessions()
         self.turns = MemoryTurns()
         self.events = MemoryEvents()
         self.calendar = MemoryCalendar(clock)
-        self.leases = LeasesLater()
+        self.leases = MemoryLeases(clock, self.sessions)
+        self.sessions.fence = self.leases.generation_is_live
         self.admission = MemoryAdmission()
         self.summary_jobs = SummaryJobsLater()
-        self.resume_tokens = ResumeTokensLater()
+        self.resume_tokens = MemoryResumeTokens()
         self.exports = ExportsLater()
 
     def transaction(self) -> AbstractAsyncContextManager[Transaction]:

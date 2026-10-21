@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from cafe_norte.domain.contracts import Booking, InterviewSlot, SessionState
 from cafe_norte.observability.contracts import StageTiming, UsageRecord
-from cafe_norte.persistence.contracts import EventRecord, TurnRecord
+from cafe_norte.persistence.contracts import EventRecord, Lease, TurnRecord
 
 Row = Mapping[str, Any]
 
@@ -29,6 +29,7 @@ BOOKING_COLUMNS = (
 )
 USAGE_COLUMNS = "session_id, turn_id, kind, quantity, unit_detail, estimated"
 TIMING_COLUMNS = "session_id, turn_id, stage, milliseconds, source, tool_name"
+LEASE_COLUMNS = "session_id, owner, generation, expires_at"
 
 
 def _record[M: BaseModel](model: type[M], row: Row) -> M:
@@ -94,3 +95,7 @@ def timing_params(timing: StageTiming) -> dict[str, Any]:
 
 def timing_from_row(row: Row) -> StageTiming:
     return _record(StageTiming, row)
+
+
+def lease_from_row(row: Row) -> Lease:
+    return _record(Lease, row)

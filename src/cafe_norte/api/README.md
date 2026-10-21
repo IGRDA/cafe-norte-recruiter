@@ -33,8 +33,8 @@ headers locally and hosted.
 Implemented today: `POST /api/sessions`, `POST …/turns` (202, the turn runs in the background
 and its events are journaled by the runtime), `GET …/events`, `GET /api/configurations`,
 `GET /api/runtime` (which voice mode to offer), `POST …/voice` (admission, private room, bot
-start; nothing left behind on failure), `POST …/voice/timings`, `GET …/export` and health. Ownership is a signed session cookie. `ServiceError` maps to `{code, message}` with
+start; nothing left behind on failure), `POST …/voice/timings`, `GET …/export`, `POST /api/resume` (the private link's token, exchanged for the session cookie; Ana resumes) and health. Ownership is a signed session cookie. `ServiceError` maps to `{code, message}` with
 fixed public text; request validation errors never echo the body.
 
-On reconnect the browser fetches the snapshot and resumes the stream from its last sequence;
+On reconnect the browser resumes the stream from its last sequence; after a resume link it replays from the start, so the transcript is rebuilt from the journal;
 transient tokens are not replayed.

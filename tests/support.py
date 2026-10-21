@@ -31,8 +31,9 @@ def build_test_app(
     rooms: RoomProvisioner | None = None,
     voice: VoiceSessionController | None = None,
     access_code: str | None = None,
+    store: MemoryStore | None = None,
 ) -> FastAPI:
-    store = MemoryStore()
+    store = store if store is not None else MemoryStore()
     configurations = load_configurations(CONFIG_DIR)
     registry = ToolRegistry(
         all_handlers(store=store, configurations=configurations, retriever=FakeRetriever())

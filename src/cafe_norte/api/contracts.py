@@ -43,7 +43,11 @@ class CreateSessionRequest(Frozen):
 
 class CreateSessionResponse(Frozen):
     session_id: SessionId
-    resume_url: str | None  # token in the fragment; shown once; None until resume links ship
+    resume_url: str  # the private link, token in the fragment; shown once on the page
+
+
+class ResumeResponse(Frozen):
+    session_id: SessionId
 
 
 class TurnRequest(Frozen):

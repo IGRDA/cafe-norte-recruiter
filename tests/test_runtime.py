@@ -76,8 +76,9 @@ class Harness:
         *,
         limits: Limits | None = None,
         signals: SignalAnalyzer | None = None,
+        store: MemoryStore | None = None,
     ):
-        self.store = MemoryStore()
+        self.store = store or MemoryStore()
         configurations = load_configurations(CONFIG_DIR)
         self.model = FakeModel(scripts)
         self.runtime = Runtime(
@@ -142,6 +143,18 @@ async def test_every_event_is_journaled_with_increasing_seq_before_it_is_yielded
     async for _ in h.runtime.run_turn(turn("Hola")):
         seen += 1
         assert h.store.events.last_seq(SESSION) == seen
+
+
+async def test_a_second_runtime_over_the_same_store_continues_the_sequence() -> None:
+    """The store owns the sequence: a restarted process never reuses a number."""
+    h = Harness([says("Hola."), says("Otra vez.")])
+    await h.open_session()
+    await h.run("Hola", "in-1")
+    before = h.store.events.last_seq(SESSION)
+    second = Harness([says("Otra vez.")], store=h.store)
+    await second.run("Sigo aquí", "in-2")
+    seqs = [e.seq for e in h.store.events.all(SESSION)]
+    assert seqs == list(range(1, len(seqs) + 1)) and seqs[-1] > before
 
 
 async def test_the_model_sees_history_state_and_only_registered_tools() -> None:
@@ -489,10 +502,11 @@ async def test_end_stops_or_abandons_through_the_lifecycle_table() -> None:
     await h2.runtime.end(SESSION, "stop")  # already terminal: a no-op, not an error
 
 
-async def test_an_unknown_session_fails_with_not_found() -> None:
+async def test_an_unknown_session_fails_with_not_found_and_journals_nothing() -> None:
     h = Harness([])
     events = await h.run("Hola")
     assert isinstance(events[0], TurnFailed) and events[0].code == "not_found"
+    assert h.store.events.all(SESSION) == ()
 
 
 @pytest.mark.parametrize("text", ["", "   "])

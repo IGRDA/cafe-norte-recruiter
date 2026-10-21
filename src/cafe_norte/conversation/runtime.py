@@ -194,7 +194,6 @@ class Runtime:
         self._owner = owner
         self._clock = clock
         self._locks: dict[SessionId, asyncio.Lock] = {}
-        self._seq: dict[SessionId, int] = {}
         self._turn_sessions: dict[TurnId, SessionId] = {}  # for delivery acknowledgements
         self._last_user_turn: dict[SessionId, TurnId] = {}
         self._latest_signal: dict[SessionId, Signal] = {}
@@ -205,7 +204,7 @@ class Runtime:
         async with lock:
             state = await self._store.sessions.get(turn.session_id)
             if state is None:
-                yield await self._journal(turn.session_id, TurnId(""), _NOT_FOUND)
+                yield _NOT_FOUND  # nothing to journal against, and nobody can stream it
                 return
             run = _Turn(input=turn, state=state)
             self._turn_sessions[run.turn_id] = turn.session_id
@@ -238,7 +237,7 @@ class Runtime:
         async with lock:
             state = await self._store.sessions.get(session_id)
             if state is None:
-                yield await self._journal(session_id, TurnId(""), _NOT_FOUND)
+                yield _NOT_FOUND
                 return
             run = _Turn(input=opening, state=state)
             greeting = prompts.load("opening", state.language).strip()
@@ -567,10 +566,9 @@ class Runtime:
     async def _journal(
         self, session_id: SessionId, turn_id: TurnId, event: RuntimeEvent
     ) -> RuntimeEvent:
-        """Persist the event with the next sequence number, then hand it back to be yielded."""
-        seq = self._seq.get(session_id, 0) + 1
-        self._seq[session_id] = seq
+        """Persist the event with the store's next sequence number, then hand it back."""
         async with self._store.transaction() as tx:
+            seq = await self._store.sessions.next_seq(tx, session_id)
             await self._store.events.append(
                 tx,
                 EventRecord(

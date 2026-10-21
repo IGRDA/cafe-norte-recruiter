@@ -242,3 +242,34 @@ async def test_snapshot_holds_turns_events_usage_and_timings_of_this_session_onl
 
 async def test_check_ready(store: Store) -> None:
     assert await store.check_ready()
+
+
+# ---- the event sequence --------------------------------------------------------------------------
+
+
+async def test_next_seq_counts_from_one_per_session_inside_a_transaction(store: Store) -> None:
+    await created(store)
+    await store.sessions.create(state(session_id=SessionId("s2")), access_hash="")
+    async with store.transaction() as tx:
+        first = await store.sessions.next_seq(tx, SID)
+        second = await store.sessions.next_seq(tx, SID)
+        other = await store.sessions.next_seq(tx, SessionId("s2"))
+        await store.events.append(tx, event(first))
+        await store.events.append(tx, event(second))
+    assert (first, second, other) == (1, 2, 1)
+    async with store.transaction() as tx:
+        assert await store.sessions.next_seq(tx, SID) == 3
+
+
+async def test_next_seq_for_an_unknown_session_is_not_found(store: Store) -> None:
+    with pytest.raises(ServiceError) as missing:
+        async with store.transaction() as tx:
+            await store.sessions.next_seq(tx, SessionId("nope"))
+    assert missing.value.code == "not_found"
+
+
+async def test_open_and_close_are_idempotent(store: Store) -> None:
+    await store.open()
+    await store.open()
+    assert await store.check_ready()
+    await store.close()

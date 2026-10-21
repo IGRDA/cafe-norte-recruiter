@@ -80,19 +80,22 @@ def create_app(
     warm_up: Callable[[], Awaitable[None]] | None = None,
     seed: bool = False,
 ) -> FastAPI:
-    """Build from typed collaborators. Lifespan: seed the simulated calendar when ``seed`` is
-    set, ``warm_up`` (the embedding model) before the first request, cancel in-flight turns on
+    """Build from typed collaborators. Lifespan: open the store (migrations), seed the
+    simulated calendar when ``seed`` is set, ``warm_up`` (the embedding model) before the first
+    request, cancel in-flight turns on
     shutdown. Later stages add lease renewal and the summary worker."""
     tasks = TurnTasks()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        await store.open()
         if seed:
             await seed_calendar(store, configurations, now=datetime.now(UTC))
         if warm_up is not None:
             await warm_up()
         yield
         await tasks.shutdown()
+        await store.close()
 
     app = FastAPI(title="Café Norte · Ana", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.include_router(

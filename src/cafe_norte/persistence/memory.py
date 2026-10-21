@@ -2,7 +2,8 @@
 
 Writes taken through a transaction are buffered and applied on ``commit``; conditional checks
 (revision, uniqueness) run again at commit time so a conflict surfaces exactly where Postgres
-would raise it. Repositories later stages need still raise ``NotImplementedError``.
+would raise it. Repositories of later stages come from ``later.py`` and raise
+``NotImplementedError``.
 """
 
 import asyncio
@@ -24,16 +25,19 @@ from cafe_norte.domain.contracts import (
 from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import StageTiming, UsageRecord, VersionStamp
 from cafe_norte.persistence.contracts import (
+    SNAPSHOT_TURNS,
     EventRecord,
-    Lease,
     SessionSnapshot,
-    SummaryJob,
     Transaction,
     TurnRecord,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-
-SNAPSHOT_TURNS = 10_000  # far above the session cap; a snapshot is the whole transcript
+from cafe_norte.persistence.later import (
+    ExportsLater,
+    LeasesLater,
+    ResumeTokensLater,
+    SummaryJobsLater,
+)
 
 
 class MemoryTransaction:
@@ -63,6 +67,7 @@ def _tx(tx: Transaction) -> MemoryTransaction:
 class MemorySessions:
     def __init__(self) -> None:
         self._states: dict[SessionId, SessionState] = {}
+        self._seq: dict[SessionId, int] = {}
 
     async def create(self, state: SessionState, *, access_hash: str) -> None:
         if state.session_id in self._states:
@@ -82,6 +87,14 @@ class MemorySessions:
             self._states[state.session_id] = state
 
         _tx(tx).enlist(apply)
+
+    async def next_seq(self, tx: Transaction, session_id: SessionId) -> int:
+        """Counted at once, not at commit: a rolled-back transaction leaves a gap, which the
+        sequence tolerates (``since`` asks for "after seq", never "exactly seq")."""
+        if session_id not in self._states:
+            raise ServiceError("session missing", code="not_found")
+        self._seq[session_id] = self._seq.get(session_id, 0) + 1
+        return self._seq[session_id]
 
     async def delete(self, session_id: SessionId) -> None:
         self._states.pop(session_id, None)
@@ -270,17 +283,6 @@ class MemoryCalendar:
         return self._by_key.get(idempotency_key)
 
 
-class _LeasesLater:
-    async def claim(self, session_id: SessionId, owner: str, ttl_seconds: int) -> Lease | None:
-        raise NotImplementedError
-
-    async def renew(self, lease: Lease, ttl_seconds: int) -> Lease | None:
-        raise NotImplementedError
-
-    async def release(self, lease: Lease) -> None:
-        raise NotImplementedError
-
-
 class MemoryAdmission:
     """Voice capacity for one process: a set of active session ids. Postgres makes it
     cross-container; the spend reservation is recorded, not enforced, until pricing lands."""
@@ -304,44 +306,17 @@ class MemoryAdmission:
         return frozenset(self._active)
 
 
-class _SummaryJobsLater:
-    async def enqueue(self, tx: Transaction, session_id: SessionId) -> None:
-        raise NotImplementedError
-
-    async def claim_next(self, owner: str, *, max_attempts: int) -> SummaryJob | None:
-        raise NotImplementedError
-
-    async def finish(self, job: SummaryJob, *, ok: bool) -> None:
-        raise NotImplementedError
-
-
-class _ResumeTokensLater:
-    async def issue(self, session_id: SessionId, token_hash: str, expires_at: datetime) -> None:
-        raise NotImplementedError
-
-    async def redeem(self, token_hash: str, now: datetime) -> SessionId | None:
-        raise NotImplementedError
-
-
-class _ExportsLater:
-    async def write_snapshot(self, tx: Transaction, session_id: SessionId, json_text: str) -> None:
-        raise NotImplementedError
-
-    async def read_snapshot(self, session_id: SessionId) -> str | None:
-        raise NotImplementedError
-
-
 class MemoryStore:
     def __init__(self, clock: Callable[[], datetime] = lambda: datetime.now(UTC)) -> None:
         self.sessions = MemorySessions()
         self.turns = MemoryTurns()
         self.events = MemoryEvents()
         self.calendar = MemoryCalendar(clock)
-        self.leases = _LeasesLater()
+        self.leases = LeasesLater()
         self.admission = MemoryAdmission()
-        self.summary_jobs = _SummaryJobsLater()
-        self.resume_tokens = _ResumeTokensLater()
-        self.exports = _ExportsLater()
+        self.summary_jobs = SummaryJobsLater()
+        self.resume_tokens = ResumeTokensLater()
+        self.exports = ExportsLater()
 
     def transaction(self) -> AbstractAsyncContextManager[Transaction]:
         return self._transaction()
@@ -358,6 +333,12 @@ class MemoryStore:
         else:
             if not tx.committed:
                 await tx.commit()
+
+    async def open(self) -> None:
+        """Nothing to connect to."""
+
+    async def close(self) -> None:
+        """Nothing to release."""
 
     async def check_ready(self) -> bool:
         return True

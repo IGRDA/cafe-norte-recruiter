@@ -5,9 +5,9 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from cafe_norte.conversation.tools import ToolName
-from cafe_norte.domain.contracts import ConfigId, Sentiment, SessionState, Signal
+from cafe_norte.domain.contracts import ConfigId, Lifecycle, Sentiment, SessionState, Signal, TurnId
 from cafe_norte.errors import Language
-from cafe_norte.observability.contracts import VersionStamp
+from cafe_norte.observability.contracts import StageTiming, UsageRecord, VersionStamp
 from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.persistence.export import ExportDocument
 
@@ -90,6 +90,21 @@ class Scenario(Frozen):
             if not 1 <= fault.turn <= len(self.scripted_turns):
                 raise ValueError(f"fault on turn {fault.turn}: there is no such line")
         return self
+
+
+class TurnObservation(Frozen):
+    """What one candidate turn showed from the outside, folded from its runtime events: the
+    fake replay and the live SSE stream build the same value (``evals/observation.py``)."""
+
+    turn_id: TurnId = TurnId("")
+    spoken: tuple[str, ...] = ()
+    sources: tuple[str, ...] = ()  # chunk ids shown
+    tools: tuple[tuple[str, bool], ...] = ()  # (tool, ok)
+    failed: str = ""  # the error code the turn failed with
+    lifecycle: Lifecycle | None = None  # the last state the turn committed
+    usage: tuple[UsageRecord, ...] = ()
+    timings: tuple[StageTiming, ...] = ()
+    done: bool = False  # turn_finished or turn_failed seen
 
 
 class SessionResult(Frozen):

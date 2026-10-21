@@ -12,21 +12,14 @@ from pathlib import Path
 
 import yaml
 
-from cafe_norte.conversation.contracts import (
-    AssistantText,
-    SourcesShown,
-    ToolFinished,
-    TurnFailed,
-    TurnInput,
-    TurnStarted,
-)
+from cafe_norte.conversation.contracts import AssistantText, TurnInput
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.prompts import PROMPT_VERSION
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import InputId, SessionId, SessionState, TurnId
+from cafe_norte.domain.contracts import InputId, SessionId, SessionState
 from cafe_norte.errors import ServiceError
 from cafe_norte.knowledge.contracts import Index, Retriever
 from cafe_norte.knowledge.fake import FakeEmbedder
@@ -41,7 +34,8 @@ from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
-from evals.contracts import FakeSignal, Fault, RunRecord, Scenario, SessionResult, Step
+from evals.contracts import FakeSignal, Fault, RunRecord, Scenario, Step, TurnObservation
+from evals.observation import fold, session_result
 from evals.retrieval import load_cases, run_retrieval, write_report
 from evals.scorers import run_check
 
@@ -150,10 +144,7 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         ),
         access_hash="",
     )
-    spoken_by_turn: list[tuple[str, ...]] = []
-    sources_by_turn: list[tuple[str, ...]] = []
-    tools_by_turn: list[tuple[tuple[str, bool], ...]] = []
-    failed_by_turn: list[str] = []
+    observations: list[TurnObservation] = []
     surprises: list[str] = []
     async for _ in runtime.open_session(session_id):
         pass
@@ -170,36 +161,22 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         )
         fault = faults.get(number)
         _arm(fault, model, store)
-        spoken: list[str] = []
-        sources: list[str] = []
-        tools: list[tuple[str, bool]] = []
-        failed = ""
-        turn_id = TurnId("")
+        observation = TurnObservation()
         stream = runtime.run_turn(turn)
         async for event in stream:
-            if isinstance(event, TurnStarted):
-                turn_id = event.turn_id
-            elif isinstance(event, AssistantText):
-                spoken.append(event.text)
-                if fault is not None and fault.kind == "interrupt":
-                    if len(spoken) >= fault.after_sentences:
-                        break  # the candidate speaks over Ana
-            elif isinstance(event, SourcesShown):
-                sources.extend(event.chunk_ids)
-            elif isinstance(event, ToolFinished):
-                tools.append((event.name, event.ok))
-            elif isinstance(event, TurnFailed):
-                failed = event.code
+            observation = fold(observation, event)
+            if fault is not None and fault.kind == "interrupt" and isinstance(event, AssistantText):
+                if len(observation.spoken) >= fault.after_sentences:
+                    break  # the candidate speaks over Ana
         await stream.aclose()
         if fault is not None and fault.kind == "interrupt":
-            await runtime.delivered(turn_id, text=" ".join(spoken), complete=False)
-        if failed and number not in expected_failures:
-            surprises.append(f"turn {number}: {failed}")
+            await runtime.delivered(
+                observation.turn_id, text=" ".join(observation.spoken), complete=False
+            )
+        if observation.failed and number not in expected_failures:
+            surprises.append(f"turn {number}: {observation.failed}")
         await runtime.settle()
-        spoken_by_turn.append(tuple(spoken))
-        sources_by_turn.append(tuple(sources))
-        tools_by_turn.append(tuple(tools))
-        failed_by_turn.append(failed)
+        observations.append(observation)
 
     state = await store.sessions.get(session_id)
     assert state is not None
@@ -207,15 +184,12 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
     snapshot = await store.snapshot(session_id, versions=versions, taken_at=clock_at)
     assert snapshot is not None
     export = build_export(snapshot)
-    result = SessionResult(
-        state=state,
-        turns=await store.turns.recent(session_id, 1000),
-        spoken_by_turn=tuple(spoken_by_turn),
-        sources_by_turn=tuple(sources_by_turn),
+    result = session_result(
+        state,
+        await store.turns.recent(session_id, 1000),
+        observations,
         allowed_doc_ids=configuration.kb_doc_ids,
         signals=export.signals,
-        tools_by_turn=tuple(tools_by_turn),
-        failed_by_turn=tuple(failed_by_turn),
     )
     checks = tuple(run_check(result, check) for check in scenario.checks)
     return RunRecord(

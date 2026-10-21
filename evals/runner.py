@@ -35,7 +35,15 @@ from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
-from evals.contracts import FakeSignal, Fault, RunRecord, Scenario, Step, TurnObservation
+from evals.contracts import (
+    ComparisonCase,
+    FakeSignal,
+    Fault,
+    RunRecord,
+    Scenario,
+    Step,
+    TurnObservation,
+)
 from evals.live import MAX_LIVE_TURNS
 from evals.live_runs import DEFAULT_SIMULATOR, Planned, execute
 from evals.observation import fold, session_result
@@ -49,6 +57,10 @@ KB_DIR = ROOT / "kb"
 RETRIEVAL_RESULTS = ROOT / "evals" / "results" / "retrieval"
 LIVE_RESULTS = ROOT / "evals" / "results" / "live"
 DEFAULT_MODEL = "openai/gpt-4o-mini"  # what the hosted demo runs
+COMPARISON_CASES = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
+COMPARISON_RESULTS = ROOT / "evals" / "results" / "comparison"  # committed (.gitignore)
+COMPARISON_MODELS = ("openai/gpt-4o-mini", "openai/gpt-4o")  # D43: the hosted model's choice
+COMPARISON_REPEAT = 2
 
 _FAKE_INDEX: dict[str, Index] = {}
 
@@ -234,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--mode", choices=["fake", "live"], default="fake")
     parser.add_argument("--only", nargs="*", default=[])
-    parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument("--repeat", type=int, default=None, help="scenarios 1, comparison 2")
     parser.add_argument("--models", nargs="*", default=[])
     parser.add_argument("--judge", default="off")
     parser.add_argument("--retriever", choices=["hybrid", "lexical"], default="hybrid")
@@ -258,6 +270,8 @@ def main(argv: list[str] | None = None) -> int:
         return retrieval_main(args.retriever, args.only, Path(args.out or RETRIEVAL_RESULTS))
     if args.suite == "scenarios" and args.mode == "live":
         return live_main(args)
+    if args.suite == "comparison":
+        return comparison_main(args)
     if args.suite != "scenarios" or args.mode != "fake":
         print(f"{args.suite} in {args.mode} mode is not available yet (later stage).")
         return 2
@@ -295,7 +309,7 @@ def live_main(args: argparse.Namespace) -> int:
     plan = [
         Planned(case_id=s.id, scenario=s, model=args.model, repetition=r)
         for s in scenarios
-        for r in range(1, args.repeat + 1)
+        for r in range(1, (args.repeat or 1) + 1)
     ]
     return execute(
         plan,
@@ -306,6 +320,36 @@ def live_main(args: argparse.Namespace) -> int:
         max_turns=args.max_turns,
         out=Path(args.out or LIVE_RESULTS),
         yes=args.yes,
+    )
+
+
+def comparison_plan(models: Sequence[str], *, repeat: int) -> list[Planned]:
+    """Every comparison case, ``repeat`` times, for each model in turn (one server each)."""
+    cases = [ComparisonCase.model_validate(c) for c in yaml.safe_load(COMPARISON_CASES.read_text())]
+    scenarios = {s.id: s for s in load_scenarios(only=[c.scenario_id for c in cases])}
+    return [
+        Planned(case_id=case.id, scenario=scenarios[case.scenario_id], model=model, repetition=r)
+        for model in models
+        for case in cases
+        for r in range(1, repeat + 1)
+    ]
+
+
+def comparison_main(args: argparse.Namespace) -> int:
+    """Spec §13: the six cases through each model, ``COMPARISON_REPEAT`` times, on loopback."""
+    plan = comparison_plan(
+        args.models or COMPARISON_MODELS, repeat=args.repeat or COMPARISON_REPEAT
+    )
+    return execute(
+        plan,
+        suite="comparison",
+        simulator=args.simulator,
+        base_url=None,
+        access_code=None,
+        max_turns=args.max_turns,
+        out=Path(args.out or LIVE_RESULTS),
+        yes=args.yes,
+        committed=COMPARISON_RESULTS,
     )
 
 

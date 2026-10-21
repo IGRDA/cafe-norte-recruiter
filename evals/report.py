@@ -18,6 +18,17 @@ GROUNDING_CHECKS = frozenset(
 EXTRACTION_TARGET = 0.95  # spec §13: exact normalized supplied facts
 
 
+_DECISION = [
+    "## Decision rule",
+    "",
+    "Same prompt, tools, KB and configuration for every model (spec §13). Prefer the cheaper "
+    "or faster model only if it preserves the required correctness: runs passed, extraction "
+    "target, no fabricated field and grounding at least as good as the other model's. The "
+    "owner decides and records the decision in docs/DECISIONS.md.",
+    "",
+]
+
+
 class Frozen(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -115,6 +126,7 @@ def render_markdown(report: Report, *, generated_at: datetime) -> str:
         "other numbers say. Latency is the runner's clock over HTTP, not the voice path. "
         "Samples are small: no number here is a production percentile.",
         "",
+        *(_DECISION if report.suite == "comparison" else []),
         "## By configuration and language",
         "",
         "| Configuration | Language | Model | Runs passed |",

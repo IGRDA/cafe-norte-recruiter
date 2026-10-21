@@ -7,7 +7,7 @@ are part of CI; live runs call paid providers and are manual.
 | --- | --- | --- | --- |
 | `scenarios` | S01–S18 (`cases/scenarios/*.yaml`): scripted turns for CI, persona for the simulator | deterministic checks on the final `ExportDocument` (fields, confirmations, booking, flags, no fabricated confirmed value) + optional rubric judge | CI (fake) and live |
 | `retrieval` | 24 questions (`cases/retrieval/questions.yaml`): 16 answerable, 4 unsupported, 4 leakage | recall@3 of expected sections, zero cross-store sources; unsupported questions reported with what came back after the floor (D27); ragas as a second opinion later | `make evals-retrieval` (`--retriever hybrid` needs the extra; `lexical` runs in CI) |
-| `comparison` | 6 multi-turn cases × 2 models × 2 repetitions (`cases/comparison/cases.yaml`) | extraction accuracy, valid tool use, grounding, completion, latency, cost; results committed under `results/comparison/` | live, bounded |
+| `comparison` | 6 multi-turn cases × 2 models × 2 repetitions (`cases/comparison/cases.yaml`), 24 runs on one loopback server per model, same prompt, tools, KB and configuration | each case's scenario `live_checks`, extraction accuracy, tool calls ok, grounding checks, runs passed, latency, cost; summary and runs (no exports) committed under `results/comparison/` | live, bounded, `--yes` |
 
 ```bash
 make evals ARGS="--suite scenarios --mode fake"          # what CI runs
@@ -15,7 +15,9 @@ make evals ARGS="--suite scenarios --mode live --only S01 S02"          # prints
 make evals ARGS="--suite scenarios --mode live --only S01 S02 --yes"    # spends
 make evals ARGS="--suite scenarios --mode live --only S01 --model fake --simulator fake --yes"  # free dry run
 make evals-retrieval ARGS="--retriever hybrid"   # lexical: BM25 only, no extra
-make compare ARGS="--models groq/openai/gpt-oss-120b groq/openai/gpt-oss-20b --repeat 2"
+make compare                                   # 6 cases x 2 models x 2 runs: prints the estimate only
+make compare ARGS="--yes"                      # spends; default models openai/gpt-4o-mini openai/gpt-4o
+make compare ARGS="--models fake --repeat 1 --simulator fake --max-turns 2 --yes"  # free dry run
 uv run python -m evals.run --list
 ```
 

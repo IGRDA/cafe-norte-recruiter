@@ -178,6 +178,17 @@ def write_results(report: Report, out: Path, *, now: datetime | None = None) -> 
     return directory
 
 
+def write_committed(report: Report, directory: Path, *, now: datetime) -> Path:
+    """``<date>-<prompt version>.md`` and ``.json`` with no conversation in either: the
+    comparison's structured results, kept in the repository (spec §13)."""
+    directory.mkdir(parents=True, exist_ok=True)
+    prompt = next((r.versions.prompt_version for r in report.runs if r.versions), "unknown")
+    stem = directory / f"{now.strftime('%Y-%m-%d')}-{prompt}"
+    stem.with_suffix(".md").write_text(render_markdown(report, generated_at=now), "utf-8")
+    stem.with_suffix(".json").write_text(render_json(report, generated_at=now), "utf-8")
+    return stem.with_suffix(".json")
+
+
 def _line(record: RunRecord) -> str:
     status = "ok  " if record.passed else "MISS"
     extraction = (
@@ -211,6 +222,7 @@ def execute(
     max_turns: int,
     out: Path,
     yes: bool,
+    committed: Path | None = None,
 ) -> int:
     """Print what the plan will cost; without ``yes`` stop there. Otherwise run it, write the
     results, and exit 0 only when every run passed."""
@@ -234,6 +246,9 @@ def execute(
     report = Report(
         suite=suite, runs=tuple(records), denominators={"runs": len(records), "passed": passed}
     )
-    path = write_results(report, out)
+    now = datetime.now(UTC)
+    path = write_results(report, out, now=now)
     print(f"{suite}: {passed}/{len(records)} passed  -> {path}")
+    if committed is not None:
+        print(f"results to commit -> {write_committed(report, committed, now=now)}")
     return 0 if passed == len(records) else 1

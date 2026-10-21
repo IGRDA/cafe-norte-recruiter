@@ -30,4 +30,5 @@ Fakes live next to the port they implement (`model/fake.py`, `persistence/memory
 when the environment asks for them.
 
 `tests/test_known_issues.py` holds strict `xfail` reproductions of `docs/known-issues.md`:
-they fail today by design; the commit that fixes an issue removes its marker.
+they fail today by design; the commit that fixes an issue removes its marker, and the test
+stays as the regression guard.

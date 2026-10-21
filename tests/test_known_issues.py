@@ -2,7 +2,8 @@
 
 Each test reproduces one problem offline and is marked ``xfail(strict=True)``: it fails today,
 as it should, and the suite stays green. The fix makes it pass, strict xfail then fails the
-suite, and the marker comes off in the same commit as the fix.
+suite, and the marker comes off in the same commit as the fix. KI-03, KI-04 and KI-05 are fixed
+(D40); their tests stay as regression guards.
 """
 
 import asyncio
@@ -33,27 +34,22 @@ def test_ki01_everyday_ways_of_saying_it_is_all_correct_are_a_plain_yes(text: st
     assert answer_to_readback(text) == "affirm"
 
 
-@pytest.mark.xfail(
-    strict=True, reason="KI-03: the candidate speaking does not stop the silence clock"
-)
-async def test_ki03_the_candidate_starting_to_speak_cancels_the_silence_prompt() -> None:
+async def test_ki03_the_candidate_starting_to_speak_restarts_the_silence_clock() -> None:
     """Live: Aggregator 'User started speaking' at 16:06:46.7, '¿Sigues ahí?' at 16:06:50.1.
-    In the pipeline the start of speech reaches the session as an interruption; raw transcripts
-    never do (Pipecat's aggregator consumes them)."""
+    In the pipeline the start of speech reaches the session as an interruption."""
     runtime = FakeRuntime([[say("¿Tienes permiso de trabajo?"), finished()]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.03)
+    s = session(runtime, recorder, prompt=0.05)
     await s.transcript("Sí, me interesa.")
     await s.wait()
     await s.played_one()  # the question has played: the silence clock starts
-    await asyncio.sleep(0.01)
+    await asyncio.sleep(0.03)
     await s.interrupted()  # the candidate starts answering
-    await asyncio.sleep(0.05)
+    await asyncio.sleep(0.03)  # 0.06 since the question, 0.03 since the speech
     assert "¿Sigues ahí?" not in recorder.spoken
     await s.close()
 
 
-@pytest.mark.xfail(strict=True, reason="KI-04: playback finishing re-arms the silence prompt")
 async def test_ki04_after_a_failed_turn_the_silence_prompt_is_said_once() -> None:
     """Live: the failed turn's summary was still playing; the apology (16:09:04) started the
     silence clock, '¿Sigues ahí?' came at 16:09:12, and when the summary's last sentence
@@ -64,15 +60,15 @@ async def test_ki04_after_a_failed_turn_the_silence_prompt_is_said_once() -> Non
     s = session(runtime, recorder, prompt=0.02)
     await s.transcript("Está todo bien.")
     await s.wait()
-    await asyncio.sleep(0.03)  # first prompt, while the summary is still playing
+    await asyncio.sleep(0.03)  # the summary is still playing: no silence to prompt about
     await s.played_one()
     await s.played_one()  # the summary's two sentences finish playing
+    await s.played_one()  # and then the apology
     await asyncio.sleep(0.04)
     assert recorder.spoken.count("¿Sigues ahí?") == 1
     await s.close()
 
 
-@pytest.mark.xfail(strict=True, reason="KI-05: system sentences jump the audio queue")
 async def test_ki05_the_apology_waits_for_the_sentences_still_playing() -> None:
     """Live: the third summary was still playing until 16:09:23 while the apology (16:09:04)
     and '¿Sigues ahí?' (16:09:12) were journaled and queued behind it."""

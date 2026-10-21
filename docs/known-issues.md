@@ -19,9 +19,9 @@ the session never paused during the call; no model round timed out.
 |---|---|---|---|---|
 | KI-01 | "Está todo bien" is not taken as a yes | High | `test_ki01_…` | runtime yes/no |
 | KI-02 | A yes to the summary on screen is lost when its audio was cut; the summary loops | High | `test_ki02_…` | read-back design |
-| KI-03 | "¿Sigues ahí?" while the candidate is speaking | High | `test_ki03_…` | voice session |
-| KI-04 | "¿Sigues ahí?" twice after a failed turn | Medium | `test_ki04_…` | voice session |
-| KI-05 | System sentences are said ahead of the audio still playing | Medium | `test_ki05_…` | voice session |
+| KI-03 | "¿Sigues ahí?" while the candidate is speaking | High | `test_ki03_…` | **fixed (D40)** |
+| KI-04 | "¿Sigues ahí?" twice after a failed turn | Medium | `test_ki04_…` | **fixed (D40)** |
+| KI-05 | System sentences are said ahead of the audio still playing | Medium | `test_ki05_…` | **fixed (D40)** |
 | KI-06 | Choosing an interview slot loops and never books | High | manual (below) | booking, observability |
 | KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | manual (below) | runtime robustness |
 | KI-08 | Wasted model rounds add latency | Low | journal | runtime, prompt |
@@ -69,6 +69,9 @@ the session never paused during the call; no model round timed out.
 - **Fix.** Cancel the clock in `interrupted()`; move the transcript tap before the aggregator
   (a tiny processor between STT and the aggregator) and test it with the real aggregator in
   `run_test`.
+- **Fixed (D40).** `SpeechTap` sits between STT and the aggregator, tested through the real
+  aggregator (`user_side`); an interruption and any transcript restart the countdown, and once
+  the prompt was said speech does not earn another.
 
 ## KI-04 · "¿Sigues ahí?" twice after a failed turn
 
@@ -78,6 +81,8 @@ the session never paused during the call; no model round timed out.
 - **Reproduce.** `test_ki04_…`.
 - **Fix.** One clock per listening period: the failure path acknowledges the turn first, or
   `_maybe_acknowledge` does not re-arm a clock that is already running.
+- **Fixed (D40).** Listening starts in one place, `VoiceSession._drained`, and the one prompt
+  is earned again only by the candidate's next turn.
 
 ## KI-05 · System sentences are said ahead of the audio still playing
 
@@ -90,6 +95,8 @@ the session never paused during the call; no model round timed out.
 - **Reproduce.** `test_ki05_…`: a failed turn with two sentences unplayed; the apology is said.
 - **Fix.** Wait for the ledger to drain (or cut the queued audio first) before a system
   sentence; start the silence clock only after the last sentence played.
+- **Fixed (D40).** The queued sentences play to the end; then the apology is journaled and
+  spoken, and the clock starts once it has played. The filler follows the same rule.
 
 ## KI-06 · Choosing an interview slot loops and never books
 

@@ -1018,6 +1018,48 @@ because the model never sees it.
 
 ---
 
+## D40 · What Ana says is timed by what the candidate can hear
+
+_Added 21 October 2026, after the second hosted voice call (KI-03, KI-04, KI-05)._
+
+**Context.** "¿Sigues ahí?" was said while the candidate was speaking, twice after a failed
+turn, and the apology and the prompt were journaled at once and queued behind a summary still
+playing. Pipecat's user aggregator consumes every transcript frame, so the D35 transcript hook
+behind it never fired; the failure path and the playback acknowledgement each armed the clock;
+the apology did not wait for the audio already sent to TTS.
+
+**Decisions.**
+- Every sentence Ana says, from the model or fixed (opening, filler, apology, silence prompt),
+  goes through one `VoiceSession._voice` into the delivery ledger. The ledger is the audio
+  queue: what was sent and what has played.
+- A system sentence never jumps that queue. A failed turn's queued sentences play to the end;
+  then the turn is acknowledged with what was heard (its summary may be a read-back), the
+  apology is journaled and spoken, and only after it has played does Ana listen.
+  One place decides this, `_drained`, which runs whenever playback empties and when a turn ends.
+- Silence is audible silence: the filler (1.5 s, while a tool runs) and the silence prompt
+  (8 s) share `_after_silence`, which counts only once the queue has played and restarts if
+  anything is said meanwhile.
+- One silence prompt per candidate turn: the allowance resets when the candidate's words become
+  a turn, never on a timer or on Ana's own playback. Listening starts in one place, `_drained`,
+  and is a status, not a second flag. Speech evidence (the aggregator's interruption, by VAD or
+  transcript, and any raw transcript) restarts the countdown; a cough with no turn still gets
+  its one prompt later; speech after the prompt does not earn another.
+- Raw transcripts are seen by `SpeechTap`, between STT and the aggregator. `user_side` builds
+  tap, aggregator and bridge in order for the pipeline and for the test, which runs the real
+  aggregator in `run_test`.
+- An interruption drops an apology still owed: the candidate is already speaking.
+
+**Rejected.** Cutting the queued audio when a turn fails: the transcript already shows those
+sentences, and cut short they count as unheard, which feeds the KI-02 loop. Cancelling the clock
+on speech until the next turn: a noise with no transcript would leave Ana silent for good.
+
+**Consequences we accept.** After a failed turn the apology comes later, after the summary, not
+when the failure happens. The VAD start itself is only exercised live (`make voice-smoke`); the
+offline tests cover the transcript start through the real aggregator and the interruption at
+the session.
+
+---
+
 ## D42 · Hosted traces carry redacted content; one line turns it off
 
 _Added 21 October 2026, with the production notes (`docs/production.md`)._

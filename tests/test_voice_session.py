@@ -276,3 +276,22 @@ async def test_a_failed_turn_is_followed_by_a_spoken_and_journaled_apology() -> 
     await s.wait()
     assert runtime.said == ["Perdona, se me ha cortado. ¿Me lo repites?"]
     assert recorder.spoken[-1] == "Perdona, se me ha cortado. ¿Me lo repites?"
+
+
+async def test_a_language_switch_is_reported_once_so_recognition_follows_it() -> None:
+    runtime = FakeRuntime([[finished()], [finished()]], language="en")
+    switched: list[Language] = []
+    s = VoiceSession(
+        runtime,
+        SID,
+        speak=Recorder().speak,
+        on_status=lambda _: None,
+        texts=TEXTS,
+        language="es",
+        on_language=switched.append,
+    )
+    await s.transcript("in English, please")
+    await s.wait()
+    await s.transcript("my name is Lucy")
+    await s.wait()
+    assert switched == ["en"]

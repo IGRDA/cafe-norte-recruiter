@@ -59,6 +59,7 @@ class VoiceSession:
         language: Language,
         clock: Callable[[], datetime] | None = None,
         idle_prompt_seconds: float = 8.0,
+        on_language: Callable[[Language], None] | None = None,
     ) -> None:
         self._runtime = runtime
         self._session_id = session_id
@@ -68,6 +69,7 @@ class VoiceSession:
         self._language = language  # follows each turn, so a switch changes the next filler
         self._clock = clock or _utcnow
         self._idle_prompt_seconds = idle_prompt_seconds
+        self._on_language = on_language
         self._closed = False
         self.status: VoiceStatus = "connecting"
         self._ledger = Ledger()
@@ -166,6 +168,8 @@ class VoiceSession:
             async for event in self._runtime.run_turn(turn):
                 if isinstance(event, TurnStarted):
                     self._turn_id = event.turn_id
+                    if event.language != self._language and self._on_language is not None:
+                        self._on_language(event.language)  # recognition follows the switch
                     self._language = event.language
                 elif isinstance(event, AssistantText):
                     self._cancel_filler()

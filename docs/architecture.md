@@ -80,6 +80,13 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Session starts per access session per hour | 3 |
 | Silence | 8 s prompt, then 12 s pause |
 | Database connections per container | 5 |
+| Database statement timeout | 3 s |
+| Database lock wait | 2 s |
+| Database idle in transaction | 10 s |
+| Database connection checkout wait | 5 s, then `busy` |
+| Event stream poll interval | 200 ms (Postgres; the memory store wakes on commit) |
+| Events per poll | 500 |
+| Migrations | forward-only SQL files, applied at startup under one advisory lock |
 | Resume link validity | 7 days |
 | Retention | 7 days |
 

@@ -44,8 +44,17 @@ One file `evals/cases/scenarios/Snn.yaml`:
   `no_fabricated_confirmed_values`, `max_repeated_questions`, `review_flag_present`,
   `sources_shown_for_policy_answer`, `no_cross_store_sources`,
   `language_of_last_assistant_turn`, `brief_language`, `signal_recorded`,
-  `said_control_reply`, `tool_ok`, `turn_failed`, `brief_unconfirmed`; the rest raise until
-  their stage).
+  `said_control_reply`, `tool_ok`, `turn_failed`, `brief_unconfirmed`,
+  `sources_shown_on_any_turn`; an unknown name raises).
+- `live_checks` (optional): the checks a live run is held to. A simulated candidate adapts to
+  Ana and runs on a real clock, so these name no turn (`sources_shown_on_any_turn` instead of
+  `sources_shown_for_policy_answer`) and dates are relative (`value: next monday`, resolved
+  against the session's day). A scenario without them is not run live. Extraction accuracy is
+  computed apart from the checks: the persona's exact-match facts (name, phone, permit, days,
+  shifts, hours, start date; corrections applied, declined fields left out) against the final
+  record; free text such as `experience` is the judge's to read.
+- `persona`: what the simulated candidate knows (`facts`, the first value of a field it later
+  `corrects`), `asks`, `declines`, `mood`, `switch_language_after_turn`, `wants_interview`.
 - `today`: the fake clock's date, so relative dates in the script stay fixed.
 - `seconds_per_turn` (optional): how long each turn lasts on the runtime's clock; the active-time
   cap needs it (`S18`).

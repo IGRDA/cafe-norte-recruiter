@@ -69,3 +69,14 @@ checks:
 rubric:
   - The brief showed hours per week as something the candidate preferred not to say, not as a number.
   - When the candidate left, Ana accepted it and did not try to keep them.
+# Live mode (simulated candidate, real clock): no turn numbers, relative dates.
+live_checks:
+  - name: field_status
+    args: { field: hours_per_week, status: declined }
+  - name: lifecycle_is
+    args: { lifecycle: stopped }
+  - name: outcome_is
+    args: { outcome: incomplete }
+  - name: booking_absent
+  - name: no_fabricated_confirmed_values
+  - name: no_cross_store_sources

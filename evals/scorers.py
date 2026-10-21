@@ -5,15 +5,20 @@ the stage that brings them, so a scenario cannot silently pass on an unimplement
 
 from collections import Counter
 from collections.abc import Callable
-from datetime import date
+from datetime import date, timedelta
 from functools import cache
 from typing import get_args
 
 from cafe_norte.conversation import prompts
-from cafe_norte.domain.contracts import CandidateFieldName, Captured, Confirmed
+from cafe_norte.domain.contracts import (
+    CandidateFieldName,
+    Captured,
+    Confirmed,
+    SessionState,
+)
 from cafe_norte.domain.fields import value_of
 from cafe_norte.errors import Language
-from evals.contracts import Check, CheckResult, SessionResult
+from evals.contracts import Check, CheckResult, Extraction, Persona, SessionResult
 
 CHECKS = (
     "brief_confirmed",
@@ -27,6 +32,7 @@ CHECKS = (
     "review_flag_present",
     "outcome_is",
     "language_of_last_assistant_turn",
+    "brief_language",
     "sources_shown_for_policy_answer",
     "no_cross_store_sources",
     "max_repeated_questions",
@@ -34,11 +40,23 @@ CHECKS = (
     "said_control_reply",
     "tool_ok",
     "turn_failed",
+    "sources_shown_on_any_turn",
 )
 
 SET_FIELDS = {"availability_days", "availability_shifts"}
 INT_FIELDS = {"hours_per_week"}
 DATE_FIELDS = {"earliest_start_date"}
+# Facts with one right normalized value; free text (experience) is the judge's to read.
+EXACT_FIELDS: tuple[CandidateFieldName, ...] = (
+    "name",
+    "contact_phone",
+    "work_authorization",
+    "availability_days",
+    "availability_shifts",
+    "hours_per_week",
+    "earliest_start_date",
+)
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
 
 def run_check(result: SessionResult, check: Check) -> CheckResult:
@@ -55,7 +73,7 @@ def run_check(result: SessionResult, check: Check) -> CheckResult:
 def _field_equals(result: SessionResult, check: Check) -> tuple[bool, str]:
     field = _field(check)
     actual = value_of(getattr(result.state.candidate, field))
-    expected = _parse(field, check.args["value"])
+    expected = _parse(field, check.args["value"], result.state.created_at.date())
     return actual == expected, f"{field}: expected {expected!r}, got {actual!r}"
 
 
@@ -136,6 +154,14 @@ def _sources_shown(result: SessionResult, check: Check) -> tuple[bool, str]:
     return any(
         s.startswith(prefix) for s in shown
     ), f"turn {turn} showed {list(shown) or 'nothing'}"
+
+
+def _sources_shown_on_any_turn(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Some turn showed a chunk of ``section_prefix``: grounding for a live run, where the
+    turn a question lands on depends on the conversation."""
+    prefix = check.args["section_prefix"]
+    shown = [s for sources in result.sources_by_turn for s in sources]
+    return any(s.startswith(prefix) for s in shown), f"shown: {shown or 'nothing'}"
 
 
 def _no_cross_store_sources(result: SessionResult, check: Check) -> tuple[bool, str]:
@@ -243,6 +269,7 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "said_control_reply": _said_control_reply,
     "tool_ok": _tool_ok,
     "turn_failed": _turn_failed,
+    "sources_shown_on_any_turn": _sources_shown_on_any_turn,
 }
 LATER: dict[str, str] = {}
 
@@ -285,11 +312,50 @@ def _field(check: Check) -> CandidateFieldName:
     return field  # type: ignore[return-value]
 
 
-def _parse(field: str, raw: str) -> object:
+def extraction_accuracy(persona: Persona, state: SessionState) -> Extraction:
+    """The persona's exact-match facts, corrections applied and declined fields left out,
+    against the final record. Names compare without case or surrounding spaces."""
+    supplied = {**persona.facts, **dict(persona.corrections)}
+    today = state.created_at.date()
+    misses: list[str] = []
+    expected_fields = [f for f in EXACT_FIELDS if f in supplied and f not in persona.declines]
+    for field in expected_fields:
+        expected = _normal(_parse(field, supplied[field], today))
+        actual = _normal(value_of(getattr(state.candidate, field)))
+        if actual != expected:
+            misses.append(f"{field}: expected {_show(expected)}, got {_show(actual)}")
+    return Extraction(
+        correct=len(expected_fields) - len(misses),
+        supplied=len(expected_fields),
+        misses=tuple(misses),
+    )
+
+
+def _normal(value: object) -> object:
+    return value.strip().casefold() if isinstance(value, str) else value
+
+
+def _show(value: object) -> str:
+    if isinstance(value, frozenset):
+        return ",".join(sorted(value))
+    return "nothing" if value is None else str(value)
+
+
+def _parse(field: str, raw: str, today: date) -> object:
     if field in SET_FIELDS:
         return frozenset(part.strip() for part in raw.split(",") if part.strip())
     if field in INT_FIELDS:
         return int(raw)
     if field in DATE_FIELDS:
-        return date.fromisoformat(raw)
+        return _relative_date(raw, today) or date.fromisoformat(raw)
     return raw
+
+
+def _relative_date(raw: str, today: date) -> date | None:
+    """``next <weekday>``: the first such day after ``today`` (a Monday's next Monday is a
+    week later), so a live check holds on whatever day it runs."""
+    words = raw.strip().lower().split()
+    if len(words) != 2 or words[0] != "next" or words[1] not in WEEKDAYS:
+        return None
+    ahead = (WEEKDAYS.index(words[1]) - today.weekday() - 1) % 7 + 1
+    return today + timedelta(days=ahead)

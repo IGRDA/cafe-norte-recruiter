@@ -78,6 +78,7 @@ class Scenario(Frozen):
     faults: tuple[Fault, ...] = ()  # fake mode: what goes wrong, and on which line
     persona: Persona  # live mode
     checks: tuple[Check, ...]
+    live_checks: tuple[Check, ...] = ()  # live mode: no turn numbers; empty = not run live
     rubric: tuple[str, ...] = ()
 
     @model_validator(mode="after")
@@ -169,6 +170,15 @@ class ComparisonCase(Frozen):
     emphasis: Literal[
         "correction", "rag_detour", "language_switch", "refusal", "booking", "unsupported"
     ]
+
+
+class Extraction(Frozen):
+    """Normalized supplied facts the record holds, out of those the persona gave (spec §13's
+    ≥ 95 % target). Free text is not an exact-match fact; misses are named."""
+
+    correct: int
+    supplied: int
+    misses: tuple[str, ...] = ()
 
 
 class CheckResult(Frozen):

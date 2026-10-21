@@ -59,7 +59,7 @@ persona:
     work_authorization: "yes"
     availability_days: mon,tue,thu
     availability_shifts: morning
-    hours_per_week: "25"
+    hours_per_week: "30"
     earliest_start_date: next monday
     experience: dos años en una cafetería
   corrections:
@@ -78,3 +78,14 @@ checks:
     args: { max: "0" }
 rubric:
   - Ana re-read the brief after the correction instead of assuming the old one.
+# Live mode (simulated candidate, real clock): no turn numbers, relative dates.
+live_checks:
+  - name: field_equals
+    args: { field: hours_per_week, value: "25" }
+  - name: brief_confirmed
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+  - name: outcome_is
+    args: { outcome: brief_only }
+  - name: no_fabricated_confirmed_values
+  - name: no_cross_store_sources

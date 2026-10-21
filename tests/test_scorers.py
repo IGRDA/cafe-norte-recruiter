@@ -2,8 +2,8 @@
 
 from datetime import UTC, date, datetime
 
-from evals.contracts import Check, SessionResult
-from evals.scorers import run_check
+from evals.contracts import Check, Persona, SessionResult
+from evals.scorers import extraction_accuracy, run_check
 
 from cafe_norte.domain.candidate import apply_patch
 from cafe_norte.domain.contracts import (
@@ -216,3 +216,60 @@ def test_brief_unconfirmed_fails_once_the_candidate_confirmed_a_brief() -> None:
     assert run_check(open_brief, Check(name="brief_unconfirmed")).ok
     confirmed = result(patch, brief_status="confirmed")
     assert not run_check(confirmed, Check(name="brief_unconfirmed")).ok
+
+
+def test_a_relative_start_date_resolves_against_the_session_day() -> None:
+    """Live runs happen on a real clock: ``next monday`` from Tuesday 20 October is the 26th."""
+    r = result(CandidatePatch(earliest_start_date=date(2026, 10, 26)))
+    check = Check(
+        name="field_equals", args={"field": "earliest_start_date", "value": "next monday"}
+    )
+    assert run_check(r, check).ok
+    tuesday = Check(
+        name="field_equals", args={"field": "earliest_start_date", "value": "next tuesday"}
+    )
+    assert run_check(result(CandidatePatch(earliest_start_date=date(2026, 10, 27))), tuesday).ok
+
+
+def test_sources_shown_on_any_turn_is_the_turn_free_grounding_check() -> None:
+    r = result().model_copy(update={"sources_by_turn": ((), ("offer_chamberi#horas-1",), ())})
+    shown = Check(name="sources_shown_on_any_turn", args={"section_prefix": "offer_chamberi#horas"})
+    other = Check(name="sources_shown_on_any_turn", args={"section_prefix": "offer_arganzuela"})
+    assert run_check(r, shown).ok
+    assert not run_check(r, other).ok
+
+
+PERSONA = Persona(
+    facts={
+        "name": "Lucía Marín",
+        "work_authorization": "yes",
+        "availability_days": "mon,thu",
+        "hours_per_week": "30",
+        "earliest_start_date": "next monday",
+        "experience": "dos años en una cafetería",  # free text: not an exact-match fact
+    },
+    corrections=(("hours_per_week", "25"),),
+)
+
+
+def test_extraction_counts_structured_facts_after_corrections_and_names_the_misses() -> None:
+    r = result(
+        CandidatePatch(
+            name="lucía marín ",
+            work_authorization="yes",
+            availability_days=frozenset({"mon", "thu"}),
+            hours_per_week=30,  # the correction to 25 was missed
+            earliest_start_date=date(2026, 10, 26),
+            experience="dos años",
+        )
+    )
+    extraction = extraction_accuracy(PERSONA, r.state)
+    assert (extraction.correct, extraction.supplied) == (4, 5)
+    assert extraction.misses == ("hours_per_week: expected 25, got 30",)
+
+
+def test_a_declined_fact_is_not_supplied() -> None:
+    persona = PERSONA.model_copy(update={"declines": ("hours_per_week",), "corrections": ()})
+    extraction = extraction_accuracy(persona, result().state)
+    assert extraction.supplied == 4
+    assert extraction.correct == 0

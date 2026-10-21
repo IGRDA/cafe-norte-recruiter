@@ -14,6 +14,7 @@ from cafe_norte.api.access import ACCESS_COOKIE, SESSION_COOKIE, AccessGate
 from cafe_norte.api.contracts import (
     AccessRequest,
     ConfigurationSummary,
+    ConfirmationAnswer,
     CreateSessionRequest,
     CreateSessionResponse,
     ResumeRequest,
@@ -25,7 +26,7 @@ from cafe_norte.api.contracts import (
     VoiceStartResponse,
     VoiceTimingReport,
 )
-from cafe_norte.conversation.contracts import ConversationRuntime, TurnInput
+from cafe_norte.conversation.contracts import ConversationRuntime, TurnInput, UiAnswer
 from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, StoreConfiguration
 from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import ProcessVersions, stamp
@@ -242,6 +243,37 @@ def build_router(
             channel=state.channel,
             received_at=datetime.now(UTC),
             expected_revision=body.expected_revision,
+        )
+        tasks.start(_drain(runtime.run_turn(turn)))
+        return TurnAccepted(input_id=body.input_id)
+
+    @router.post(
+        "/api/sessions/{session_id}/confirmations/{confirmation_id}",
+        status_code=status.HTTP_202_ACCEPTED,
+    )
+    async def answer_confirmation(
+        session_id: str, confirmation_id: str, body: ConfirmationAnswer, request: Request
+    ) -> TurnAccepted:
+        """The page's Sí / No. It must name the read-back that is pending now, at the revision
+        the candidate was looking at; the answer then runs as a turn with no words, so the
+        domain rules are the ones a spoken answer meets (D38)."""
+        sid = owner(request, session_id)
+        state = await store.sessions.get(sid)
+        if state is None:
+            raise ServiceError("no such session", code="not_found")
+        pending = state.pending_confirmation
+        if pending is None or pending.confirmation_id != confirmation_id:
+            raise ServiceError("not the pending read-back", code="not_found")
+        if pending.status != "pending" or body.expected_revision != state.candidate.revision:
+            raise ServiceError("read-back already answered or changed", code="conflict")
+        turn = TurnInput(
+            session_id=sid,
+            input_id=body.input_id,
+            text="",
+            channel=state.channel,
+            received_at=datetime.now(UTC),
+            expected_revision=body.expected_revision,
+            ui_answer=UiAnswer(confirmation_id=pending.confirmation_id, answer=body.answer),
         )
         tasks.start(_drain(runtime.run_turn(turn)))
         return TurnAccepted(input_id=body.input_id)

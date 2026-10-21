@@ -242,10 +242,37 @@ def test_only_the_previous_turns_soft_sentiment_reaches_the_next_prompt() -> Non
         "Yes.",
         "That's right",
         "Yes, correct.",
+        # KI-01: everyday ways of saying it is all right, in any order
+        "Sí, está todo bien.",
+        "Está todo bien.",
+        "Está todo bien. Todo correcto.",
+        "Todo bien",
+        "Todo está bien, perfecto.",
+        "Bien, todo correcto, sí.",
+        "Está bien, vale.",
+        "Todo perfecto.",
+        "Sí, eso es, todo bien.",
+        "Yes, all good.",
+        "All right, that's fine.",
+        "Good, all correct.",
+        "Yeah, that is right.",
     ],
 )
 def test_a_plain_yes_is_an_affirmation(text: str) -> None:
     assert answer_to_readback(text) == "affirm"
+
+
+@pytest.mark.parametrize("text", ["Todo.", "Está.", "Eso.", "Así.", "All.", "Es lo."])
+def test_a_yes_made_only_of_weak_words_needs_a_core_yes_word(text: str) -> None:
+    assert answer_to_readback(text) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["No está todo bien", "Todo bien, no", "No, todo mal", "Not all good", "Todo bien pero no"],
+)
+def test_a_negation_is_never_a_yes(text: str) -> None:
+    assert answer_to_readback(text) != "affirm"
 
 
 @pytest.mark.parametrize(

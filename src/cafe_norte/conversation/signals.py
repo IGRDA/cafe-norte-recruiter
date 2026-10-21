@@ -150,37 +150,15 @@ _DENY = (
     "nope",
     "wrong",
 )
-_AFFIRM = (
-    "si es todo correcto",
-    "es todo correcto",
-    "todo correcto",
-    "si es correcto",
-    "es correcto",
-    "si lo es",
-    "eso es",
-    "asi es",
-    "esta bien",
-    "de acuerdo",
-    "efectivamente",
-    "exacto",
-    "correcto",
-    "perfecto",
-    "vale",
-    "claro",
-    "si",
-    "thats right",
-    "that is right",
-    "thats correct",
-    "that is correct",
-    "yes correct",
-    "correct",
-    "exactly",
-    "right",
-    "yeah",
-    "yep",
-    "yes",
-    "sure",
+# A yes is made of yes-words in any order. ``_YES_CORE`` words say yes by themselves; the weak
+# ones ("todo", "está", "eso") only support them, so "todo" alone is not an answer. Phrases are
+# taken out first, so "de acuerdo" counts as one core word.
+_YES_PHRASES = ("de acuerdo", "eso es", "asi es", "si lo es", "thats right", "that is right")
+_YES_CORE = frozenset(
+    {"si", "vale", "correcto", "bien", "perfecto", "exacto", "claro", "efectivamente"}
+    | {"yes", "right", "correct", "fine", "good", "exactly", "yeah", "yep", "sure"}
 )
+_YES_WEAK = frozenset({"todo", "esta", "eso", "asi", "es", "lo", "all", "that", "thats", "is"})
 _FILLERS = frozenset(
     {"mhmm", "mhm", "mmm", "mm", "hmm", "eh", "ah", "uh", "um", "pues", "bueno", "ok", "okay"}
 )
@@ -191,19 +169,28 @@ def answer_to_readback(text: str) -> ReadbackAnswer | None:
     as "mhmm"); ``None`` when anything else is said, which stays the model's to interpret
     ("sí, pero el teléfono es otro"). Pure; both languages."""
     words = " ".join(" ".join(_clauses(text)).split())
-    for answer, phrases in (("deny", _DENY), ("affirm", _AFFIRM)):
-        rest, found = words, False
-        for phrase in phrases:
-            pattern = re.compile(rf"\b{re.escape(phrase)}\b")
-            if pattern.search(rest):
-                found = True
-                rest = pattern.sub(" ", rest)
+    rest, found = words, False
+    for phrase in _DENY:
+        pattern = re.compile(rf"\b{re.escape(phrase)}\b")
+        if pattern.search(rest):
+            found = True
+            rest = pattern.sub(" ", rest)
+    if found:
         leftover = [w for w in rest.split() if w not in _FILLERS]
-        if found and not leftover:
-            return answer  # type: ignore[return-value]
-        if found:
-            return None  # a plain word plus something else: the model decides
-    return None
+        return "deny" if not leftover else None  # a plain no plus something else: the model decides
+    return "affirm" if _is_plain_yes(words) else None
+
+
+def _is_plain_yes(words: str) -> bool:
+    """Only yes-words and fillers, at least one core yes-word, no negation, any order."""
+    for phrase in _YES_PHRASES:
+        words = re.sub(rf"\b{re.escape(phrase)}\b", " yes ", words)
+    rest = [w for w in words.split() if w not in _FILLERS]
+    return (
+        bool(rest)
+        and all(w in _YES_CORE or w in _YES_WEAK for w in rest)
+        and any(w in _YES_CORE for w in rest)
+    )
 
 
 # ---- asynchronous classifier ---------------------------------------------------------------------

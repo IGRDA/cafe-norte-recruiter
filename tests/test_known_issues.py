@@ -24,7 +24,6 @@ from tests.test_runtime import (
 from tests.test_voice_session import FakeRuntime, Recorder, finished, say, session
 
 
-@pytest.mark.xfail(strict=True, reason="KI-01: 'está todo bien' is not a plain yes")
 @pytest.mark.parametrize(
     "text",
     ["Sí, está todo bien.", "Está todo bien.", "Está todo bien. Todo correcto.", "Todo bien"],

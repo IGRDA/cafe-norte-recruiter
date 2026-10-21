@@ -1,5 +1,6 @@
 # Everything the running demo needs. The image is an input (image_digest), so a deployment is a
-# Terraform change plus an instance reset. Cloud SQL and the uptime check arrive with their stages.
+# Terraform change plus an instance reset. Cloud SQL is in database.tf; the uptime check arrives
+# with its stage.
 
 provider "google" {
   project               = var.project_id
@@ -121,7 +122,10 @@ resource "google_compute_instance" "app" {
     image                  = var.image_digest
     public_host            = local.public_host
     env                    = local.plain_env
-    secret_names           = join(" ", local.secret_names)
+    secret_names           = join(" ", concat(local.secret_names, var.enable_database ? [local.db_secret_name] : []))
+    db_connection_name     = local.db_connection_name
+    db_user                = var.db_user
+    db_name                = var.db_name
     google-logging-enabled = "true"
   }
   metadata_startup_script = file("${path.module}/startup.sh")
@@ -130,7 +134,10 @@ resource "google_compute_instance" "app" {
     demo_end_date = replace(var.demo_end_date, "-", "_")
   }
 
-  depends_on = [google_secret_manager_secret_iam_member.runtime_reads]
+  depends_on = [
+    google_secret_manager_secret_iam_member.runtime_reads,
+    google_secret_manager_secret_iam_member.runtime_reads_db_password,
+  ]
 }
 
 resource "google_project_iam_member" "runtime_pulls_images" {

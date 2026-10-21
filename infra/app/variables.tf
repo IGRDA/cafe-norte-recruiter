@@ -12,8 +12,23 @@ variable "image_digest" {
   description = "Full image reference with digest, e.g. europe-west1-docker.pkg.dev/p/r/app@sha256:..."
 }
 variable "db_tier" {
+  type        = string
+  default     = "db-f1-micro"
+  description = "Shared-core Postgres 16: about 8 EUR a month; two voice sessions never need more."
+}
+variable "db_name" {
   type    = string
-  default = "db-g1-small"
+  default = "cafe_norte"
+}
+variable "db_user" {
+  type        = string
+  default     = "cafe_norte"
+  description = "One built-in user owns the schema and serves the app (D33); roles split later."
+}
+variable "db_password_version" {
+  type        = number
+  default     = 1
+  description = "Bump to rotate the generated database password (user and Secret Manager together)."
 }
 variable "demo_end_date" {
   type        = string
@@ -33,8 +48,8 @@ variable "elevenlabs_voice_id" {
 
 variable "enable_database" {
   type        = bool
-  default     = false
-  description = "Cloud SQL arrives with the Postgres stage; the checkpoint runs on the memory store."
+  default     = true
+  description = "Cloud SQL and the Auth Proxy on the VM (D33); false keeps the memory store."
 }
 
 variable "machine_type" {

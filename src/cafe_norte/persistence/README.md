@@ -17,9 +17,8 @@ decided.
 | `export.py` | `ExportDocument` (the published JSON Schema) and `build_export(snapshot)`, pure over one `Store.snapshot` read. The confirmation history and the session's end are read from the journaled `state_updated` events; the brief is the text the candidate confirmed; cost stays `None` until prices are recorded |
 
 The store is chosen in `main.py`: `CAFE_NORTE_DATABASE_URL` set means Postgres, empty means
-memory (D31). Locally it is the compose database (`make db-up`); the hosted demo moves to Cloud
-SQL through the Auth Proxy with the infrastructure stage (D24). One role applies the migrations
-and serves until Cloud SQL splits them.
+memory (D31). Locally it is the compose database (`make db-up`); the hosted demo reaches Cloud SQL through
+the Auth Proxy on the VM (D33). One built-in user applies the migrations and serves the app.
 
 The store contract is one test suite over both implementations: `tests/test_store_contract.py`
 and `tests/test_calendar_contract.py` run on the memory store in `make check` and on Postgres

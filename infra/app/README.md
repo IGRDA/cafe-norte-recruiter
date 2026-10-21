@@ -12,7 +12,17 @@ of the app and of Caddy, both with host networking, on every boot.
 A change to `startup.sh` replaces the instance (the address survives); a change to the image
 only updates metadata, and the reset in `deploy.yml` applies it.
 
+`database.tf` (D33) is Cloud SQL Postgres 16 on the smallest tier, public address with no
+authorized networks, daily backups kept three days, no point-in-time recovery, no deletion
+protection. The VM runs the Cloud SQL Auth Proxy as a third container with host networking;
+it authenticates as the runtime service account (`roles/cloudsql.client`) and the app gets an
+ordinary `CAFE_NORTE_DATABASE_URL` on `127.0.0.1:5432`. The one built-in user's password is an
+ephemeral `random_password` written only through write-only arguments, to the user and to the
+`CAFE_NORTE_DB_PASSWORD` secret version: it is never in the plan or the state. Bump
+`db_password_version` to rotate it. Needs Terraform 1.11 or later.
+
 Variables: `project_id`, `region`, `service_name`, `image_digest`, `machine_type`, `model`,
-`elevenlabs_voice_id`, `demo_end_date`, `enable_database` (false until the Postgres stage),
-`db_tier` (unused until then).
-Outputs: `service_url`, `instance`, `artifact_repository`, `runtime_service_account`.
+`elevenlabs_voice_id`, `demo_end_date`, `enable_database` (default true), `db_tier`,
+`db_name`, `db_user`, `db_password_version`.
+Outputs: `service_url`, `instance`, `artifact_repository`, `runtime_service_account`,
+`database_connection_name`.

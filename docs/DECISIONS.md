@@ -736,3 +736,42 @@ _Added 21 October 2026, the second persistence pull request (leases, admission r
 **Consequences we accept.** A resumed voice call gets a new room on the next **Hablar**; the
 hosted demo keeps the memory store until Cloud SQL (next pull request), so resume links there
 survive only while the process does.
+
+## D33 · Cloud SQL entirely in Terraform; a write-only password; the Auth Proxy on the VM
+
+_Added 21 October 2026, the third persistence pull request._
+
+**Context.** PR1 and PR2 made the app durable on any Postgres; the hosted VM still ran the
+memory store. Spec §11 names Cloud SQL; D24 moved the app to a VM, so D17's Unix socket no
+longer applies. The owner's rule: the database is infrastructure as code too, nothing by hand.
+
+**Decisions.**
+- `infra/app/database.tf`: Postgres 16 on `db-f1-micro`, 10 GB HDD, zonal, public address with
+  no authorized networks, daily backups with three kept, no point-in-time recovery, no deletion
+  protection (the demo is torn down by script). The database, the user, the IAM binding, the
+  secret and the connection name as instance metadata are all Terraform; `enable_database` is
+  now true by default and keeps the memory-store path for a demo without a database.
+- The VM reaches the instance through the Cloud SQL Auth Proxy as a third container with host
+  networking, authenticated by the runtime service account (`roles/cloudsql.client`). The app
+  sees `postgresql://…@127.0.0.1:5432/cafe_norte`, built by `startup.sh`, which waits for the
+  proxy's port before starting the app. Private IP was weighed and rejected: private services
+  access and a peering for a three-week demo buy nothing the IAM-authenticated proxy does not.
+- Authentication is one built-in user whose password is an ephemeral `random_password` passed
+  only through write-only arguments: `google_sql_user.password_wo` and
+  `google_secret_manager_secret_version.secret_data_wo`, both keyed to `db_password_version`.
+  The password is never in the plan or the state (D23 keeps holding), the VM reads it at boot
+  like every other secret, and a bump of one variable rotates it everywhere. This needs
+  Terraform 1.11 or later: CI moved from the pinned 1.5.7 to `~1.12`, and the laptop needs
+  `hashicorp/tap/terraform` (Homebrew's `terraform` formula is frozen at 1.5.7). IAM database
+  authentication was rejected because Cloud SQL Postgres 16 gives a new IAM user no CREATE on
+  schema `public`, which would need one GRANT by hand per fresh database. A password in state
+  was rejected by D23.
+- One user for the demo: it owns the schema, applies the migrations at startup (D31) and serves
+  the app. The spec's separate migration role is amended for the demo window.
+- The deployer service account gains `roles/cloudsql.admin` in the bootstrap stack, which a
+  person applies once (D23); the first deploy after that creates the instance (about ten
+  minutes, inside the job's thirty).
+
+**Consequences we accept.** About 8 EUR a month more standing cost, inside the Google Cloud
+allowance for the demo window. A reset of the VM during an instance creation would fail the
+readiness wait; the next deploy recovers. Backups keep deleted rows for up to three days.

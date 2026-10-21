@@ -15,6 +15,7 @@ from cafe_norte.domain.contracts import (
     ConfirmationId,
     FieldTarget,
     InputId,
+    ReviewWaived,
     SessionId,
     SessionState,
     TurnId,
@@ -172,6 +173,27 @@ def test_build_export_fills_every_section_from_the_snapshot() -> None:
     assert document.versions == VERSIONS
     again = ExportDocument.model_validate_json(document.model_dump_json())
     assert again == document
+
+
+def test_each_confirmed_read_back_says_whether_it_was_heard_reviewed_or_waived() -> None:
+    """D39: a carry-on confirms a read-back the candidate did not hear to the end; the export
+    keeps it apart from one heard whole or gone over to the end."""
+    waived = BRIEF.model_copy(
+        update={
+            "fully_delivered": False,
+            "review": ReviewWaived(turn_id=TurnId("t3")),
+            "status": "confirmed",
+            "response_turn_id": TurnId("t3"),
+        }
+    )
+    events = (*journal()[:4], state_updated(5, pending=waived))
+    document = build_export(snapshot(events))
+    assert [(c.status, c.assurance) for c in document.confirmations] == [
+        ("invalidated", None),
+        ("confirmed", "waived"),
+    ]
+    heard = build_export(snapshot(journal()))
+    assert [c.assurance for c in heard.confirmations] == [None, "heard"]
 
 
 def test_the_schema_never_names_a_secret() -> None:

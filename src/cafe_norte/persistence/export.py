@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from cafe_norte.domain.confirmation import Assurance, assurance
 from cafe_norte.domain.contracts import (
     Booking,
     BriefTarget,
@@ -78,6 +79,18 @@ class Metrics(Frozen):
     cost_is_partial: bool
 
 
+class ExportedConfirmation(Confirmation):
+    """A read-back as the export shows it: with how a confirmed one was confirmed (D39), heard
+    whole, gone over to the end, or carried on without going over it. ``None`` otherwise."""
+
+    assurance: Assurance | None = None
+
+    @classmethod
+    def of(cls, confirmation: Confirmation) -> "ExportedConfirmation":
+        confirmed = confirmation.status == "confirmed"
+        return cls(**dict(confirmation), assurance=assurance(confirmation) if confirmed else None)
+
+
 class ExportDocument(Frozen):
     """Never contains access codes, credentials, resume tokens or audio."""
 
@@ -85,7 +98,7 @@ class ExportDocument(Frozen):
     session: SessionExport
     candidate: CandidateRecord
     transcript: tuple[TurnRecord, ...]
-    confirmations: tuple[Confirmation, ...]
+    confirmations: tuple[ExportedConfirmation, ...]
     booking: Booking | None
     review_flags: tuple[ReviewFlag, ...]
     retrieval_events: tuple[RetrievalEvent, ...]
@@ -146,7 +159,7 @@ def build_export(snapshot: SessionSnapshot, *, estimate: Estimator | None = None
         ),
         candidate=state.candidate,
         transcript=snapshot.turns,
-        confirmations=snapshot.confirmations,
+        confirmations=tuple(ExportedConfirmation.of(c) for c in snapshot.confirmations),
         booking=state.booking,
         review_flags=state.review_flags,
         retrieval_events=retrieval_events_from_events(snapshot.events),

@@ -5,6 +5,7 @@ stdout (D36)."""
 import base64
 import json
 from collections.abc import Callable, Mapping
+from datetime import UTC, datetime
 from types import TracebackType
 
 from opentelemetry import trace
@@ -232,6 +233,11 @@ class _OtelSpan:
                 self._span.set_attribute(
                     f"{_OBSERVATION}{name}", json.dumps(redact(text), ensure_ascii=False)
                 )
+
+    def first_output(self) -> None:
+        self._span.set_attribute(
+            f"{_OBSERVATION}completion_start_time", datetime.now(UTC).isoformat()
+        )
 
     def fail(self, code: str) -> None:
         self._failed = True

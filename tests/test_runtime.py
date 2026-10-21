@@ -24,7 +24,7 @@ from cafe_norte.conversation.contracts import (
 )
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
-from cafe_norte.conversation.runtime import Limits, Runtime
+from cafe_norte.conversation.runtime import Limits, Runtime, conversation_tail
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import ConfigId, InputId, SessionId, SessionState, Signal, TurnId
@@ -1113,7 +1113,7 @@ async def test_a_generation_carries_the_tokens_under_the_configured_model() -> N
     await h.run("Hola")
     chat = h.telemetry.span("chat")
     assert chat.usage == ("fake", 120, 14)
-    assert chat.content == (None, "Hola.")
+    assert chat.content == ("user: Hola", "Hola.")
     assert chat.metadata["attempt"] == 1 and "first_output_ms" in chat.metadata
 
 
@@ -1168,3 +1168,44 @@ async def test_a_failed_store_write_fails_its_span() -> None:
     assert second.failure == "conflict"
     write = [s for s in h.telemetry.spans if s.name == "write-user-turn"][-1]
     assert write.failure is not None and write.ended
+
+
+async def test_each_generation_records_the_conversation_the_model_saw() -> None:
+    """Without the system prompt: prompt_version already pins that."""
+    h = Harness([[name_call(), WANTS_TOOLS], says("Hola.")])
+    await h.open_session()
+    await h.run("Soy Lucía")
+    first, second = [s for s in h.telemetry.spans if s.name == "chat"]
+    assert first.content is not None and first.content[0] == "user: Soy Lucía"
+    assert second.content is not None and second.content[0] is not None
+    seen = second.content[0].splitlines()
+    assert seen[0] == "user: Soy Lucía"
+    assert seen[1] == "assistant:  [call update_candidate]"
+    assert seen[2].startswith("tool: Saved: name")
+
+
+async def test_a_generation_is_marked_when_its_first_output_arrives() -> None:
+    h = Harness([says("Hola.")])
+    await h.open_session()
+    await h.run("Hola")
+    assert h.telemetry.span("chat").first_output is True
+
+
+def message(role: str, content: str) -> ModelMessage:
+    return ModelMessage(role=role, content=content)
+
+
+def test_the_conversation_tail_keeps_the_latest_messages_within_its_budget() -> None:
+    messages = [
+        message("system", "x" * 5000),
+        message("user", "primero " + "a" * 50),
+        message("assistant", "segundo " + "b" * 50),
+        message("user", "tercero"),
+    ]
+    assert conversation_tail(messages, budget=40) == "user: tercero"
+    assert conversation_tail(messages, budget=10_000).splitlines()[0].startswith("user: primero")
+    assert "system" not in conversation_tail(messages, budget=10_000)
+
+
+def test_the_latest_message_is_kept_even_when_it_alone_exceeds_the_budget() -> None:
+    assert conversation_tail([message("user", "z" * 100)], budget=10) == "user: " + "z" * 100

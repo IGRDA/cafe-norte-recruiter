@@ -144,3 +144,23 @@ def test_an_abandoned_generator_is_not_a_failure() -> None:
     with pytest.raises(GeneratorExit), open_turn(telemetry) as root, root.child("chat"):
         raise GeneratorExit
     assert telemetry.span("chat").failure is None and telemetry.span("chat").ended
+
+
+def test_input_and_output_set_apart_are_both_kept() -> None:
+    telemetry = RecordingTelemetry()
+    with open_turn(telemetry) as root:
+        chat = root.child("chat", "generation")
+        chat.set_content(input="hola")
+        chat.set_content(output="buenas")
+        chat.end()
+    assert telemetry.span("chat").content == ("hola", "buenas")
+
+
+def test_the_first_output_of_a_generation_is_marked() -> None:
+    telemetry = RecordingTelemetry()
+    with open_turn(telemetry) as root:
+        chat = root.child("chat", "generation")
+        assert telemetry.span("chat").first_output is False
+        chat.first_output()
+        chat.end()
+    assert telemetry.span("chat").first_output is True

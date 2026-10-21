@@ -354,3 +354,36 @@ def test_an_abandoned_generator_is_not_an_error_in_the_trace() -> None:
         raise GeneratorExit
     attrs = attributes(traced.finished()["chat"])
     assert "langfuse.observation.level" not in attrs
+
+
+def test_the_first_output_becomes_the_completion_start_time() -> None:
+    traced = Traced()
+    with traced.turn() as root:
+        chat = root.child("chat", "generation")
+        chat.first_output()
+        chat.end()
+    span = traced.finished()["chat"]
+    start = datetime.fromisoformat(
+        str(attributes(span)["langfuse.observation.completion_start_time"])
+    )
+    assert span.start_time is not None and span.end_time is not None
+    assert span.start_time <= int(start.timestamp() * 1e9) <= span.end_time
+
+
+def test_a_generation_without_output_has_no_completion_start_time() -> None:
+    traced = Traced()
+    with traced.turn() as root:
+        root.child("chat", "generation").end()
+    assert "langfuse.observation.completion_start_time" not in attributes(traced.finished()["chat"])
+
+
+def test_input_and_output_set_apart_are_both_exported_when_content_is_on() -> None:
+    traced = Traced({"CAFE_NORTE_TRACE_CONTENT": "on"})
+    with traced.turn() as root:
+        chat = root.child("chat", "generation")
+        chat.set_content(input="hola")
+        chat.set_content(output="buenas")
+        chat.end()
+    attrs = attributes(traced.finished()["chat"])
+    assert json.loads(str(attrs["langfuse.observation.input"])) == "hola"
+    assert json.loads(str(attrs["langfuse.observation.output"])) == "buenas"

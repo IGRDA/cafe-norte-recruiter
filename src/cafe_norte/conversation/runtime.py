@@ -5,7 +5,7 @@ import json
 import logging
 import time
 import uuid
-from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
@@ -117,6 +117,29 @@ _END_EVENTS: dict[str, LifecycleEvent] = {"stop": "stop", "limit": "abandon", "s
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+# What a generation's trace keeps of the conversation it saw (docs/architecture.md).
+_TRACE_CONTEXT_CHARACTERS = 1800
+
+
+def conversation_tail(
+    messages: Sequence[ModelMessage], budget: int = _TRACE_CONTEXT_CHARACTERS
+) -> str:
+    """The latest messages the model saw, newest kept first within ``budget`` characters, one
+    per line. Without the system prompt: ``prompt_version`` already pins it. The newest message
+    is always kept; the adapter redacts and drops the lot unless content is on."""
+    lines: list[str] = []
+    used = 0
+    for message in reversed([m for m in messages if m.role != "system"]):
+        line = f"{message.role}: {message.content}" + "".join(
+            f" [call {call.name}]" for call in message.tool_calls
+        )
+        if lines and used + len(line) > budget:
+            break
+        lines.append(line)
+        used += len(line)
+    return "\n".join(reversed(lines))
 
 
 @dataclass
@@ -594,6 +617,7 @@ class Runtime:
         buffer = ""
         first = True
         with step.child("chat", "generation") as chat:
+            chat.set_content(input=conversation_tail(run.messages))
             events = self._round_events(run, chat)
             try:
                 async for event in events:
@@ -682,6 +706,7 @@ class Runtime:
                 raise ServiceError("no model output in time", code="timeout") from error
             break
         first_output_ms = int((time.monotonic() - started) * 1000)
+        chat.first_output()
         chat.annotate(attempt=attempt, first_output_ms=first_output_ms)
         try:
             if first is None:

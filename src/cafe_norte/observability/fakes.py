@@ -31,6 +31,9 @@ class NullSpan:
     def set_content(self, *, input: str | None = None, output: str | None = None) -> None:
         pass
 
+    def first_output(self) -> None:
+        pass
+
     def fail(self, code: str) -> None:
         pass
 
@@ -73,6 +76,7 @@ class RecordedSpan:
     metadata: dict[str, SpanValue]
     usage: tuple[str, int, int] | None = None
     content: tuple[str | None, str | None] | None = None
+    first_output: bool = False
     failure: str | None = None
     ended: bool = False
 
@@ -148,7 +152,14 @@ class _RecordingSpan(NullSpan):
         self._record.usage = (model_id, input_tokens, output_tokens)
 
     def set_content(self, *, input: str | None = None, output: str | None = None) -> None:
-        self._record.content = (input, output)
+        before_input, before_output = self._record.content or (None, None)
+        self._record.content = (
+            input if input is not None else before_input,
+            output if output is not None else before_output,
+        )
+
+    def first_output(self) -> None:
+        self._record.first_output = True
 
     def fail(self, code: str) -> None:
         self._record.failure = code

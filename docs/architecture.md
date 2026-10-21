@@ -111,7 +111,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Deepgram / ElevenLabs / Daily | Audio and text of the voice session; no raw audio stored by us |
 | Postgres | Everything the export contains; access codes and tokens only as hashes |
 | Logs | Metadata keyed by session and turn; redacted free text; never transcripts |
-| Langfuse | Traces with metadata; content only with `CAFE_NORTE_TRACE_CONTENT=on` and synthetic data |
+| Langfuse | Traces with metadata; content (redacted words, tool arguments) only with `CAFE_NORTE_TRACE_CONTENT=on`, which the hosted demo sets because its data is synthetic (D42); off for real applicants |
 
 ## Failure contract
 

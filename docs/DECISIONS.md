@@ -1015,3 +1015,41 @@ endpoint and a hardened boundary.
 the voice has not finished saying counts as read. The browser speech mode (D22) stays until a
 follow-up removes it. `ui.<lang>.md` is new candidate-facing text; `PROMPT_VERSION` is unchanged
 because the model never sees it.
+
+---
+
+## D42 · Hosted traces carry redacted content; one line turns it off
+
+_Added 21 October 2026, with the production notes (`docs/production.md`)._
+
+**Context.** D36 made content opt-in and left the hosted app without it. KI-06 showed the cost:
+the journal does not record tool arguments, and the trace did not either, so the slot id the
+model sent to `present_confirmation` could not be read anywhere. A bug seen only in a hosted call
+stayed a guess.
+
+**Options.**
+- A. Keep content off and debug from the journal and the logs.
+- B. Content on in the hosted demo, behind the redaction D36 built.
+- C. A Terraform variable defaulting to on.
+
+**Decision: B, as one plain setting.** `CAFE_NORTE_TRACE_CONTENT=on` in `plain_env`
+(`infra/app/main.tf`). The owner decided it on these terms: the demo data is fictional (the
+spec's candidates are invented, the access code gates sessions), redaction runs before export and
+truncation after (D36), and switching off is one line and a deploy (`docs/runbook.md`). C was
+rejected: a variable adds a second place to look for the same fact. A stays available by
+deleting the line.
+
+**What is exported.** The turn's input and output, a generation's newest messages within 1 800
+characters (the system prompt is not sent: `prompt_version` pins it), and a tool's arguments and
+result, each redacted for emails, phones, DNI/NIE, IBAN, cards and secrets, then cut at 2 000
+characters (D36, `docs/architecture.md`).
+
+**Tests.** `tests/test_infra_settings.py` parses `plain_env` and requires the setting; it also
+requires every hosted key to be in `.env.example`, because a misspelled key leaves content off
+without an error. The redaction itself is D36's `tests/test_telemetry.py`.
+
+**Consequences we accept.** Redaction is pattern-based: a name or an address said in free text is
+not a pattern, so this is safe because the data is fictional, not because the filter is complete.
+Langfuse keeps what it received under its own retention, not our seven days (D34). With real
+applicants the line goes, and `docs/production.md` lists what must exist first. Spans exported
+before the switch is turned off stay in Langfuse until deleted there.

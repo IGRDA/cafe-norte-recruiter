@@ -243,11 +243,16 @@ def build_router(
 
     @router.get("/api/sessions/{session_id}/export")
     async def export_session(session_id: str, request: Request) -> Response:
-        """The JSON record of the owner's session, built on demand from one snapshot."""
+        """The JSON record of the owner's session: the snapshot stored at close (D34), or
+        one built on demand while the session is still open."""
         sid = owner(request, session_id)
         state = await store.sessions.get(sid)
         if state is None:
             raise ServiceError("session not found", code="not_found")
+        headers = {"Content-Disposition": f'attachment; filename="{sid}.json"'}
+        stored = await store.exports.read_snapshot(sid)
+        if stored is not None:
+            return Response(stored, media_type="application/json", headers=headers)
         snapshot = await store.snapshot(
             sid,
             versions=stamp(configurations[state.config_id], versions),
@@ -258,7 +263,7 @@ def build_router(
         return Response(
             build_export(snapshot).model_dump_json(indent=2),
             media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="{sid}.json"'},
+            headers=headers,
         )
 
     @router.get("/api/sessions/{session_id}/events")

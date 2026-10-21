@@ -27,7 +27,7 @@ from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import ConfigId, StoreConfiguration
+from cafe_norte.domain.contracts import ConfigId, SessionId, StoreConfiguration
 from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.knowledge.hybrid import HybridRetriever
@@ -36,9 +36,9 @@ from cafe_norte.knowledge.loader import load_documents
 from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
-from cafe_norte.observability.contracts import ProcessVersions
+from cafe_norte.observability.contracts import ProcessVersions, stamp
 from cafe_norte.persistence.contracts import Store
-from cafe_norte.persistence.export import SCHEMA_VERSION
+from cafe_norte.persistence.export import SCHEMA_VERSION, persist_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.postgres import PostgresStore
 from cafe_norte.persistence.seed import seed_calendar
@@ -157,6 +157,13 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         all_handlers(store=store, configurations=configurations, retriever=retriever)
     )
     model = _model(env)
+    process = ProcessVersions(
+        model_id=model.model_id,
+        prompt_version=prompts.PROMPT_VERSION,
+        schema_version=SCHEMA_VERSION,
+        commit_sha=env.get("CAFE_NORTE_COMMIT_SHA", "local"),
+        voice_id=env.get("ELEVENLABS_VOICE_ID", "") if voice_mode == "pipecat" else "",
+    )
     runtime = Runtime(
         model=model,
         tools=registry,
@@ -170,6 +177,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
             max_answer_characters=int(env.get("CAFE_NORTE_MAX_ANSWER_CHARACTERS", "600")),
         ),
         owner=env.get("K_REVISION", "local"),
+        on_closed=close_hook(store, configurations, process),
     )
     rooms: RoomProvisioner | None = None
     voice: VoiceSessionController | None = None
@@ -180,13 +188,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         store=store,
         configurations=configurations,
         gate=gate_from_env(env),
-        versions=ProcessVersions(
-            model_id=model.model_id,
-            prompt_version=prompts.PROMPT_VERSION,
-            schema_version=SCHEMA_VERSION,
-            commit_sha=env.get("CAFE_NORTE_COMMIT_SHA", "local"),
-            voice_id=env.get("ELEVENLABS_VOICE_ID", "") if voice_mode == "pipecat" else "",
-        ),
+        versions=process,
         web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web")),
         voice_mode=voice_mode,
         rooms=rooms,
@@ -196,6 +198,24 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         warm_up=warm_up,
         seed=True,
     )
+
+
+def close_hook(
+    store: Store,
+    configurations: Mapping[ConfigId, StoreConfiguration],
+    process: ProcessVersions,
+) -> Callable[[SessionId], Awaitable[None]]:
+    """What the runtime runs when a session reaches a terminal state: the stored export."""
+
+    async def closed(session_id: SessionId) -> None:
+        await persist_export(
+            store,
+            session_id,
+            versions_for=lambda config_id: stamp(configurations[config_id], process),
+            now=datetime.now(UTC),
+        )
+
+    return closed
 
 
 def _store(env: Mapping[str, str]) -> Store:

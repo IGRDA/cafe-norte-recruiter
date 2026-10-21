@@ -9,7 +9,8 @@ import pytest
 
 from cafe_norte.domain.contracts import SessionId, TurnId
 from cafe_norte.observability.contracts import EventName, Severity, StructuredEvent
-from cafe_norte.observability.events import emit, redact
+from cafe_norte.observability.events import emit
+from cafe_norte.observability.redaction import redact
 
 NOW = datetime(2026, 10, 21, 12, 30, tzinfo=UTC)
 T1 = TurnId("t1")

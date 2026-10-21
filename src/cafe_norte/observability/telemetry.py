@@ -33,7 +33,8 @@ from cafe_norte.observability.contracts import (
     stamp,
 )
 from cafe_norte.observability.cost import estimate, load_prices
-from cafe_norte.observability.events import StdoutTelemetry, redact
+from cafe_norte.observability.events import StdoutTelemetry
+from cafe_norte.observability.redaction import redact
 
 DEFAULT_BASE_URL = "https://cloud.langfuse.com"  # Langfuse Cloud EU (D05)
 DEFAULT_ENVIRONMENT = "development"

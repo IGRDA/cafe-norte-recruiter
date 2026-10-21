@@ -30,7 +30,7 @@ ALLOWED: dict[str, dict[str, set[str]]] = {
         "model": {"contracts"},
         "knowledge": {"contracts"},
         "persistence": {"contracts"},
-        "observability": {"contracts"},
+        "observability": {"contracts", "redaction"},  # tool arguments are journaled redacted
     },
     "voice": {
         "domain": {"contracts"},

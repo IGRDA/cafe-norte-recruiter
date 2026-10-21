@@ -113,11 +113,16 @@ class CostEstimate(Frozen):
 Estimator = Callable[[SessionId, Sequence[UsageRecord]], CostEstimate]
 
 
+Severity = Literal["INFO", "WARNING", "ERROR"]
+EventName = Literal["turn_failed", "model_round", "model_round_silent", "answer_cut"]
+
+
 class StructuredEvent(Frozen):
     """One JSON log line. ``payload`` never carries transcript text."""
 
     at: datetime
+    severity: Severity
     session_id: SessionId | None
     turn_id: TurnId | None
-    event: str
+    event: EventName
     payload: dict[str, Any]

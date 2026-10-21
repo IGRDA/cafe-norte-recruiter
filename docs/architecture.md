@@ -30,8 +30,9 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 
 ## Export
 
-`GET /api/sessions/{id}/export` returns the owner's `ExportDocument` as `<session_id>.json`,
-built on demand by `build_export` from one `Store.snapshot`. The confirmation history and the
+`GET /api/sessions/{id}/export` returns the owner's `ExportDocument` as `<session_id>.json`:
+the snapshot stored when the session closed (D34), or one built on demand by `build_export`
+from one `Store.snapshot` while it is open. The confirmation history and the
 session's end time are read from the journaled `state_updated` events; the brief is the text
 the candidate confirmed; the cost estimate stays `None` (`cost_is_partial: true`) until prices
 are recorded. The schema is `examples/session_export.schema.json`, the fictional example
@@ -90,7 +91,7 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Resume link validity | 7 days, reusable until then |
 | Session lease per turn | 60 s; a stale generation cannot write |
 | Voice admission row counts for | 600 s after acquire unless released |
-| Retention | 7 days |
+| Retention | 7 days (`CAFE_NORTE_RETENTION_DAYS`); purge at startup and hourly, 100 sessions per round, under one maintenance lock |
 
 ## Who sees what
 

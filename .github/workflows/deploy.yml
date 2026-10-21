@@ -54,7 +54,7 @@ jobs:
       - id: build
         run: |
           image="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$SERVICE:${GITHUB_SHA}"
-          docker build -t "$image" .
+          docker build --build-arg "COMMIT_SHA=${GITHUB_SHA}" -t "$image" .
           docker push "$image"
           digest="$(docker inspect --format='{{index .RepoDigests 0}}' "$image")"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"

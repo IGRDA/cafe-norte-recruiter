@@ -25,6 +25,7 @@ from cafe_norte.api.contracts import (
 from cafe_norte.conversation.contracts import ConversationRuntime, TurnInput
 from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, StoreConfiguration
 from cafe_norte.errors import ServiceError
+from cafe_norte.observability.contracts import ProcessVersions
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.voice.contracts import (
     Room,
@@ -64,6 +65,7 @@ def build_router(
     rooms: RoomProvisioner | None,
     voice: VoiceSessionController | None,
     gate: AccessGate,
+    versions: ProcessVersions,
     tasks: TurnTasks,
     voice_mode: VoiceMode = "off",
     max_voice_sessions: int = 2,

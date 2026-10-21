@@ -12,11 +12,16 @@ from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.main import create_app
 from cafe_norte.model.contracts import Model
+from cafe_norte.observability.contracts import ProcessVersions
+from cafe_norte.persistence.export import SCHEMA_VERSION
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.voice.contracts import RoomProvisioner, VoiceMode, VoiceSessionController
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "config"
+VERSIONS = ProcessVersions(
+    model_id="fake", prompt_version="test", schema_version=SCHEMA_VERSION, commit_sha="test"
+)
 
 
 def build_test_app(
@@ -45,6 +50,7 @@ def build_test_app(
         store=store,
         configurations=configurations,
         gate=AccessGate(code=access_code, secret=b"test-secret"),
+        versions=VERSIONS,
         web_dir=ROOT / "web",
         voice_mode=voice_mode,
         rooms=rooms,

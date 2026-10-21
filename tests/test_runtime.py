@@ -708,3 +708,39 @@ async def test_a_failing_analyzer_never_reaches_the_turn() -> None:
     second = await h.run("Hola otra vez.", "in-2")
     assert isinstance(first[-1], TurnFinished) and isinstance(second[-1], TurnFinished)
     assert not any(e.kind == "signal_recorded" for e in h.store.events.all(SESSION))
+
+
+# ---- leases --------------------------------------------------------------------------------------
+
+
+async def test_a_turn_holds_the_session_lease_and_releases_it_at_the_end() -> None:
+    h = Harness([says("Hola.")])
+    await h.open_session()
+    seen: list[bool] = []
+    async for event in h.runtime.run_turn(turn("Hola")):
+        if isinstance(event, AssistantText):
+            seen.append(await h.store.leases.claim(SESSION, "intruder", ttl_seconds=60) is None)
+    assert seen == [True]  # nobody else could claim it during the turn
+    assert await h.store.leases.claim(SESSION, "intruder", ttl_seconds=60) is not None
+
+
+async def test_a_turn_fails_with_conflict_while_another_owner_holds_the_lease() -> None:
+    h = Harness([says("Hola.")])
+    await h.open_session()
+    other = await h.store.leases.claim(SESSION, "other-container", ttl_seconds=60)
+    assert other is not None
+    events = await h.run("Hola")
+    assert isinstance(events[-1], TurnFailed) and events[-1].code == "conflict"
+    user_turns = [t for t in await h.store.turns.recent(SESSION, 10) if t.role == "user"]
+    assert user_turns == []  # nothing of the turn was written
+
+
+async def test_tools_run_under_the_turns_lease_generation() -> None:
+    h = Harness([[name_call(), WANTS_TOOLS], says("Hola.")])
+    await h.open_session()
+    await h.run("Soy Lucía")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.candidate.revision == 1
+    # The handler saved under the lease: a later claim is generation 2, the save used 1.
+    lease = await h.store.leases.claim(SESSION, "test", ttl_seconds=60)
+    assert lease is not None and lease.generation == 2

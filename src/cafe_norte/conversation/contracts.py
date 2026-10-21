@@ -178,7 +178,7 @@ class ToolContext(Frozen):
     turn_id: TurnId
     now: datetime
     language: Language
-    lease_generation: int
+    lease_generation: int | None  # the turn's lease; every save in the turn is fenced on it
 
 
 class ToolOutcome(Frozen):

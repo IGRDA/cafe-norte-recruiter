@@ -80,13 +80,23 @@ SNAPSHOT_TURNS = 10_000  # far above the session cap; a snapshot is the whole tr
 class Sessions(Protocol):
     async def create(self, state: SessionState, *, access_hash: str) -> None: ...
     async def get(self, session_id: SessionId) -> SessionState | None: ...
-    async def save(self, tx: Transaction, state: SessionState, *, expected_revision: int) -> None:
-        """Conditional update on ``candidate.revision``; raises ``conflict`` otherwise."""
+    async def save(
+        self,
+        tx: Transaction,
+        state: SessionState,
+        *,
+        expected_revision: int,
+        lease_generation: int | None = None,
+    ) -> None:
+        """Conditional update on ``candidate.revision``; with ``lease_generation`` also on a
+        live lease of that generation (the fence of D32); raises ``conflict`` otherwise."""
         ...
 
-    async def next_seq(self, tx: Transaction, session_id: SessionId) -> int:
+    async def next_seq(
+        self, tx: Transaction, session_id: SessionId, *, lease_generation: int | None = None
+    ) -> int:
         """The next event sequence number of the session, owned by the store so a restarted
-        process never reuses one; ``not_found`` for an unknown session."""
+        process never reuses one; fenced like ``save``; ``not_found`` for an unknown session."""
         ...
 
     async def delete(self, session_id: SessionId) -> None: ...

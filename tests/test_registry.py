@@ -15,7 +15,7 @@ CONTEXT = ToolContext(
     turn_id=TurnId("t"),
     now=datetime(2026, 10, 20, tzinfo=UTC),
     language="es",
-    lease_generation=0,
+    lease_generation=None,
 )
 
 

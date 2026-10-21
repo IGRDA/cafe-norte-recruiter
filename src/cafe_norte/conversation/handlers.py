@@ -116,9 +116,16 @@ class _Handler:
     async def _state(self, context: ToolContext) -> SessionState | None:
         return await self._store.sessions.get(context.session_id)
 
-    async def _save(self, state: SessionState, *, expected_revision: int) -> None:
+    async def _save(
+        self, context: ToolContext, state: SessionState, *, expected_revision: int
+    ) -> None:
         async with self._store.transaction() as tx:
-            await self._store.sessions.save(tx, state, expected_revision=expected_revision)
+            await self._store.sessions.save(
+                tx,
+                state,
+                expected_revision=expected_revision,
+                lease_generation=context.lease_generation,
+            )
 
     @staticmethod
     def _updated(state: SessionState) -> StateUpdated:
@@ -229,7 +236,7 @@ class UpdateCandidateHandler(_Handler):
         new_state = state.model_copy(
             update={"candidate": candidate, "review_flags": flags, "pending_confirmation": pending}
         )
-        await self._save(new_state, expected_revision=state.candidate.revision)
+        await self._save(context, new_state, expected_revision=state.candidate.revision)
 
         saved = ", ".join(changed) or "note"
         if spoken:
@@ -341,7 +348,7 @@ class RequestHumanFollowupHandler(_Handler):
         if state is None:
             return self._refuse("not_found", "Session not found.")
         new_state = add_followup(state, context.turn_id, arguments.reason)
-        await self._save(new_state, expected_revision=state.candidate.revision)
+        await self._save(context, new_state, expected_revision=state.candidate.revision)
         return ToolOutcome(
             ok=True,
             model_text="Follow-up request saved. Say a person from the team would answer and that "
@@ -437,7 +444,7 @@ class PresentConfirmationHandler(_Handler):
             state, target, text, context.turn_id, ConfirmationId(uuid.uuid4().hex)
         )
         new_state = state.model_copy(update={"pending_confirmation": pending})
-        await self._save(new_state, expected_revision=revision)
+        await self._save(context, new_state, expected_revision=revision)
         return ToolOutcome(
             ok=True,
             model_text="The read-back was already spoken. Reply with nothing and wait.",
@@ -494,7 +501,7 @@ class _ConfirmHandler(_Handler):
                 "brief_confirmed_revision": brief_revision,
             }
         )
-        await self._save(new_state, expected_revision=state.candidate.revision)
+        await self._save(context, new_state, expected_revision=state.candidate.revision)
         if resolved.status != "confirmed":
             step = "Now ask what is wrong in one short sentence, then call update_candidate."
         elif self.kind == "brief":
@@ -561,7 +568,7 @@ class ListInterviewSlotsHandler(_InterviewHandler):
         slots = (preferred or window)[:OFFERED_SLOTS]
         intent = Evidence(source_turn_id=context.turn_id, text=arguments.evidence_text)
         new_state = state.model_copy(update={"schedule_intent": intent})
-        await self._save(new_state, expected_revision=state.candidate.revision)
+        await self._save(context, new_state, expected_revision=state.candidate.revision)
         if not slots:
             step = (
                 "No slot is free. The sentence was already spoken; offer that a person follows "
@@ -632,7 +639,10 @@ class ReserveInterviewHandler(_InterviewHandler):
                     update={"booking": booking, "pending_confirmation": answered.value}
                 )
                 await self._store.sessions.save(
-                    tx, new_state, expected_revision=state.candidate.revision
+                    tx,
+                    new_state,
+                    expected_revision=state.candidate.revision,
+                    lease_generation=context.lease_generation,
                 )
         except ServiceError as error:
             if error.code != "conflict":
@@ -695,7 +705,7 @@ class EndSessionHandler(_Handler):
             )
         lifecycle, outcome = result.value
         new_state = state.model_copy(update={"lifecycle": lifecycle, "outcome": outcome})
-        await self._save(new_state, expected_revision=state.candidate.revision)
+        await self._save(context, new_state, expected_revision=state.candidate.revision)
         return ToolOutcome(
             ok=True,
             model_text=NEXT_STEP["goodbye"],

@@ -314,3 +314,34 @@ async def test_a_lease_needs_a_session_and_release_of_a_stale_lease_is_harmless(
     theirs = mine.model_copy(update={"generation": mine.generation + 5})
     await store.leases.release(theirs)  # not the current lease: nothing happens
     assert await store.leases.claim(SID, "b", ttl_seconds=60) is None
+
+
+# ---- fenced writes -------------------------------------------------------------------------------
+
+
+async def test_a_write_fenced_on_a_stale_lease_generation_is_a_conflict(store: Store) -> None:
+    await created(store)
+    mine = await store.leases.claim(SID, "a", ttl_seconds=60)
+    assert mine is not None
+    async with store.transaction() as tx:
+        await store.sessions.save(
+            tx, state(1), expected_revision=0, lease_generation=mine.generation
+        )
+        assert await store.sessions.next_seq(tx, SID, lease_generation=mine.generation) == 1
+    await store.leases.release(mine)
+    theirs = await store.leases.claim(SID, "b", ttl_seconds=60)
+    assert theirs is not None
+    with pytest.raises(ServiceError) as stale_save:
+        async with store.transaction() as tx:
+            await store.sessions.save(
+                tx, state(2), expected_revision=1, lease_generation=mine.generation
+            )
+    assert stale_save.value.code == "conflict"
+    with pytest.raises(ServiceError) as stale_seq:
+        async with store.transaction() as tx:
+            await store.sessions.next_seq(tx, SID, lease_generation=mine.generation)
+    assert stale_seq.value.code == "conflict"
+    current = await store.sessions.get(SID)
+    assert current is not None and current.candidate.revision == 1
+    async with store.transaction() as tx:  # unfenced writes still work
+        await store.sessions.save(tx, state(2), expected_revision=1)

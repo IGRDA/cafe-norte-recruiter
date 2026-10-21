@@ -64,6 +64,11 @@ class MemorySessions:
     def __init__(self) -> None:
         self._states: dict[SessionId, SessionState] = {}
         self._seq: dict[SessionId, int] = {}
+        self.fence: Callable[[SessionId, int], bool] = lambda session_id, generation: True
+
+    def _fenced(self, session_id: SessionId, lease_generation: int | None) -> None:
+        if lease_generation is not None and not self.fence(session_id, lease_generation):
+            raise ServiceError("stale lease", code="conflict")
 
     async def create(self, state: SessionState, *, access_hash: str) -> None:
         if state.session_id in self._states:
@@ -73,22 +78,33 @@ class MemorySessions:
     async def get(self, session_id: SessionId) -> SessionState | None:
         return self._states.get(session_id)
 
-    async def save(self, tx: Transaction, state: SessionState, *, expected_revision: int) -> None:
+    async def save(
+        self,
+        tx: Transaction,
+        state: SessionState,
+        *,
+        expected_revision: int,
+        lease_generation: int | None = None,
+    ) -> None:
         def apply() -> None:
             current = self._states.get(state.session_id)
             if current is None:
                 raise ServiceError("session missing", code="not_found")
             if current.candidate.revision != expected_revision:
                 raise ServiceError("revision mismatch", code="conflict")
+            self._fenced(state.session_id, lease_generation)
             self._states[state.session_id] = state
 
         _tx(tx).enlist(apply)
 
-    async def next_seq(self, tx: Transaction, session_id: SessionId) -> int:
+    async def next_seq(
+        self, tx: Transaction, session_id: SessionId, *, lease_generation: int | None = None
+    ) -> int:
         """Counted at once, not at commit: a rolled-back transaction leaves a gap, which the
         sequence tolerates (``since`` asks for "after seq", never "exactly seq")."""
         if session_id not in self._states:
             raise ServiceError("session missing", code="not_found")
+        self._fenced(session_id, lease_generation)
         self._seq[session_id] = self._seq.get(session_id, 0) + 1
         return self._seq[session_id]
 
@@ -357,6 +373,7 @@ class MemoryStore:
         self.events = MemoryEvents()
         self.calendar = MemoryCalendar(clock)
         self.leases = MemoryLeases(clock, self.sessions)
+        self.sessions.fence = self.leases.generation_is_live
         self.admission = MemoryAdmission()
         self.summary_jobs = SummaryJobsLater()
         self.resume_tokens = ResumeTokensLater()

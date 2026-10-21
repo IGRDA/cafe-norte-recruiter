@@ -54,6 +54,7 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | Recent turns in the prompt | 20 |
+| Turns read into one export snapshot | 10 000 (the whole transcript; the session cap keeps it far below) |
 | Tool arguments from the model | 16 KiB |
 | SSE heartbeat while idle | 15 s |
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |

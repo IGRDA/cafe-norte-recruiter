@@ -117,7 +117,7 @@ def build_export(snapshot: SessionSnapshot) -> ExportDocument:
             brief=brief_text(snapshot.confirmations), narrative=None, narrative_status="skipped"
         ),
         metrics=Metrics(
-            turns=state.turn_count,
+            turns=sum(1 for t in snapshot.turns if t.role == "user"),  # the candidate's turns
             timings=snapshot.timings,
             usage=snapshot.usage,
             estimated_marginal_cost_eur=None,

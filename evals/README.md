@@ -23,8 +23,9 @@ Scenarios in fake mode. `S01`–`S03` replay against the real runtime, handlers,
 memory store with the scripted `FakeModel`; `tests/test_scenarios.py` parametrizes over the
 files, so `make check` and CI fail on a broken scenario with the check named. `make evals
 ARGS="--suite scenarios --mode fake"` is the same replay printed as a table. Live mode, the
-retrieval and comparison suites, the judge, the simulator and the export document arrive with
-their stages (the CLI says so and exits 2).
+retrieval and comparison suites, the judge and the simulator arrive with their stages (the
+CLI says so and exits 2). Every fake run carries its `ExportDocument` in `RunRecord.export`;
+`make export-example` writes S01's to `examples/`.
 
 ### Adding a scenario
 
@@ -39,8 +40,8 @@ One file `evals/cases/scenarios/Snn.yaml`:
   the rest raise until their stage).
 - `today`: the fake clock's date, so relative dates in the script stay fixed.
 
-Checks run over `SessionResult` (final state, transcript, what Ana said per turn) until
-`build_export` lands; the same checks will then read the export (D21).
+Checks run over `SessionResult` (final state, transcript, what Ana said per turn); the export
+is built as well, and the checks move to it when the booking and retrieval checks land (D21).
 
 ## How it fits together
 

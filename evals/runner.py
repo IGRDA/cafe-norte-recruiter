@@ -23,7 +23,7 @@ from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelText, ToolCall
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.observability.contracts import ProcessVersions, stamp
-from cafe_norte.persistence.export import SCHEMA_VERSION
+from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
 from evals.contracts import RunRecord, Scenario, SessionResult, Step
 from evals.scorers import run_check
@@ -129,11 +129,14 @@ async def run_fake(scenario: Scenario) -> RunRecord:
         spoken_by_turn=tuple(spoken_by_turn),
     )
     checks = tuple(run_check(result, check) for check in scenario.checks)
+    versions = stamp(configuration, process)
+    snapshot = await store.snapshot(session_id, versions=versions, taken_at=clock_at)
+    assert snapshot is not None
     return RunRecord(
         case_id=scenario.id,
         mode="fake",
-        versions=stamp(configuration, process),
-        export=None,
+        versions=versions,
+        export=build_export(snapshot),
         checks=checks,
         judge=None,
         provider_failed=bool(failed_turns),

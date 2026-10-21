@@ -162,7 +162,7 @@ def test_build_export_fills_every_section_from_the_snapshot() -> None:
     assert (document.session.lifecycle, document.session.outcome) == ("completed", "brief_only")
     assert document.summary.brief == BRIEF.presentation_text
     assert document.summary.narrative_status == "skipped"
-    assert document.metrics.turns == 4 and document.metrics.cost_is_partial
+    assert document.metrics.turns == 1 and document.metrics.cost_is_partial
     assert document.metrics.estimated_marginal_cost_eur is None
     assert len(document.transcript) == 1 and len(document.confirmations) == 2
     assert document.versions == VERSIONS

@@ -15,6 +15,21 @@ def test_export_schema_file_matches_the_model() -> None:
     assert on_disk == generated, "run `make export-schema`"
 
 
+def test_example_export_is_a_complete_s01_session() -> None:
+    """`make export-example` regenerates it; ids are random, so the check is on content."""
+    document = ExportDocument.model_validate_json(
+        (ROOT / "examples" / "session_export.example.json").read_text()
+    )
+    assert document.schema_version == "1"
+    assert (document.session.lifecycle, document.session.outcome) == ("completed", "brief_only")
+    assert document.session.ended_at is not None
+    assert any(c.status == "confirmed" and c.target.kind == "brief" for c in document.confirmations)
+    assert document.summary.brief and document.summary.brief in {
+        c.presentation_text for c in document.confirmations
+    }
+    assert document.metrics.turns == 7 and document.versions.commit_sha == "local"
+
+
 def test_export_schema_names_every_required_section() -> None:
     schema = ExportDocument.model_json_schema()
     expected = {

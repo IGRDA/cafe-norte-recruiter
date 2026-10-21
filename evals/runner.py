@@ -1,7 +1,9 @@
-"""Load scenarios, replay them against the real runtime with the fake model, score, report.
+"""Load scenarios, replay them against the real runtime with the fake model, score, report;
+and the CLI for every suite.
 
-Fake mode is the CI gate: no network, no credentials, under a second per scenario. Live mode,
-the retrieval and comparison suites, the judge and the simulator arrive with their stages."""
+Fake mode is the CI gate: no network, no credentials, under a second per scenario. Live mode
+and the comparison drive the public API with a simulated candidate (``evals/live_runs.py``,
+D43) and spend only with ``--yes``; the retrieval suite runs the 24 questions."""
 
 import argparse
 import asyncio

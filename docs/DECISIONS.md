@@ -1140,3 +1140,70 @@ not a pattern, so this is safe because the data is fictional, not because the fi
 Langfuse keeps what it received under its own retention, not our seven days (D34). With real
 applicants it is `off`, and `docs/production.md` §10 lists what must exist first. Spans exported
 before the switch is turned off stay in Langfuse until deleted there.
+
+## D43 · Live evaluations: the same scorers over HTTP, a simulated candidate that cannot forget, spend only with --yes
+
+_Added 21 October 2026, task B of the parallel branches._
+
+**Context.** Every evaluation beyond the offline replay was a stub (D06, D14, D21). The model
+decision for the hosted demo (gpt-4o-mini or gpt-4o), the release gate's live S01 and S02, and
+part of D39's evidence all need live runs, and none could be made without hand-driving the
+browser.
+
+**Decisions (agreed with the owner).**
+- **One fold, two modes.** A turn's `RuntimeEvent`s fold into a `TurnObservation`
+  (`evals/observation.py`); the fake replay reads them from the runtime and the live runner from
+  the SSE stream, so the scorers never know which mode produced a `SessionResult`.
+- **The public API, on loopback by default.** `HttpConversation` drives a session exactly as the
+  browser does (access, create, one POST per line, the turn's events resumed by `Last-Event-ID`,
+  end, snapshot, export). The comparison serves the real app on `127.0.0.1` with one server per
+  model (`serve`), memory store, text only, traces tagged `evaluation`; `--base-url` targets the
+  hosted demo or `make run` instead. Rejected: external URL only (the model would be known only
+  from the version stamp afterwards).
+- **Explicit `live_checks`.** A simulated candidate adapts to Ana and runs on a real clock, so
+  live checks name no turn (`sources_shown_on_any_turn`) and dates are relative
+  (`next monday`). S01, S02 and the six comparison scenarios carry them; others are refused
+  live. Rejected: reusing `checks` and skipping turn-indexed ones (S05 and S06 would lose the
+  grounding the comparison must measure).
+- **Extraction accuracy from the persona.** Exact-match facts (name, phone, permit, days,
+  shifts, hours, start date), corrections applied and declined fields left out, against the
+  final record; free text is the judge's. Every miss is named.
+- **The simulator decides in code and words with a model.** `cue(persona, language,
+  transcript)` is pure: questions on fixed lines, corrections on the first brief read-back,
+  the language switch and the withdrawal after a named line. `ModelCandidateSimulator` only
+  words the cue, so a run cannot pass because the simulator forgot to correct. One simulator
+  model for every run (`openai/gpt-4o-mini` by default), so the candidate is the same for both
+  answering models.
+- **Spend is explicit.** Every paid command prints an estimate from the export's own price table
+  (`evals/spend.py`; assumptions in `docs/architecture.md`) and calls nothing without `--yes`.
+  The fake model and the fake simulator run the whole path for free. gpt-4o joins the price
+  table.
+- **The comparison is spec §13's, with the owner's models.** Six cases × `openai/gpt-4o-mini`
+  and `openai/gpt-4o` × two runs: 24 runs, about €5 by the estimate. This amends the spec's
+  GPT-OSS pair: the decision now open is the hosted model, and `--models` takes any pair.
+- **Reports carry denominators.** Every rate is k/n, every median says its n, a broken run is a
+  recorded miss in every denominator, by model, by configuration and language, and by case.
+  The comparison's summary and runs (no conversations) are committed under
+  `evals/results/comparison/`; exports go to `evals/results/live/`, ignored.
+- **The judge is a labelled second opinion.** One JSON boolean per rubric bullet or
+  `unparsable`, never coerced and never pass/fail; a judge that is the answering model is
+  flagged.
+- **ragas by ID.** The retrieval fixture's expected sections are chunk ids, so ragas'
+  ID-based context precision and recall apply exactly, offline, with no model (`--ragas`).
+  ragas 0.4.3 did not import with langchain-community 0.4; the dev extra pins it below 0.4.
+- **Langfuse through a port.** `ExperimentSink` with a fake; the SDK adapter replays recorded
+  runs through `run_experiment` (the supported write path in langfuse 5, which deprecated
+  dataset run items): checks and metrics as scores, the session id on a span so the experiment
+  item sits next to the server's own turn traces. Opt-in with `--langfuse`; nothing is sent
+  without keys.
+
+**Tests.** `tests/test_eval_*.py`: the fold, the HTTP adapter against a scripted server built on
+the app's own SSE encoder, loopback runs of S03 that get the fake mode's verdicts, the cue
+table, the simulator and judge over `FakeModel`, spend, report, comparison plan, ragas, and
+Langfuse with a fake sink and a stub client. No test needs a key or the network.
+
+**Consequences we accept.** Latency is measured over HTTP on the runner's clock: it says how the
+text path behaves, not the voice path (D40's timings stay the measure there). The estimate is
+deliberately high, so the real export cost will usually come in lower. A free-text fact is not
+scored exactly. The comparison has not been run: the owner decides when to spend on it, and the
+model decision will be its own entry with the committed numbers.

@@ -4,7 +4,7 @@ version: "1"
 config_ids: [chamberi_barista_v1]
 language: es
 title: Oferta y retribución, Chamberí / Chamberí offer and pay
-keywords: [salario, salary, sueldo, pay, horas, hours, contrato, contract, vacaciones, holidays, propinas, tips]
+keywords: [salario, salary, sueldo, pay, horas, hours, contrato, contract, vacaciones, holidays, holiday days, días libres, propinas, tips]
 ---
 
 # Oferta y retribución, Chamberí

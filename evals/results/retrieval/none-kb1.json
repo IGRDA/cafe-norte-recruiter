@@ -1,0 +1,391 @@
+{
+  "generated_at": "2026-10-21T10:39:20+00:00",
+  "kb_version": "1",
+  "embedding_model": "none",
+  "embedding_revision": "none",
+  "runs": [
+    {
+      "case_id": "R01",
+      "kind": "answerable",
+      "returned": [
+        "offer_chamberi#horas",
+        "offer_chamberi#extras",
+        "store_chamberi#equipo"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R02",
+      "kind": "answerable",
+      "returned": [
+        "faq#cuando-se-cobra",
+        "offer_chamberi#salario"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R03",
+      "kind": "answerable",
+      "returned": [
+        "barista_role#tareas-principales",
+        "store_chamberi#horario",
+        "store_chamberi#como-llegar-el-dia-de-la-entrevista"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R04",
+      "kind": "answerable",
+      "returned": [
+        "store_chamberi#direccion",
+        "store_chamberi#horario",
+        "store_chamberi#como-es-la-tienda"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R05",
+      "kind": "answerable",
+      "returned": [
+        "offer_chamberi#vacaciones",
+        "offer_chamberi#contrato",
+        "offer_chamberi#extras"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R06",
+      "kind": "answerable",
+      "returned": [
+        "offer_chamberi#vacaciones",
+        "offer_chamberi#contrato",
+        "offer_chamberi#extras"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R07",
+      "kind": "answerable",
+      "returned": [
+        "interview_process#que-traer",
+        "interview_process#como-prepararse",
+        "interview_process#cuando-se-responde"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": false,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R08",
+      "kind": "answerable",
+      "returned": [
+        "uniform#que-trae-el-barista",
+        "uniform#normas-de-presentacion",
+        "uniform#que-proporciona-cafe-norte"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R09",
+      "kind": "answerable",
+      "returned": [
+        "offer_arganzuela#horas",
+        "store_arganzuela#equipo",
+        "store_arganzuela#turnos"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R10",
+      "kind": "answerable",
+      "returned": [
+        "store_arganzuela#turnos",
+        "offer_arganzuela#horas",
+        "store_arganzuela#como-es-la-tienda"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R11",
+      "kind": "answerable",
+      "returned": [
+        "benefits#descuento",
+        "benefits#otros-beneficios",
+        "benefits#comida-y-bebida"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R12",
+      "kind": "answerable",
+      "returned": [
+        "training#induccion",
+        "training#despues-de-los-seis-meses",
+        "training#curso-de-barista"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R13",
+      "kind": "answerable",
+      "returned": [
+        "offer_arganzuela#vacaciones",
+        "offer_arganzuela#extras",
+        "offer_arganzuela#contrato"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": false,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R14",
+      "kind": "answerable",
+      "returned": [
+        "store_arganzuela#direccion",
+        "store_arganzuela#horario",
+        "store_arganzuela#equipo"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": true,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R15",
+      "kind": "answerable",
+      "returned": [
+        "faq#cuando-se-cobra",
+        "faq#que-idiomas-hacen-falta",
+        "faq#hay-horas-extra"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": false,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R16",
+      "kind": "answerable",
+      "returned": [],
+      "fused_scores": [],
+      "hit": false,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R17",
+      "kind": "unsupported",
+      "returned": [
+        "benefits#otros-beneficios",
+        "faq#hay-horas-extra",
+        "barista_role#que-no-forma-parte-del-puesto"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": null,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R18",
+      "kind": "unsupported",
+      "returned": [],
+      "fused_scores": [],
+      "hit": null,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R19",
+      "kind": "unsupported",
+      "returned": [
+        "faq#cuando-se-cobra",
+        "barista_role#que-no-forma-parte-del-puesto",
+        "interview_process#como-es-la-entrevista"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": null,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R20",
+      "kind": "unsupported",
+      "returned": [],
+      "fused_scores": [],
+      "hit": null,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R21",
+      "kind": "leakage",
+      "returned": [
+        "faq#cuando-se-cobra",
+        "offer_chamberi#salario"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613
+      ],
+      "hit": null,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R22",
+      "kind": "leakage",
+      "returned": [
+        "store_arganzuela#horario",
+        "offer_arganzuela#vacaciones",
+        "store_arganzuela#equipo"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": null,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R23",
+      "kind": "leakage",
+      "returned": [
+        "store_chamberi#horario",
+        "store_chamberi#equipo",
+        "store_chamberi#como-es-la-tienda"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613,
+        0.01587
+      ],
+      "hit": null,
+      "leaked": false,
+      "milliseconds": 0
+    },
+    {
+      "case_id": "R24",
+      "kind": "leakage",
+      "returned": [
+        "training#despues-de-los-seis-meses",
+        "store_arganzuela#equipo"
+      ],
+      "fused_scores": [
+        0.01639,
+        0.01613
+      ],
+      "hit": null,
+      "leaked": false,
+      "milliseconds": 0
+    }
+  ],
+  "recall_at_3": 0.75,
+  "answerable": 16,
+  "leaked": 0,
+  "unsupported_with_sources": 2,
+  "median_ms": 0
+}

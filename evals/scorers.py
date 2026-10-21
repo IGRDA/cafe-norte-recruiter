@@ -105,6 +105,29 @@ def _max_repeated_questions(result: SessionResult, check: Check) -> tuple[bool, 
     return len(repeated) <= limit, f"repeated questions: {repeated or 'none'} (max {limit})"
 
 
+def _sources_shown(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Turn ``turn`` (1-based candidate line) showed a chunk of ``section_prefix``."""
+    turn, prefix = int(check.args["turn"]), check.args["section_prefix"]
+    shown = result.sources_by_turn[turn - 1] if turn <= len(result.sources_by_turn) else ()
+    return any(
+        s.startswith(prefix) for s in shown
+    ), f"turn {turn} showed {list(shown) or 'nothing'}"
+
+
+def _no_cross_store_sources(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Every chunk ever shown belongs to a document of this session's configuration."""
+    foreign = sorted(
+        {s for shown in result.sources_by_turn for s in shown}
+        - {
+            s
+            for shown in result.sources_by_turn
+            for s in shown
+            if s.split("#")[0] in result.allowed_doc_ids
+        }
+    )
+    return not foreign, f"sources outside the configuration: {foreign or 'none'}"
+
+
 def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
     def scorer(result: SessionResult, check: Check) -> tuple[bool, str]:
         raise NotImplementedError(f"check {check.name!r} arrives with the {stage} stage")
@@ -124,8 +147,8 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "booking_absent": _later("booking"),
     "review_flag_present": _later("export"),
     "language_of_last_assistant_turn": _later("language"),
-    "sources_shown_for_policy_answer": _later("knowledge"),
-    "no_cross_store_sources": _later("knowledge"),
+    "sources_shown_for_policy_answer": _sources_shown,
+    "no_cross_store_sources": _no_cross_store_sources,
 }
 LATER: dict[str, str] = {}
 

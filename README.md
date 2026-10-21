@@ -12,10 +12,13 @@ stores, the pay, the candidates. No real hiring decision is made or suggested.
 > browser, API, runtime, the `update_candidate` tool, domain validation, in-memory store,
 > SSE back to the page. Ana opens with the disclosure and collects the whole candidate record
 > in Spanish (D19), reads back phone and date, presents the brief, and ends the session once
-> it is confirmed (D20), and the session can be downloaded as `<session_id>.json` (D25).
+> it is confirmed (D20), and the session can be downloaded as `<session_id>.json` (D25). Ana
+> answers questions about the role, the store, pay, shifts, training, uniform, benefits and the
+> interview from twelve fictional documents through `search_knowledge`: hybrid BM25 + local
+> multilingual embeddings, filtered by store before ranking, sources shown on the page (D26).
 > Voice is the browser's own speech recognition and synthesis on the
 > same path, or hosted voice through Daily, Deepgram and ElevenLabs with `CAFE_NORTE_VOICE=pipecat`
-> (D22), locally and on one Compute Engine VM behind a shared access code (D23, D24). Booking, knowledge and
+> (D22), locally and on one Compute Engine VM behind a shared access code (D23, D24). Booking and
 > Postgres keep their contracts and raise `NotImplementedError`.
 
 ## Run and test
@@ -40,7 +43,7 @@ the browser's speech recognition and synthesis.
 
 ```text
 Browser (vanilla JS) ──SSE/POST──▶ api ──▶ conversation runtime ──▶ model (Groq | fake)
-Browser ──Daily audio──▶ voice (Pipecat shell) ─┘        │   ├──▶ knowledge (hybrid | fake)
+Browser ──Daily audio──▶ voice (Pipecat shell) ─┘        │   ├──▶ knowledge (hybrid | lexical)
                                                          │   ├──▶ persistence (Postgres | memory)
                                                          └──▶ domain (pure rules)
 ```

@@ -29,6 +29,7 @@ class Chunk(Frozen):
     doc_id: str
     config_ids: frozenset[ConfigId]
     title: str
+    keywords: tuple[str, ...] = ()  # the document's bilingual search terms
     section: str
     text: str
 

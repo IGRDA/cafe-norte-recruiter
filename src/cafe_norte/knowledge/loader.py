@@ -53,6 +53,7 @@ def chunk_document(document: Document, *, max_words: int = MAX_CHUNK_WORDS) -> t
                     doc_id=document.doc_id,
                     config_ids=document.config_ids,
                     title=document.title,
+                    keywords=document.keywords,
                     section=heading.strip(),
                     text=piece,
                 )

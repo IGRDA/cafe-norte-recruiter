@@ -456,6 +456,38 @@ _Added 21 October 2026, with the export stage._
 already journals ships it without a confirmations table, a summary worker or Postgres, and
 every piece moves unchanged when those land.
 
+## D26 · Knowledge: the model reformulates, the handler filters, one small hybrid index
+
+_Added 21 October 2026, with the RAG stage._
+
+**Decisions.**
+- `search_knowledge(question, query, topic)`. The semantic half of the query is the model's:
+  one self-contained Spanish `query` (an English question is reformulated there, which is also
+  how English retrieval works). The structured half is the handler's: configuration, KB
+  version and `topic → documents` (`faq` always allowed) are applied before ranking. No second
+  model call for query rewriting; the tool result lets the model search once more in the same
+  turn, bounded by the four tool rounds.
+- Hybrid from day one: own thirty-line BM25 (no `rank-bm25`) plus dense cosine, fused by
+  reciprocal rank among the allowed chunks only. `Embedder` is a port: FastEmbed in the
+  `knowledge` extra, `FakeEmbedder` (hashed bag of tokens) in tests, so `make check` never
+  downloads a model. Chunk = one `## ` section, at most 90 words (the embedding model's 128
+  tokens).
+- Two modes: `lexical` builds BM25 over `kb/` at startup (local default, no extra);
+  `hybrid` loads the artifact `kb/index/<kb_version>/` built by `make build-index` and in the
+  image, and warms the model before serving.
+- Abstention is the prompt's job plus the `unknown_policy` document. The retriever always
+  returns its top three; the 24-question suite reports what unsupported questions get back.
+  A relevance floor, multi-query fusion and `request_human_followup` are the next stage, chosen
+  from those numbers.
+- The export's `retrieval_events` carry `sources_found`, not `answered`: whether a snippet
+  answered is a judgement, not a fact the system holds.
+- After the confirmed brief Ana invites questions before asking about the interview; the
+  opening says questions are welcome.
+
+**Measured (2026-10-21, local, `paraphrase-multilingual-MiniLM-L12-v2`).** recall@3 16/16
+answerable, 0/24 leaked, every unsupported question returned three chunks (no floor), median
+6 ms per retrieval after warm-up. BM25 alone finds every Spanish answerable question.
+
 ## Assumptions recorded without a question
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.

@@ -4,7 +4,7 @@ version: "1"
 config_ids: [arganzuela_barista_v1]
 language: es
 title: Oferta y retribución, Arganzuela / Arganzuela offer and pay
-keywords: [salario, salary, sueldo, pay, horas, hours, contrato, contract, vacaciones, holidays, propinas, tips, media jornada, part-time]
+keywords: [salario, salary, sueldo, pay, horas, hours, contrato, contract, vacaciones, holidays, holiday days, días libres, propinas, tips, media jornada, part-time]
 ---
 
 # Oferta y retribución, Arganzuela

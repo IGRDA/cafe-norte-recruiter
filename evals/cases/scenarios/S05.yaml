@@ -1,0 +1,39 @@
+id: S05
+title: Policy question during the interview, Chamberí
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# The candidate asks about hours before giving any data. Ana searches, answers with a source
+# shown for the offer's hours section, and returns to the field that was pending.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Antes de nada, ¿cuántas horas a la semana son?"
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: search_knowledge
+      args:
+        question: "Antes de nada, ¿cuántas horas a la semana son?"
+        query: "¿Cuántas horas a la semana tiene la jornada?"
+        topic: pay
+    - say: "Según la oferta, la jornada es de 35 horas a la semana. ¿Cómo te llamas?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo?"
+persona:
+  facts:
+    name: Lucía Marín
+  wants_interview: false
+checks:
+  - name: sources_shown_for_policy_answer
+    args: { turn: "2", section_prefix: "offer_chamberi#horas" }
+  - name: no_cross_store_sources
+  - name: field_equals
+    args: { field: name, value: Lucía Marín }
+  - name: max_repeated_questions
+    args: { max: "0" }
+rubric:
+  - Ana answered with the figure from the offer and named the source briefly.
+  - Ana returned to the pending question without repeating herself.

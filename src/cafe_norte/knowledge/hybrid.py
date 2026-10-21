@@ -17,8 +17,9 @@ RRF_K = 60
 
 
 def lexical_text(chunk: Chunk) -> str:
-    """What BM25 sees: title, section and text. The bilingual title makes English hit."""
-    return f"{chunk.title} {chunk.section} {chunk.text}"
+    """What BM25 sees: title, keywords, section and text. The bilingual title and keywords
+    give English questions lexical hits on Spanish chunks."""
+    return f"{chunk.title} {' '.join(chunk.keywords)} {chunk.section} {chunk.text}"
 
 
 class HybridRetriever:

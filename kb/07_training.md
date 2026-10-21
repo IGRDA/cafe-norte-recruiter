@@ -11,8 +11,8 @@ keywords: [formación, training, inducción, induction, curso, course, aprender,
 
 ## Inducción
 
-Los tres primeros días son de inducción en la tienda, pagados como días de trabajo. Se
-aprende la organización del local, la caja, la limpieza y las normas de seguridad alimentaria
+La formación empieza con tres días de inducción en la tienda, pagados como días de trabajo.
+Se aprende la organización del local, la caja, la limpieza y las normas de seguridad alimentaria
 acompañando a una persona del equipo.
 
 ## Curso de barista

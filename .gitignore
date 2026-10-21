@@ -14,6 +14,7 @@ htmlcov/
 data/
 evals/results/*
 !evals/results/README.md
+!evals/results/retrieval/
 kb/index/
 infra/**/.terraform/
 *.tfstate

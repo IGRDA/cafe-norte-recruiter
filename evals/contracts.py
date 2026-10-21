@@ -73,6 +73,8 @@ class SessionResult(Frozen):
     state: SessionState
     turns: tuple[TurnRecord, ...]
     spoken_by_turn: tuple[tuple[str, ...], ...]
+    sources_by_turn: tuple[tuple[str, ...], ...] = ()  # chunk ids shown per candidate turn
+    allowed_doc_ids: frozenset[str] = frozenset()  # the configuration's documents
 
     @property
     def candidate_lines(self) -> frozenset[str]:
@@ -87,6 +89,30 @@ class RetrievalCase(Frozen):
     kind: Literal["answerable", "unsupported", "leakage"]
     expected_sections: tuple[str, ...] = ()
     expected_facts: tuple[str, ...] = ()
+
+
+class RetrievalRun(Frozen):
+    """One question through the retriever: what came back, scored against the fixture."""
+
+    case_id: str
+    kind: Literal["answerable", "unsupported", "leakage"]
+    returned: tuple[str, ...]  # chunk ids, best first
+    fused_scores: tuple[float, ...]
+    hit: bool | None  # answerable: an expected section is among the returned chunks
+    leaked: bool  # any returned chunk outside the configuration's documents
+    milliseconds: int
+
+
+class RetrievalReport(Frozen):
+    kb_version: str
+    embedding_model: str
+    embedding_revision: str
+    runs: tuple[RetrievalRun, ...]
+    recall_at_3: float  # over answerable cases
+    answerable: int
+    leaked: int  # over every case
+    unsupported_with_sources: int  # stage 1 has no floor: reported, not judged
+    median_ms: int
 
 
 class ComparisonCase(Frozen):

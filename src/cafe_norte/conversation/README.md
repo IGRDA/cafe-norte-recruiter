@@ -10,12 +10,23 @@ its own.
 | `contracts.py` | `TurnInput`, the `RuntimeEvent` union, `ToolContext`, `ToolOutcome`, ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
-| `handlers.py` | `all_handlers()`: update, present (read-backs and the brief), confirm field/brief, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
+| `handlers.py` | `all_handlers()`: update, search knowledge, present (read-backs and the brief), confirm field/brief, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
 | `brief.py` | The deterministic brief and the phone/date read-backs, filled from `prompts/brief.md`; spoken verbatim by the runtime (D20) |
 | `prompt.py` | System message from the versioned prompt plus session facts as JSON; history window; sentence splitting |
 | `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines. Cancellation and repair counting: later stages |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |
 | `signals.py` | Synchronous stop/human/language fast path and the asynchronous sentiment classifier port |
+
+## Questions and the knowledge base
+
+`search_knowledge(question, query, topic)`: the model keeps the candidate's words in
+`question`, writes one self-contained Spanish `query` (an English question is reformulated
+here) and names a `topic`. The handler applies the structured half (configuration, KB version,
+topic → documents, `faq` always allowed) before ranking, returns at most three snippets as
+numbered reference material with the rules and the next step, and emits `SourcesShown`.
+The model may search once more in the same turn; the four-round limit bounds it. Abstention
+is the prompt's job in this stage: no relevance floor yet (D26). After the confirmed brief the
+next step is to invite questions, then the interview.
 
 ## Turn execution
 

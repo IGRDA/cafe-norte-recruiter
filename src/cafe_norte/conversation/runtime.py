@@ -41,7 +41,6 @@ from cafe_norte.domain.contracts import (
 from cafe_norte.domain.lifecycle import LifecycleEvent, is_terminal, transition
 from cafe_norte.domain.result import Err
 from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
-from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.model.contracts import (
     Model,
     ModelEvent,
@@ -168,7 +167,6 @@ class Runtime:
         *,
         model: Model,
         tools: ToolRegistry,
-        retriever: Retriever,
         store: Store,
         configurations: dict[ConfigId, StoreConfiguration],
         signals: SignalAnalyzer | None,
@@ -178,7 +176,6 @@ class Runtime:
     ) -> None:
         self._model = model
         self._tools = tools
-        self._retriever = retriever
         self._store = store
         self._configurations = configurations
         self._signals = signals

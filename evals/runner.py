@@ -74,8 +74,9 @@ async def run_fake(scenario: Scenario) -> RunRecord:
     model = FakeModel(scripts)
     runtime = Runtime(
         model=model,
-        tools=ToolRegistry(all_handlers(store=store, configurations=configurations)),
-        retriever=FakeRetriever(),
+        tools=ToolRegistry(
+            all_handlers(store=store, configurations=configurations, retriever=FakeRetriever())
+        ),
         store=store,
         configurations=configurations,
         signals=None,

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from cafe_norte.domain.contracts import CandidateFieldName, CandidatePatch, SlotId
 from cafe_norte.errors import Language
+from cafe_norte.knowledge.contracts import Topic
 from cafe_norte.model.contracts import ToolSchema
 
 ToolName = Literal[
@@ -37,7 +38,13 @@ class UpdateCandidateArgs(Args):
 
 
 class SearchKnowledgeArgs(Args):
+    """The candidate's words for the record, the model's self-contained Spanish query for
+    the index (English questions are reformulated here), and a topic that narrows the
+    documents before ranking."""
+
     question: str = Field(min_length=1, max_length=500)
+    query: str = Field(min_length=1, max_length=200)
+    topic: Topic = "any"
 
 
 class ListInterviewSlotsArgs(Args):
@@ -87,8 +94,10 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "update_candidate": "Record facts the candidate just stated, or mark fields they declined "
     "or do not know. Patch values are plain strings, numbers, dates or lists, never objects. "
     "Never guess a value.",
-    "search_knowledge": "Look up role, store, pay, shifts, training or policy facts before "
-    "answering a question about them.",
+    "search_knowledge": "Look up facts about the role, the store, pay, shifts, training, "
+    "uniform, benefits, the interview or the company before answering a question about them. "
+    "`question` is what the candidate said; `query` is one self-contained question in Spanish "
+    "with the key words; `topic` narrows the documents.",
     "list_interview_slots": "Get two or three available interview slots for this store.",
     "present_confirmation": "Read back a phone/date, the brief, or a proposed slot and wait "
     "for the candidate's answer.",

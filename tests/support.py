@@ -34,11 +34,12 @@ def build_test_app(
 ) -> FastAPI:
     store = MemoryStore()
     configurations = load_configurations(CONFIG_DIR)
-    registry = ToolRegistry(all_handlers(store=store, configurations=configurations))
+    registry = ToolRegistry(
+        all_handlers(store=store, configurations=configurations, retriever=FakeRetriever())
+    )
     runtime = Runtime(
         model=model,
         tools=registry,
-        retriever=FakeRetriever(),
         store=store,
         configurations=configurations,
         signals=None,

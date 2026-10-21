@@ -129,12 +129,13 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
     env = env if env is not None else os.environ
     store = MemoryStore()
     configurations = load_configurations(Path(env.get("CAFE_NORTE_CONFIG_DIR", "config")))
-    registry = ToolRegistry(all_handlers(store=store, configurations=configurations))
+    registry = ToolRegistry(
+        all_handlers(store=store, configurations=configurations, retriever=FakeRetriever())
+    )
     model = _model(env)
     runtime = Runtime(
         model=model,
         tools=registry,
-        retriever=FakeRetriever(),
         store=store,
         configurations=configurations,
         signals=None,

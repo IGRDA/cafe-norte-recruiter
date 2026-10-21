@@ -1,4 +1,4 @@
-# Brief and read-back sentences (ana_v13, en)
+# Brief and read-back sentences (ana_v14, en)
 
 One `key: sentence` per line; `#` lines and blank lines are ignored. `{value}` is filled by
 `conversation/brief.py`. `brief.es.md` has exactly the same keys.
@@ -29,6 +29,7 @@ slots.intro: I have these interview slots at {store}:
 slots.question: Which one suits you best?
 slots.none: I have no free interview slots right now.
 slot: {value}
+review.check: Is that right?
 slot_time: {date} at {time}
 
 label.name: Name

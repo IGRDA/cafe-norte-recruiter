@@ -15,7 +15,7 @@ Instructions to the model are one Spanish file; the language it answers in is a 
 | `resume.<lang>.md` | What Ana says when a private resume link reopens the session, followed by the pending read-back if one is open; journaled, no model call (D32) |
 | `system.md` | Ana's role, disclosure, one-question-at-a-time rules, confirmation discipline, language policy, what she must never infer |
 | `fake_model.md` | The one sentence the fake model says in `make run` without a real model |
-| `brief.<lang>.md` | `key: sentence` table for the brief and the read-backs, including the date layout |
+| `brief.<lang>.md` | `key: sentence` table for the brief and the read-backs, including the date layout and `review.check`, the short check after each part of a read-back that is gone over (D39) |
 | `voice.<lang>.md` | The filler and idle sentences the voice channel speaks |
 | `language.<lang>.md` | The closing line of the system message, written in that language: which language every reply is in. Without it a Spanish prompt pulls the model back to Spanish |
 | `controls.<lang>.md` | `key: sentence` table, spoken word for word by the runtime: `human` (the fixed reply to an explicit request for a person) and `time_cap` (the goodbye when the active-time cap ends the session, D37) |

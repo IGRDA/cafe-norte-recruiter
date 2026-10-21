@@ -344,6 +344,35 @@ _Added 20 October 2026, with the voice stage (local half)._
 
 
 
+## D23 · First hosted deploy: two Terraform stacks, access code, memory store, OpenAI in the cloud
+
+_Added 21 October 2026._
+
+**Decisions.**
+- `infra/bootstrap` (state bucket, GitHub Workload Identity pool and provider restricted to
+  `IGRDA/cafe-norte-recruiter` on `main`, deployer service account, the billing budget) is
+  applied once by a person with Application Default Credentials. `infra/app` (Artifact
+  Registry, runtime service account, secret names, Cloud Run v2) is applied by CI on every
+  push to `main` with the image digest it just built (D07). The budget sits in bootstrap because
+  the CI deployer has no billing-account permissions and must not need them.
+- The hosted page is public; the app's shared access code (`POST /api/access`, HttpOnly cookie
+  that is a signature of the code) gates session creation. The code and the cookie secret are
+  Secret Manager versions written by `scripts/set_secrets.py`, never by Terraform.
+- The hosted model is `openai/gpt-4o-mini`: Groq's free tier (8k tokens/min, 200k/day) cannot
+  serve a shared URL. The Groq selector stays for the model comparison.
+- The checkpoint runs on the memory store with one always-on instance (min = max = 1): a
+  restart loses sessions, which the Postgres stage fixes behind the same `Store` port. Cloud
+  SQL and the uptime check are not provisioned (`enable_database = false`).
+- The smoke check after a deploy makes no model call: page, health, access gate, session
+  creation. Deploys cost nothing and cannot fail on a provider hiccup.
+- Service-level scaling defaults filled by the Cloud Run API are ignored in Terraform; the
+  template scaling is what we set.
+
+**Measured on the first deploy.** Bot joins a Daily room from the container in 2.9 s;
+`POST /voice` end to end 200 in 2.9 s; smoke green; both plans empty after apply.
+
+## Assumptions recorded without a question
+
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.
 - Code and documentation in English; candidate-facing text in Spanish (Spain) and English.
 - Store configurations are YAML validated into `StoreConfiguration` at startup.

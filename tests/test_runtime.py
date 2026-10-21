@@ -1615,3 +1615,64 @@ async def test_a_pending_field_read_back_keeps_the_slot_matcher_out() -> None:
             expected_revision=state.candidate.revision,
         )
     assert tools_started(await h.run("El primero.", "in-2")) == []
+
+
+async def shortlist(h: Harness) -> tuple[SlotId, ...]:
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.slot_offer is not None
+    return state.slot_offer.shortlist
+
+
+async def offered_ids(h: Harness) -> list[SlotId]:
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.slot_offer is not None
+    return [slot.slot_id for slot in state.slot_offer.slots]
+
+
+async def test_a_day_with_two_slots_asks_which_and_the_time_then_picks_one() -> None:
+    """The hosted call's "El viernes." when two Friday slots were offered."""
+    h = with_slots_offered(
+        says("¿A las 10:30 o a las 17:00?"), says(""), date_preference="2026-10-23"
+    )
+    await slots_offered(h)
+    events = await h.run("El viernes.", "in-2")
+    assert tools_started(events) == [] and await pending_slot(h) is None
+    assert await shortlist(h) == (FRI_1030, FRI_17)
+    facts = h.model.calls[-1][0].content
+    assert "slot_choice" in facts and "viernes 23 de octubre de 2026 a las 10:30" in facts
+    assert "viernes 23 de octubre de 2026 a las 17:00" in facts
+    await h.run("A las diez y media.", "in-3")
+    assert await pending_slot(h) == FRI_1030
+
+
+async def test_the_shortlist_narrows_an_answer_that_alone_would_be_ambiguous() -> None:
+    """Offered Tuesday 17:00, Wednesday 10:30 and 17:00: after "el miércoles", "a las cinco"
+    means Wednesday's, although Tuesday also has one at five."""
+    h = with_slots_offered(says("¿A qué hora?"), says(""))
+    await slots_offered(h)
+    await h.run("El miércoles.", "in-2")
+    await h.run("A las cinco.", "in-3")
+    assert await pending_slot(h) == SlotId("chamberi_barista_v1-2026-10-21-1700")
+
+
+async def test_a_day_not_offered_is_offered_again_for_that_day_by_the_runtime() -> None:
+    h = with_slots_offered(says(""))
+    await slots_offered(h)
+    events = await h.run("¿Y el viernes?", "in-2")
+    assert tools_started(events) == ["list_interview_slots"]
+    assert await offered_ids(h) == [FRI_1030, FRI_17]
+    said = " ".join(e.text for e in events if isinstance(e, AssistantText))
+    assert "viernes 23 de octubre de 2026 a las 10:30" in said
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.schedule_intent is not None
+    assert state.schedule_intent.text == "Sí, quiero entrevista."
+    assert '"slot_choice": "Offered, in this order' in h.model.calls[-1][0].content
+
+
+async def test_a_time_not_offered_offers_the_same_slots_again() -> None:
+    h = with_slots_offered(says(""))
+    await slots_offered(h)
+    before = await offered_ids(h)
+    events = await h.run("A las ocho.", "in-2")
+    assert tools_started(events) == ["list_interview_slots"]
+    assert await offered_ids(h) == before

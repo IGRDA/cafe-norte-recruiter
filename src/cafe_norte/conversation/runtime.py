@@ -13,6 +13,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.brief import slot_time
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
@@ -48,6 +49,7 @@ from cafe_norte.domain.contracts import (
     SessionId,
     SessionState,
     Signal,
+    SlotId,
     SlotTarget,
     StoreConfiguration,
     TurnId,
@@ -56,7 +58,13 @@ from cafe_norte.domain.lifecycle import TERMINAL, LifecycleEvent, is_terminal, t
 from cafe_norte.domain.result import Err
 from cafe_norte.domain.review import add_followup
 from cafe_norte.domain.session_time import active_increment
-from cafe_norte.domain.slot_choice import Chosen, choose_slot, read_slot_words
+from cafe_norte.domain.slot_choice import (
+    Ambiguous,
+    Chosen,
+    NoMatch,
+    choose_slot,
+    read_slot_words,
+)
 from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
 from cafe_norte.model.contracts import (
     Model,
@@ -922,10 +930,11 @@ class Runtime:
             run.state = refreshed
 
     async def _slot_choice(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
-        """The candidate's answer to the slot offer, matched against it here (D41): the one
-        slot it fits is read back through the tool the model would call, so a model that does
-        not copy the slot id can no longer leave the choice looping. Anything that is not a
-        choice is the model's."""
+        """The candidate's answer to the slot offer, matched against it here (D41), so a model
+        that does not copy the slot id can no longer leave the choice looping. One slot that
+        fits is read back and several are kept as a shortlist for the model to ask about,
+        through the tools the model would call; words that fit nothing offered are offered
+        again, for the day they name. Anything that is not a choice is the model's."""
         state = run.state
         offer = state.slot_offer
         pending = state.pending_confirmation
@@ -942,7 +951,8 @@ class Runtime:
             )
         ):
             return
-        zone = ZoneInfo(self._configurations[state.config_id].timezone)
+        configuration = self._configurations[state.config_id]
+        zone = ZoneInfo(configuration.timezone)
         ids = [slot.slot_id for slot in offer.slots]
         choice = choose_slot(
             read_slot_words(run.input.text),
@@ -950,12 +960,47 @@ class Runtime:
             today=self._clock().astimezone(zone).date(),
             shortlist=tuple(i for i, slot_id in enumerate(ids) if slot_id in offer.shortlist),
         )
-        if not isinstance(choice, Chosen):
-            return
-        chosen = {"target": "slot", "slot_id": str(ids[choice.index])}
-        async for event in self._runtime_call(run, "present_confirmation", chosen):
-            yield event
-        run.slot_choice = run.outcome.model_text
+        match choice:
+            case Chosen(index=index):
+                chosen = {"target": "slot", "slot_id": str(ids[index])}
+                async for event in self._runtime_call(run, "present_confirmation", chosen):
+                    yield event
+                run.slot_choice = run.outcome.model_text
+            case Ambiguous(indices=indices):
+                await self._save_shortlist(run, tuple(ids[i] for i in indices))
+                options = "; ".join(
+                    f"{i + 1}: "
+                    + slot_time(offer.slots[i].starts_at_utc, configuration, state.language)
+                    for i in indices
+                )
+                run.slot_choice = (
+                    f"The candidate's words fit more than one offered slot ({options}). Ask in "
+                    "one short sentence which of these they prefer; the system reads it back."
+                )
+            case NoMatch(day=day):
+                evidence = state.schedule_intent.text if state.schedule_intent else run.input.text
+                again = {"evidence_text": evidence}
+                if day is not None:
+                    again["date_preference"] = day.isoformat()
+                async for event in self._runtime_call(run, "list_interview_slots", again):
+                    yield event
+                run.slot_choice = run.outcome.model_text
+
+    async def _save_shortlist(self, run: _Turn, shortlist: tuple[SlotId, ...]) -> None:
+        """The slots an ambiguous answer left in question; the next answer is held to them."""
+        offer = run.state.slot_offer
+        assert offer is not None
+        state = run.state.model_copy(
+            update={"slot_offer": offer.model_copy(update={"shortlist": shortlist})}
+        )
+        async with self._store.transaction() as tx:
+            await self._store.sessions.save(
+                tx,
+                state,
+                expected_revision=state.candidate.revision,
+                lease_generation=run.generation,
+            )
+        run.state = state
 
     async def _runtime_call(
         self, run: _Turn, name: str, arguments: dict[str, str]

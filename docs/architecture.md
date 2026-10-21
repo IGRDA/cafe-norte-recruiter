@@ -55,7 +55,8 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | Recent turns in the prompt | 20 |
 | Knowledge chunk | one `## ` section, at most 90 words |
-| Chunks per `search_knowledge` call | 3; RRF k = 60 |
+| Chunks per `search_knowledge` call | 3; RRF k = 60; 1–3 phrasings per call |
+| Relevance floor | a chunk with BM25 = 0 needs cosine ≥ 0.40 (D27, re-measured when the embedding model changes) |
 | Query embeddings in flight | 2 per process |
 | `search_knowledge` tool time | target ≤ 300 ms after warm-up; measured per call in `timings` (`stage: tool`) |
 | Searches per turn | bounded by the 4 tool rounds; the tool text allows one retry |

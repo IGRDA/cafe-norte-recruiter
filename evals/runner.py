@@ -183,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--models", nargs="*", default=[])
     parser.add_argument("--judge", default="off")
     parser.add_argument("--retriever", choices=["hybrid", "lexical"], default="hybrid")
+    parser.add_argument("--out", default=str(ROOT / "evals" / "results" / "retrieval"))
     parser.add_argument("--list", action="store_true")
     args = parser.parse_args(argv)
 
@@ -191,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{scenario.id}  {scenario.title}")
         return 0
     if args.suite == "retrieval":
-        return retrieval_main(args.retriever, args.only)
+        return retrieval_main(args.retriever, args.only, Path(args.out))
     if args.suite != "scenarios" or args.mode != "fake":
         print(f"{args.suite} in {args.mode} mode is not available yet (later stage).")
         return 2
@@ -215,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
     return 1 if failed else 0
 
 
-def retrieval_main(mode: str, only: Sequence[str]) -> int:
+def retrieval_main(mode: str, only: Sequence[str], out: Path) -> int:
     """The 24 questions through the real retriever: ``hybrid`` needs the knowledge extra and
     downloads the model once; ``lexical`` is BM25 only and runs anywhere."""
     configurations = load_configurations(CONFIG_DIR)
@@ -231,7 +232,7 @@ def retrieval_main(mode: str, only: Sequence[str]) -> int:
     retriever = HybridRetriever(index, embedder)
     cases = [c for c in load_cases() if not only or c.id in set(only)]
     report = asyncio.run(run_retrieval(cases, retriever, configurations))
-    path = write_report(report, ROOT / "evals" / "results" / "retrieval")
+    path = write_report(report, out)
     for run in report.runs:
         mark = {True: "hit ", False: "MISS", None: "    "}[run.hit] + (
             " LEAK" if run.leaked else ""

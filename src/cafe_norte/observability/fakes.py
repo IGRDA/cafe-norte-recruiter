@@ -7,9 +7,13 @@ from typing import Any
 
 from cafe_norte.domain.contracts import Channel, SessionId, StoreConfiguration, TurnId
 from cafe_norte.errors import Language
-from cafe_norte.observability.contracts import ObservationKind, Span, SpanValue, StructuredEvent
-
-ROOT_NAME = "handle-candidate-turn"
+from cafe_norte.observability.contracts import (
+    ROOT_SPAN_NAME,
+    ObservationKind,
+    Span,
+    SpanValue,
+    StructuredEvent,
+)
 
 
 class NullSpan:
@@ -91,7 +95,7 @@ class RecordingTelemetry:
         language: Language,
     ) -> Span:
         return self._open(
-            ROOT_NAME,
+            ROOT_SPAN_NAME,
             "span",
             None,
             {

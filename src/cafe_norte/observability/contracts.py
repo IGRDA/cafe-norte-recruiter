@@ -141,6 +141,9 @@ class StructuredEvent(Frozen):
 ObservationKind = Literal["span", "agent", "chain", "generation", "tool", "retriever"]
 SpanValue = str | int | float | bool
 
+# The trace of a turn is named by its root span: a stable name, never a value (D36).
+ROOT_SPAN_NAME = "handle-candidate-turn"
+
 
 class Span(Protocol):
     """One timed step of a turn. Parents are explicit (``child``), not ambient: a turn is an

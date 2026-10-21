@@ -3,8 +3,10 @@
 # to this repository's main branch, and the deployer service account CI impersonates. No keys.
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
+  project               = var.project_id
+  region                = var.region
+  user_project_override = true # user-credential calls (budgets) bill their quota to this project
+  billing_project       = var.project_id
 }
 
 data "google_project" "this" {
@@ -67,7 +69,6 @@ resource "google_project_iam_member" "deployer" {
     "roles/iam.serviceAccountUser",
     "roles/iam.serviceAccountAdmin",
     "roles/resourcemanager.projectIamAdmin",
-    "roles/billing.viewer",
     "roles/serviceusage.serviceUsageAdmin",
     "roles/logging.viewer",
   ])
@@ -80,4 +81,29 @@ resource "google_storage_bucket_iam_member" "deployer_state" {
   bucket = google_storage_bucket.state.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.deployer.email}"
+}
+
+# The budget lives here, applied once by a person: the CI deployer has no billing-account
+# permissions and must not need them.
+resource "google_billing_budget" "demo" {
+  billing_account = var.billing_account
+  display_name    = "cafe-norte demo"
+
+  budget_filter {
+    projects = ["projects/${data.google_project.this.number}"]
+  }
+
+  amount {
+    specified_amount {
+      currency_code = "EUR"
+      units         = tostring(var.budget_eur)
+    }
+  }
+
+  dynamic "threshold_rules" {
+    for_each = [0.5, 0.8, 1.0]
+    content {
+      threshold_percent = threshold_rules.value
+    }
+  }
 }

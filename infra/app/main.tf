@@ -2,8 +2,10 @@
 # Terraform change. Cloud SQL and the uptime check arrive with their stages (enable_database).
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
+  project               = var.project_id
+  region                = var.region
+  user_project_override = true # user-credential calls (budgets) bill their quota to this project
+  billing_project       = var.project_id
 }
 
 locals {
@@ -135,6 +137,11 @@ resource "google_cloud_run_v2_service" "app" {
   }
 
   depends_on = [google_secret_manager_secret_iam_member.runtime_reads]
+
+  lifecycle {
+    # The API fills service-level scaling defaults the provider then wants to remove.
+    ignore_changes = [scaling]
+  }
 }
 
 # The page is public; the app enforces the shared access code.
@@ -143,29 +150,6 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
   location = var.region
   role     = "roles/run.invoker"
   member   = "allUsers"
-}
-
-resource "google_billing_budget" "demo" {
-  billing_account = var.billing_account
-  display_name    = "cafe-norte demo"
-
-  budget_filter {
-    projects = ["projects/${data.google_project.this.number}"]
-  }
-
-  amount {
-    specified_amount {
-      currency_code = "EUR"
-      units         = tostring(var.budget_eur)
-    }
-  }
-
-  dynamic "threshold_rules" {
-    for_each = [0.5, 0.8, 1.0]
-    content {
-      threshold_percent = threshold_rules.value
-    }
-  }
 }
 
 data "google_project" "this" {

@@ -31,11 +31,6 @@ variable "db_tier" {
   type    = string
   default = "db-g1-small"
 }
-variable "budget_eur" {
-  type    = number
-  default = 30
-}
-variable "billing_account" { type = string }
 variable "demo_end_date" {
   type        = string
   description = "ISO date after which the stack is torn down; recorded as a label."

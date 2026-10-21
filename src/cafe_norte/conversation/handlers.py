@@ -6,11 +6,20 @@ tells the model its next step in one sentence, because the model follows it lite
 
 import uuid
 from collections.abc import Mapping
+from datetime import date
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 
-from cafe_norte.conversation.brief import ReadbackField, field_readback, render_brief
+from cafe_norte.conversation.brief import (
+    ReadbackField,
+    field_readback,
+    render_brief,
+    render_slot_offer,
+    slot_readback,
+    slot_time,
+)
 from cafe_norte.conversation.contracts import (
     SourcesShown,
     StateUpdated,
@@ -22,13 +31,16 @@ from cafe_norte.conversation.tools import (
     ConfirmBriefArgs,
     ConfirmFieldArgs,
     EndSessionArgs,
+    ListInterviewSlotsArgs,
     PresentConfirmationArgs,
     RequestHumanFollowupArgs,
+    ReserveInterviewArgs,
     SearchKnowledgeArgs,
     ToolName,
     UpdateCandidateArgs,
 )
 from cafe_norte.domain import confirmation, fields
+from cafe_norte.domain.booking import idempotency_key, reservation_allowed, slot_offerable
 from cafe_norte.domain.candidate import (
     apply_patch,
     changed_fields,
@@ -44,24 +56,31 @@ from cafe_norte.domain.contracts import (
     ConfirmationId,
     Evidence,
     FieldTarget,
+    InterviewSlot,
     ReviewFlag,
     SessionState,
+    SlotTarget,
     StoreConfiguration,
 )
 from cafe_norte.domain.lifecycle import LifecycleEvent, transition
 from cafe_norte.domain.result import Err
+from cafe_norte.errors import Language, ServiceError
 from cafe_norte.knowledge.contracts import TOPIC_DOCS, RetrievalQuery, RetrievedChunk, Retriever
 from cafe_norte.persistence.contracts import Store
 
 READBACK_FIELDS: tuple[ReadbackField, ...] = ("contact_phone", "earliest_start_date")
+OFFERED_SLOTS = 3
+OFFER_WINDOW = 50  # slots read before a date preference is applied; the seed is 7 days × 2
 NEXT_STEP = {
     "brief": "Now call present_confirmation(target=brief).",
     "questions": "Now ask, in one short sentence, whether they have any question about the "
     "role or the store; answer with search_knowledge, then ask whether they would like an "
     "interview.",
     "interview": "Now ask, in one short sentence, whether they would like an interview.",
-    "end": "Interviews are not booked in this version. Say so in one short sentence and call "
-    "end_session(reason=candidate_done).",
+    "end": "If they want an interview call list_interview_slots with their words; otherwise "
+    "call end_session(reason=candidate_done).",
+    "slots": "Offer fresh slots with list_interview_slots.",
+    "booked": "The interview is reserved. Call end_session(reason=candidate_done).",
     "goodbye": "Session ended. Say goodbye in one short sentence.",
 }
 
@@ -80,6 +99,10 @@ def all_handlers(
         ),
         "confirm_field": ConfirmFieldHandler(store=store),
         "confirm_brief": ConfirmBriefHandler(store=store),
+        "list_interview_slots": ListInterviewSlotsHandler(
+            store=store, configurations=configurations
+        ),
+        "reserve_interview": ReserveInterviewHandler(store=store, configurations=configurations),
         "request_human_followup": RequestHumanFollowupHandler(store=store),
         "end_session": EndSessionHandler(store=store, configurations=configurations),
     }
@@ -113,13 +136,7 @@ class _Handler:
 
 
 def _brief_confirmed(state: SessionState) -> bool:
-    pending = state.pending_confirmation
-    return (
-        pending is not None
-        and pending.status == "confirmed"
-        and isinstance(pending.target, BriefTarget)
-        and pending.target.revision == state.candidate.revision
-    )
+    return state.brief_confirmed_revision == state.candidate.revision
 
 
 def _without_known_values(patch: CandidatePatch, candidate: CandidateRecord) -> CandidatePatch:
@@ -139,8 +156,15 @@ def _next_question(state: SessionState) -> str:
     brief, or the interview."""
     pending = state.pending_confirmation
     if pending is not None and pending.status == "pending":
+        if isinstance(pending.target, SlotTarget):
+            return (
+                "The slot read-back is unanswered; on a yes call reserve_interview with "
+                f"slot_id={pending.target.slot_id}, on another choice present that slot."
+            )
         tool = "confirm_field" if isinstance(pending.target, FieldTarget) else "confirm_brief"
         return f"A read-back is unanswered; call {tool} with the candidate's answer."
+    if state.booking is not None:
+        return NEXT_STEP["booked"]
     missing = unfinished_fields(state.candidate)
     if missing:
         # Name only the next field: listing them all made the model ask them all at once.
@@ -368,8 +392,27 @@ class PresentConfirmationHandler(_Handler):
                     f"The {waiting.target.field} read-back is unanswered; "
                     "call confirm_field with the candidate's answer first.",
                 )
-            target: FieldTarget | BriefTarget = BriefTarget(revision=revision)
+            target: FieldTarget | BriefTarget | SlotTarget = BriefTarget(revision=revision)
             text = render_brief(state.candidate, configuration, state.language)
+        elif arguments.target == "slot":
+            if arguments.slot_id is None:
+                return self._refuse("slot_id_missing", "Name the slot_id the candidate chose.")
+            if not _brief_confirmed(state) or state.schedule_intent is None:
+                return self._refuse(
+                    "slot_not_offerable:no_offer",
+                    "Offer slots with list_interview_slots after the confirmed brief first.",
+                )
+            slot = await self._store.calendar.get(arguments.slot_id)
+            refusal = (
+                "slot_unavailable" if slot is None else slot_offerable(state, slot, now=context.now)
+            )
+            if slot is None or refusal is not None:
+                return self._refuse(
+                    f"slot_not_offerable:{refusal}",
+                    f"That slot cannot be offered ({refusal}). {NEXT_STEP['slots']}",
+                )
+            target = SlotTarget(slot_id=slot.slot_id, brief_revision=revision)
+            text = slot_readback(slot, configuration, state.language)
         elif arguments.target == "field" and arguments.field in READBACK_FIELDS:
             field_name: ReadbackField = arguments.field
             value = fields.value_of(getattr(state.candidate, field_name))
@@ -388,10 +431,11 @@ class PresentConfirmationHandler(_Handler):
         current = state.pending_confirmation
         if current is not None and current.status == "pending" and current.target == target:
             # Already presented and still unanswered: do not say it twice.
-            tool = "confirm_field" if target.kind == "field" else "confirm_brief"
+            tool = {"field": "confirm_field", "brief": "confirm_brief", "slot": "reserve_interview"}
             return ToolOutcome(
                 ok=True,
-                model_text=f"That read-back is already pending; call {tool} with the answer.",
+                model_text=f"That read-back is already pending; call {tool[target.kind]} with "
+                "the answer.",
                 summary=f"already_pending:{target.kind}",
             )
         pending = confirmation.present(
@@ -445,8 +489,15 @@ class _ConfirmHandler(_Handler):
                 data = candidate.model_dump()
                 data[resolved.target.field] = confirmed.value.model_dump()
                 candidate = type(candidate).model_validate(data)
+        brief_revision = state.brief_confirmed_revision
+        if resolved.status == "confirmed" and isinstance(resolved.target, BriefTarget):
+            brief_revision = resolved.target.revision
         new_state = state.model_copy(
-            update={"pending_confirmation": resolved, "candidate": candidate}
+            update={
+                "pending_confirmation": resolved,
+                "candidate": candidate,
+                "brief_confirmed_revision": brief_revision,
+            }
         )
         await self._save(new_state, expected_revision=state.candidate.revision)
         if resolved.status != "confirmed":
@@ -469,6 +520,143 @@ class ConfirmFieldHandler(_ConfirmHandler):
 
 class ConfirmBriefHandler(_ConfirmHandler):
     kind = "brief"
+
+
+class _InterviewHandler(_Handler):
+    def __init__(self, *, store: Store, configurations: Mapping[ConfigId, StoreConfiguration]):
+        super().__init__(store=store)
+        self._configurations = configurations
+
+    @staticmethod
+    def _listed(
+        slots: tuple[InterviewSlot, ...], configuration: StoreConfiguration, language: Language
+    ) -> str:
+        return "; ".join(
+            f"{n}: slot_id={s.slot_id} ({slot_time(s.starts_at_utc, configuration, language)})"
+            for n, s in enumerate(slots, start=1)
+        )
+
+
+class ListInterviewSlotsHandler(_InterviewHandler):
+    """``list_interview_slots``: the candidate's words asking for an interview are saved as the
+    explicit intent to schedule, in the same save that offers the slots. The runtime speaks the
+    offer; the model is told the ids in the same order so "the first one" can be resolved."""
+
+    async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
+        assert isinstance(arguments, ListInterviewSlotsArgs)
+        state = await self._state(context)
+        if state is None:
+            return self._refuse("not_found", "Session not found.")
+        if not _brief_confirmed(state):
+            return self._refuse(
+                "brief_not_confirmed", f"Slots come after the confirmed brief. {NEXT_STEP['brief']}"
+            )
+        if state.booking is not None:
+            return self._refuse(
+                "already_booked",
+                "An interview is already reserved. Say so; a change is a request_human_followup.",
+            )
+        configuration = self._configurations[state.config_id]
+        window = await self._store.calendar.available(
+            state.config_id, after=context.now, limit=OFFER_WINDOW
+        )
+        preferred = tuple(
+            s for s in window if _local_date(s, configuration) == arguments.date_preference
+        )
+        slots = (preferred or window)[:OFFERED_SLOTS]
+        intent = Evidence(source_turn_id=context.turn_id, text=arguments.evidence_text)
+        new_state = state.model_copy(update={"schedule_intent": intent})
+        await self._save(new_state, expected_revision=state.candidate.revision)
+        if not slots:
+            step = (
+                "No slot is free. The sentence was already spoken; offer that a person follows "
+                "up and, if accepted, call request_human_followup."
+            )
+        else:
+            listed = self._listed(slots, configuration, state.language)
+            step = (
+                f"Offered, in this order: {listed}. The offer was already spoken; reply with "
+                "nothing and wait. When the candidate picks one, call "
+                "present_confirmation(target=slot, slot_id=...)."
+            )
+        return ToolOutcome(
+            ok=True,
+            model_text=step,
+            summary=f"offered:{len(slots)}",
+            events=(self._updated(new_state),),
+            spoken=render_slot_offer(slots, configuration, state.language),
+        )
+
+
+class ReserveInterviewHandler(_InterviewHandler):
+    """``reserve_interview``: the candidate's yes to the pending slot read-back and the commit.
+    The domain resolves the confirmation and checks the five conditions; the calendar and the
+    session are written in one transaction; nothing is announced before it commits."""
+
+    ADVICE: dict[str, str] = {
+        "same_turn": "The candidate has not answered yet. Reply with nothing and wait.",
+        "slot_unavailable": NEXT_STEP["slots"],
+        "slot_in_past": NEXT_STEP["slots"],
+        "already_booked": NEXT_STEP["booked"],
+        "brief_not_confirmed": NEXT_STEP["brief"],
+    }
+
+    async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
+        assert isinstance(arguments, ReserveInterviewArgs)
+        state = await self._state(context)
+        if state is None:
+            return self._refuse("not_found", "Session not found.")
+        pending = state.pending_confirmation
+        if (
+            pending is None
+            or not isinstance(pending.target, SlotTarget)
+            or pending.target.slot_id != arguments.slot_id
+        ):
+            return self._refuse(
+                "confirmation_mismatch",
+                "That slot was not read back. Call present_confirmation(target=slot) first.",
+            )
+        answered = confirmation.respond(state, "affirm", context.turn_id)
+        if isinstance(answered, Err):
+            advice = self.ADVICE.get(answered.error, "Present the slot again.")
+            return self._refuse(f"confirmation_refused:{answered.error}", advice)
+        slot = await self._store.calendar.get(arguments.slot_id)
+        if slot is None:
+            return self._refuse("booking_refused:slot_unavailable", NEXT_STEP["slots"])
+        allowed = reservation_allowed(state, slot, answered.value, now=context.now)
+        if isinstance(allowed, Err):
+            advice = self.ADVICE.get(allowed.error, "Present the slot again.")
+            return self._refuse(f"booking_refused:{allowed.error}", advice)
+        key = idempotency_key(state, answered.value)
+        try:
+            async with self._store.transaction() as tx:
+                booking = await self._store.calendar.reserve(
+                    tx, slot.slot_id, state.session_id, answered.value, key
+                )
+                new_state = state.model_copy(
+                    update={"booking": booking, "pending_confirmation": answered.value}
+                )
+                await self._store.sessions.save(
+                    tx, new_state, expected_revision=state.candidate.revision
+                )
+        except ServiceError as error:
+            if error.code != "conflict":
+                raise
+            return self._refuse("booking_refused:slot_taken", NEXT_STEP["slots"])
+        configuration = self._configurations[state.config_id]
+        when = slot_time(slot.starts_at_utc, configuration, state.language)
+        return ToolOutcome(
+            ok=True,
+            model_text=f"Reserved: {configuration.store_name}, {when}. "
+            "Say so in one sentence, adding that it is a simulated reservation and no real "
+            f"appointment exists. {NEXT_STEP['booked']}",
+            summary="reserved",
+            events=(self._updated(new_state),),
+        )
+
+
+def _local_date(slot: InterviewSlot, configuration: StoreConfiguration) -> date:
+    return slot.starts_at_utc.astimezone(ZoneInfo(configuration.timezone)).date()
 
 
 class EndSessionHandler(_Handler):

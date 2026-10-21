@@ -7,6 +7,7 @@ from evals.scorers import run_check
 
 from cafe_norte.domain.candidate import apply_patch
 from cafe_norte.domain.contracts import (
+    Booking,
     BriefTarget,
     CandidatePatch,
     CandidateRecord,
@@ -17,6 +18,7 @@ from cafe_norte.domain.contracts import (
     InputId,
     SessionId,
     SessionState,
+    SlotId,
     TurnId,
 )
 from cafe_norte.persistence.contracts import TurnRecord
@@ -47,6 +49,7 @@ def result(
     lifecycle: str = "active",
     outcome: str | None = None,
     spoken_by_turn: tuple[tuple[str, ...], ...] = (),
+    booking: Booking | None = None,
 ) -> SessionResult:
     candidate = CandidateRecord()
     if patch is not None:
@@ -75,6 +78,14 @@ def result(
         outcome=outcome,
         candidate=candidate,
         pending_confirmation=pending,
+        brief_confirmed_revision=(
+            pending.target.revision
+            if pending is not None
+            and pending.status == "confirmed"
+            and isinstance(pending.target, BriefTarget)
+            else None
+        ),
+        booking=booking,
     )
     turns = tuple(turn("user", line, n) for n, line in enumerate(LINES, start=1))
     return SessionResult(state=state, turns=turns, spoken_by_turn=spoken_by_turn)
@@ -119,6 +130,23 @@ def test_field_status_brief_confirmed_outcome_and_lifecycle() -> None:
     stale = result(CandidatePatch(name="Lucía"), brief_status="confirmed", brief_revision=0)
     assert not run_check(stale, Check(name="brief_confirmed")).ok
     assert not run_check(result(), Check(name="brief_confirmed")).ok
+
+
+def test_booking_checks_read_the_committed_reservation() -> None:
+    booked = result(
+        booking=Booking(
+            slot_id=SlotId("chamberi_barista_v1-2026-10-21-1030"),
+            config_id=ConfigId("chamberi_barista_v1"),
+            starts_at_utc=NOW,
+            confirmation_id=ConfirmationId("k"),
+            idempotency_key="key",
+            committed_at=NOW,
+        )
+    )
+    assert run_check(booked, Check(name="booking_present")).ok
+    assert not run_check(booked, Check(name="booking_absent")).ok
+    assert run_check(result(), Check(name="booking_absent")).ok
+    assert not run_check(result(), Check(name="booking_present")).ok
 
 
 def test_no_fabricated_confirmed_values_needs_evidence_from_the_candidates_own_lines() -> None:

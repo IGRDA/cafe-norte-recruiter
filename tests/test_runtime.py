@@ -148,9 +148,11 @@ async def test_the_model_sees_history_state_and_only_registered_tools() -> None:
     assert [t.name for t in h.model.advertised_tools[0]] == [
         "update_candidate",
         "search_knowledge",
+        "list_interview_slots",
         "present_confirmation",
         "confirm_field",
         "confirm_brief",
+        "reserve_interview",
         "request_human_followup",
         "end_session",
     ]

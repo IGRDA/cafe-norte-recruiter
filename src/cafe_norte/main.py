@@ -7,6 +7,7 @@ in-memory store, a canned retriever and voice off. Nothing else in the package r
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import get_args
 
@@ -38,6 +39,7 @@ from cafe_norte.observability.contracts import ProcessVersions
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION
 from cafe_norte.persistence.memory import MemoryStore
+from cafe_norte.persistence.seed import seed_calendar
 from cafe_norte.voice.contracts import (
     RoomProvisioner,
     VoiceMode,
@@ -75,14 +77,17 @@ def create_app(
     max_voice_sessions: int = 2,
     session_seconds: float = 480.0,
     warm_up: Callable[[], Awaitable[None]] | None = None,
+    seed: bool = False,
 ) -> FastAPI:
-    """Build from typed collaborators. Lifespan: ``warm_up`` (the embedding model) before the
-    first request, cancel in-flight turns on shutdown. Later stages add store warm-up,
-    calendar seeding, lease renewal and the summary worker."""
+    """Build from typed collaborators. Lifespan: seed the simulated calendar when ``seed`` is
+    set, ``warm_up`` (the embedding model) before the first request, cancel in-flight turns on
+    shutdown. Later stages add lease renewal and the summary worker."""
     tasks = TurnTasks()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        if seed:
+            await seed_calendar(store, configurations, now=datetime.now(UTC))
         if warm_up is not None:
             await warm_up()
         yield
@@ -180,6 +185,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         max_voice_sessions=int(env.get("CAFE_NORTE_MAX_VOICE_SESSIONS", "2")),
         session_seconds=float(env.get("CAFE_NORTE_SESSION_SECONDS", "480")),
         warm_up=warm_up,
+        seed=True,
     )
 
 

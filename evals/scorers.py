@@ -10,7 +10,7 @@ from functools import cache
 from typing import get_args
 
 from cafe_norte.conversation import prompts
-from cafe_norte.domain.contracts import BriefTarget, CandidateFieldName, Captured, Confirmed
+from cafe_norte.domain.contracts import CandidateFieldName, Captured, Confirmed
 from cafe_norte.domain.fields import value_of
 from cafe_norte.errors import Language
 from evals.contracts import Check, CheckResult, SessionResult
@@ -61,12 +61,24 @@ def _field_status(result: SessionResult, check: Check) -> tuple[bool, str]:
 
 
 def _brief_confirmed(result: SessionResult, check: Check) -> tuple[bool, str]:
-    pending = result.state.pending_confirmation
-    if pending is None or not isinstance(pending.target, BriefTarget):
-        return False, "no brief confirmation on record"
+    confirmed = result.state.brief_confirmed_revision
     current = result.state.candidate.revision
-    ok = pending.status == "confirmed" and pending.target.revision == current
-    return ok, f"brief {pending.status} at revision {pending.target.revision}, record at {current}"
+    if confirmed is None:
+        return False, "no brief confirmation on record"
+    return confirmed == current, f"brief confirmed at revision {confirmed}, record at {current}"
+
+
+def _booking_present(result: SessionResult, check: Check) -> tuple[bool, str]:
+    booking = result.state.booking
+    if booking is None:
+        return False, "no booking"
+    same_store = booking.config_id == result.state.config_id
+    return same_store and booking.simulated, f"booking {booking.slot_id}, store match {same_store}"
+
+
+def _booking_absent(result: SessionResult, check: Check) -> tuple[bool, str]:
+    booking = result.state.booking
+    return booking is None, "no booking" if booking is None else f"booking {booking.slot_id}"
 
 
 def _outcome_is(result: SessionResult, check: Check) -> tuple[bool, str]:
@@ -144,13 +156,20 @@ def _language_of_last_assistant_turn(result: SessionResult, check: Check) -> tup
 
 
 def _brief_language(result: SessionResult, check: Check) -> tuple[bool, str]:
-    """The last brief was read back from the ``language`` table, word for word."""
-    pending = result.state.pending_confirmation
-    if pending is None or not isinstance(pending.target, BriefTarget):
+    """The last brief Ana read back came from the ``language`` table, word for word. Read from
+    the transcript: after a booking the pending confirmation is the slot, not the brief."""
+    intros = {
+        language: prompts.table("brief", language)["intro"] for language in get_args(Language)
+    }
+    briefs = [
+        t.text
+        for t in result.turns
+        if t.role == "assistant" and any(t.text.startswith(intro) for intro in intros.values())
+    ]
+    if not briefs:
         return False, "no brief on record"
     wanted: Language = "en" if check.args["language"] == "en" else "es"
-    intro = prompts.table("brief", wanted)["intro"]
-    return pending.presentation_text.startswith(intro), f"brief: {pending.presentation_text[:40]}…"
+    return briefs[-1].startswith(intros[wanted]), f"brief: {briefs[-1][:40]}…"
 
 
 def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
@@ -168,8 +187,8 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "lifecycle_is": _lifecycle_is,
     "no_fabricated_confirmed_values": _no_fabricated,
     "max_repeated_questions": _max_repeated_questions,
-    "booking_present": _later("booking"),
-    "booking_absent": _later("booking"),
+    "booking_present": _booking_present,
+    "booking_absent": _booking_absent,
     "review_flag_present": _review_flag_present,
     "language_of_last_assistant_turn": _language_of_last_assistant_turn,
     "brief_language": _brief_language,

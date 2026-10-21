@@ -47,6 +47,9 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Questions spoken per turn | 1; later sentences are read, not voiced |
 | Brief length | 4–8 sentences, deterministic |
 | Fields read back right after capture | `contact_phone`, `earliest_start_date` |
+| Interview slots offered per `list_interview_slots` | 3, from a window of 50 when a date is preferred |
+| Simulated calendar | 7 days ahead, 30-minute slots at each store's `interview_times` on shift days (D29) |
+| Bookings | one per slot, one per session, same idempotency key returns the same booking |
 | Coverage floor | 80% of the package |
 | Voice: filler after a tool runs | 1.5 s |
 | Voice: bot join timeout | 15 s |

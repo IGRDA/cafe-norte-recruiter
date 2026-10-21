@@ -48,6 +48,9 @@ class SearchKnowledgeArgs(Args):
 
 
 class ListInterviewSlotsArgs(Args):
+    """The candidate's words asking for an interview are the explicit intent to schedule."""
+
+    evidence_text: str = Field(min_length=1, max_length=500)
     date_preference: date | None = None
 
 
@@ -100,12 +103,14 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "`question` is what the candidate said; `queries` are one to three self-contained Spanish "
     "phrasings of it with the key words (two when the question is vague or in English); "
     "`topic` narrows the documents.",
-    "list_interview_slots": "Get two or three available interview slots for this store.",
-    "present_confirmation": "Read back a phone/date, the brief, or a proposed slot and wait "
-    "for the candidate's answer.",
+    "list_interview_slots": "Call when the candidate says they want an interview, with their "
+    "exact words in evidence_text. The system speaks the available slots for you.",
+    "present_confirmation": "Read back a phone/date, the brief, or the slot the candidate chose "
+    "(target=slot with its slot_id) and wait for the candidate's answer.",
     "confirm_field": "Resolve the pending field read-back with the candidate's answer.",
     "confirm_brief": "Resolve the pending brief read-back with the candidate's answer.",
-    "reserve_interview": "Reserve the slot the candidate just confirmed.",
+    "reserve_interview": "The candidate said yes to the slot read-back: reserve that slot_id. "
+    "Call it only after they answered.",
     "request_human_followup": "Save a request for a person to follow up, with the reason: "
     "the candidate's unanswered question, or their wish to talk to a person. Call it once the "
     "candidate accepts the offer; nobody real is notified in this demo.",

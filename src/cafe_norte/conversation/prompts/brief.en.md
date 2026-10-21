@@ -1,4 +1,4 @@
-# Brief and read-back sentences (ana_v6, en)
+# Brief and read-back sentences (ana_v8, en)
 
 One `key: sentence` per line; `#` lines and blank lines are ignored. `{value}` is filled by
 `conversation/brief.py`. `brief.es.md` has exactly the same keys.
@@ -23,6 +23,12 @@ unknown: {label}: you do not know.
 declined: {label}: you would rather not say.
 readback.contact_phone: I have your phone number as {value}. Is that correct?
 readback.earliest_start_date: I have that you could start on {value}. Is that correct?
+readback.slot: I have the interview at {store} on {value}, Madrid time. Shall I reserve it?
+slots.intro: I have these interview slots at {store}:
+slots.question: Which one suits you best?
+slots.none: I have no free interview slots right now.
+slot: {value}
+slot_time: {date} at {time}
 
 label.name: Name
 label.interest: Interest

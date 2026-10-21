@@ -5,6 +5,7 @@ import re
 from datetime import date, timedelta
 
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.brief import slot_time
 from cafe_norte.domain.candidate import VALUE_FIELDS, unfinished_fields
 from cafe_norte.domain.contracts import CandidateRecord, SessionState, StoreConfiguration
 from cafe_norte.domain.fields import value_of
@@ -48,6 +49,8 @@ def system_message(
         "candidate_field_status": field_status(state.candidate),
         "fields_still_to_ask": list(unfinished_fields(state.candidate)),
         "pending_confirmation": pending_facts(state),
+        "schedule_intent": state.schedule_intent is not None,
+        "booking": booking_facts(state, configuration),
         "lifecycle": state.lifecycle,
     }
     content = (
@@ -79,7 +82,21 @@ def pending_facts(state: SessionState) -> dict[str, object] | None:
     facts: dict[str, object] = {"kind": pending.target.kind, "status": pending.status}
     if pending.target.kind == "field":
         facts["field"] = pending.target.field
+    elif pending.target.kind == "slot":
+        facts["slot_id"] = pending.target.slot_id
     return facts
+
+
+def booking_facts(state: SessionState, configuration: StoreConfiguration) -> dict[str, str] | None:
+    """The committed simulated reservation, in the store's local time."""
+    booking = state.booking
+    if booking is None:
+        return None
+    return {
+        "slot_id": booking.slot_id,
+        "when": slot_time(booking.starts_at_utc, configuration, state.language),
+        "simulated": "yes",
+    }
 
 
 def field_status(candidate: CandidateRecord) -> dict[str, str]:

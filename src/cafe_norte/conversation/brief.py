@@ -3,15 +3,17 @@
 Sentences live in ``prompts/brief.<language>.md``; this module only fills them. What it returns
 is the text the runtime speaks and the text a confirmation stores, so it is never paraphrased."""
 
-from collections.abc import Callable
-from datetime import date
+from collections.abc import Callable, Sequence
+from datetime import date, datetime
 from functools import cache
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from cafe_norte.conversation import prompts
 from cafe_norte.domain.contracts import (
     CandidateFieldName,
     CandidateRecord,
+    InterviewSlot,
     StoreConfiguration,
     Weekday,
 )
@@ -59,6 +61,44 @@ def field_readback(field: ReadbackField, value: object, language: Language) -> s
     t = _texts(language)
     shown = _phone(str(value)) if field == "contact_phone" else _date(value, t)
     return t[f"readback.{field}"].format(value=shown)
+
+
+def render_slot_offer(
+    slots: Sequence[InterviewSlot], configuration: StoreConfiguration, language: Language
+) -> str:
+    """The offer the runtime speaks: store, each slot in local time, the question. Nothing
+    when there is no slot."""
+    t = _texts(language)
+    if not slots:
+        return t["slots.none"]
+    intro = t["slots.intro"].format(store=configuration.store_name)
+    items = _join(
+        [
+            t["slot"].format(value=slot_time(s.starts_at_utc, configuration, language))
+            for s in slots
+        ],
+        t,
+    )
+    return f"{intro} {items}. {t['slots.question']}"
+
+
+def slot_readback(
+    slot: InterviewSlot, configuration: StoreConfiguration, language: Language
+) -> str:
+    return _texts(language)["readback.slot"].format(
+        store=configuration.store_name,
+        value=slot_time(slot.starts_at_utc, configuration, language),
+    )
+
+
+def slot_time(
+    starts_at_utc: datetime, configuration: StoreConfiguration, language: Language
+) -> str:
+    """``jueves 22 de octubre de 2026 a las 10:30`` in the store's timezone, in the session
+    language."""
+    t = _texts(language)
+    local = starts_at_utc.astimezone(ZoneInfo(configuration.timezone))
+    return t["slot_time"].format(date=_date(local.date(), t), time=local.strftime("%H:%M"))
 
 
 # ---- pieces ------------------------------------------------------------------------------------

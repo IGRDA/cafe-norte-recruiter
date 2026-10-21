@@ -32,6 +32,8 @@ const el = {
   language: document.getElementById("language"),
   candidate: document.getElementById("candidate"),
   confirmation: document.getElementById("confirmation"),
+  booking: document.getElementById("booking"),
+  bookingWhen: document.getElementById("booking-when"),
   review: document.getElementById("review"),
   sources: document.getElementById("sources"),
   export: document.getElementById("export"),
@@ -167,6 +169,7 @@ function handle(event) {
       state.candidate = payload;
       renderCandidate();
       renderConfirmation(payload.pending_confirmation);
+      renderBooking(payload.booking);
       review(`estado guardado, revisión ${payload.revision}`);
       if (TERMINAL.has(payload.lifecycle)) endConversation();
       break;
@@ -305,6 +308,21 @@ function renderConfirmation(confirmation) {
   const label = CONFIRMATION_TEXT[confirmation.status] ?? confirmation.status;
   el.confirmation.textContent = `${label} (rev. ${confirmation.target.revision ?? "–"}): ${confirmation.presentation_text}`;
   el.confirmation.dataset.status = confirmation.status;
+}
+
+function renderBooking(booking) {
+  // Only a committed reservation reaches the stream, so showing it never runs ahead of storage.
+  el.booking.hidden = !booking;
+  if (!booking) return;
+  const when = new Date(booking.starts_at_utc).toLocaleString("es-ES", {
+    timeZone: "Europe/Madrid",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  el.bookingWhen.textContent = `${when} (hora de Madrid) · ${booking.slot_id}`;
 }
 
 function endConversation() {

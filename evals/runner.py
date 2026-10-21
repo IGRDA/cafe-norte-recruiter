@@ -29,6 +29,7 @@ from cafe_norte.model.fake import FakeModel
 from cafe_norte.observability.contracts import ProcessVersions, stamp
 from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
+from cafe_norte.persistence.seed import seed_calendar
 from evals.contracts import RunRecord, Scenario, SessionResult, Step
 from evals.retrieval import load_cases, run_retrieval, write_report
 from evals.scorers import run_check
@@ -84,10 +85,11 @@ def script_events(steps: Sequence[Step]) -> list[list[ModelEvent]]:
 
 async def run_fake(scenario: Scenario) -> RunRecord:
     """Replay the scenario: open the session, one turn per candidate line, then the checks."""
-    store = MemoryStore()
+    clock_at = datetime.combine(datetime.fromisoformat(scenario.today), time(10, 0), tzinfo=UTC)
+    store = MemoryStore(clock=lambda: clock_at)
     configurations = load_configurations(CONFIG_DIR)
     configuration = configurations[scenario.config_id]
-    clock_at = datetime.combine(datetime.fromisoformat(scenario.today), time(10, 0), tzinfo=UTC)
+    await seed_calendar(store, configurations, now=clock_at)
     scripts = [round_ for steps in scenario.fake_script for round_ in script_events(steps)]
     model = FakeModel(scripts)
     retriever = await fake_retriever(configuration.kb_version)

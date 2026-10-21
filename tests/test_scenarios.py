@@ -65,3 +65,12 @@ def test_the_cli_runs_the_fake_suite_and_reports(
     assert main(["--suite", "retrieval", "--retriever", "lexical", "--out", str(tmp_path)]) == 0
     assert "recall@3" in capsys.readouterr().out
     assert main(["--suite", "scenarios", "--mode", "live"]) == 2
+
+
+def test_a_fault_must_name_a_turn_that_exists() -> None:
+    data = yaml.safe_load((SCENARIOS / "S03.yaml").read_text())
+    data["faults"] = [{"turn": 1, "kind": "model"}]
+    assert Scenario.model_validate(data).faults[0].kind == "model"
+    data["faults"] = [{"turn": 99, "kind": "model"}]
+    with pytest.raises(ValueError, match="turn 99"):
+        Scenario.model_validate(data)

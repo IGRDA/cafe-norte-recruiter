@@ -174,3 +174,28 @@ def test_max_repeated_questions_counts_a_question_spoken_in_two_turns() -> None:
         )
     )
     assert run_check(readbacks, Check(name="max_repeated_questions", args={"max": "0"})).ok
+
+
+def test_tool_ok_reads_what_a_tool_answered_on_a_turn() -> None:
+    r = result().model_copy(
+        update={
+            "tools_by_turn": ((), (("reserve_interview", False), ("present_confirmation", True)))
+        }
+    )
+    refused = Check(name="tool_ok", args={"turn": "2", "tool": "reserve_interview", "ok": "false"})
+    assert run_check(r, refused).ok
+    wrong = Check(name="tool_ok", args={"turn": "2", "tool": "reserve_interview", "ok": "true"})
+    assert not run_check(r, wrong).ok
+    absent = Check(name="tool_ok", args={"turn": "1", "tool": "reserve_interview", "ok": "false"})
+    assert not run_check(r, absent).ok
+
+
+def test_turn_failed_names_the_code_a_turn_ended_with() -> None:
+    r = result().model_copy(update={"failed_by_turn": ("", "provider_unavailable")})
+    assert run_check(
+        r, Check(name="turn_failed", args={"turn": "2", "code": "provider_unavailable"})
+    ).ok
+    assert not run_check(
+        r, Check(name="turn_failed", args={"turn": "1", "code": "provider_unavailable"})
+    ).ok
+    assert run_check(r, Check(name="turn_failed", args={"turn": "1", "code": "none"})).ok

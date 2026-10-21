@@ -7,19 +7,27 @@ import argparse
 import asyncio
 import json
 from collections.abc import Sequence
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
 import yaml
 
-from cafe_norte.conversation.contracts import AssistantText, SourcesShown, TurnFailed, TurnInput
+from cafe_norte.conversation.contracts import (
+    AssistantText,
+    SourcesShown,
+    ToolFinished,
+    TurnFailed,
+    TurnInput,
+    TurnStarted,
+)
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.prompts import PROMPT_VERSION
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import InputId, SessionId, SessionState
+from cafe_norte.domain.contracts import InputId, SessionId, SessionState, TurnId
+from cafe_norte.errors import ServiceError
 from cafe_norte.knowledge.contracts import Index, Retriever
 from cafe_norte.knowledge.fake import FakeEmbedder
 from cafe_norte.knowledge.hybrid import HybridRetriever
@@ -32,7 +40,7 @@ from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
-from evals.contracts import FakeSignal, RunRecord, Scenario, SessionResult, Step
+from evals.contracts import FakeSignal, Fault, RunRecord, Scenario, SessionResult, Step
 from evals.retrieval import load_cases, run_retrieval, write_report
 from evals.scorers import run_check
 
@@ -107,6 +115,7 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
     scripts = [round_ for steps in scenario.fake_script for round_ in script_events(steps)]
     model = FakeModel(scripts)
     retriever = await fake_retriever(configuration.kb_version)
+    now = [clock_at]  # the runtime's clock: each turn moves it by ``seconds_per_turn``
     runtime = Runtime(
         model=model,
         tools=ToolRegistry(
@@ -117,8 +126,10 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         signals=signal_analyzer(scenario.fake_signals),
         limits=Limits(),
         owner="evals",
-        clock=lambda: clock_at,
+        clock=lambda: now[0],
     )
+    faults = {fault.turn: fault for fault in scenario.faults}
+    expected_failures = {int(c.args["turn"]) for c in scenario.checks if c.name == "turn_failed"}
     process = ProcessVersions(
         model_id=model.model_id,
         prompt_version=PROMPT_VERSION,
@@ -139,29 +150,54 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
     )
     spoken_by_turn: list[tuple[str, ...]] = []
     sources_by_turn: list[tuple[str, ...]] = []
-    failed_turns: list[str] = []
+    tools_by_turn: list[tuple[tuple[str, bool], ...]] = []
+    failed_by_turn: list[str] = []
+    surprises: list[str] = []
     async for _ in runtime.open_session(session_id):
         pass
     for index, line in enumerate(scenario.scripted_turns):
+        number = index + 1
+        received_at = now[0]
+        now[0] = received_at + timedelta(seconds=scenario.seconds_per_turn)
         turn = TurnInput(
             session_id=session_id,
             input_id=InputId(f"in-{index}"),
             text=line,
             channel="text",
-            received_at=clock_at,
+            received_at=received_at,
         )
+        fault = faults.get(number)
+        _arm(fault, model, store)
         spoken: list[str] = []
         sources: list[str] = []
-        async for event in runtime.run_turn(turn):
-            if isinstance(event, AssistantText):
+        tools: list[tuple[str, bool]] = []
+        failed = ""
+        turn_id = TurnId("")
+        stream = runtime.run_turn(turn)
+        async for event in stream:
+            if isinstance(event, TurnStarted):
+                turn_id = event.turn_id
+            elif isinstance(event, AssistantText):
                 spoken.append(event.text)
+                if fault is not None and fault.kind == "interrupt":
+                    if len(spoken) >= fault.after_sentences:
+                        break  # the candidate speaks over Ana
             elif isinstance(event, SourcesShown):
                 sources.extend(event.chunk_ids)
+            elif isinstance(event, ToolFinished):
+                tools.append((event.name, event.ok))
             elif isinstance(event, TurnFailed):
-                failed_turns.append(f"turn {index + 1}: {event.code}")
+                failed = event.code
+        await stream.aclose()
+        if fault is not None and fault.kind == "interrupt":
+            await runtime.delivered(turn_id, text=" ".join(spoken), complete=False)
+        if failed and number not in expected_failures:
+            surprises.append(f"turn {number}: {failed}")
         await runtime.settle()
         spoken_by_turn.append(tuple(spoken))
         sources_by_turn.append(tuple(sources))
+        tools_by_turn.append(tuple(tools))
+        failed_by_turn.append(failed)
 
     state = await store.sessions.get(session_id)
     assert state is not None
@@ -176,6 +212,8 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         sources_by_turn=tuple(sources_by_turn),
         allowed_doc_ids=configuration.kb_doc_ids,
         signals=export.signals,
+        tools_by_turn=tuple(tools_by_turn),
+        failed_by_turn=tuple(failed_by_turn),
     )
     checks = tuple(run_check(result, check) for check in scenario.checks)
     return RunRecord(
@@ -185,10 +223,22 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         export=export,
         checks=checks,
         judge=None,
-        provider_failed=bool(failed_turns),
+        provider_failed=bool(surprises),
         latency_ms={},
         estimated_cost_eur=0.0,
     )
+
+
+def _arm(fault: Fault | None, model: FakeModel, store: Store) -> None:
+    """Make the fault happen on its turn: the next model call or the next session save fails."""
+    if fault is None:
+        return
+    if fault.kind == "model":
+        model.fail_next()
+    elif fault.kind == "storage":
+        if not isinstance(store, MemoryStore):
+            raise ValueError("a storage fault needs the memory store")
+        store.sessions.fail_next_save = ServiceError("scripted outage", code="provider_unavailable")
 
 
 def main(argv: list[str] | None = None) -> int:

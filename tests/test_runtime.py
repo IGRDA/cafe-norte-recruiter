@@ -380,6 +380,16 @@ async def test_cancelling_a_turn_inside_a_model_call_journals_it_as_interrupted(
     await assert_interrupted_and_released(h)
 
 
+async def test_a_scripted_model_failure_fails_one_turn_and_leaves_the_script_for_the_next() -> None:
+    h = Harness([says("Hola.")])
+    await h.open_session()
+    h.model.fail_next()
+    failed = await h.run("Hola", "in-1")
+    assert isinstance(failed[-1], TurnFailed) and failed[-1].code == "provider_unavailable"
+    ok = await h.run("Hola otra vez", "in-2")
+    assert [e.text for e in ok if isinstance(e, AssistantText)] == ["Hola."]
+
+
 def malformed_call(call_id: str = "bad") -> ToolCall:
     return ToolCall(call_id=call_id, name="update_candidate", arguments_json='{"patch": {}}')
 

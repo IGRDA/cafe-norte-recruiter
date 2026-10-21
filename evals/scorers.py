@@ -31,6 +31,8 @@ CHECKS = (
     "max_repeated_questions",
     "signal_recorded",
     "said_control_reply",
+    "tool_ok",
+    "turn_failed",
 )
 
 SET_FIELDS = {"availability_days", "availability_shifts"}
@@ -190,6 +192,21 @@ def _said_control_reply(result: SessionResult, check: Check) -> tuple[bool, str]
     return reply in said, f"turn {check.args['turn']} said: {said!r}"
 
 
+def _tool_ok(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """On candidate line ``turn`` (1-based) the tool ``tool`` answered ``ok`` (true or false)."""
+    turn, tool, wanted = int(check.args["turn"]), check.args["tool"], check.args["ok"] == "true"
+    calls = result.tools_by_turn[turn - 1] if turn <= len(result.tools_by_turn) else ()
+    answers = [ok for name, ok in calls if name == tool]
+    return wanted in answers, f"turn {turn} {tool} answered ok={answers or 'never called'}"
+
+
+def _turn_failed(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Candidate line ``turn`` (1-based) ended with error ``code``; ``none``: it did not fail."""
+    turn, wanted = int(check.args["turn"]), check.args["code"]
+    code = result.failed_by_turn[turn - 1] if turn <= len(result.failed_by_turn) else ""
+    return (code or "none") == wanted, f"turn {turn} ended with {code or 'none'} (wanted {wanted})"
+
+
 def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
     def scorer(result: SessionResult, check: Check) -> tuple[bool, str]:
         raise NotImplementedError(f"check {check.name!r} arrives with the {stage} stage")
@@ -214,6 +231,8 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "no_cross_store_sources": _no_cross_store_sources,
     "signal_recorded": _signal_recorded,
     "said_control_reply": _said_control_reply,
+    "tool_ok": _tool_ok,
+    "turn_failed": _turn_failed,
 }
 LATER: dict[str, str] = {}
 

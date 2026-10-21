@@ -54,6 +54,17 @@ class FakeSignal(Frozen):
     evidence_text: str = ""
 
 
+class Fault(Frozen):
+    """Something that goes wrong on candidate line ``turn`` (1-based) of a fake run: the
+    candidate speaks over Ana (``interrupt``, after ``after_sentences`` sentences were heard),
+    the model provider is down for that turn (``model``), or the session store refuses its
+    next save (``storage``)."""
+
+    turn: int
+    kind: Literal["interrupt", "model", "storage"]
+    after_sentences: int = 1
+
+
 class Scenario(Frozen):
     id: str  # S01..S18
     title: str
@@ -63,6 +74,8 @@ class Scenario(Frozen):
     scripted_turns: tuple[str, ...]  # fake mode: the candidate's lines
     fake_script: tuple[tuple[Step, ...], ...] = ()  # one tuple of steps per candidate line
     fake_signals: tuple[FakeSignal, ...] = ()  # one per line; empty = no signal analyzer
+    seconds_per_turn: float = 0.0  # fake mode: how long each turn lasts on the runtime's clock
+    faults: tuple[Fault, ...] = ()  # fake mode: what goes wrong, and on which line
     persona: Persona  # live mode
     checks: tuple[Check, ...]
     rubric: tuple[str, ...] = ()
@@ -73,6 +86,9 @@ class Scenario(Frozen):
             raise ValueError("fake_script needs exactly one entry per scripted turn")
         if self.fake_signals and len(self.fake_signals) != len(self.scripted_turns):
             raise ValueError("fake_signals needs exactly one entry per scripted turn")
+        for fault in self.faults:
+            if not 1 <= fault.turn <= len(self.scripted_turns):
+                raise ValueError(f"fault on turn {fault.turn}: there is no such line")
         return self
 
 
@@ -86,6 +102,8 @@ class SessionResult(Frozen):
     sources_by_turn: tuple[tuple[str, ...], ...] = ()  # chunk ids shown per candidate turn
     allowed_doc_ids: frozenset[str] = frozenset()  # the configuration's documents
     signals: tuple[Signal, ...] = ()  # the classifier's journaled verdicts, in order
+    tools_by_turn: tuple[tuple[tuple[str, bool], ...], ...] = ()  # (tool, ok) per candidate turn
+    failed_by_turn: tuple[str, ...] = ()  # the error code a turn failed with, or "" per turn
 
     @property
     def candidate_lines(self) -> frozenset[str]:

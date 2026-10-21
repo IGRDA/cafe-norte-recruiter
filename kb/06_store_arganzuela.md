@@ -1,19 +1,22 @@
 ---
 doc_id: store_arganzuela
-version: "1"
+version: "2"
 config_ids: [arganzuela_barista_v1]
 language: es
 title: Turnos y tienda, Arganzuela / Arganzuela shifts and store
-keywords: [turnos, shifts, horario, opening hours, dirección, address, metro, cómo llegar, directions, equipo, team, tienda, store, fin de semana, weekend]
+keywords: [turnos, shifts, horario, opening hours, dirección, address, ubicación, location, dónde está, where, metro, cómo llegar, directions, equipo, team, tienda, store, fin de semana, weekend]
 ---
 
 # Turnos y tienda, Arganzuela
 
 ## Dirección
 
-Café Norte Arganzuela está en Paseo Imaginario 45, 28045 Madrid, en el barrio de Arganzuela,
-junto a Madrid Río. La dirección es ficticia. El metro más cercano es Legazpi, líneas 3 y 6,
-a cinco minutos andando; también para cerca el autobús 18.
+Dónde está la tienda: el local de Café Norte Arganzuela queda en Paseo Imaginario 45, 28045
+Madrid, en el barrio de Arganzuela, junto a Madrid Río. La dirección es ficticia. Es la
+ubicación del establecimiento donde trabajarías y donde se hace la entrevista.
+
+Cómo llego a la cafetería: para llegar, el metro más cercano es Legazpi, líneas 3 y 6, a cinco minutos
+andando; también para cerca el autobús 18.
 
 ## Horario
 

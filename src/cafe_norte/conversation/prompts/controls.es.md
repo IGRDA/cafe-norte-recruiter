@@ -1,4 +1,4 @@
-# Replies to explicit requests (ana_v11, es)
+# Replies to explicit requests (ana_v12, es)
 
 One `key: sentence` per line, spoken word for word by the runtime when `explicit_controls`
 detects the request (`conversation/signals.py`). No brackets: these are read aloud.

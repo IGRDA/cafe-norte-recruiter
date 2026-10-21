@@ -17,5 +17,5 @@ shifts:
     ends: "21:00"
     days: [mon, tue, wed, thu, fri, sat]
 interview_times: ["10:30", "17:00"]
-kb_version: "1"
+kb_version: "2"
 kb_doc_ids: [company, barista_role, offer_chamberi, store_chamberi, training, uniform, benefits, interview_process, faq, unknown_policy]

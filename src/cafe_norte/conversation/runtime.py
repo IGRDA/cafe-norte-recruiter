@@ -152,8 +152,10 @@ class _Turn:
             )
         )
 
-    def count(self, usage: ModelUsage) -> None:
-        for detail, quantity in (("input", usage.input_tokens), ("output", usage.output_tokens)):
+    def count(self, usage: ModelUsage, model_id: str) -> None:
+        """Priced by the configured model: a provider echoes a dated snapshot id instead."""
+        for direction, quantity in (("input", usage.input_tokens), ("output", usage.output_tokens)):
+            detail = f"{model_id}:{direction}"
             self.usage.append(
                 UsageRecord(
                     session_id=self.session_id,
@@ -559,7 +561,7 @@ class Runtime:
                 elif isinstance(event, ToolCall):
                     run.calls.append(event)
                 elif isinstance(event, ModelUsage):
-                    run.count(event)
+                    run.count(event, self._model.model_id)
         finally:
             await events.aclose()
         tail = clean_sentence(buffer)

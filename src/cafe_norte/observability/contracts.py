@@ -1,5 +1,6 @@
 """Observability records. Everything here is metadata; free text is redacted before emit."""
 
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from typing import Any, Literal
 
@@ -106,6 +107,10 @@ class CostEstimate(Frozen):
     marginal_eur: float
     missing_prices: tuple[str, ...]  # usage kinds with no price: the total is partial
     price_table_version: str
+
+
+# A cost estimate with its price table already bound: what the export asks for.
+Estimator = Callable[[SessionId, Sequence[UsageRecord]], CostEstimate]
 
 
 class StructuredEvent(Frozen):

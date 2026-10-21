@@ -21,7 +21,13 @@ from cafe_norte.domain.contracts import (
     Signal,
 )
 from cafe_norte.domain.lifecycle import TERMINAL
-from cafe_norte.observability.contracts import StageTiming, UsageRecord, VersionStamp
+from cafe_norte.observability.contracts import (
+    Estimator,
+    StageTiming,
+    UsageKind,
+    UsageRecord,
+    VersionStamp,
+)
 from cafe_norte.persistence.contracts import EventRecord, SessionSnapshot, TurnRecord
 
 if TYPE_CHECKING:
@@ -101,6 +107,7 @@ async def persist_export(
     *,
     versions_for: Callable[[ConfigId], VersionStamp],
     now: datetime,
+    estimate: Estimator | None = None,
 ) -> None:
     """Build the session's export from one snapshot and store it: what a closed session serves
     from then on (D34). Idempotent; a second close overwrites."""
@@ -112,15 +119,17 @@ async def persist_export(
     )
     if snapshot is None:
         return
-    document = build_export(snapshot)
+    document = build_export(snapshot, estimate=estimate)
     async with store.transaction() as tx:
         await store.exports.write_snapshot(tx, session_id, document.model_dump_json(indent=2))
 
 
-def build_export(snapshot: SessionSnapshot) -> ExportDocument:
+def build_export(snapshot: SessionSnapshot, *, estimate: Estimator | None = None) -> ExportDocument:
     """Pure: one consistent snapshot in, one document out. The brief is the text the
-    candidate actually heard and confirmed; cost stays ``None`` until prices are recorded."""
+    candidate actually heard and confirmed. Without an ``estimate`` the cost is unknown."""
     state = snapshot.state
+    usage = (*snapshot.usage, *voice_usage(snapshot))
+    cost = None if estimate is None else estimate(state.session_id, usage)
     return ExportDocument(
         session=SessionExport(
             session_id=state.session_id,
@@ -149,11 +158,41 @@ def build_export(snapshot: SessionSnapshot) -> ExportDocument:
         metrics=Metrics(
             turns=sum(1 for t in snapshot.turns if t.role == "user"),  # the candidate's turns
             timings=snapshot.timings,
-            usage=snapshot.usage,
-            estimated_marginal_cost_eur=None,
-            cost_is_partial=True,
+            usage=usage,
+            estimated_marginal_cost_eur=None if cost is None else cost.marginal_eur,
+            # Estimated usage is inferred, not measured, so it never makes a total complete.
+            cost_is_partial=cost is None or bool(cost.missing_prices) or _any_estimated(usage),
         ),
         versions=snapshot.versions,
+    )
+
+
+def _any_estimated(usage: tuple[UsageRecord, ...]) -> bool:
+    return any(record.estimated for record in usage)
+
+
+def voice_usage(snapshot: SessionSnapshot) -> tuple[UsageRecord, ...]:
+    """What a voice session used but nothing measured: the characters Ana spoke, the seconds
+    the candidate was heard, and the minutes of the bot and the candidate in the room."""
+    state = snapshot.state
+    if state.channel != "voice":
+        return ()
+    spoken = sum(len(turn.text) for turn in snapshot.turns if turn.role == "assistant")
+    derived: tuple[tuple[UsageKind, str, float], ...] = (
+        ("tts_characters", snapshot.versions.tts_model, float(spoken)),
+        ("stt_seconds", snapshot.versions.stt_model, state.active_seconds),
+        ("media_participant_minutes", "daily", 2 * state.active_seconds / 60),
+    )
+    return tuple(
+        UsageRecord(
+            session_id=state.session_id,
+            turn_id=None,
+            kind=kind,
+            quantity=quantity,
+            unit_detail=detail,
+            estimated=True,
+        )
+        for kind, detail, quantity in derived
     )
 
 

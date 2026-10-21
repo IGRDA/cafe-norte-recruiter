@@ -37,7 +37,7 @@ from cafe_norte.knowledge.loader import load_documents
 from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
-from cafe_norte.observability.contracts import ProcessVersions, stamp
+from cafe_norte.observability.contracts import Estimator, ProcessVersions, stamp
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, persist_export
 from cafe_norte.persistence.memory import MemoryStore
@@ -84,6 +84,7 @@ def create_app(
     seed: bool = False,
     retention_days: int | None = None,
     retention_interval_seconds: float = 3600.0,
+    estimate: Estimator | None = None,
 ) -> FastAPI:
     """Build from typed collaborators. Lifespan: open the store (migrations), seed the
     simulated calendar when ``seed`` is set, ``warm_up`` (the embedding model) before the first
@@ -125,6 +126,7 @@ def create_app(
             voice_mode=voice_mode,
             max_voice_sessions=max_voice_sessions,
             session_seconds=session_seconds,
+            estimate=estimate,
         )
     )
 
@@ -218,6 +220,7 @@ def close_hook(
     store: Store,
     configurations: Mapping[ConfigId, StoreConfiguration],
     process: ProcessVersions,
+    estimate: Estimator | None = None,
 ) -> Callable[[SessionId], Awaitable[None]]:
     """What the runtime runs when a session reaches a terminal state: the stored export."""
 
@@ -227,6 +230,7 @@ def close_hook(
             session_id,
             versions_for=lambda config_id: stamp(configurations[config_id], process),
             now=datetime.now(UTC),
+            estimate=estimate,
         )
 
     return closed

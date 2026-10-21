@@ -3,6 +3,9 @@ session's end come from the journaled ``state_updated`` events."""
 
 import json
 from datetime import UTC, datetime, timedelta
+from functools import partial
+
+import pytest
 
 from cafe_norte.domain.contracts import (
     BriefTarget,
@@ -16,7 +19,8 @@ from cafe_norte.domain.contracts import (
     SessionState,
     TurnId,
 )
-from cafe_norte.observability.contracts import UsageRecord, VersionStamp
+from cafe_norte.observability.contracts import Price, PriceTable, UsageRecord, VersionStamp
+from cafe_norte.observability.cost import estimate
 from cafe_norte.persistence.contracts import EventRecord, SessionSnapshot, TurnRecord
 from cafe_norte.persistence.export import (
     SCHEMA_VERSION,
@@ -249,3 +253,86 @@ def test_signals_come_from_journaled_verdicts() -> None:
     )
     assert signals_from_events((*journal(), recorded)) == (verdict,)
     assert build_export(snapshot((*journal(), recorded))).signals == (verdict,)
+
+
+PRICES = PriceTable(
+    version="test-1",
+    verified_on=NOW,
+    prices=(
+        Price(kind="llm_tokens", unit_detail="m:input", eur_per_unit=0.000001),
+        Price(kind="llm_tokens", unit_detail="m:output", eur_per_unit=0.000004),
+        Price(kind="stt_seconds", unit_detail="nova-3", eur_per_unit=0.001),
+        Price(kind="tts_characters", unit_detail="eleven_flash_v2_5", eur_per_unit=0.0001),
+        Price(kind="media_participant_minutes", unit_detail="daily", eur_per_unit=0.01),
+    ),
+)
+PRICED = partial(estimate, prices=PRICES)
+
+
+def with_usage(base: SessionSnapshot, *details: tuple[str, float]) -> SessionSnapshot:
+    records = tuple(
+        UsageRecord(
+            session_id=SID,
+            turn_id=TurnId("t1"),
+            kind="llm_tokens",
+            quantity=quantity,
+            unit_detail=detail,
+            estimated=False,
+        )
+        for detail, quantity in details
+    )
+    return base.model_copy(update={"usage": records})
+
+
+def test_a_priced_text_session_has_a_complete_cost() -> None:
+    taken = with_usage(snapshot(), ("m:input", 1000), ("m:output", 500))
+    metrics = build_export(taken, estimate=PRICED).metrics
+    assert metrics.estimated_marginal_cost_eur == pytest.approx(0.003)
+    assert metrics.cost_is_partial is False
+
+
+def test_an_unpriced_model_makes_the_cost_partial() -> None:
+    taken = with_usage(snapshot(), ("m:input", 1000), ("unknown:output", 500))
+    metrics = build_export(taken, estimate=PRICED).metrics
+    assert metrics.estimated_marginal_cost_eur == pytest.approx(0.001)
+    assert metrics.cost_is_partial is True
+
+
+def test_without_an_estimator_the_cost_is_unknown() -> None:
+    metrics = build_export(with_usage(snapshot(), ("m:input", 1000))).metrics
+    assert metrics.estimated_marginal_cost_eur is None
+    assert metrics.cost_is_partial is True
+
+
+def voice_snapshot() -> SessionSnapshot:
+    base = snapshot()
+    spoken = base.turns[0].model_copy(
+        update={"turn_id": TurnId("t2"), "role": "assistant", "text": "Hola, soy Ana"}
+    )
+    return base.model_copy(
+        update={
+            "state": base.state.model_copy(update={"channel": "voice", "active_seconds": 120.0}),
+            "turns": (*base.turns, spoken),
+            "versions": base.versions.model_copy(
+                update={"stt_model": "nova-3", "tts_model": "eleven_flash_v2_5"}
+            ),
+        }
+    )
+
+
+def test_a_voice_session_derives_its_voice_usage_as_estimated() -> None:
+    document = build_export(with_usage(voice_snapshot(), ("m:input", 1000)), estimate=PRICED)
+    derived = {(r.kind, r.unit_detail): r.quantity for r in document.metrics.usage if r.estimated}
+    assert derived == {
+        ("tts_characters", "eleven_flash_v2_5"): len("Hola, soy Ana"),
+        ("stt_seconds", "nova-3"): 120.0,
+        ("media_participant_minutes", "daily"): 4.0,  # the bot and the candidate, 2 minutes
+    }
+    expected = 1000 * 0.000001 + 13 * 0.0001 + 120 * 0.001 + 4 * 0.01
+    assert document.metrics.estimated_marginal_cost_eur == pytest.approx(expected)
+    assert document.metrics.cost_is_partial is True  # estimated usage is not a measurement
+
+
+def test_a_text_session_derives_no_voice_usage() -> None:
+    document = build_export(with_usage(snapshot(), ("m:input", 1000)), estimate=PRICED)
+    assert all(not r.estimated for r in document.metrics.usage)

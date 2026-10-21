@@ -9,7 +9,7 @@ content for debugging with synthetic data.
 | --- | --- |
 | `contracts.py` | `VersionStamp`, `StageTiming`, `UsageRecord`, `PriceTable`, `CostEstimate`, `StructuredEvent` |
 | `events.py` | `emit(event)`: one JSON line, redaction applied to free text |
-| `cost.py` | Versioned price table with currency and verification date; marginal session cost vs shared cost |
+| `cost.py` | `load_prices` reads `prices/v1.yaml` (USD with source page, converted to EUR at the recorded rate); `estimate` is pure and lists unpriced usage instead of counting it as zero. Token usage is keyed `<model_id>:input` / `:output` |
 | `telemetry.py` | Span ownership, bounded flush, Langfuse OTLP endpoint resolution (ported from luzia) |
 
 Every session and evaluation run carries a `VersionStamp`; a number without one is not evidence.

@@ -34,8 +34,10 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 the snapshot stored when the session closed (D34), or one built on demand by `build_export`
 from one `Store.snapshot` while it is open. The confirmation history and the
 session's end time are read from the journaled `state_updated` events; the brief is the text
-the candidate confirmed; the cost estimate stays `None` (`cost_is_partial: true`) until prices
-are recorded. The schema is `examples/session_export.schema.json`, the fictional example
+the candidate confirmed. The cost is priced from `observability/prices/v1.yaml`:
+`cost_is_partial` is true when any usage has no price or is estimated (a voice call's speech,
+listening and room minutes are derived from the snapshot, not measured), and the cost is `None`
+when no estimator is bound. The schema is `examples/session_export.schema.json`, the fictional example
 `examples/session_export.example.json`.
 
 ## Limits

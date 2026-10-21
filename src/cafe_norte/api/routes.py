@@ -25,8 +25,9 @@ from cafe_norte.api.contracts import (
 from cafe_norte.conversation.contracts import ConversationRuntime, TurnInput
 from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, StoreConfiguration
 from cafe_norte.errors import ServiceError
-from cafe_norte.observability.contracts import ProcessVersions
+from cafe_norte.observability.contracts import ProcessVersions, stamp
 from cafe_norte.persistence.contracts import Store
+from cafe_norte.persistence.export import build_export
 from cafe_norte.voice.contracts import (
     Room,
     RoomProvisioner,
@@ -218,6 +219,26 @@ def build_router(
         )
         tasks.start(_drain(runtime.run_turn(turn)))
         return TurnAccepted(input_id=body.input_id)
+
+    @router.get("/api/sessions/{session_id}/export")
+    async def export_session(session_id: str, request: Request) -> Response:
+        """The JSON record of the owner's session, built on demand from one snapshot."""
+        sid = owner(request, session_id)
+        state = await store.sessions.get(sid)
+        if state is None:
+            raise ServiceError("session not found", code="not_found")
+        snapshot = await store.snapshot(
+            sid,
+            versions=stamp(configurations[state.config_id], versions),
+            taken_at=datetime.now(UTC),
+        )
+        if snapshot is None:
+            raise ServiceError("session not found", code="not_found")
+        return Response(
+            build_export(snapshot).model_dump_json(indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{sid}.json"'},
+        )
 
     @router.get("/api/sessions/{session_id}/events")
     async def session_events(session_id: str, request: Request) -> StreamingResponse:

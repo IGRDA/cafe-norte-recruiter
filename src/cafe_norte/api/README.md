@@ -17,7 +17,7 @@ headers locally and hosted.
 | `POST /api/sessions/{id}/voice` | Admission, private Daily room, start the voice task |
 | `POST /api/sessions/{id}/voice/timings` | Browser-observed audio timings |
 | `POST /api/sessions/{id}/end` | Finalize |
-| `GET /api/sessions/{id}/export` | `<session_id>.json` download |
+| `GET /api/sessions/{id}/export` | `<session_id>.json` download, built on demand from one store snapshot; any lifecycle |
 | `DELETE /api/sessions/{id}` | Delete the demo session |
 | `POST /api/resume` | Exchange a private resume token for a session cookie |
 | `GET /health/live`, `GET /health/ready` | Process and initialized-services health |
@@ -33,7 +33,7 @@ headers locally and hosted.
 Implemented today: `POST /api/sessions`, `POST …/turns` (202, the turn runs in the background
 and its events are journaled by the runtime), `GET …/events`, `GET /api/configurations`,
 `GET /api/runtime` (which voice mode to offer), `POST …/voice` (admission, private room, bot
-start; nothing left behind on failure), `POST …/voice/timings`, and health. Ownership is a signed session cookie. `ServiceError` maps to `{code, message}` with
+start; nothing left behind on failure), `POST …/voice/timings`, `GET …/export` and health. Ownership is a signed session cookie. `ServiceError` maps to `{code, message}` with
 fixed public text; request validation errors never echo the body.
 
 On reconnect the browser fetches the snapshot and resumes the stream from its last sequence;

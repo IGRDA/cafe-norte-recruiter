@@ -35,6 +35,7 @@ class PromptHints(BaseModel):
 
     explicit: frozenset[Control] = frozenset()
     sentiment: Sentiment | None = None
+    readback_answered: str | None = None  # the runtime resolved a plain yes/no this turn
 
 
 WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
@@ -72,6 +73,7 @@ def system_message(
         "lifecycle": state.lifecycle,
         "explicit_requests": sorted(c for c in hints.explicit if c in ("stop", "human")),
         "candidate_sentiment": hints.sentiment,
+        "readback_answered": hints.readback_answered,
     }
     content = (
         prompts.load("system")

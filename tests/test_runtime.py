@@ -15,6 +15,7 @@ from cafe_norte.conversation.contracts import (
     SignalRecorded,
     StateUpdated,
     ToolFinished,
+    ToolStarted,
     TurnFailed,
     TurnFinished,
     TurnInput,
@@ -794,3 +795,62 @@ async def test_resume_of_an_ended_or_unknown_session_fails_without_speaking() ->
     await h.runtime.end(SESSION, "stop")
     events = [e async for e in h.runtime.resume_session(SESSION)]
     assert isinstance(events[0], TurnFailed) and events[0].code == "session_ended"
+
+
+# ---- plain answers to a read-back, resolved by the runtime ---------------------------------------
+
+
+DATE_CALL = ToolCall(
+    call_id="d1",
+    name="update_candidate",
+    arguments_json=json.dumps(
+        {"patch": {"earliest_start_date": "2026-11-02"}, "evidence_text": "El 2 de noviembre"}
+    ),
+)
+
+
+def with_date_read_back(*then: list[ModelEvent]) -> Harness:
+    """Turn in-1 captures the date and the runtime reads it back, as in the hosted call; the
+    scripts after it are the model's next turns."""
+    return Harness([[DATE_CALL, WANTS_TOOLS], says(""), *then])
+
+
+async def readback_pending(h: Harness) -> None:
+    await h.run("El 2 de noviembre", "in-1")
+
+
+async def test_a_plain_yes_confirms_the_heard_read_back_even_if_the_model_forgets() -> None:
+    """The hosted call: "Sí, es correcto" answered with no confirm_field; the runtime now
+    resolves it before the model, which then simply goes on."""
+    h = with_date_read_back(says("Perfecto. ¿Qué experiencia tienes?"))
+    await h.open_session()
+    await readback_pending(h)
+    events = await h.run("Sí, es correcto.", "in-2")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.candidate.earliest_start_date.status == "confirmed"
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "confirmed"
+    names = [e.name for e in events if isinstance(e, ToolStarted)]
+    assert names == ["confirm_field"]
+    facts = h.model.calls[-1][0].content
+    assert "readback_answered" in facts
+
+
+async def test_a_plain_no_rejects_it_and_the_model_asks_what_is_wrong() -> None:
+    h = with_date_read_back(says("¿Qué fecha es?"))
+    await h.open_session()
+    await readback_pending(h)
+    await h.run("No, no es correcto.", "in-2")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "rejected"
+
+
+async def test_a_yes_with_more_words_is_left_to_the_model() -> None:
+    h = with_date_read_back(says("Vale."))
+    await h.open_session()
+    await readback_pending(h)
+    await h.run("Sí, pero el teléfono es otro", "in-2")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "pending"

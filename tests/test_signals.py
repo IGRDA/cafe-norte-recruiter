@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 from cafe_norte.conversation.signals import (
     Control,
     ModelSignalAnalyzer,
+    answer_to_readback,
     explicit_controls,
     fresh_sentiment,
     requested_language,
@@ -222,3 +223,48 @@ def test_only_the_previous_turns_soft_sentiment_reaches_the_next_prompt() -> Non
     assert fresh_sentiment(signal("t1", "neutral"), TurnId("t1")) is None
     assert fresh_sentiment(signal("t1", "positive"), TurnId("t1")) is None
     assert fresh_sentiment(None, TurnId("t1")) is None
+
+
+# ---- plain answers to a read-back ----------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sí.",
+        "Sí, es correcto.",
+        "sí sí",
+        "Correcto",
+        "Vale.",
+        "Eso es.",
+        "Exacto",
+        "Mhmm. Sí, es todo correcto.",
+        "Yes.",
+        "That's right",
+        "Yes, correct.",
+    ],
+)
+def test_a_plain_yes_is_an_affirmation(text: str) -> None:
+    assert answer_to_readback(text) == "affirm"
+
+
+@pytest.mark.parametrize(
+    "text", ["No.", "No, no es correcto.", "No es así", "Nope", "That's wrong"]
+)
+def test_a_plain_no_is_a_denial(text: str) -> None:
+    assert answer_to_readback(text) == "deny"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sí, pero el teléfono es otro",  # a correction rides along: the model handles it
+        "No, es el 3 de noviembre",
+        "Sí. Sigo. ¿Dónde está la tienda?",
+        "Tengo una duda",
+        "",
+        "Overall, always the time search. C.",
+    ],
+)
+def test_anything_more_than_a_plain_answer_goes_to_the_model(text: str) -> None:
+    assert answer_to_readback(text) is None

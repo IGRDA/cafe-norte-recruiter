@@ -337,3 +337,20 @@ def test_events_still_go_to_stdout_when_tracing_is_on(capsys: pytest.CaptureFixt
         )
     )
     assert json.loads(capsys.readouterr().out)["event"] == "turn_failed"
+
+
+def test_leaving_a_span_keeps_the_code_it_was_failed_with() -> None:
+    traced = Traced()
+    with pytest.raises(RuntimeError), traced.turn() as root, root.child("chat") as chat:
+        chat.fail("timeout")
+        raise RuntimeError("boom")
+    attrs = attributes(traced.finished()["chat"])
+    assert attrs["langfuse.observation.status_message"] == "timeout"
+
+
+def test_an_abandoned_generator_is_not_an_error_in_the_trace() -> None:
+    traced = Traced()
+    with pytest.raises(GeneratorExit), traced.turn() as root, root.child("chat"):
+        raise GeneratorExit
+    attrs = attributes(traced.finished()["chat"])
+    assert "langfuse.observation.level" not in attrs

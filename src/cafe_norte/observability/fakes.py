@@ -165,6 +165,10 @@ class _RecordingSpan(NullSpan):
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if exc_type is not None:
+        if (
+            exc_type is not None
+            and not issubclass(exc_type, GeneratorExit)  # an abandoned stream, not an error
+            and self._record.failure is None  # a code given on purpose wins
+        ):
             self.fail(exc_type.__name__)
         self.end()

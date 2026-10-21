@@ -129,3 +129,18 @@ def test_stdout_telemetry_writes_events_as_json_lines_and_traces_nothing(
     lines = capsys.readouterr().out.splitlines()
     assert len(lines) == 1
     assert json.loads(lines[0])["event"] == "turn_failed"
+
+
+def test_leaving_a_span_keeps_the_code_it_was_failed_with() -> None:
+    telemetry = RecordingTelemetry()
+    with pytest.raises(RuntimeError), open_turn(telemetry) as root, root.child("chat") as chat:
+        chat.fail("timeout")
+        raise RuntimeError("boom")
+    assert telemetry.span("chat").failure == "timeout"
+
+
+def test_an_abandoned_generator_is_not_a_failure() -> None:
+    telemetry = RecordingTelemetry()
+    with pytest.raises(GeneratorExit), open_turn(telemetry) as root, root.child("chat"):
+        raise GeneratorExit
+    assert telemetry.span("chat").failure is None and telemetry.span("chat").ended

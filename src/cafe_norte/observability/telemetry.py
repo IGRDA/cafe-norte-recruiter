@@ -175,6 +175,7 @@ class _OtelSpan:
         self._session_id = session_id
         self._content = content
         self._ended = False
+        self._failed = False
 
     def child(self, name: str, kind: ObservationKind = "span", **metadata: SpanValue) -> Span:
         span = self._tracer.start_span(
@@ -233,6 +234,7 @@ class _OtelSpan:
                 )
 
     def fail(self, code: str) -> None:
+        self._failed = True
         self._span.set_attributes(
             {f"{_OBSERVATION}level": "ERROR", f"{_OBSERVATION}status_message": code}
         )
@@ -252,7 +254,11 @@ class _OtelSpan:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if exc_type is not None:
+        if (
+            exc_type is not None
+            and not issubclass(exc_type, GeneratorExit)  # an abandoned stream, not an error
+            and not self._failed  # a code given on purpose wins
+        ):
             self.fail(exc_type.__name__)
         self.end()
 

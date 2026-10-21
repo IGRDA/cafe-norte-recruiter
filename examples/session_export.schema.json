@@ -970,6 +970,7 @@
     },
     "RetrievalEvent": {
       "additionalProperties": false,
+      "description": "One ``search_knowledge`` call: what was asked and which chunks were shown. Whether\nthe answer was right is a judgement for the evaluation, not a field.",
       "properties": {
         "turn_id": {
           "title": "Turn Id",
@@ -986,8 +987,8 @@
           "title": "Sources",
           "type": "array"
         },
-        "answered": {
-          "title": "Answered",
+        "sources_found": {
+          "title": "Sources Found",
           "type": "boolean"
         }
       },
@@ -995,7 +996,7 @@
         "turn_id",
         "question",
         "sources",
-        "answered"
+        "sources_found"
       ],
       "title": "RetrievalEvent",
       "type": "object"

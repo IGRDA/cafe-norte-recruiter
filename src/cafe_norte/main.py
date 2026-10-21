@@ -5,7 +5,7 @@ in-memory store, a canned retriever and voice off. Nothing else in the package r
 ``os.environ``."""
 
 import os
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -26,7 +26,10 @@ from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import ConfigId, StoreConfiguration
 from cafe_norte.errors import MESSAGES, ErrorCode, ServiceError
-from cafe_norte.knowledge.fake import FakeRetriever
+from cafe_norte.knowledge.contracts import Retriever
+from cafe_norte.knowledge.hybrid import HybridRetriever
+from cafe_norte.knowledge.index import lexical_index, load_index
+from cafe_norte.knowledge.loader import load_documents
 from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
@@ -70,13 +73,17 @@ def create_app(
     voice_mode: VoiceMode = "off",
     max_voice_sessions: int = 2,
     session_seconds: float = 480.0,
+    warm_up: Callable[[], Awaitable[None]] | None = None,
 ) -> FastAPI:
-    """Build from typed collaborators. Lifespan today: cancel in-flight turns on shutdown.
-    Later stages add store warm-up, calendar seeding, lease renewal and the summary worker."""
+    """Build from typed collaborators. Lifespan: ``warm_up`` (the embedding model) before the
+    first request, cancel in-flight turns on shutdown. Later stages add store warm-up,
+    calendar seeding, lease renewal and the summary worker."""
     tasks = TurnTasks()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        if warm_up is not None:
+            await warm_up()
         yield
         await tasks.shutdown()
 
@@ -129,8 +136,9 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
     env = env if env is not None else os.environ
     store = MemoryStore()
     configurations = load_configurations(Path(env.get("CAFE_NORTE_CONFIG_DIR", "config")))
+    retriever, warm_up = _retriever(env, configurations)
     registry = ToolRegistry(
-        all_handlers(store=store, configurations=configurations, retriever=FakeRetriever())
+        all_handlers(store=store, configurations=configurations, retriever=retriever)
     )
     model = _model(env)
     runtime = Runtime(
@@ -170,7 +178,34 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         voice=voice,
         max_voice_sessions=int(env.get("CAFE_NORTE_MAX_VOICE_SESSIONS", "2")),
         session_seconds=float(env.get("CAFE_NORTE_SESSION_SECONDS", "480")),
+        warm_up=warm_up,
     )
+
+
+def _retriever(
+    env: Mapping[str, str], configurations: Mapping[ConfigId, StoreConfiguration]
+) -> tuple[Retriever, Callable[[], Awaitable[None]] | None]:
+    """``lexical``: BM25 over ``kb/`` built at startup, no extra, no artifact. ``hybrid``: the
+    artifact from ``make build-index`` plus FastEmbed for queries, warmed up before serving."""
+    mode = env.get("CAFE_NORTE_RETRIEVER", "lexical")
+    versions = {c.kb_version for c in configurations.values()}
+    if len(versions) != 1:
+        raise ValueError(f"configurations disagree on kb_version: {sorted(versions)}")
+    kb_version = versions.pop()
+    if mode == "lexical":
+        documents = load_documents(Path(env.get("CAFE_NORTE_KB_DIR", "kb")))
+        return HybridRetriever(lexical_index(documents, kb_version=kb_version), None), None
+    if mode == "hybrid":
+        from cafe_norte.knowledge.embedder import DEFAULT_MODEL, FastEmbedEmbedder
+
+        index = load_index(Path(env.get("CAFE_NORTE_KB_INDEX", "kb/index")), kb_version=kb_version)
+        embedder = FastEmbedEmbedder(env.get("CAFE_NORTE_EMBEDDING_MODEL", DEFAULT_MODEL))
+        if index.manifest.embedding_model != embedder.name:
+            raise ValueError(
+                f"index built with {index.manifest.embedding_model}, not {embedder.name}"
+            )
+        return HybridRetriever(index, embedder), embedder.warm_up
+    raise ValueError(f"CAFE_NORTE_RETRIEVER must be lexical or hybrid, not {mode!r}")
 
 
 def _voice_mode(env: Mapping[str, str]) -> VoiceMode:

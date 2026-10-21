@@ -30,6 +30,7 @@ const el = {
   candidate: document.getElementById("candidate"),
   confirmation: document.getElementById("confirmation"),
   review: document.getElementById("review"),
+  sources: document.getElementById("sources"),
   export: document.getElementById("export"),
   exportLink: document.getElementById("export-link"),
 };
@@ -132,6 +133,10 @@ function handle(event) {
       setStatus("Ana está pensando…");
       break;
     }
+    case "sources_shown":
+      renderSources(payload);
+      review(`fuentes para «${payload.question}»: ${payload.chunk_ids.length}`);
+      break;
     case "assistant_text": {
       const turn = state.turns.get(event.turn_id) ?? addTurn(event.turn_id, "assistant", []);
       turn.sentences.push(payload.text);
@@ -300,6 +305,26 @@ function endConversation() {
   setStatus("Conversación terminada. Gracias.");
   el.exportLink.href = `/api/sessions/${state.sessionId}/export`;
   el.export.hidden = false;
+}
+
+function renderSources(payload) {
+  // Title › section and an excerpt per chunk, as text. Replaced on every search.
+  el.sources.replaceChildren();
+  if (!payload.chunk_ids.length) {
+    const item = document.createElement("li");
+    item.textContent = "Sin fragmentos para esta pregunta.";
+    el.sources.append(item);
+    return;
+  }
+  payload.chunk_ids.forEach((id, i) => {
+    const item = document.createElement("li");
+    const head = document.createElement("strong");
+    head.textContent = `${payload.titles[i].split(" / ")[0]} › ${payload.sections[i]}`;
+    const body = document.createElement("span");
+    body.textContent = ` ${payload.excerpts[i]}`;
+    item.append(head, body);
+    el.sources.append(item);
+  });
 }
 
 function review(line) {

@@ -48,8 +48,8 @@ ALLOWED: dict[str, dict[str, set[str]]] = {
 
 # Third-party packages that belong to another module's adapters.
 FORBIDDEN_THIRD_PARTY: dict[str, set[str]] = {
-    "domain": {"fastapi", "starlette", "httpx", "psycopg", "pipecat", "fastembed", "rank_bm25"},
-    "model": {"fastapi", "starlette", "psycopg", "pipecat", "fastembed", "rank_bm25"},
+    "domain": {"fastapi", "starlette", "httpx", "psycopg", "pipecat", "fastembed"},
+    "model": {"fastapi", "starlette", "psycopg", "pipecat", "fastembed"},
     "knowledge": {"fastapi", "starlette", "httpx", "psycopg", "pipecat"},
     "observability": {"fastapi", "starlette", "psycopg", "pipecat"},
     "persistence": {"fastapi", "starlette", "httpx", "pipecat"},

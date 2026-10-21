@@ -16,8 +16,9 @@ COPY config ./config
 COPY kb ./kb
 COPY scripts/build_index.py ./scripts/build_index.py
 RUN uv sync --locked --no-dev --all-extras
-# Precompute the versioned retrieval index into the image. Enabled once knowledge/index.py lands.
-# RUN uv run python scripts/build_index.py
+# Precompute the versioned retrieval index into the image; the embedding model is cached with it.
+ENV FASTEMBED_CACHE_PATH=/app/.fastembed CAFE_NORTE_RETRIEVER=hybrid
+RUN uv run --no-sync python scripts/build_index.py
 
 ARG COMMIT_SHA=local
 ENV CAFE_NORTE_COMMIT_SHA=$COMMIT_SHA

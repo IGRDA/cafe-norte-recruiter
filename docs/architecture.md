@@ -10,7 +10,7 @@ tested when each module lands. Numbers are the defaults in `.env.example`.
 | `Model.stream(messages, tools, *, deadline)` (`model`) | Async stream of `ModelText`, fully assembled `ToolCall`s, optional `ModelUsage`, one `ModelFinished`; malformed or late output raises `ModelError` with a stable code; provider-side tools never enabled |
 | `ConversationRuntime.run_turn(TurnInput)` (`conversation`) | Async generator of `RuntimeEvent`; serialized per session; requires the current lease generation; persists before `StateUpdated`; closing it cancels work and marks the turn interrupted; duplicate `input_id` → `TurnFailed(conflict)` |
 | `ToolRegistry.dispatch(ToolCall, ToolContext)` | Allowlist of nine names; arguments validated against the Pydantic model; one repair per turn; context injected by the server |
-| `Retriever.retrieve(RetrievalQuery)` (`knowledge`) | Filters by `config_id` and `kb_version` before ranking; BM25 + dense fused by RRF; at most three chunks; may return none |
+| `Retriever.retrieve(RetrievalQuery)` (`knowledge`) | Filters by `config_id`, `kb_version` and optional `doc_ids` before ranking; BM25 + dense fused by RRF among allowed chunks; at most three; may return none |
 | `Store` (`persistence`) | Repositories with conditional updates on revision, unique `(session_id, input_id)`, row-locked slot reservation with idempotency key, leases with generations, admission counted in rows |
 | `VoiceSessionController` / `RoomProvisioner` (`voice`) | Start/stop one Pipecat task per session; private expiring rooms; no orphan on provisioning failure |
 | `ServiceError` (`errors`) | Internal detail and public code kept apart; public text by language |
@@ -54,6 +54,11 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | Recent turns in the prompt | 20 |
+| Knowledge chunk | one `## ` section, at most 90 words |
+| Chunks per `search_knowledge` call | 3; RRF k = 60 |
+| Query embeddings in flight | 2 per process |
+| `search_knowledge` tool time | target ≤ 300 ms after warm-up; measured per call in `timings` (`stage: tool`) |
+| Searches per turn | bounded by the 4 tool rounds; the tool text allows one retry |
 | Turns read into one export snapshot | 10 000 (the whole transcript; the session cap keeps it far below) |
 | Tool arguments from the model | 16 KiB |
 | SSE heartbeat while idle | 15 s |
@@ -74,7 +79,7 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 
 | Destination | Data |
 | --- | --- |
-| Browser | Own session only: transcript, brief, confirmations, sources, reviewer panel, the JSON export |
+| Browser | Own session only: transcript, brief, confirmations, sources (title › section › excerpt), reviewer panel, the JSON export |
 | Groq | System prompt, configuration facts, candidate state, recent turns, tool calls and results (US-hosted) |
 | Deepgram / ElevenLabs / Daily | Audio and text of the voice session; no raw audio stored by us |
 | Postgres | Everything the export contains; access codes and tokens only as hashes |

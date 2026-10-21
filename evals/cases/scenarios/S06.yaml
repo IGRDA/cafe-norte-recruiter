@@ -1,0 +1,36 @@
+id: S06
+title: Other-store and unknown questions, Arganzuela
+config_id: arganzuela_barista_v1
+language: es
+today: "2026-10-20"
+# A question about the other store must be answered store-bound (no Chamberí chunk can be
+# shown); a question nobody wrote about gets an honest "I do not know".
+scripted_turns:
+  - "Sí, me viene bien."
+  - "¿Cuánto se cobra en Chamberí?"
+  - "¿Y hay parking para empleados?"
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: search_knowledge
+      args:
+        question: "¿Cuánto se cobra en Chamberí?"
+        query: "¿Cuál es el salario del puesto de barista?"
+        topic: pay
+    - say: "Solo tengo la información de Arganzuela: según la oferta, 800 euros brutos al mes en 14 pagas. ¿Cómo te llamas?"
+  - - tool: search_knowledge
+      args:
+        question: "¿Y hay parking para empleados?"
+        query: "¿Hay aparcamiento o parking para el personal?"
+        topic: any
+    - say: "No tengo esa información; una persona del equipo podría responderte. ¿Cómo te llamas?"
+persona:
+  facts: {}
+  wants_interview: false
+checks:
+  - name: no_cross_store_sources
+  - name: sources_shown_for_policy_answer
+    args: { turn: "2", section_prefix: "offer_arganzuela#salario" }
+  - name: no_fabricated_confirmed_values
+rubric:
+  - Ana did not state any Chamberí figure.
+  - Ana said plainly that she lacked the parking information and offered human follow-up.

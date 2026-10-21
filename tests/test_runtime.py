@@ -70,8 +70,11 @@ class Harness:
         self.model = FakeModel(scripts)
         self.runtime = Runtime(
             model=self.model,
-            tools=ToolRegistry(all_handlers(store=self.store, configurations=configurations)),
-            retriever=FakeRetriever(),
+            tools=ToolRegistry(
+                all_handlers(
+                    store=self.store, configurations=configurations, retriever=FakeRetriever()
+                )
+            ),
             store=self.store,
             configurations=configurations,
             signals=None,
@@ -142,6 +145,7 @@ async def test_the_model_sees_history_state_and_only_registered_tools() -> None:
     assert '"status"' not in third[0].content.split("candidate_known_values")[1].split("}")[0]
     assert [t.name for t in h.model.advertised_tools[0]] == [
         "update_candidate",
+        "search_knowledge",
         "present_confirmation",
         "confirm_field",
         "confirm_brief",

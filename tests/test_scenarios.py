@@ -56,9 +56,12 @@ def test_loading_filters_by_id_and_rejects_unknown_ids() -> None:
         load_scenarios(SCENARIOS, only=["S99"])
 
 
-def test_the_cli_runs_the_fake_suite_and_reports(capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_cli_runs_the_fake_suite_and_reports(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
     assert main(["--suite", "scenarios", "--mode", "fake"]) == 0
     out = capsys.readouterr().out
     assert "S01" in out and "S03" in out and "failed: 0" in out
-    assert main(["--suite", "retrieval", "--mode", "fake"]) == 2
+    assert main(["--suite", "retrieval", "--retriever", "lexical", "--out", str(tmp_path)]) == 0
+    assert "recall@3" in capsys.readouterr().out
     assert main(["--suite", "scenarios", "--mode", "live"]) == 2

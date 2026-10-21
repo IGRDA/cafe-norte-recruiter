@@ -204,3 +204,23 @@ async def test_memory_store_snapshot_reads_the_whole_session() -> None:
     assert taken.usage == base.usage and taken.timings == ()
     assert "secret" not in build_export(taken).model_dump_json()
     assert await store.snapshot(SessionId("nope"), versions=VERSIONS, taken_at=NOW) is None
+
+
+def test_retrieval_events_come_from_journaled_sources() -> None:
+    from cafe_norte.persistence.export import retrieval_events_from_events
+
+    shown = EventRecord(
+        session_id=SID,
+        turn_id=TurnId("t5"),
+        seq=7,
+        kind="sources_shown",
+        payload_json=json.dumps({"question": "¿horas?", "chunk_ids": ["offer_chamberi#horas"]}),
+        at=NOW,
+    )
+    none = shown.model_copy(
+        update={"seq": 8, "payload_json": json.dumps({"question": "¿parking?", "chunk_ids": []})}
+    )
+    events = retrieval_events_from_events((*journal(), shown, none))
+    assert [(e.turn_id, e.sources_found) for e in events] == [("t5", True), ("t5", False)]
+    assert events[0].sources == ("offer_chamberi#horas",) and events[1].question == "¿parking?"
+    assert build_export(snapshot((*journal(), shown))).retrieval_events == events[:1]

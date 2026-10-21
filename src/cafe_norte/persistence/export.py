@@ -44,10 +44,13 @@ class SessionExport(Frozen):
 
 
 class RetrievalEvent(Frozen):
+    """One ``search_knowledge`` call: what was asked and which chunks were shown. Whether
+    the answer was right is a judgement for the evaluation, not a field."""
+
     turn_id: str
     question: str
     sources: tuple[str, ...]  # chunk ids
-    answered: bool
+    sources_found: bool
 
 
 class Summary(Frozen):
@@ -110,7 +113,7 @@ def build_export(snapshot: SessionSnapshot) -> ExportDocument:
         confirmations=snapshot.confirmations,
         booking=state.booking,
         review_flags=state.review_flags,
-        retrieval_events=(),
+        retrieval_events=retrieval_events_from_events(snapshot.events),
         signals=(),
         events=snapshot.events,
         summary=Summary(
@@ -141,6 +144,25 @@ def confirmations_from_events(events: tuple[EventRecord, ...]) -> tuple[Confirma
         confirmation = Confirmation.model_validate(pending)
         history[confirmation.confirmation_id] = confirmation
     return tuple(history.values())
+
+
+def retrieval_events_from_events(events: tuple[EventRecord, ...]) -> tuple[RetrievalEvent, ...]:
+    """Every journaled ``sources_shown`` event, in order."""
+    found: list[RetrievalEvent] = []
+    for event in events:
+        if event.kind != "sources_shown":
+            continue
+        payload = json.loads(event.payload_json)
+        sources = tuple(payload.get("chunk_ids", ()))
+        found.append(
+            RetrievalEvent(
+                turn_id=event.turn_id or "",
+                question=payload.get("question", ""),
+                sources=sources,
+                sources_found=bool(sources),
+            )
+        )
+    return tuple(found)
 
 
 def ended_at(events: tuple[EventRecord, ...]) -> datetime | None:

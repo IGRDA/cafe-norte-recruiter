@@ -1,1 +1,1 @@
-Hola, soy Ana, la asistente de IA de Café Norte. Esta es una demostración con datos ficticios. ¿Te viene bien hablar unos minutos sobre el puesto de barista?
+Hola, soy Ana, la asistente de IA de Café Norte. Esta es una demostración con datos ficticios. Puedes preguntarme lo que quieras sobre el puesto o la tienda. ¿Te viene bien hablar unos minutos sobre el puesto de barista?

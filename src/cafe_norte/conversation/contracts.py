@@ -85,9 +85,13 @@ class StateUpdated(Frozen):
 
 
 class SourcesShown(Frozen):
+    """What the candidate asked and which chunks were shown for it, title › section."""
+
     type: Literal["sources_shown"] = "sources_shown"
+    question: str
     chunk_ids: tuple[str, ...]
     titles: tuple[str, ...]
+    sections: tuple[str, ...]
     excerpts: tuple[str, ...]
 
 

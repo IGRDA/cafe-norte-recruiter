@@ -341,12 +341,12 @@ async def test_denying_the_brief_rejects_it_and_asks_for_the_correction() -> Non
     assert state.pending_confirmation.status == "rejected"
 
 
-async def test_affirming_the_brief_leads_to_the_interview_question() -> None:
+async def test_affirming_the_brief_invites_questions_before_the_interview() -> None:
     w = await World(full_record()).open()
     await w.present(context(), args("present_confirmation", target="brief"))
     await w.deliver()
     outcome = await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
-    assert outcome.ok and "interview" in outcome.model_text
+    assert outcome.ok and outcome.model_text.endswith(NEXT_STEP["questions"])
     assert (await w.current()).lifecycle == "active"
 
 

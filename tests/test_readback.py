@@ -9,7 +9,21 @@ from cafe_norte.conversation.prompt import split_sentences
 from cafe_norte.conversation.readback import (
     PART_CHARACTERS,
     PART_SENTENCES,
+    current_saying,
     review_parts,
+)
+from cafe_norte.domain.contracts import (
+    BriefTarget,
+    Confirmation,
+    ConfirmationId,
+    ConfirmationTarget,
+    FieldTarget,
+    ReviewInParts,
+    ReviewOffered,
+    ReviewWaived,
+    SlotId,
+    SlotTarget,
+    TurnId,
 )
 from cafe_norte.errors import Language
 from tests.test_brief import CONFIG, record
@@ -84,3 +98,44 @@ def test_parts_cover_every_fact_in_order_and_each_is_short(text: str, language: 
     for body in bodies:
         assert 1 <= len(body) <= PART_SENTENCES
         assert len(body) == 1 or len(" ".join(body)) <= PART_CHARACTERS
+
+
+# ---- the review of a cut read-back (D39) ----------------------------------------------------
+
+T1, T2, T3 = TurnId("t1"), TurnId("t2"), TurnId("t3")
+BRIEF = render_brief(LUCIA, CONFIG, "es")
+FIELD = FieldTarget(field="contact_phone", revision=3)
+BRIEF_TARGET = BriefTarget(revision=3)
+SLOT = SlotTarget(slot_id=SlotId("slot-1"), brief_revision=3)
+
+
+def said(
+    review: str | None = None,
+    *,
+    heard: bool = False,
+    part: int = 0,
+    target: ConfirmationTarget = BRIEF_TARGET,
+) -> Confirmation:
+    """A read-back presented in T1 and, if reviewed, moved in T2."""
+    stage = {
+        None: None,
+        "offered": ReviewOffered(turn_id=T2),
+        "in_parts": ReviewInParts(part=part, parts=4, turn_id=T2),
+        "waived": ReviewWaived(turn_id=T2),
+    }[review]
+    return Confirmation(
+        confirmation_id=ConfirmationId("c1"),
+        target=target,
+        presentation_text=BRIEF,
+        presented_turn_id=T1,
+        fully_delivered=heard,
+        review=stage,
+    )
+
+
+def test_the_current_saying_is_the_part_under_review_or_the_whole_text() -> None:
+    parts = review_parts(BRIEF, "es")
+    assert current_saying(said(), "es") == BRIEF
+    assert current_saying(said("offered"), "es") == BRIEF
+    assert current_saying(said("in_parts", part=2), "es") == parts[2]
+    assert current_saying(said("waived"), "es") == BRIEF

@@ -1,6 +1,6 @@
 """The tool allowlist. One Pydantic model per tool; ``TOOL_SCHEMAS`` is generated from them.
 
-The model sees exactly these nine names. Session, configuration, authorization and
+The model sees exactly these ten names. Session, configuration, authorization and
 idempotency are never arguments."""
 
 from datetime import date
@@ -21,6 +21,7 @@ ToolName = Literal[
     "confirm_field",
     "confirm_brief",
     "reserve_interview",
+    "review_readback",
     "request_human_followup",
     "end_session",
 ]
@@ -72,6 +73,12 @@ class ReserveInterviewArgs(Args):
     slot_id: SlotId
 
 
+class ReviewReadbackArgs(Args):
+    """The candidate's answer to a read-back they did not hear to the end (D39)."""
+
+    answer: Literal["affirm", "skip"]
+
+
 class RequestHumanFollowupArgs(Args):
     reason: str = Field(min_length=1, max_length=500)
 
@@ -89,6 +96,7 @@ ARGUMENT_MODELS: dict[ToolName, type[Args]] = {
     "confirm_field": ConfirmFieldArgs,
     "confirm_brief": ConfirmBriefArgs,
     "reserve_interview": ReserveInterviewArgs,
+    "review_readback": ReviewReadbackArgs,
     "request_human_followup": RequestHumanFollowupArgs,
     "end_session": EndSessionArgs,
 }
@@ -111,6 +119,10 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "confirm_brief": "Resolve the pending brief read-back with the candidate's answer.",
     "reserve_interview": "The candidate said yes to the slot read-back: reserve that slot_id. "
     "Call it only after they answered.",
+    "review_readback": "The candidate answered a read-back they did not hear to the end "
+    "(pending_confirmation.heard is false): affirm when they want to go over it or say yes to "
+    "a part, skip when they want to carry on without going over it. The system speaks the "
+    "parts and confirms a skip for you.",
     "request_human_followup": "Save a request for a person to follow up, with the reason: "
     "the candidate's unanswered question, or their wish to talk to a person. Call it once the "
     "candidate accepts the offer; nobody real is notified in this demo.",

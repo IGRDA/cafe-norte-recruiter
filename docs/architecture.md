@@ -9,7 +9,7 @@ tested when each module lands. Numbers are the defaults in `.env.example`.
 | --- | --- |
 | `Model.stream(messages, tools, *, deadline)` (`model`) | Async stream of `ModelText`, fully assembled `ToolCall`s, optional `ModelUsage`, one `ModelFinished`; malformed or late output raises `ModelError` with a stable code; provider-side tools never enabled |
 | `ConversationRuntime.run_turn(TurnInput)` (`conversation`) | Async generator of `RuntimeEvent`; serialized per session; requires the current lease generation; persists before `StateUpdated`; closing it cancels work and marks the turn interrupted; duplicate `input_id` → `TurnFailed(conflict)` |
-| `ToolRegistry.dispatch(ToolCall, ToolContext)` | Allowlist of nine names; arguments validated against the Pydantic model; one repair per turn; context injected by the server |
+| `ToolRegistry.dispatch(ToolCall, ToolContext)` | Allowlist of ten names; arguments validated against the Pydantic model; one repair per turn; context injected by the server |
 | `Retriever.retrieve(RetrievalQuery)` (`knowledge`) | Filters by `config_id`, `kb_version` and optional `doc_ids` before ranking; BM25 + dense fused by RRF among allowed chunks; at most three; may return none |
 | `Store` (`persistence`) | Repositories with conditional updates on revision, unique `(session_id, input_id)`, row-locked slot reservation with idempotency key, leases with generations, admission counted in rows |
 | `VoiceSessionController` / `RoomProvisioner` (`voice`) | Start/stop one Pipecat task per session; private expiring rooms; no orphan on provisioning failure |

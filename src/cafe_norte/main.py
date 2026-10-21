@@ -40,6 +40,7 @@ from cafe_norte.observability.contracts import ProcessVersions
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION
 from cafe_norte.persistence.memory import MemoryStore
+from cafe_norte.persistence.postgres import PostgresStore
 from cafe_norte.persistence.seed import seed_calendar
 from cafe_norte.voice.contracts import (
     RoomProvisioner,
@@ -146,12 +147,10 @@ def _signals(env: Mapping[str, str]) -> SignalAnalyzer | None:
 
 
 def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
-    """Select adapters from ``env`` (default ``os.environ``) and call ``create_app``.
-
-    Persistence is the in-memory store until the Postgres adapter lands; ``CAFE_NORTE_DATABASE_URL``
-    is read by nothing yet."""
+    """Select adapters from ``env`` (default ``os.environ``) and call ``create_app``."""
     env = env if env is not None else os.environ
-    store = MemoryStore()
+    voice_mode = _voice_mode(env)
+    store = _store(env, voice_mode=voice_mode)
     configurations = load_configurations(Path(env.get("CAFE_NORTE_CONFIG_DIR", "config")))
     retriever, warm_up = _retriever(env, configurations)
     registry = ToolRegistry(
@@ -172,7 +171,6 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         ),
         owner=env.get("K_REVISION", "local"),
     )
-    voice_mode = _voice_mode(env)
     rooms: RoomProvisioner | None = None
     voice: VoiceSessionController | None = None
     if voice_mode == "pipecat":
@@ -198,6 +196,19 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         warm_up=warm_up,
         seed=True,
     )
+
+
+def _store(env: Mapping[str, str], *, voice_mode: VoiceMode) -> Store:
+    """Postgres when ``CAFE_NORTE_DATABASE_URL`` is set, the memory store otherwise, so
+    ``make run`` with no ``.env`` needs no Docker. Hosted voice on Postgres waits for the
+    admission rows of the next persistence stage: a per-process cap would be forgotten by a
+    restart, and refusing at startup is better than a cap that is not one."""
+    dsn = env.get("CAFE_NORTE_DATABASE_URL", "")
+    if not dsn:
+        return MemoryStore()
+    if voice_mode == "pipecat":
+        raise ValueError("CAFE_NORTE_VOICE=pipecat on Postgres needs the admission rows (PR2)")
+    return PostgresStore(dsn, pool_size=int(env.get("CAFE_NORTE_DB_POOL_SIZE", "5")))
 
 
 def _retriever(

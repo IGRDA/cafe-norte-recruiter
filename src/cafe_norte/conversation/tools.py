@@ -95,7 +95,8 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "or do not know. Patch values are plain strings, numbers, dates or lists, never objects. "
     "Never guess a value.",
     "search_knowledge": "Look up facts about the role, the store, pay, shifts, training, "
-    "uniform, benefits, the interview or the company before answering a question about them. "
+    "uniform, benefits, the interview or the company. Call it for every such question, in "
+    "the same turn, even if you think you know the answer; never state these facts without it. "
     "`question` is what the candidate said; `query` is one self-contained question in Spanish "
     "with the key words; `topic` narrows the documents.",
     "list_interview_slots": "Get two or three available interview slots for this store.",

@@ -1765,3 +1765,38 @@ async def test_a_tool_whose_call_changed_nothing_is_offered_again_only_next_turn
     await h.run("Sí.", "in-2")
     offered = [{tool.name for tool in tools} for tools in h.model.advertised_tools]
     assert ["update_candidate" in names for names in offered] == [True, True, False, True]
+
+
+# ---- tool arguments in the journal (KI-06, D44) --------------------------------------------------
+
+
+async def test_a_tool_call_is_journaled_with_its_arguments_redacted() -> None:
+    call = ToolCall(
+        call_id="p1",
+        name="update_candidate",
+        arguments_json=json.dumps(
+            {"patch": {"phone": "612 345 678"}, "evidence_text": "Mi móvil es 612 345 678"}
+        ),
+    )
+    h = Harness([[call, WANTS_TOOLS], says("")])
+    await h.open_session()
+    await h.run("Mi móvil es 612 345 678")
+    started = [
+        json.loads(e.payload_json) for e in h.store.events.all(SESSION) if e.kind == "tool_started"
+    ]
+    assert started[0]["name"] == "update_candidate"
+    assert "[phone]" in started[0]["arguments"] and "612" not in started[0]["arguments"]
+    assert '"patch"' in started[0]["arguments"]
+
+
+async def test_the_runtimes_own_call_is_journaled_with_its_arguments() -> None:
+    h = with_date_read_back(says("Perfecto."))
+    await h.open_session()
+    await readback_pending(h)
+    events = await h.run("Sí.", "in-2")
+    started = [e for e in events if isinstance(e, ToolStarted)]
+    assert started[0].arguments == '{"answer": "affirm"}'
+
+
+def test_a_journaled_tool_start_from_before_arguments_still_reads() -> None:
+    assert ToolStarted.model_validate_json('{"type": "tool_started", "name": "x"}').arguments == ""

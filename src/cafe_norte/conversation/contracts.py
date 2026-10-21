@@ -74,6 +74,7 @@ class AssistantText(Frozen):
 class ToolStarted(Frozen):
     type: Literal["tool_started"] = "tool_started"
     name: str
+    arguments: str = ""  # the call's JSON, redacted then cut (D44); empty in older journals
 
 
 class ToolFinished(Frozen):

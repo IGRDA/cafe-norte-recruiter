@@ -117,7 +117,8 @@ the session never paused during the call; no model round timed out.
 - **Fixed (D41).** The runtime matches the answer against the offer
   (`domain/slot_choice.py`), reads one fitting slot back, keeps a shortlist and lets the model
   ask when several fit, offers again when none does, and books a yes that restates the slot.
-  `test_ki06_…` and scenario S20 replay the call. **Still open:** tool arguments in the journal.
+  `test_ki06_…` and scenario S20 replay the call. Tool arguments are journaled since D44
+  (`ToolStarted.arguments`, redacted), so the export and the reviewer panel show them.
 
 ## KI-07 · A hesitation splits the answer and the first part is lost silently
 

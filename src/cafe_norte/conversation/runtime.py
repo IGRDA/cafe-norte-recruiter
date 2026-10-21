@@ -90,6 +90,7 @@ from cafe_norte.observability.contracts import (
     Telemetry,
     UsageRecord,
 )
+from cafe_norte.observability.redaction import redact
 from cafe_norte.persistence.contracts import EventRecord, Lease, Store, TurnRecord
 
 
@@ -868,7 +869,9 @@ class Runtime:
     ) -> AsyncIterator[RuntimeEvent]:
         """One tool call through the registry: started, its events, anything it says, finished.
         The outcome is left on ``run.outcome`` for the caller."""
-        yield await self._emit(run, ToolStarted(name=call.name))
+        yield await self._emit(
+            run, ToolStarted(name=call.name, arguments=redact(call.arguments_json))
+        )
         started = time.monotonic()
         context = ToolContext(
             session_id=run.session_id,

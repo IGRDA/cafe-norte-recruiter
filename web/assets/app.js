@@ -293,7 +293,7 @@ function handle(event) {
       break;
     }
     case "tool_started":
-      review(`herramienta ${payload.name} → iniciada`, event.turn_id);
+      review(`herramienta ${payload.name}(${payload.arguments ?? ""}) → iniciada`, event.turn_id);
       break;
     case "tool_finished":
       review(`herramienta ${payload.name} → ${payload.ok ? "ok" : "rechazada"} (${payload.summary})`, event.turn_id);

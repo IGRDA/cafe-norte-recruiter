@@ -15,5 +15,5 @@ voice status; one POST per text turn.
 Rendered as text, never HTML. Interim STT text is provisional and styled as such. The reviewer
 panel is a collapsible block: the versions (configuration, model, prompt, knowledge base,
 schema, commit) from the create reply or the snapshot, then one collapsed entry per turn with
-its tool outcomes, retrieval excerpts, timings and usage; never hidden reasoning. The page has
+its tool calls with their redacted arguments (D44) and outcomes, retrieval excerpts, timings and usage; never hidden reasoning. The page has
 no inline script or style, which is what the CSP of D38 relies on.

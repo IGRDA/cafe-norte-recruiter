@@ -94,7 +94,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Database connection checkout wait | 5 s, then `busy` |
 | Trace flush at shutdown | 5 s, in a thread (D36) |
 | Trace export | queue of 2 048 spans, a batch every 2 s, one request at most 5 s; spans beyond the queue are dropped |
-| Free text in a log line or a trace | redacted, then cut at 2 000 characters per value |
+| Free text in a log line, a trace or a tool's arguments in the journal | redacted, then cut at 2 000 characters per value (D36, D44) |
 | A generation's input in a trace | the newest messages within 1 800 characters, the newest always kept; only with content on |
 | Price table | one price per kind and model, with its source page; re-verified before each release, version recorded in every cost |
 | Event stream poll interval | 200 ms (Postgres; the memory store wakes on commit) |

@@ -63,7 +63,7 @@ def all_handlers(
         ),
         "confirm_field": ConfirmFieldHandler(store=store),
         "confirm_brief": ConfirmBriefHandler(store=store),
-        "end_session": EndSessionHandler(store=store),
+        "end_session": EndSessionHandler(store=store, configurations=configurations),
     }
 
 
@@ -348,7 +348,9 @@ class ConfirmBriefHandler(_ConfirmHandler):
 
 
 class EndSessionHandler(_Handler):
-    """``end_session``: the lifecycle table decides; the outcome follows from the state."""
+    """``end_session``: the lifecycle table decides; the outcome follows from the state.
+    ``candidate_done`` with an unconfirmed brief does not refuse and hang: it reads the brief
+    again, so the candidate's next "sí" closes it properly."""
 
     EVENTS: dict[str, LifecycleEvent] = {
         "candidate_done": "complete",
@@ -357,16 +359,26 @@ class EndSessionHandler(_Handler):
         "limit": "abandon",
     }
 
+    def __init__(self, *, store: Store, configurations: Mapping[ConfigId, StoreConfiguration]):
+        super().__init__(store=store)
+        self._present = PresentConfirmationHandler(store=store, configurations=configurations)
+
     async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
         assert isinstance(arguments, EndSessionArgs)
         state = await self._state(context)
         if state is None:
             return self._refuse("not_found", "Session not found.")
         if arguments.reason == "candidate_done" and not _brief_confirmed(state):
-            return self._refuse(
-                "brief_not_confirmed",
-                "The brief is not confirmed at the current revision; "
-                "call present_confirmation(target=brief) and wait for the answer.",
+            presented = await self._present(context, PresentConfirmationArgs(target="brief"))
+            if not presented.ok:
+                return presented  # fields still missing, or a read-back awaiting its answer
+            return ToolOutcome(
+                ok=False,
+                model_text="Not ended: the brief was not confirmed, so it was read back again. "
+                "Reply with nothing and wait for the answer.",
+                summary="brief_re_presented",
+                events=presented.events,
+                spoken=presented.spoken,
             )
         result = transition(state, self.EVENTS[arguments.reason])
         if isinstance(result, Err):

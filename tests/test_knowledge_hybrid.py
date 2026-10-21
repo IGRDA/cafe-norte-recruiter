@@ -38,6 +38,7 @@ async def test_both_rankers_contribute_and_results_come_best_first(index: Index)
     found = await retriever.retrieve(query("cuántas horas a la semana"))
     assert found[0].chunk.chunk_id == "offer_chamberi#horas"
     assert found[0].bm25_rank == 1 and found[0].dense_rank is not None
+    assert found[0].bm25_score > 0 and found[0].dense_score is not None
     assert [r.fused_score for r in found] == sorted((r.fused_score for r in found), reverse=True)
     assert len(found) <= 3
 
@@ -53,8 +54,19 @@ async def test_lexical_only_mode_has_no_dense_rank_and_rejects_a_bad_pairing(ind
     lexical = Index(manifest=index.manifest, chunks=index.chunks, vectors=None)
     found = await HybridRetriever(lexical, None).retrieve(query("uniforme delantal"))
     assert found[0].chunk.doc_id == "uniform" and found[0].dense_rank is None
+    assert found[0].dense_score is None and found[0].bm25_score > 0
     with pytest.raises(ValueError):
         HybridRetriever(lexical, FakeEmbedder())
+
+
+async def test_a_chunk_with_no_query_word_needs_a_cosine_above_the_floor(index: Index) -> None:
+    # "xyzzy" shares no token with any chunk; fake vectors then decide, and the floor applies.
+    permissive = HybridRetriever(index, FakeEmbedder(), dense_floor=-1.0)
+    strict = HybridRetriever(index, FakeEmbedder(), dense_floor=1.01)
+    assert await permissive.retrieve(query("xyzzy"))
+    assert await strict.retrieve(query("xyzzy")) == ()
+    # A lexical hit survives any floor.
+    assert (await strict.retrieve(query("uniforme delantal")))[0].chunk.doc_id == "uniform"
 
 
 async def test_nothing_matches_means_nothing_returned(index: Index) -> None:

@@ -98,6 +98,8 @@ class RetrievalRun(Frozen):
     kind: Literal["answerable", "unsupported", "leakage"]
     returned: tuple[str, ...]  # chunk ids, best first
     fused_scores: tuple[float, ...]
+    bm25_scores: tuple[float, ...] = ()
+    dense_scores: tuple[float | None, ...] = ()
     hit: bool | None  # answerable: an expected section is among the returned chunks
     leaked: bool  # any returned chunk outside the configuration's documents
     milliseconds: int

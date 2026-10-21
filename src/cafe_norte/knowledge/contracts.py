@@ -86,9 +86,11 @@ class RetrievalQuery(Frozen):
 
 class RetrievedChunk(Frozen):
     chunk: Chunk
-    fused_score: float
+    fused_score: float  # reciprocal rank fusion; comparable within one query only
     bm25_rank: int | None
     dense_rank: int | None
+    bm25_score: float = 0.0  # raw Okapi score; 0 when no query term occurs
+    dense_score: float | None = None  # cosine; None without an embedder
 
 
 class Embedder(Protocol):

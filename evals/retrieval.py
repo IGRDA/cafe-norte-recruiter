@@ -48,6 +48,10 @@ async def run_retrieval(
                 kind=case.kind,
                 returned=returned,
                 fused_scores=tuple(round(r.fused_score, 5) for r in found),
+                bm25_scores=tuple(round(r.bm25_score, 3) for r in found),
+                dense_scores=tuple(
+                    None if r.dense_score is None else round(r.dense_score, 3) for r in found
+                ),
                 hit=any(s in returned for s in case.expected_sections)
                 if case.kind == "answerable"
                 else None,

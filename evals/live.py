@@ -7,10 +7,12 @@ fake replay builds, so the scorers do not know which mode produced a result."""
 
 import asyncio
 import time
-from collections.abc import AsyncGenerator, Callable
-from contextlib import aclosing
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Sequence
+from contextlib import aclosing, asynccontextmanager
 
 import httpx
+import uvicorn
+from fastapi import FastAPI
 
 from cafe_norte.api.contracts import (
     CreateSessionRequest,
@@ -24,11 +26,13 @@ from cafe_norte.conversation.contracts import AssistantText
 from cafe_norte.domain.contracts import ConfigId, InputId, SessionId
 from cafe_norte.errors import Language
 from cafe_norte.persistence.export import ExportDocument
-from evals.contracts import Finished, TurnObservation
+from evals.contracts import Candidate, Conversation, Finished, Transcript, TurnObservation
 from evals.observation import fold, session_result
 
 TURN_TIMEOUT_SECONDS = 90.0  # a turn with no end after this is reported, not awaited
 RECONNECT_SECONDS = 0.05  # pause before resuming a stream that closed mid-turn
+MAX_LIVE_TURNS = 24  # candidate lines per live run; a run that reaches it is reported as such
+SERVER_START_SECONDS = 30.0  # loopback server: time to bind and finish its lifespan start
 
 
 class LiveError(Exception):
@@ -73,7 +77,7 @@ class HttpConversation:
         request = CreateSessionRequest(
             config_id=self._config_id, language=self._language, channel="text"
         )
-        response = await self._client.post("/api/sessions", content=request.model_dump_json())
+        response = await self._client.post("/api/sessions", json=request.model_dump(mode="json"))
         created = CreateSessionResponse.model_validate_json(self._ok(response).content)
         self._session_id = created.session_id
         return await self._read_turn(self._clock())
@@ -82,7 +86,7 @@ class HttpConversation:
         number = len(self._observations)
         request = TurnRequest(input_id=InputId(f"{self._session_id}-in-{number}"), text=text)
         posted_at = self._clock()
-        self._ok(await self._client.post(self._path("turns"), content=request.model_dump_json()))
+        self._ok(await self._client.post(self._path("turns"), json=request.model_dump(mode="json")))
         return await self._read_turn(posted_at)
 
     async def finish(self) -> Finished:
@@ -161,3 +165,59 @@ class HttpConversation:
                 f"{response.request.method} {response.request.url.path}: {response.status_code}"
             )
         return response
+
+
+class ScriptedCandidate:
+    """The scenario's lines in order, whatever Ana says."""
+
+    def __init__(self, lines: Sequence[str]) -> None:
+        self._lines = tuple(lines)
+
+    async def next_line(self, transcript: Transcript) -> str | None:
+        said = sum(1 for speaker, _ in transcript if speaker == "candidate")
+        return self._lines[said] if said < len(self._lines) else None
+
+
+async def drive(conversation: Conversation, candidate: Candidate, *, max_turns: int) -> Finished:
+    """Ana opens; the candidate answers until it has nothing to say, the session leaves
+    ``active``, or ``max_turns`` lines were said. Then the session is ended and read back."""
+    opening = await conversation.start()
+    transcript: Transcript = tuple(("ana", text) for text in opening.spoken)
+    lifecycle = opening.lifecycle or "active"
+    for _ in range(max_turns):
+        if lifecycle != "active":
+            break
+        line = await candidate.next_line(transcript)
+        if line is None:
+            break
+        observation = await conversation.say(line)
+        transcript = (
+            *transcript,
+            ("candidate", line),
+            *(("ana", text) for text in observation.spoken),
+        )
+        lifecycle = observation.lifecycle or lifecycle
+    return await conversation.finish()
+
+
+@asynccontextmanager
+async def serve(app: FastAPI) -> AsyncIterator[str]:
+    """Serve ``app`` on 127.0.0.1 with a free port for the duration; yields the base URL. The
+    comparison starts one per model, so the model is whatever the app was built with."""
+    server = uvicorn.Server(
+        uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning", lifespan="on")
+    )
+    server.config.timeout_graceful_shutdown = 2
+    task = asyncio.create_task(server.serve())
+    try:
+        async with asyncio.timeout(SERVER_START_SECONDS):
+            while not server.started:
+                if task.done():
+                    task.result()  # raises what stopped it
+                    raise LiveError("the loopback server stopped before it started")
+                await asyncio.sleep(0.01)
+        (socket,) = server.servers[0].sockets
+        yield f"http://127.0.0.1:{socket.getsockname()[1]}"
+    finally:
+        server.should_exit = True
+        await task

@@ -70,6 +70,8 @@ class ScriptedServer:
 
     async def handle(self, request: httpx.Request) -> httpx.Response:
         path, method = request.url.path, request.method
+        if request.content and request.headers.get("content-type") != "application/json":
+            return httpx.Response(422)  # FastAPI parses a body only when it is declared JSON
         if path == "/api/access":
             ok = json.loads(request.content)["code"] == self.access_code
             return httpx.Response(204 if ok else 401, json=None if ok else {"code": "x"})

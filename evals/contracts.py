@@ -218,5 +218,16 @@ class Conversation(Protocol):
     async def finish(self) -> Finished: ...
 
 
+Speaker = Literal["ana", "candidate"]
+Transcript = tuple[tuple[Speaker, str], ...]  # what was said aloud, in order
+
+
+class Candidate(Protocol):
+    """Who speaks for the candidate in a live run: the next line given everything said so far,
+    or ``None`` when the candidate has nothing more to say."""
+
+    async def next_line(self, transcript: Transcript) -> str | None: ...
+
+
 class CandidateSimulator(Protocol):
-    async def reply(self, persona: Persona, transcript: tuple[tuple[str, str], ...]) -> str: ...
+    async def reply(self, persona: Persona, transcript: Transcript) -> str: ...

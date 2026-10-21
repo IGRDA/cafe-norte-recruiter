@@ -442,6 +442,7 @@ class MemoryStore:
         self.summary_jobs = SummaryJobsLater()
         self.resume_tokens = MemoryResumeTokens()
         self.exports = MemoryExports()
+        self._maintaining = False
         self.sessions.cascade = [
             self.turns.forget,
             self.events.forget,
@@ -476,6 +477,20 @@ class MemoryStore:
 
     async def check_ready(self) -> bool:
         return True
+
+    def maintenance(self) -> AbstractAsyncContextManager[bool]:
+        return self._maintenance()
+
+    @asynccontextmanager
+    async def _maintenance(self) -> AsyncIterator[bool]:
+        if self._maintaining:
+            yield False
+            return
+        self._maintaining = True
+        try:
+            yield True
+        finally:
+            self._maintaining = False
 
     async def snapshot(
         self, session_id: SessionId, *, versions: VersionStamp, taken_at: datetime

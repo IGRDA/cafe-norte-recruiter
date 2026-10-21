@@ -4,6 +4,7 @@ Defaults are fakes: ``make run`` with no ``.env`` serves the page with a scripte
 in-memory store, a canned retriever and voice off. Nothing else in the package reads
 ``os.environ``."""
 
+import asyncio
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
@@ -41,6 +42,7 @@ from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, persist_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.postgres import PostgresStore
+from cafe_norte.persistence.retention import purge_periodically
 from cafe_norte.persistence.seed import seed_calendar
 from cafe_norte.voice.contracts import (
     RoomProvisioner,
@@ -80,6 +82,8 @@ def create_app(
     session_seconds: float = 480.0,
     warm_up: Callable[[], Awaitable[None]] | None = None,
     seed: bool = False,
+    retention_days: int | None = None,
+    retention_interval_seconds: float = 3600.0,
 ) -> FastAPI:
     """Build from typed collaborators. Lifespan: open the store (migrations), seed the
     simulated calendar when ``seed`` is set, ``warm_up`` (the embedding model) before the first
@@ -94,7 +98,16 @@ def create_app(
             await seed_calendar(store, configurations, now=datetime.now(UTC))
         if warm_up is not None:
             await warm_up()
+        purge: asyncio.Task[None] | None = None
+        if retention_days is not None:
+            purge = asyncio.create_task(
+                purge_periodically(
+                    store, days=retention_days, interval_seconds=retention_interval_seconds
+                )
+            )
         yield
+        if purge is not None:
+            purge.cancel()
         await tasks.shutdown()
         await store.close()
 
@@ -197,6 +210,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         session_seconds=float(env.get("CAFE_NORTE_SESSION_SECONDS", "480")),
         warm_up=warm_up,
         seed=True,
+        retention_days=int(env.get("CAFE_NORTE_RETENTION_DAYS", "7")),
     )
 
 

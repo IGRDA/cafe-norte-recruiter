@@ -467,3 +467,15 @@ def slot_confirmation() -> Confirmation:
         fully_delivered=True,
         status="confirmed",
     )
+
+
+# ---- maintenance lock ----------------------------------------------------------------------------
+
+
+async def test_the_maintenance_lock_is_held_by_one_holder_at_a_time(store: Store) -> None:
+    async with store.maintenance() as first:
+        assert first is True
+        async with store.maintenance() as second:
+            assert second is False
+    async with store.maintenance() as again:
+        assert again is True

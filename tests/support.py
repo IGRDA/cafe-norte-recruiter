@@ -25,6 +25,7 @@ def build_test_app(
     voice_mode: VoiceMode = "off",
     rooms: RoomProvisioner | None = None,
     voice: VoiceSessionController | None = None,
+    access_code: str | None = None,
 ) -> FastAPI:
     store = MemoryStore()
     configurations = load_configurations(CONFIG_DIR)
@@ -43,7 +44,7 @@ def build_test_app(
         runtime=runtime,
         store=store,
         configurations=configurations,
-        gate=AccessGate(code=None, secret=b"test-secret"),
+        gate=AccessGate(code=access_code, secret=b"test-secret"),
         web_dir=ROOT / "web",
         voice_mode=voice_mode,
         rooms=rooms,

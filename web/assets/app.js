@@ -21,6 +21,8 @@ const el = {
   transcript: document.getElementById("transcript"),
   interim: document.getElementById("interim"),
   composer: document.getElementById("composer"),
+  access: document.getElementById("access"),
+  code: document.getElementById("code"),
   text: document.getElementById("text"),
   send: document.getElementById("send"),
   talk: document.getElementById("talk"),
@@ -65,15 +67,28 @@ async function main() {
   state.voiceMode = runtime.voice;
   if (runtime.voice === "off") el.talk.hidden = true;
   else voice = buildVoice(runtime.voice);
+  await openSession();
+}
+
+// A shared demo code guards the hosted page; the server says whether one is needed. A 401 on
+// session creation shows the code box; a valid code sets a cookie and we try again.
+async function openSession() {
   const response = await fetch("/api/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ config_id: CONFIG_ID, language: "es", channel: "text" }),
   });
+  if (response.status === 401) {
+    el.access.hidden = false;
+    setStatus("Introduce el código de acceso de la demostración.");
+    el.code.focus();
+    return;
+  }
   if (!response.ok) {
     showError("No se pudo crear la conversación. Recarga la página.");
     return;
   }
+  el.access.hidden = true;
   const body = await response.json();
   state.sessionId = body.session_id;
   renderCandidate();
@@ -305,6 +320,21 @@ function hideError() {
 }
 
 // ---- wiring ------------------------------------------------------------------------------------
+
+el.access.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const response = await fetch("/api/access", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: el.code.value.trim() }),
+  });
+  if (response.status === 204) {
+    hideError();
+    await openSession();
+  } else {
+    showError("Código incorrecto.");
+  }
+});
 
 el.composer.addEventListener("submit", (event) => {
   event.preventDefault();

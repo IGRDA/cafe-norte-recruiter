@@ -33,6 +33,9 @@ h2 { font-size: 0.95rem; margin: 16px 0 8px; color: var(--muted); text-transform
 .composer button { padding: 10px 14px; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; font-size: 1rem; cursor: pointer; }
 .composer button[aria-pressed="true"] { background: #fff; color: var(--accent); }
 .composer button:disabled { opacity: 0.6; cursor: not-allowed; }
+.access { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
+.access input { padding: 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 1rem; }
+.access button { padding: 8px 12px; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; cursor: pointer; }
 .confirmation { margin: 0; padding: 8px; border: 1px dashed var(--line); border-radius: 6px; font-size: 0.9rem; }
 .confirmation[data-status="pending"] { border-color: var(--accent); }
 .confirmation[data-status="confirmed"] { border-style: solid; }

@@ -10,8 +10,9 @@ from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import StreamingResponse
 
 from cafe_norte.api import events as sse
-from cafe_norte.api.access import SESSION_COOKIE, AccessGate
+from cafe_norte.api.access import ACCESS_COOKIE, SESSION_COOKIE, AccessGate
 from cafe_norte.api.contracts import (
+    AccessRequest,
     ConfigurationSummary,
     CreateSessionRequest,
     CreateSessionResponse,
@@ -89,7 +90,26 @@ def build_router(
 
     @router.get("/api/runtime")
     async def runtime_info() -> RuntimeInfo:
-        return RuntimeInfo(voice=voice_mode, config_ids=tuple(configurations))
+        return RuntimeInfo(
+            voice=voice_mode,
+            config_ids=tuple(configurations),
+            access_required=gate.requires_code,
+        )
+
+    @router.post("/api/access", status_code=status.HTTP_204_NO_CONTENT)
+    async def access(body: AccessRequest, response: Response) -> Response:
+        """The shared demo code opens session creation for this browser."""
+        if not gate.check_code(body.code):
+            raise ServiceError("wrong access code", code="unauthorized")
+        response = Response(status_code=status.HTTP_204_NO_CONTENT)
+        response.set_cookie(
+            ACCESS_COOKIE,
+            gate.issue_access_cookie(),
+            httponly=True,
+            samesite="lax",
+            path="/api",
+        )
+        return response
 
     @router.post("/api/sessions/{session_id}/voice")
     async def start_voice(session_id: str, request: Request) -> VoiceStartResponse:
@@ -151,8 +171,10 @@ def build_router(
 
     @router.post("/api/sessions", status_code=status.HTTP_201_CREATED)
     async def create_session(
-        body: CreateSessionRequest, response: Response
+        body: CreateSessionRequest, request: Request, response: Response
     ) -> CreateSessionResponse:
+        if not gate.access_cookie_valid(request.cookies.get(ACCESS_COOKIE)):
+            raise ServiceError("access code required", code="unauthorized")
         configuration = configurations.get(body.config_id)
         if configuration is None:
             raise ServiceError("unknown configuration", code="not_found")

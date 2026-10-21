@@ -173,6 +173,7 @@ class _Turn:
     timings: list[StageTiming] = field(default_factory=list)
     asked: bool = False  # a question has been spoken; the turn says nothing more
     repairs: int = 0  # malformed tool calls this turn; the budget is ``Limits.max_repairs``
+    round_idle: bool = False  # every call of the latest model round changed nothing (D44)
     previous_end: datetime | None = None  # when Ana last finished, for the gap before this turn
     recorded: bool = False  # the user turn is stored, so an interruption has a turn to close
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
@@ -599,6 +600,9 @@ class Runtime:
                         raise ServiceError("tool rounds exhausted", code="limit_exceeded")
                     async for event in self._tool_calls(run, step):
                         yield event
+                    if _nothing_left_to_do(run):
+                        step.annotate(idle=True)
+                        break
 
         run.time("llm_total", run.started)
         with run.trace.child("write-assistant-turn"):
@@ -837,9 +841,11 @@ class Runtime:
 
     async def _tool_calls(self, run: _Turn, step: Span) -> AsyncIterator[RuntimeEvent]:
         """Dispatch every call of the round in order; each result becomes a tool message."""
+        run.round_idle = True
         for call in run.calls:
             async for event in self._run_tool(run, call, step):
                 yield event
+            run.round_idle = run.round_idle and run.outcome.idle
             if run.outcome.malformed:
                 run.repairs += 1
                 if run.repairs > self._limits.max_repairs:
@@ -1118,6 +1124,13 @@ def _heard_read_back_of(run: _Turn, slot_id: SlotId) -> bool:
         and pending.fully_delivered
         and pending.presented_turn_id != run.turn_id
     )
+
+
+def _nothing_left_to_do(run: _Turn) -> bool:
+    """The question of the turn has been said and the round only repeated what was done or
+    answered for the candidate: nothing more can be voiced, so another round is only latency
+    (KI-08, D44)."""
+    return run.asked and run.round_idle
 
 
 def _opening(state: SessionState) -> list[str]:

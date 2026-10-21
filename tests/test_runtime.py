@@ -1723,3 +1723,29 @@ async def test_a_question_after_the_offer_is_answered_by_the_model() -> None:
     assert tools_started(events) == []
     said = [e.text for e in events if isinstance(e, AssistantText)]
     assert said == ["Unos treinta minutos.", "¿Qué hueco prefieres?"]
+
+
+# ---- rounds that change nothing (KI-08, D44) -----------------------------------------------------
+
+
+async def test_an_idle_round_before_anything_was_said_still_lets_the_model_answer() -> None:
+    h = Harness(
+        [
+            [name_call(), WANTS_TOOLS],
+            says(""),
+            [name_call("c2"), WANTS_TOOLS],
+            says("¿Tienes permiso?"),
+        ]
+    )
+    await h.open_session()
+    await h.run("Soy Lucía.", "in-1")
+    events = await h.run("Lucía, ya te lo dije.", "in-2")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == ["¿Tienes permiso?"]
+    assert len(h.model.calls) == 4
+
+
+async def test_a_round_that_saved_something_after_the_question_goes_on() -> None:
+    h = Harness([[ModelText(text="¿Tienes permiso?"), name_call(), WANTS_TOOLS], says("")])
+    await h.open_session()
+    await h.run("Soy Lucía.")
+    assert len(h.model.calls) == 2

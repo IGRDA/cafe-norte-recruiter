@@ -196,7 +196,6 @@ async def test_ki08_a_save_that_changed_nothing_is_not_repeated_before_ana_speak
     assert len(model.calls) == 3  # the save, its unchanged repeat, the answer
 
 
-@pytest.mark.xfail(strict=True, reason="KI-08: a same-turn confirm costs one more round")
 async def test_ki08_a_confirm_in_the_turn_of_the_read_back_ends_the_turn() -> None:
     """Live: ``confirm_field`` in the very turn that read the date back (``same_turn``, seq
     62). The read-back already asked its question, so nothing more can be said: the round

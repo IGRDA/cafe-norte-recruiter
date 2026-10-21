@@ -98,6 +98,15 @@ def slot_readback(
     )
 
 
+def review_check(language: Language) -> str:
+    """The short check said after each part of a read-back that is gone over (D39)."""
+    return _texts(language)["review.check"]
+
+
+def brief_intro(language: Language) -> str:
+    return _texts(language)["intro"]
+
+
 def slot_time(
     starts_at_utc: datetime, configuration: StoreConfiguration, language: Language
 ) -> str:

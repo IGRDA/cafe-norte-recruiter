@@ -575,6 +575,36 @@
           "title": "Fully Delivered",
           "type": "boolean"
         },
+        "review": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "in_parts": "#/$defs/ReviewInParts",
+                  "offered": "#/$defs/ReviewOffered",
+                  "waived": "#/$defs/ReviewWaived"
+                },
+                "propertyName": "stage"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/ReviewOffered"
+                },
+                {
+                  "$ref": "#/$defs/ReviewInParts"
+                },
+                {
+                  "$ref": "#/$defs/ReviewWaived"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review"
+        },
         "response_turn_id": {
           "anyOf": [
             {
@@ -1021,6 +1051,79 @@
         "note"
       ],
       "title": "ReviewFlag",
+      "type": "object"
+    },
+    "ReviewInParts": {
+      "additionalProperties": false,
+      "description": "Being gone over in short parts; ``part`` is the one said last (0-based).",
+      "properties": {
+        "stage": {
+          "const": "in_parts",
+          "default": "in_parts",
+          "title": "Stage",
+          "type": "string"
+        },
+        "part": {
+          "title": "Part",
+          "type": "integer"
+        },
+        "parts": {
+          "title": "Parts",
+          "type": "integer"
+        },
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "part",
+        "parts",
+        "turn_id"
+      ],
+      "title": "ReviewInParts",
+      "type": "object"
+    },
+    "ReviewOffered": {
+      "additionalProperties": false,
+      "description": "The read-back was cut and Ana offered to go over it; the candidate has not chosen yet.",
+      "properties": {
+        "stage": {
+          "const": "offered",
+          "default": "offered",
+          "title": "Stage",
+          "type": "string"
+        },
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id"
+      ],
+      "title": "ReviewOffered",
+      "type": "object"
+    },
+    "ReviewWaived": {
+      "additionalProperties": false,
+      "description": "The candidate chose to carry on without going over it: an informed skip.",
+      "properties": {
+        "stage": {
+          "const": "waived",
+          "default": "waived",
+          "title": "Stage",
+          "type": "string"
+        },
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id"
+      ],
+      "title": "ReviewWaived",
       "type": "object"
     },
     "SessionExport": {

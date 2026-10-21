@@ -242,10 +242,80 @@ def test_only_the_previous_turns_soft_sentiment_reaches_the_next_prompt() -> Non
         "Yes.",
         "That's right",
         "Yes, correct.",
+        # KI-01: everyday ways of saying it is all right, in any order
+        "Sí, está todo bien.",
+        "Está todo bien.",
+        "Está todo bien. Todo correcto.",
+        "Todo bien",
+        "Todo está bien, perfecto.",
+        "Bien, todo correcto, sí.",
+        "Está bien, vale.",
+        "Todo perfecto.",
+        "Sí, eso es, todo bien.",
+        "Yes, all good.",
+        "All right, that's fine.",
+        "Good, all correct.",
+        "Yeah, that is right.",
     ],
 )
 def test_a_plain_yes_is_an_affirmation(text: str) -> None:
     assert answer_to_readback(text) == "affirm"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sigue.",
+        "Sigue, sigue.",
+        "Seguimos.",
+        "Sí, seguimos.",
+        "Vale, sigamos.",
+        "Continúa.",
+        "Adelante.",
+        "No hace falta.",
+        "No hace falta, sigue.",
+        "Mhmm, sigue adelante.",
+        "Carry on.",
+        "Yes, carry on.",
+        "Go on.",
+        "Let's move on.",
+        "Keep going.",
+        "No need.",
+        "Skip it.",
+    ],
+)
+def test_an_explicit_carry_on_is_a_skip(text: str) -> None:
+    assert answer_to_readback(text) == "skip"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sigue, pero el teléfono es otro",  # a correction rides along: the model handles it
+        "Sigue. ¿Dónde está la tienda?",
+        "No sigas",
+        "No, sigue.",  # a bare no rides with nothing: the model reads it
+        "No es correcto. Sigue.",  # a correction is never a skip
+        "No está bien, sigue",
+        "No hace falta que lo repitas, el teléfono es otro",
+        "Carry on, but the date is wrong",
+    ],
+)
+def test_a_carry_on_with_something_more_goes_to_the_model(text: str) -> None:
+    assert answer_to_readback(text) is None
+
+
+@pytest.mark.parametrize("text", ["Todo.", "Está.", "Eso.", "Así.", "All.", "Es lo."])
+def test_a_yes_made_only_of_weak_words_needs_a_core_yes_word(text: str) -> None:
+    assert answer_to_readback(text) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["No está todo bien", "Todo bien, no", "No, todo mal", "Not all good", "Todo bien pero no"],
+)
+def test_a_negation_is_never_a_yes(text: str) -> None:
+    assert answer_to_readback(text) != "affirm"
 
 
 @pytest.mark.parametrize(

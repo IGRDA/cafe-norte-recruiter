@@ -14,10 +14,12 @@ from pipecat.frames.frames import (  # noqa: E402
     TTSSpeakFrame,
     TTSStoppedFrame,
 )
+from pipecat.pipeline.pipeline import Pipeline  # noqa: E402
 from pipecat.processors.aggregators.llm_context import LLMContext  # noqa: E402
 from pipecat.tests.utils import run_test  # noqa: E402
 
-from cafe_norte.voice.bridge import InboundBridge, PlaybackTap  # noqa: E402
+from cafe_norte.voice.bridge import InboundBridge, PlaybackTap, SpeechTap  # noqa: E402
+from cafe_norte.voice.pipeline import user_side  # noqa: E402
 
 
 class SessionSpy:
@@ -55,19 +57,20 @@ async def test_inbound_takes_the_aggregated_user_message_as_the_turn() -> None:
         user_turn(("assistant", "¿Y tu nombre?")),  # no user message: not a turn
     ]
     await run_test(bridge, frames_to_send=frames, expected_down_frames=[])
-    assert [c for c in spy.calls if c != "heard"] == [
-        "transcript:me llamo Lucía Marín",
-        "transcript:sí me interesa",
-    ]
+    assert spy.calls == ["transcript:me llamo Lucía Marín", "transcript:sí me interesa"]
 
 
-async def test_any_raw_transcript_tells_the_session_speech_was_heard() -> None:
+async def test_any_raw_transcript_tells_the_session_speech_was_heard_and_passes_on() -> None:
     spy = SessionSpy()
     frames = [
         InterimTranscriptionFrame(text="s", user_id="u", timestamp="0"),
         TranscriptionFrame(text="sí", user_id="u", timestamp="1"),
     ]
-    await run_test(InboundBridge(spy), frames_to_send=frames, expected_down_frames=[])
+    await run_test(
+        SpeechTap(spy),
+        frames_to_send=frames,
+        expected_down_frames=[InterimTranscriptionFrame, TranscriptionFrame],
+    )
     assert spy.calls == ["heard", "heard"]
 
 
@@ -108,3 +111,17 @@ async def test_the_playback_tap_counts_finished_sentences() -> None:
         expected_down_frames=[TTSStoppedFrame, TTSStoppedFrame],
     )
     assert spy.calls == ["played_one", "played_one"]
+
+
+async def test_transcripts_reach_the_session_through_the_real_user_aggregator() -> None:
+    """KI-03. Pipecat's aggregator consumes every transcript frame, so a tap after it never
+    sees one; the session must hear them from the production assembly, not from frames sent
+    straight to the bridge."""
+    spy = SessionSpy()
+    frames = [
+        InterimTranscriptionFrame(text="s", user_id="u", timestamp="0"),
+        TranscriptionFrame(text="sí", user_id="u", timestamp="1"),
+    ]
+    await run_test(Pipeline(user_side(spy, None)), frames_to_send=frames)
+    assert spy.calls.count("heard") == 2
+    assert "interrupted" in spy.calls  # the aggregator's turn start still reaches the session

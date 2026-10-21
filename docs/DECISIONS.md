@@ -1015,3 +1015,128 @@ endpoint and a hardened boundary.
 the voice has not finished saying counts as read. The browser speech mode (D22) stays until a
 follow-up removes it. `ui.<lang>.md` is new candidate-facing text; `PROMPT_VERSION` is unchanged
 because the model never sees it.
+
+---
+
+---
+
+## D40 · What Ana says is timed by what the candidate can hear
+
+_Added 21 October 2026, after the second hosted voice call (KI-03, KI-04, KI-05)._
+
+**Context.** "¿Sigues ahí?" was said while the candidate was speaking, twice after a failed
+turn, and the apology and the prompt were journaled at once and queued behind a summary still
+playing. Pipecat's user aggregator consumes every transcript frame, so the D35 transcript hook
+behind it never fired; the failure path and the playback acknowledgement each armed the clock;
+the apology did not wait for the audio already sent to TTS.
+
+**Decisions.**
+- Every sentence Ana says, from the model or fixed (opening, filler, apology, silence prompt),
+  goes through one `VoiceSession._voice` into the delivery ledger. The ledger is the audio
+  queue: what was sent and what has played.
+- A system sentence never jumps that queue. A failed turn's queued sentences play to the end;
+  then the turn is acknowledged with what was heard (its summary may be a read-back), the
+  apology is journaled and spoken, and only after it has played does Ana listen.
+  One place decides this, `_drained`, which runs whenever playback empties and when a turn ends.
+- Silence is audible silence: the filler (1.5 s, while a tool runs) and the silence prompt
+  (8 s) share `_after_silence`, which counts only once the queue has played and restarts if
+  anything is said meanwhile.
+- One silence prompt per candidate turn: the allowance resets when the candidate's words become
+  a turn, never on a timer or on Ana's own playback. Listening starts in one place, `_drained`,
+  and is a status, not a second flag. Speech evidence (the aggregator's interruption, by VAD or
+  transcript, and any raw transcript) restarts the countdown; a cough with no turn still gets
+  its one prompt later; speech after the prompt does not earn another.
+- Raw transcripts are seen by `SpeechTap`, between STT and the aggregator. `user_side` builds
+  tap, aggregator and bridge in order for the pipeline and for the test, which runs the real
+  aggregator in `run_test`.
+- An interruption drops an apology still owed: the candidate is already speaking.
+
+**Rejected.** Cutting the queued audio when a turn fails: the transcript already shows those
+sentences, and cut short they count as unheard, which feeds the KI-02 loop. Cancelling the clock
+on speech until the next turn: a noise with no transcript would leave Ana silent for good.
+
+**Consequences we accept.** After a failed turn the apology comes later, after the summary, not
+when the failure happens. The VAD start itself is only exercised live (`make voice-smoke`); the
+offline tests cover the transcript start through the real aggregator and the interruption at
+the session.
+
+---
+
+## D41 · The slot choice is matched by the runtime, not copied by the model
+
+_Added 21 October 2026, after KI-06 (the second hosted voice call)._
+
+**Context.** Offered three slots, the candidate said "El viernes.", "El viernes.", "Exacto, sí."
+and "El viernes, veintitrés, a las diez y media." gpt-4o-mini had to copy a slot id from the tool
+text into `present_confirmation`: it listed again, asked in plain text, reserved with nothing
+read back and presented an id that does not exist. Nothing was booked. D35 had already taken the
+plain yes and no away from the model; the choice of slot is the same kind of answer.
+
+**Decisions.**
+- The offer is state: `SessionState.slot_offer` keeps the slots in the order Ana said them
+  (`OfferedSlot`: id and start) and a `shortlist`. `list_interview_slots` writes it in the same
+  save as the intent. A later offer keeps the first `schedule_intent` as the evidence.
+- `domain/slot_choice.py` is pure and takes no language. `read_slot_words(text)` reads
+  positions, weekdays, days of the month, relative days ("esta mañana" is today), clock times and
+  a part of the day, and returns the words it did not explain. `choose_slot(words, offered, today,
+  shortlist)` returns `Chosen | Ambiguous | NoMatch | NotAChoice`. Each feature said is a filter,
+  features intersect, and values of one feature are alternatives. An hour below twelve also
+  means the same hour after noon. A shortlist narrows the next answer while it keeps any match.
+- Only an answer that is all about the slot is a choice, the rule D35 applies to a plain yes. Every
+  word left over must be the talk around a choice ("me va bien", "mejor", "vale", "sí",
+  "¿tienes algo…?"). One other word ("no", "ninguno", "otro", "presencial", "dura") leaves the
+  answer to the model. That one rule covers refusals and questions: "¿La entrevista dura treinta
+  minutos?" is not the 30th, and "¿es presencial el martes?" is not Tuesday's slot.
+- The runtime calls the existing tools after `_plain_answer`, through the registry, as D35 does:
+  - `Chosen`: `present_confirmation`. If the heard read-back of that same slot is pending, the
+    answer is to "¿Te la reservo?": with a plain yes among the words ("Exacto, sí, el viernes a
+    las diez y media") it is `reserve_interview`, without one it is the model's.
+  - `Ambiguous`: the shortlist is saved and the model is told which slots fit, to ask which one in
+    its own words.
+  - `NoMatch`: `list_interview_slots` again, for the day named if any.
+  - `NotAChoice`: nothing; the words are the model's.
+
+  The model reads what happened in `slot_choice` (prompt `ana_v15`).
+- The five conditions of D29 are unchanged: every path goes through the handlers and
+  `reservation_allowed`.
+- Vocabulary lives in the domain module, with accents removed; numbers come from
+  `numbers.spelled`. A property test says every slot back in Ana's own words (`brief.slot_time`)
+  in both languages and gets that slot, so the module and the brief tables cannot drift apart.
+
+**Consequences we accept.** A choice said with a word outside the list ("el viernes, que es
+cuando libro", "sí, el viernes, no hay problema") goes to the model, as every choice did before
+D41: a missed word costs the old path, never a wrong action. The list grows from the journal. Tool arguments are still not in the journal (KI-06's
+observability half); the Langfuse span carries them.
+
+---
+
+## D42 · Hosted traces carry redacted content; one line turns it off
+
+_Added 21 October 2026, with the production notes (`docs/production.md`)._
+
+**Context.** D36 made content opt-in and left the hosted app without it. KI-06 showed the cost:
+the journal does not record tool arguments, and the trace did not either, so the slot id the
+model sent to `present_confirmation` could not be read anywhere. A bug seen only in a hosted call
+stayed a guess.
+
+**Decision.** `CAFE_NORTE_TRACE_CONTENT=on` in `plain_env` (`infra/app/main.tf`), decided by the
+owner on three terms: the demo's data is fictional, redaction runs before export (D36), and
+switching off is one word and a push (`docs/runbook.md`). Rejected: keeping content off (KI-06
+stays a guess) and a Terraform variable for it (a second place for the same fact, and the
+plain settings beside it are not variables either).
+
+**What is exported.** The turn's input and output, a generation's newest messages within 1 800
+characters (the system prompt is not sent: `prompt_version` pins it), and a tool's arguments and
+result, each redacted for emails, phones, DNI/NIE, IBAN, cards and secrets, then cut at 2 000
+characters (D36, `docs/architecture.md`).
+
+**Tests.** Redaction and what content exports are D36's (`tests/test_telemetry.py`). New:
+`tests/test_infra_settings.py` requires every `plain_env` key to be in `.env.example`, because
+the app ignores an unknown key and a misspelled switch would leave content off without a sound.
+A test pinning the value to `on` was rejected: it would make switching off a two-file change.
+
+**Consequences we accept.** Redaction is pattern-based: a name or an address said in free text is
+not a pattern, so this is safe because the data is fictional, not because the filter is complete.
+Langfuse keeps what it received under its own retention, not our seven days (D34). With real
+applicants it is `off`, and `docs/production.md` §10 lists what must exist first. Spans exported
+before the switch is turned off stay in Langfuse until deleted there.

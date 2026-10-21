@@ -36,6 +36,7 @@ class PromptHints(BaseModel):
     explicit: frozenset[Control] = frozenset()
     sentiment: Sentiment | None = None
     readback_answered: str | None = None  # the runtime resolved a plain yes/no this turn
+    slot_choice: str | None = None  # the runtime matched the candidate's slot choice (D41)
 
 
 WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
@@ -74,6 +75,7 @@ def system_message(
         "explicit_requests": sorted(c for c in hints.explicit if c in ("stop", "human")),
         "candidate_sentiment": hints.sentiment,
         "readback_answered": hints.readback_answered,
+        "slot_choice": hints.slot_choice,
     }
     content = (
         prompts.load("system")
@@ -158,6 +160,13 @@ def split_sentences(buffer: str) -> tuple[list[str], str]:
         return [], buffer
     complete = [s for s in (clean_sentence(p) for p in parts[:-1]) if s]
     return complete, parts[-1]
+
+
+def sentences(text: str) -> list[str]:
+    """A whole text as sentences, its unfinished tail included."""
+    complete, rest = split_sentences(text + " ")
+    tail = clean_sentence(rest)
+    return complete + ([tail] if tail else [])
 
 
 def clean_sentence(text: str) -> str:

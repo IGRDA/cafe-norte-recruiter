@@ -74,6 +74,7 @@ locals {
     "ELEVENLABS_VOICE_ID=${var.elevenlabs_voice_id}",
     "CAFE_NORTE_MAX_VOICE_SESSIONS=2",
     "CAFE_NORTE_ENVIRONMENT=production",
+    "CAFE_NORTE_TRACE_CONTENT=on", # redacted words and tool arguments in traces; fictional data only (D42)
     "LANGFUSE_BASE_URL=${var.langfuse_base_url}",
   ])
 }

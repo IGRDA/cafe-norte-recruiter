@@ -132,7 +132,7 @@ def _negated(before: str) -> bool:
 
 # ---- plain answers to a read-back ----------------------------------------------------------------
 
-ReadbackAnswer = Literal["affirm", "deny"]
+ReadbackAnswer = Literal["affirm", "deny", "skip"]
 
 # Whole phrases, longest first, so "no es correcto" is a denial and never "no" + "es correcto".
 _DENY = (
@@ -150,36 +150,39 @@ _DENY = (
     "nope",
     "wrong",
 )
-_AFFIRM = (
-    "si es todo correcto",
-    "es todo correcto",
-    "todo correcto",
-    "si es correcto",
-    "es correcto",
-    "si lo es",
-    "eso es",
-    "asi es",
-    "esta bien",
-    "de acuerdo",
-    "efectivamente",
-    "exacto",
-    "correcto",
-    "perfecto",
-    "vale",
-    "claro",
-    "si",
-    "thats right",
-    "that is right",
-    "thats correct",
-    "that is correct",
-    "yes correct",
-    "correct",
-    "exactly",
-    "right",
-    "yeah",
-    "yep",
-    "yes",
-    "sure",
+# A yes is made of yes-words in any order. ``_YES_CORE`` words say yes by themselves; the weak
+# ones ("todo", "está", "eso") only support them, so "todo" alone is not an answer. The phrases
+# say yes with weak words only, or with words that are not yes-words on their own.
+_YES_PHRASES = ("de acuerdo", "eso es", "asi es")
+_YES_CORE = frozenset(
+    {"si", "vale", "correcto", "bien", "perfecto", "exacto", "claro", "efectivamente"}
+    | {"yes", "right", "correct", "fine", "good", "exactly", "yeah", "yep", "sure"}
+)
+_YES_WEAK = frozenset({"todo", "esta", "eso", "asi", "es", "lo", "all", "that", "thats", "is"})
+# "Carry on" is its own answer: to an offer to go over a read-back it means "no need" (an informed
+# skip), and it is checked before a no because "no hace falta" and "no need" start with one. A
+# bare "no" never rides along: "No es correcto. Sigue." is a correction, so it is the model's.
+_SKIP = (
+    "no hace falta",
+    "no es necesario",
+    "no need",
+    "carry on",
+    "go on",
+    "move on",
+    "keep going",
+    "skip",
+    "sigue",
+    "sigamos",
+    "seguimos",
+    "continua",
+    "continuemos",
+    "adelante",
+)
+_SKIP_ALONGSIDE = frozenset({"lets", "it", "please", "por", "favor", "ya"})
+# Checked in order: the first whose phrase is found decides, and only what it allows may remain.
+_PHRASE_ANSWERS: tuple[tuple[ReadbackAnswer, tuple[str, ...], frozenset[str]], ...] = (
+    ("skip", _SKIP, _YES_CORE | _YES_WEAK | _SKIP_ALONGSIDE),
+    ("deny", _DENY, frozenset()),
 )
 _FILLERS = frozenset(
     {"mhmm", "mhm", "mmm", "mm", "hmm", "eh", "ah", "uh", "um", "pues", "bueno", "ok", "okay"}
@@ -187,23 +190,35 @@ _FILLERS = frozenset(
 
 
 def answer_to_readback(text: str) -> ReadbackAnswer | None:
-    """``affirm`` or ``deny`` when the whole utterance is a plain yes or no (with fillers such
-    as "mhmm"); ``None`` when anything else is said, which stays the model's to interpret
-    ("sí, pero el teléfono es otro"). Pure; both languages."""
+    """``affirm``, ``deny`` or ``skip`` (carry on without going over it) when the whole utterance
+    is that plain answer (with fillers such as "mhmm"); ``None`` when anything else is said,
+    which stays the model's to interpret ("sí, pero el teléfono es otro"). Pure; both languages."""
     words = " ".join(" ".join(_clauses(text)).split())
-    for answer, phrases in (("deny", _DENY), ("affirm", _AFFIRM)):
-        rest, found = words, False
-        for phrase in phrases:
-            pattern = re.compile(rf"\b{re.escape(phrase)}\b")
-            if pattern.search(rest):
-                found = True
-                rest = pattern.sub(" ", rest)
-        leftover = [w for w in rest.split() if w not in _FILLERS]
-        if found and not leftover:
-            return answer  # type: ignore[return-value]
+    for answer, phrases, alongside in _PHRASE_ANSWERS:
+        rest, found = _without(words, phrases)
         if found:
-            return None  # a plain word plus something else: the model decides
-    return None
+            leftover = [w for w in rest.split() if w not in _FILLERS and w not in alongside]
+            return answer if not leftover else None  # a plain word plus more: the model decides
+    return "affirm" if _is_plain_yes(words) else None
+
+
+def _without(words: str, phrases: tuple[str, ...]) -> tuple[str, bool]:
+    """``words`` minus every whole-word occurrence of the phrases, and whether any was found."""
+    rest, found = words, False
+    for phrase in phrases:
+        rest, hits = re.subn(rf"\b{re.escape(phrase)}\b", " ", rest)
+        found = found or hits > 0
+    return rest, found
+
+
+def _is_plain_yes(words: str) -> bool:
+    """Only yes-words and fillers, at least one core yes-word or yes phrase, any order. A
+    negation is never a yes-word, so "no está todo bien" is not a yes."""
+    rest, phrase = _without(words, _YES_PHRASES)
+    left = [w for w in rest.split() if w not in _FILLERS]
+    return all(w in _YES_CORE or w in _YES_WEAK for w in left) and (
+        phrase or any(w in _YES_CORE for w in left)
+    )
 
 
 # ---- asynchronous classifier ---------------------------------------------------------------------

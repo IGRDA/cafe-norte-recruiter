@@ -1,10 +1,12 @@
-"""The two Pipecat ``FrameProcessor``s. They only map frames to ``VoiceSession`` methods.
+"""The three Pipecat ``FrameProcessor``s. They only map frames to ``VoiceSession`` methods.
 
-``InboundBridge`` sits after Pipecat's user aggregator (which owns VAD, turn end, segment
-joining and interruptions) and before TTS: the aggregated user message becomes one turn for the
-session, interruptions go to the session, raw transcripts never reach TTS. ``PlaybackTap`` sits
-after the output transport, where ``TTSStoppedFrame`` arrives once the audio has actually
-played. Pipecat is imported here and in ``pipeline.py`` only."""
+``SpeechTap`` sits before Pipecat's user aggregator, which consumes every transcript frame, so
+it is the only place raw transcripts can be seen. ``InboundBridge`` sits after the aggregator
+(which owns VAD, turn end, segment joining and interruptions) and before TTS: the aggregated
+user message becomes one turn for the session, interruptions go to the session, raw transcripts
+never reach TTS. ``PlaybackTap`` sits after the output transport, where ``TTSStoppedFrame``
+arrives once the audio has actually played. Pipecat is imported here and in ``pipeline.py``
+only."""
 
 from typing import Protocol
 
@@ -27,6 +29,21 @@ class SessionPort(Protocol):
     async def heard_speech(self) -> None: ...
 
 
+class SpeechTap(FrameProcessor):
+    """Any raw transcript, interim or final, is the candidate talking: not silence, even when
+    VAD missed it. Every frame passes through untouched."""
+
+    def __init__(self, session: SessionPort) -> None:
+        super().__init__(name="speech-tap")
+        self._session = session
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+        await super().process_frame(frame, direction)
+        if isinstance(frame, InterimTranscriptionFrame | TranscriptionFrame):
+            await self._session.heard_speech()
+        await self.push_frame(frame, direction)
+
+
 class InboundBridge(FrameProcessor):
     def __init__(self, session: SessionPort) -> None:
         super().__init__(name="runtime-bridge")
@@ -35,8 +52,7 @@ class InboundBridge(FrameProcessor):
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
         if isinstance(frame, InterimTranscriptionFrame | TranscriptionFrame):
-            await self._session.heard_speech()  # not silence, even if VAD missed it
-            return  # raw words: provisional or already aggregated; never spoken back
+            return  # raw words never reach TTS (the aggregator normally consumes them)
         if isinstance(frame, LLMContextFrame):
             text = _last_user_message(frame)
             frame.context.set_messages(

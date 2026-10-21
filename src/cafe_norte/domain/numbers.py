@@ -57,12 +57,12 @@ def spelled(n: int, language: Language) -> str:
 def mentions_number(text: str, n: int) -> bool:
     """``n`` written as a whole number in ``text`` ("35", "35h"), or spoken in either
     language ("treinta y cinco", "thirty five"). "135" does not mention 35."""
-    plain = _plain(text)
-    if re.search(rf"(?<!\d){n}(?!\d)", plain):
+    folded = plain(text)
+    if re.search(rf"(?<!\d){n}(?!\d)", folded):
         return True
     if not 0 <= n <= 99:
         return False
-    words = " ".join(plain.replace("-", " ").split())
+    words = " ".join(folded.replace("-", " ").split())
     return any(
         re.search(rf"\b{re.escape(spelled(n, language).replace('-', ' '))}\b", words)
         and not _longer_number_follows(words, spelled(n, language).replace("-", " "))
@@ -81,6 +81,7 @@ def _longer_number_follows(words: str, spoken: str) -> bool:
     )
 
 
-def _plain(text: str) -> str:
+def plain(text: str) -> str:
+    """Case-folded, without accents: how every word list in ``domain`` is matched."""
     decomposed = unicodedata.normalize("NFKD", text.casefold())
     return "".join(c for c in decomposed if not unicodedata.combining(c))

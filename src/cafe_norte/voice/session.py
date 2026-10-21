@@ -1,9 +1,12 @@
 """``VoiceSession``: everything voice decides, with no audio framework in it.
 
-Inputs are method calls from the two Pipecat processors in ``bridge.py`` (final transcript,
-interruption, one sentence finished playing, participant joined). Outputs are ``speak`` (a
-sentence to TTS), ``on_status`` and the runtime's ``run_turn`` / ``delivered`` / ``end``. The
-delivery ledger decides what was heard. Tested with a fake runtime and a recorder."""
+Inputs are method calls from the Pipecat processors in ``bridge.py`` (final transcript,
+interruption, speech heard, one sentence finished playing, participant joined). Outputs are
+``speak`` (a sentence to TTS), ``on_status`` and the runtime's ``run_turn`` / ``delivered`` /
+``end``. The delivery ledger decides what was heard. One rule for everything Ana says (D40):
+every sentence goes through ``_voice`` into the ledger, and a system sentence (apology, silence
+prompt) waits until the audio already sent has played. Tested with a fake runtime and a
+recorder."""
 
 import asyncio
 import uuid
@@ -73,6 +76,8 @@ class VoiceSession:
         self._on_language = on_language
         self._closed = False
         self.status: VoiceStatus = "connecting"
+        self._quiet = asyncio.Event()  # nothing sent to TTS is still to play
+        self._voiced = 0  # sentences ever sent, so a silence can tell it was broken
         self._ledger = Ledger()
         self._turn_task: asyncio.Task[None] | None = None
         self._turn_id: TurnId | None = None
@@ -81,6 +86,8 @@ class VoiceSession:
         self._opened = False
         self._filler_task: asyncio.Task[None] | None = None
         self._idle_task: asyncio.Task[None] | None = None
+        self._prompted = False  # the one silence prompt since the candidate's last turn was said
+        self._owed: str | None = None  # the apology to say once the queued audio has played
 
     # ---- inputs from the audio side --------------------------------------------------------------
 
@@ -90,15 +97,15 @@ class VoiceSession:
             return
         self._opened = True
         self._set("speaking")
-        self._ledger = sent(self._ledger, self._texts.opening)
         self._turn_done = True
-        await self._speak(self._texts.opening)
+        await self._voice(self._texts.opening)
 
     async def transcript(self, text: str) -> None:
         """A finalized transcript: one voice turn through the runtime."""
         self._cancel_idle()
         if self._turn_task is not None and not self._turn_task.done():
             return  # an interruption frame precedes any new speech; nothing to do here
+        self._prompted = False  # the candidate has spoken: the next silence earns a prompt again
         turn = TurnInput(
             session_id=self._session_id,
             input_id=InputId(uuid.uuid4().hex),
@@ -118,7 +125,7 @@ class VoiceSession:
     async def played_one(self) -> None:
         """One sentence finished playing on the candidate's side."""
         self._ledger = finished(self._ledger)
-        await self._maybe_acknowledge()
+        await self._drained()
 
     async def interrupted(self) -> None:
         """The candidate started speaking over Ana: stop generating, record what was heard."""
@@ -135,7 +142,9 @@ class VoiceSession:
             self._acknowledged = True
             await self._runtime.delivered(self._turn_id, text=text, complete=False)
         self._ledger = Ledger()
+        self._owed = None  # the candidate is already speaking: the apology has no job left
         self._set("listening")
+        self._restart_idle()
 
     async def wait(self) -> None:
         if self._turn_task is not None:
@@ -144,8 +153,7 @@ class VoiceSession:
     async def heard_speech(self) -> None:
         """Any raw transcript, interim or final: the candidate is talking, so it is not
         silence, even when VAD missed it and no turn has started yet (D35)."""
-        if self.status == "listening":
-            self._start_idle()
+        self._restart_idle()
 
     async def close(self) -> None:
         """The call is over (hang-up, disconnect, expiry, stop): the session pauses here, and
@@ -177,9 +185,8 @@ class VoiceSession:
                         self._language = event.language
                     elif isinstance(event, AssistantText):
                         self._cancel_filler()
-                        self._ledger = sent(self._ledger, event.spoken_form)
                         self._set("speaking")
-                        await self._speak(event.spoken_form)
+                        await self._voice(event.spoken_form)
                     elif isinstance(event, ToolStarted):
                         self._filler_task = asyncio.create_task(self._filler())
                     elif isinstance(event, ToolFinished):
@@ -192,29 +199,46 @@ class VoiceSession:
             self._cancel_filler()
             self._turn_done = True
         if failed:
-            await self._say(self._texts.failure)
-            self._set("listening")
-            self._start_idle()
-            return
-        await self._maybe_acknowledge()
+            self._owed = self._texts.failure
+        await self._drained()
 
     async def _filler(self) -> None:
-        await asyncio.sleep(self.filler_after_seconds)
-        self._ledger = sent(self._ledger, self._texts.filler)
-        await self._speak(self._texts.filler)
+        await self._after_silence(self.filler_after_seconds)
+        await self._voice(self._texts.filler)
         if self._turn_id is not None:
             await self._runtime.aside(self._turn_id, self._texts.filler)
 
-    async def _maybe_acknowledge(self) -> None:
-        """Once the turn has ended and its last sentence has played, tell the runtime."""
+    async def _drained(self) -> None:
+        """Called whenever playback finishes and when a turn ends. Once the turn is over and
+        every sentence sent has played: tell the runtime what was heard (once), say the apology
+        that was owed, and only then listen. Decides before awaiting, so a second call while
+        the first is still reporting cannot say the apology twice."""
         text, complete = heard(self._ledger)
-        if not (self._turn_done and complete) or self._acknowledged:
+        if not (self._turn_done and complete):
             return
-        self._acknowledged = True
-        if self._turn_id is not None:
+        acknowledge, self._acknowledged = not self._acknowledged, True
+        owed, self._owed = self._owed, None
+        if acknowledge and self._turn_id is not None:
             await self._runtime.delivered(self._turn_id, text=text, complete=True)
-        self._set("listening")
-        self._start_idle()
+        if owed is not None:
+            self._set("speaking")
+            await self._say(owed)  # its own playback calls this again
+        elif self.status != "listening":
+            self._set("listening")
+            self._restart_idle()
+
+    @property
+    def _ledger(self) -> Ledger:
+        return self._audio
+
+    @_ledger.setter
+    def _ledger(self, ledger: Ledger) -> None:
+        """Every change to the ledger goes through here, so ``_quiet`` never disagrees."""
+        self._audio = ledger
+        if heard(ledger)[1]:
+            self._quiet.set()
+        else:
+            self._quiet.clear()
 
     @property
     def _texts(self) -> VoiceTexts:
@@ -222,13 +246,17 @@ class VoiceSession:
 
     # ---- silence ---------------------------------------------------------------------------------
 
-    def _start_idle(self) -> None:
-        self._cancel_idle()
-        self._idle_task = asyncio.create_task(self._idle())
+    def _restart_idle(self) -> None:
+        """Listening starts the countdown and speech restarts it; once the prompt was said,
+        only the candidate's next turn earns another (D40)."""
+        if self.status == "listening" and not self._prompted:
+            self._cancel_idle()
+            self._idle_task = asyncio.create_task(self._idle())
 
     async def _idle(self) -> None:
         """One "¿Sigues ahí?" after the silence; a live call is never paused for silence."""
-        await asyncio.sleep(self._idle_prompt_seconds)
+        await self._after_silence(self._idle_prompt_seconds)
+        self._prompted = True
         await self._say(self._texts.idle_prompt)
 
     async def _say(self, text: str) -> None:
@@ -236,7 +264,24 @@ class VoiceSession:
         the transcript and the export do not show."""
         async for event in self._runtime.say(self._session_id, text):
             if isinstance(event, AssistantText):
-                await self._speak(event.spoken_form)
+                await self._voice(event.spoken_form)
+
+    async def _voice(self, text: str) -> None:
+        """The one way a sentence reaches the candidate's ears: counted in the ledger, so
+        ``heard``, ``_drained`` and ``_after_silence`` know what is still to play."""
+        self._ledger = sent(self._ledger, text)
+        self._voiced += 1
+        await self._speak(text)
+
+    async def _after_silence(self, seconds: float) -> None:
+        """Returns once the candidate has heard nothing from Ana for ``seconds``: the queued
+        audio has played and nothing new was said meanwhile (D40)."""
+        while True:
+            await self._quiet.wait()
+            voiced = self._voiced
+            await asyncio.sleep(seconds)
+            if self._quiet.is_set() and self._voiced == voiced:
+                return
 
     def _cancel_idle(self) -> None:
         if self._idle_task is not None:

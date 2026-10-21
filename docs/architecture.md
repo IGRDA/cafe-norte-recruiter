@@ -49,12 +49,14 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Characters spoken per model round | 600, then the stream is closed |
 | Questions spoken per turn | 1; later sentences are read, not voiced |
 | Brief length | 4–8 sentences, deterministic |
+| A part of a read-back gone over after a cut | at most 2 of its sentences and 160 characters (one longer sentence is a part alone), then the short check (D39) |
 | Fields read back right after capture | `contact_phone`, `earliest_start_date` |
 | Interview slots offered per `list_interview_slots` | 3, from a window of 50 when a date is preferred |
 | Simulated calendar | 7 days ahead, 30-minute slots at each store's `interview_times` on shift days (D29) |
+| Slot choice matched by the runtime | against the last offer (at most 3 slots); positions 1–3 and last; days of the month 1–31; a day not offered is offered again when it falls within the 7-day horizon; an hour below 12 also matches the same hour after noon; afternoon from 14:00 (D41) |
 | Bookings | one per slot, one per session, same idempotency key returns the same booking |
 | Coverage floor | 80% of the package |
-| Voice: filler after a tool runs | 1.5 s |
+| Voice: filler while a tool runs | after 1.5 s in which the candidate heard nothing (D40) |
 | Voice: bot join timeout | 15 s |
 | Voice: user speech timeout before a turn ends | 1.0 s; a transcript can start a turn when VAD misses it (D35) |
 | Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
@@ -83,7 +85,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Text turn | 1–2000 characters |
 | Voice sessions per container | 2 (Postgres-enforced) |
 | Session starts per access session per hour | 3 |
-| Silence | 8 s, then one "¿Sigues ahí?"; a live call is never paused, the session pauses when the call ends (D35) |
+| Silence | 8 s of audible silence (queued audio played, no speech heard), then one "¿Sigues ahí?" per candidate turn; speech restarts the count; a live call is never paused, the session pauses when the call ends (D35, D40) |
 | Database connections per container | 5 |
 | Database statement timeout | 3 s |
 | Database lock wait | 2 s |
@@ -111,7 +113,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Deepgram / ElevenLabs / Daily | Audio and text of the voice session; no raw audio stored by us |
 | Postgres | Everything the export contains; access codes and tokens only as hashes |
 | Logs | Metadata keyed by session and turn; redacted free text; never transcripts |
-| Langfuse | Traces with metadata; content only with `CAFE_NORTE_TRACE_CONTENT=on` and synthetic data |
+| Langfuse | Traces with metadata; redacted words and tool arguments only with `CAFE_NORTE_TRACE_CONTENT=on`: on in the hosted demo, whose data is fictional (D42); off for real applicants |
 
 ## Failure contract
 

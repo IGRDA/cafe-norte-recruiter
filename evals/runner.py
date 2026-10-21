@@ -36,6 +36,7 @@ from cafe_norte.knowledge.loader import load_documents
 from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelText, ToolCall
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.observability.contracts import ProcessVersions, stamp
+from cafe_norte.observability.fakes import NullTelemetry
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
@@ -125,6 +126,7 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         configurations=configurations,
         signals=signal_analyzer(scenario.fake_signals),
         limits=Limits(),
+        telemetry=NullTelemetry(),
         owner="evals",
         clock=lambda: now[0],
     )

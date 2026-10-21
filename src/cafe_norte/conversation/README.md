@@ -7,13 +7,13 @@ its own.
 
 | File | Contents |
 | --- | --- |
-| `contracts.py` | `TurnInput`, the `RuntimeEvent` union (`SignalRecorded` included), `ToolContext`, `ToolOutcome` (`malformed` spends the repair budget), ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
+| `contracts.py` | `TurnInput` (and `UiAnswer`, the page's Sí / No on a read-back, D38), the `RuntimeEvent` union (`SignalRecorded` included), `ToolContext`, `ToolOutcome` (`malformed` spends the repair budget), ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
 | `handlers.py` | `all_handlers()`: update, search knowledge, list interview slots, present (read-backs, the brief, a slot), confirm field/brief, reserve interview, request human follow-up, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
 | `brief.py` | The deterministic brief, the phone/date read-backs, the slot offer and the slot read-back, filled from `prompts/brief.<lang>.md` in the session language; spoken verbatim by the runtime (D20). A requested follow-up adds one sentence |
 | `prompt.py` | System message from the versioned prompt plus session facts as JSON (`PromptHints`: this turn's explicit requests and the previous turn's fresh sentiment); history window; sentence splitting |
-| `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines, the explicit-request fast path (language switch, D28; human request, D30; a plain yes or no to a heard read-back, D35), one retry of a silent model round, a paused session made active by its next turn, `say` and `aside` for sentences the system speaks (D35), signal analysis after the turn (`settle` waits for it), one malformed-call repair per turn, active seconds accumulated per turn with the 480 s cap, and a cancelled or closed turn journaled as interrupted (D37) |
+| `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines, the explicit-request fast path (language switch, D28; human request, D30; a plain yes or no to a heard read-back, D35), one retry of a silent model round, a paused session made active by its next turn, `say` and `aside` for sentences the system speaks (D35), signal analysis after the turn (`settle` waits for it), one malformed-call repair per turn, active seconds accumulated per turn with the 480 s cap, a cancelled or closed turn journaled as interrupted (D37), structured events through the `Telemetry` port (`turn_failed`, `model_round`, `model_round_silent`, `answer_cut`: metadata only), and one trace per turn: `handle-candidate-turn`, then `write-user-turn`, `invoke-agent`, `step` (one per model round), `chat` (the generation, with tokens), one span per tool call (`retriever` for `search_knowledge`) and `write-assistant-turn`. Parents are passed explicitly. |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |
 | `signals.py` | `explicit_controls` (pure patterns for stop, human and language requests, es/en), `requested_language`, `answer_to_readback` (a whole-utterance yes or no), `ModelSignalAnalyzer` (the asynchronous classifier adapter) and `fresh_sentiment` |
 
@@ -46,7 +46,7 @@ answered. After booking the next step is `end_session`, which yields `completed 
 
 ## Turn execution
 
-1. Accept one finalized `TurnInput` with a unique `input_id`; persist the user turn.
+1. Accept one finalized `TurnInput` with a unique `input_id`; persist the user turn (a button answer has no words: the language's `ui` label is recorded).
 2. Apply explicit controls: a language request is saved with the user turn, before the
    model is called (D28). Stop and human requests and stale-output cancellation follow.
 3. Build messages from: system prompt, configuration facts, validated candidate state, pending

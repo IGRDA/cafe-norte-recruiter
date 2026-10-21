@@ -15,7 +15,7 @@ decided.
 | `seed.py` | `seed_calendar(store, configurations, now)`: inserts the slots `domain.calendar.interview_slots` generates; idempotent by construction |
 | `migrate.py` | `apply_pending(dsn)`: applies `migrations/*.sql` in order under one advisory lock and records them in `schema_migrations`, which it creates itself. Run by `PostgresStore.open()` at startup and by `make migrate` |
 | `migrations/` | Numbered SQL files; backward compatible when a rollback to the previous image must work |
-| `export.py` | `ExportDocument` (the published JSON Schema), `build_export(snapshot)`, pure over one `Store.snapshot` read, and `persist_export`, the close hook that stores it. The confirmation history and the session's end are read from the journaled `state_updated` events; the brief is the text the candidate confirmed; cost stays `None` until prices are recorded |
+| `export.py` | `ExportDocument` (the published JSON Schema), `build_export(snapshot)`, pure over one `Store.snapshot` read, and `persist_export`, the close hook that stores it. The confirmation history and the session's end are read from the journaled `state_updated` events; the brief is the text the candidate confirmed; `build_export(snapshot, estimate=…)` prices the usage (plus the voice usage `voice_usage` derives, marked estimated) and sets `cost_is_partial` |
 
 The store is chosen in `main.py`: `CAFE_NORTE_DATABASE_URL` set means Postgres, empty means
 memory (D31). Locally it is the compose database (`make db-up`); the hosted demo reaches Cloud SQL through

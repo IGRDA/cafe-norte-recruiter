@@ -27,13 +27,23 @@
   jsonPayload.container.name="/app"' --project cafe-norte-orbio --freshness=1h`, or on the
   box `gcloud compute ssh cafe-norte --zone europe-west1-b -- docker logs app`. The startup
   script's own lines are in the serial console (`get-serial-port-output`).
-  Failed turns log `turn failed … code=… detail=…`; every model round logs its first-output and
-  total latency (`model round: …`).
-- **A call that went wrong**: the session's journal is the trace (Langfuse is not wired yet).
-  Read it in order from the app container:
-  `docker exec app uv run --no-sync python -c "import os,psycopg; c=psycopg.connect(os.environ['CAFE_NORTE_DATABASE_URL']); [print(r) for r in c.execute('select seq, kind, at, payload from events where session_id=%s order by seq', ('<id>',))]"`,
-  next to `docker logs --since 1h app` for the voice pipeline (VAD, TTS, idle prompts). D35 is a
-  worked example.
+  The app logs JSON lines keyed by `session_id` and `turn_id` (`event` is `turn_failed`,
+  `model_round`, `model_round_silent` or `answer_cut`); `model_round` carries `first_output_ms`
+  and `total_ms`. Filter with `jsonPayload.session_id="<id>"`.
+- **A call that went wrong**: traces first, the journal second.
+  1. Langfuse (EU) → Sessions → the session id (the export's file name, or
+     `session_id` in the logs). Filter by environment (`production`). One trace per turn:
+     the root says `outcome`, how many rounds and tools, and the words when content is on;
+     a failed span is red with its code. A `chat` generation shows the tokens, the euros,
+     the time to first token and `silent_attempts`; a tool shows its arguments and result.
+     Every span carries the whole version stamp (prompt, model, knowledge base, commit).
+     Traces exist only where the `LANGFUSE_*` variables are set (a local run today; the hosted
+     app once they are in `infra/app`, D36).
+  2. The JSON lines around it: `docker logs --since 1h app | grep <id>`, or in Cloud Logging
+     `jsonPayload.session_id="<id>"`. For the voice pipeline (VAD, TTS, idle prompts) too.
+  3. The journal, for what was announced to the candidate, in order:
+     `docker exec app uv run --no-sync python -c "import os,psycopg; c=psycopg.connect(os.environ['CAFE_NORTE_DATABASE_URL']); [print(r) for r in c.execute('select seq, kind, at, payload from events where session_id=%s order by seq', ('<id>',))]"`.
+     D35 is a worked example of reading it.
 - **Restart or new image**: sessions, bookings and the event sequence are in Cloud SQL, so
   they survive; an open page reconnects and a candidate reopens the conversation with the
   private link shown when it started (valid 7 days). A turn in flight during the reset is lost

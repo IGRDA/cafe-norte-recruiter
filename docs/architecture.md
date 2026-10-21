@@ -34,8 +34,10 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 the snapshot stored when the session closed (D34), or one built on demand by `build_export`
 from one `Store.snapshot` while it is open. The confirmation history and the
 session's end time are read from the journaled `state_updated` events; the brief is the text
-the candidate confirmed; the cost estimate stays `None` (`cost_is_partial: true`) until prices
-are recorded. The schema is `examples/session_export.schema.json`, the fictional example
+the candidate confirmed. The cost is priced from `observability/prices/v1.yaml`:
+`cost_is_partial` is true when any usage has no price or is estimated (a voice call's speech,
+listening and room minutes are derived from the snapshot, not measured), and the cost is `None`
+when no estimator is bound. The schema is `examples/session_export.schema.json`, the fictional example
 `examples/session_export.example.json`.
 
 ## Limits
@@ -68,6 +70,7 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Turns read into one export snapshot | 10 000 (the whole transcript; the session cap keeps it far below) |
 | Tool arguments from the model | 16 KiB |
 | SSE heartbeat while idle | 15 s |
+| Request body | 64 KiB, then 413 `limit_exceeded` (D38) |
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
 | Browser speech final accepted (D18 path) | confidence ≥ 0.4, ≥ 2 characters |
 | Malformed-call repairs per turn | 1; a second malformed call ends the turn with `invalid_response` (D37) |
@@ -86,6 +89,11 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Database lock wait | 2 s |
 | Database idle in transaction | 10 s |
 | Database connection checkout wait | 5 s, then `busy` |
+| Trace flush at shutdown | 5 s, in a thread (D36) |
+| Trace export | queue of 2 048 spans, a batch every 2 s, one request at most 5 s; spans beyond the queue are dropped |
+| Free text in a log line or a trace | redacted, then cut at 2 000 characters per value |
+| A generation's input in a trace | the newest messages within 1 800 characters, the newest always kept; only with content on |
+| Price table | one price per kind and model, with its source page; re-verified before each release, version recorded in every cost |
 | Event stream poll interval | 200 ms (Postgres; the memory store wakes on commit) |
 | Events per poll | 500 |
 | Migrations | forward-only SQL files, applied at startup under one advisory lock |

@@ -2,9 +2,11 @@
 // Everything is rendered as text, never HTML.
 import { createVoice } from "./voice.js";
 
-const CONFIG_ID = "chamberi_barista_v1";
-// The opening language comes from ?lang=; the picker reloads the page into a new session.
-const LANGUAGE = new URLSearchParams(location.search).get("lang") === "en" ? "en" : "es";
+// The store and the opening language come from ?store= and ?lang=; the chooser reloads the
+// page into a new session with the choice.
+const PARAMS = new URLSearchParams(location.search);
+const CONFIG_ID = PARAMS.get("store");
+const LANGUAGE = PARAMS.get("lang") === "en" ? "en" : "es";
 
 const state = {
   sessionId: null,
@@ -13,6 +15,9 @@ const state = {
   turns: new Map(), // turn_id -> { role, sentences: [] }
   order: [],
   candidate: null,
+  stores: [], // GET /api/configurations
+  reviews: new Map(), // turn_id | "session" -> { summary, list }
+  turnCount: 0,
   voiceOn: false,
   voiceMode: "off",
   ended: false,
@@ -29,17 +34,26 @@ const el = {
   send: document.getElementById("send"),
   talk: document.getElementById("talk"),
   error: document.getElementById("error"),
+  chooser: document.getElementById("chooser"),
+  store: document.getElementById("store"),
+  storeName: document.getElementById("store-name"),
+  start: document.getElementById("start"),
   language: document.getElementById("language"),
   candidate: document.getElementById("candidate"),
   confirmation: document.getElementById("confirmation"),
+  confirmActions: document.getElementById("confirm-actions"),
+  confirmYes: document.getElementById("confirm-yes"),
+  confirmNo: document.getElementById("confirm-no"),
   booking: document.getElementById("booking"),
   bookingWhen: document.getElementById("booking-when"),
   review: document.getElementById("review"),
+  versions: document.getElementById("versions"),
   sources: document.getElementById("sources"),
   export: document.getElementById("export"),
   exportLink: document.getElementById("export-link"),
   resume: document.getElementById("resume"),
   resumeLink: document.getElementById("resume-link"),
+  end: document.getElementById("end"),
   delete: document.getElementById("delete"),
 };
 
@@ -82,13 +96,82 @@ function buildVoice(mode) {
 }
 
 async function main() {
-  const runtime = await fetch("/api/runtime").then((r) => r.json()).catch(() => ({ voice: "off" }));
+  const [runtime, stores] = await Promise.all([
+    fetch("/api/runtime").then((r) => r.json()).catch(() => ({ voice: "off" })),
+    fetch("/api/configurations").then((r) => r.json()).catch(() => []),
+  ]);
+  state.stores = stores;
+  renderChooser();
   state.voiceMode = runtime.voice;
   if (runtime.voice === "off") el.talk.hidden = true;
   else voice = buildVoice(runtime.voice);
   const token = new URLSearchParams(location.hash.slice(1)).get("resume");
   if (token) await resumeSession(token);
-  else await openSession();
+  else if (stores.some((store) => store.config_id === CONFIG_ID)) await openSession();
+  else waitForChoice(stores.length > 0);
+}
+
+// No store chosen yet: nothing is created until the candidate presses Empezar.
+function waitForChoice(canChoose) {
+  el.text.disabled = true;
+  el.send.disabled = true;
+  el.talk.disabled = true;
+  if (canChoose) setStatus("Elige una tienda y pulsa Empezar.");
+  else showError("No se pudieron cargar las tiendas. Recarga la página.");
+}
+
+function renderChooser() {
+  el.store.replaceChildren(
+    ...state.stores.map((store) => {
+      const option = document.createElement("option");
+      option.value = store.config_id;
+      option.textContent = store.store_name;
+      return option;
+    }),
+  );
+  if (CONFIG_ID) el.store.value = CONFIG_ID;
+  el.language.value = LANGUAGE;
+}
+
+// The header names the store of this session.
+function showStore(configId) {
+  const store = state.stores.find((s) => s.config_id === configId);
+  if (store) el.storeName.textContent = store.store_name;
+  el.store.value = configId;
+  el.start.textContent = "Nueva conversación";
+}
+
+function showVersions(versions) {
+  const rows = [
+    ["Configuración", `${versions.config_id} v${versions.config_version}`],
+    ["Modelo", versions.model_id],
+    ["Prompt", versions.prompt_version],
+    ["Conocimiento", versions.kb_version],
+    ["Esquema", versions.schema_version],
+    ["Commit", versions.commit_sha],
+    ...(versions.stt_model ? [["Voz → texto", versions.stt_model]] : []),
+    ...(versions.tts_model ? [["Texto → voz", `${versions.tts_model} · ${versions.voice_id}`]] : []),
+  ];
+  el.versions.replaceChildren(
+    ...rows.flatMap(([label, value]) => {
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      return [dt, dd];
+    }),
+  );
+}
+
+// After a resume the page knows the session only by its cookie: the snapshot says which store
+// and language it was, and the versions it ran with.
+async function loadSnapshot() {
+  const response = await fetch(`/api/sessions/${state.sessionId}`);
+  if (!response.ok) return;
+  const snapshot = await response.json();
+  showStore(snapshot.state.config_id);
+  el.language.value = snapshot.state.language;
+  showVersions(snapshot.versions);
 }
 
 // A private resume link: the token travels in the fragment, is exchanged once for the session
@@ -108,8 +191,10 @@ async function resumeSession(token) {
   const body = await response.json();
   state.sessionId = body.session_id;
   renderCandidate();
+  await loadSnapshot();
   openStream();
   review("conversación recuperada con el enlace privado");
+  el.end.hidden = false;
   el.delete.hidden = false;
   setStatus("Conversación recuperada.");
 }
@@ -139,6 +224,9 @@ async function openSession() {
   el.resumeLink.textContent = `${location.origin}${body.resume_url}`;
   el.resume.hidden = false;
   review("enlace privado de reanudación emitido (válido 7 días)");
+  showStore(CONFIG_ID);
+  showVersions(body.versions);
+  el.end.hidden = false;
   el.delete.hidden = false;
   renderCandidate();
   openStream();
@@ -175,6 +263,8 @@ function handle(event) {
   switch (payload.type) {
     case "turn_started": {
       // The stream carries the user's words: bubbles never depend on the POST reply's timing.
+      state.turnCount += 1;
+      reviewEntry(event.turn_id).summary.textContent = `Turno ${state.turnCount}`;
       if (payload.text) addTurn(`${event.turn_id}:user`, "user", [payload.text]);
       addTurn(event.turn_id, "assistant", []);
       voice.setLanguage(payload.language);
@@ -183,12 +273,15 @@ function handle(event) {
     }
     case "sources_shown":
       renderSources(payload);
-      review(`fuentes para «${payload.question}»: ${payload.chunk_ids.length}`);
+      review(`búsqueda «${payload.question}»: ${payload.chunk_ids.length} fragmentos`, event.turn_id);
+      payload.chunk_ids.forEach((id, i) => {
+        review(`  ${payload.titles[i]} › ${payload.sections[i]}: ${payload.excerpts[i]}`, event.turn_id);
+      });
       break;
     case "signal_recorded": {
       const signal = payload.signal;
       const evidence = signal.evidence_text ? ` («${signal.evidence_text}»)` : "";
-      review(`señal del turno: ${signal.sentiment}${evidence}`);
+      review(`señal del turno: ${signal.sentiment}${evidence}`, event.turn_id);
       break;
     }
     case "assistant_text": {
@@ -200,24 +293,23 @@ function handle(event) {
       break;
     }
     case "tool_started":
-      review(`herramienta ${payload.name} → iniciada`);
+      review(`herramienta ${payload.name} → iniciada`, event.turn_id);
       break;
     case "tool_finished":
-      review(`herramienta ${payload.name} → ${payload.ok ? "ok" : "rechazada"} (${payload.summary})`);
+      review(`herramienta ${payload.name} → ${payload.ok ? "ok" : "rechazada"} (${payload.summary})`, event.turn_id);
       break;
     case "state_updated":
       state.candidate = payload;
       renderCandidate();
       renderConfirmation(payload.pending_confirmation);
       renderBooking(payload.booking);
-      review(`estado guardado, revisión ${payload.revision}`);
+      review(`estado guardado, revisión ${payload.revision}`, event.turn_id);
       if (TERMINAL.has(payload.lifecycle)) endConversation();
       break;
     case "turn_finished": {
       hideError(); // a later turn went through: an old error no longer applies
-      const ms = Object.fromEntries(payload.timings.map((t) => [t.stage, t.milliseconds]));
-      const tokens = payload.usage.map((u) => `${u.unit_detail} ${u.quantity}`).join(", ");
-      review(`turno terminado · primer token ${ms.llm_first_output ?? "–"} ms · total ${ms.llm_total ?? "–"} ms · tokens ${tokens || "–"}`);
+      finishReview(event.turn_id, payload);
+      renderConfirmation(state.candidate?.pending_confirmation);
       if (state.ended) {
         voice.turnEnded();
         break;
@@ -227,15 +319,16 @@ function handle(event) {
       break;
     }
     case "turn_failed":
-      review(`turno fallido · ${payload.code}`);
+      review(`turno fallido · ${payload.code}`, event.turn_id);
       showError(payload.message);
+      renderConfirmation(state.candidate?.pending_confirmation);
       if (payload.code === "session_ended") endConversation();
       if (state.ended) break;
       setStatus(state.voiceOn ? "Escuchando…" : "Tu turno.");
       if (state.voiceOn) voice.turnEnded();
       break;
     default:
-      review(`evento ${payload.type}`);
+      review(`evento ${payload.type}`, event.turn_id);
   }
 }
 
@@ -262,6 +355,45 @@ async function submitTurn(text) {
   } finally {
     el.send.disabled = false;
   }
+}
+
+// The card's Sí / No: an explicit answer to the pending read-back, at the revision on screen.
+// The server runs it through the same rules as a spoken answer; the stream shows the result.
+async function answerConfirmation(answer) {
+  const update = state.candidate;
+  const pending = update?.pending_confirmation;
+  if (!pending || pending.status !== "pending" || state.ended) return;
+  hideError();
+  setConfirmButtons(false);
+  try {
+    const response = await fetch(
+      `/api/sessions/${state.sessionId}/confirmations/${pending.confirmation_id}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          input_id: crypto.randomUUID(),
+          answer,
+          expected_revision: update.revision,
+        }),
+      },
+    );
+    if (response.status !== 202) {
+      const body = await response.json().catch(() => ({}));
+      showError(body.message ?? "No se pudo enviar tu respuesta.");
+      setConfirmButtons(true);
+      return;
+    }
+    setStatus("Enviado…");
+  } catch {
+    showError("Sin conexión con el servidor.");
+    setConfirmButtons(true);
+  }
+}
+
+function setConfirmButtons(enabled) {
+  el.confirmYes.disabled = !enabled;
+  el.confirmNo.disabled = !enabled;
 }
 
 // ---- renderers ---------------------------------------------------------------------------------
@@ -341,6 +473,9 @@ function renderCandidate() {
 }
 
 function renderConfirmation(confirmation) {
+  const open = confirmation?.status === "pending" && !state.ended;
+  el.confirmActions.hidden = !open;
+  if (open) setConfirmButtons(true);
   if (!confirmation) {
     el.confirmation.textContent = "—";
     el.confirmation.removeAttribute("data-status");
@@ -372,6 +507,8 @@ function endConversation() {
   el.text.disabled = true;
   el.send.disabled = true;
   el.talk.disabled = true;
+  el.confirmActions.hidden = true;
+  el.end.hidden = true;
   voice.closing();
   setStatus("Conversación terminada. Gracias.");
   el.exportLink.href = `/api/sessions/${state.sessionId}/export`;
@@ -398,11 +535,51 @@ function renderSources(payload) {
   });
 }
 
-function review(line) {
+// One collapsed entry per turn (the lines are what a reviewer needs to follow it) and one for
+// the session itself. Text only, never hidden reasoning.
+function reviewEntry(turnId) {
+  const key = turnId ?? "session";
+  let entry = state.reviews.get(key);
+  if (entry) return entry;
+  const item = document.createElement("li");
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = turnId ? "Turno" : "Sesión";
+  const list = document.createElement("ul");
+  details.append(summary, list);
+  item.append(details);
+  el.review.append(item);
+  entry = { summary, list };
+  state.reviews.set(key, entry);
+  while (el.review.children.length > 40) {
+    el.review.firstElementChild.remove();
+    state.reviews.delete(state.reviews.keys().next().value);
+  }
+  return entry;
+}
+
+function review(line, turnId = null) {
   const item = document.createElement("li");
   item.textContent = line;
-  el.review.append(item);
-  while (el.review.children.length > 30) el.review.firstElementChild.remove();
+  reviewEntry(turnId).list.append(item);
+}
+
+function finishReview(turnId, payload) {
+  const ms = Object.fromEntries(payload.timings.map((t) => [t.stage, t.milliseconds]));
+  const tokens = payload.usage
+    .filter((u) => u.kind === "llm_tokens")
+    .reduce((sum, u) => sum + u.quantity, 0);
+  const entry = reviewEntry(turnId);
+  const label = entry.summary.textContent.split(" · ")[0];
+  entry.summary.textContent = `${label} · ${ms.llm_total ?? "–"} ms · ${tokens} tokens`;
+  const timings = payload.timings
+    .map((t) => `${t.stage}${t.tool_name ? `:${t.tool_name}` : ""} ${t.milliseconds} ms`)
+    .join(", ");
+  review(`tiempos: ${timings || "–"}`, turnId);
+  const usage = payload.usage
+    .map((u) => `${u.kind} ${u.unit_detail} ${u.quantity}${u.estimated ? " (estimado)" : ""}`)
+    .join(", ");
+  review(`uso: ${usage || "–"}${payload.interrupted ? " · interrumpido" : ""}`, turnId);
 }
 
 function setStatus(text) {
@@ -446,6 +623,8 @@ el.delete.addEventListener("click", async () => {
     return;
   }
   state.ended = true;
+  el.end.hidden = true;
+  el.confirmActions.hidden = true;
   el.delete.hidden = true;
   el.resume.hidden = true;
   el.export.hidden = true;
@@ -460,9 +639,23 @@ el.composer.addEventListener("submit", (event) => {
   submitTurn(el.text.value);
 });
 
-el.language.value = LANGUAGE;
-el.language.addEventListener("change", () => {
-  location.search = `?lang=${el.language.value}`;
+el.chooser.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!el.store.value) return;
+  location.search = new URLSearchParams({ store: el.store.value, lang: el.language.value }).toString();
+});
+
+el.confirmYes.addEventListener("click", () => answerConfirmation("affirm"));
+el.confirmNo.addEventListener("click", () => answerConfirmation("deny"));
+
+el.end.addEventListener("click", async () => {
+  if (!state.sessionId || state.ended || !confirm("¿Terminar la conversación?")) return;
+  const response = await fetch(`/api/sessions/${state.sessionId}/end`, { method: "POST" });
+  if (response.status !== 204) {
+    showError("No se pudo terminar la conversación.");
+    return;
+  }
+  endConversation();
 });
 
 el.talk.addEventListener("click", () => {

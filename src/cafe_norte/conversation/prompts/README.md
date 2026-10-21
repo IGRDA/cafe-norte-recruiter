@@ -19,6 +19,7 @@ Instructions to the model are one Spanish file; the language it answers in is a 
 | `voice.<lang>.md` | The filler and idle sentences the voice channel speaks |
 | `language.<lang>.md` | The closing line of the system message, written in that language: which language every reply is in. Without it a Spanish prompt pulls the model back to Spanish |
 | `controls.<lang>.md` | `key: sentence` table, spoken word for word by the runtime: `human` (the fixed reply to an explicit request for a person) and `time_cap` (the goodbye when the active-time cap ends the session, D37) |
+| `ui.<lang>.md` | `key: label` table: the words recorded for a Sí / No button press on a read-back card |
 | `summary.md` | Post-session narrative summary (structured generation, optional) |
 | `classifier.md` | Sentiment of one candidate message as JSON with verbatim evidence (`ModelSignalAnalyzer`); explicit requests are not the model's job |
 | `simulator.md` | The candidate persona used by live evaluations (not shipped to production) |

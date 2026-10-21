@@ -11,6 +11,7 @@ from cafe_norte.domain.contracts import (
     CandidateRecord,
     Channel,
     Confirmation,
+    ConfirmationId,
     InputId,
     Lifecycle,
     Outcome,
@@ -27,8 +28,16 @@ class Frozen(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
+class UiAnswer(Frozen):
+    """The page's Sí / No on one read-back: an explicit answer, not words to interpret."""
+
+    confirmation_id: ConfirmationId
+    answer: Literal["affirm", "deny"]
+
+
 class TurnInput(Frozen):
-    """One finalized user turn. Never an STT interim."""
+    """One finalized user turn. Never an STT interim. A button answer has no text: the runtime
+    records the language's label for it."""
 
     session_id: SessionId
     input_id: InputId
@@ -36,6 +45,7 @@ class TurnInput(Frozen):
     channel: Channel
     received_at: datetime
     expected_revision: int | None = None  # UI mutations that must not race a model update
+    ui_answer: UiAnswer | None = None
 
 
 # ---- events a channel consumes --------------------------------------------------------------

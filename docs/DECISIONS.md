@@ -845,6 +845,81 @@ English request to switch through the Spanish recogniser until it switches. `S19
 call on the fake model; the voice behaviour is covered by unit tests with Pipecat frames and a
 manual `make voice-smoke`.
 
+## D36 · Observability: one trace per turn, our own cost, events as JSON lines
+
+_Added 21 October 2026, after the hosted voice call of D35: reading the `events` journal by hand
+from inside the app container was the only way to see what happened._
+
+**Context.** D05 chose Langfuse Cloud (EU) for production tracing and left it unwired.
+Every number we quote about a call (cost, latency, which version answered) should be one click
+from the session, and the export should carry an honest cost.
+
+**Options.**
+- A. Plain OpenTelemetry with `langfuse.*` attributes, on a private provider.
+- B. The Langfuse Python SDK in `src/`.
+- C. OTel calls directly inside the runtime, or a `Telemetry` port the runtime holds.
+
+**Decisions.**
+- **A, behind a port.** `Telemetry` and `Span` live in `observability/contracts.py`; the runtime
+  holds the port, `main.py` picks the adapter. No Langfuse SDK in `src/` (it stays an
+  evaluation dependency, D06), no global tracer. Parents are passed explicitly
+  (`span.child(...)`) because a turn is an async generator and ambient context does not survive
+  its `yield`.
+- **Off without keys.** With both `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` the adapter
+  exports to `LANGFUSE_BASE_URL` (EU by default); without them nothing is traced and events
+  still go to stdout. `make check` needs neither, and tests use an in-memory exporter.
+- **One trace per candidate turn**, named by its root, with stable span names; the round,
+  attempt and retry are metadata, never part of a name:
+
+  ```
+  handle-candidate-turn            root · outcome, tools_called, rounds, chars_in, chars_out
+  ├─ write-user-turn               the store transaction
+  ├─ invoke-agent        [agent]   the round loop
+  │  ├─ step             [chain]   one model round (round = n)
+  │  │  ├─ chat          [generation]  model, tokens, EUR cost, time to first token
+  │  │  ├─ search_knowledge [retriever]
+  │  │  └─ update_candidate [tool]     ok, arguments and result as content
+  │  └─ step
+  │     └─ chat
+  └─ write-assistant-turn
+  ```
+
+  A silent round that is retried is one `chat` with `silent_attempts: 1`. A failed span is
+  `ERROR` with its code; a turn on an ended session is a failed root with no children.
+- **Every span carries the trace attributes**, because Langfuse filters per observation:
+  session, release (`commit_sha`), environment (`CAFE_NORTE_ENVIRONMENT`, default
+  `development`), tags (channel, language, store) and the whole `VersionStamp` as filterable
+  metadata. `langfuse.version` is the `prompt_version`. No user id is sent: candidates are
+  anonymous and the session is the unit.
+- **Our euros, not Langfuse's.** A generation sends `usage_details` and `cost_details` from the
+  same price table the export uses, so the two agree. Langfuse labels totals in dollars; the
+  numbers are euros (`cost_currency: EUR` is in the metadata). A model with no price sends
+  tokens and no cost: a missing number beats a wrong one.
+- **Prices are a data file** (`observability/prices/v1.yaml`: USD, the page each came from,
+  converted at the ECB rate of 21 October 2026, 1.1234 USD/EUR). Cached input tokens are priced
+  as full input, Deepgram at its list price (the page shows a limited-time lower one), Daily at
+  the audio-only first tier without the free minutes: all conservative. Token usage is keyed
+  by the configured model id, not the dated snapshot id the provider echoes.
+- **The export prices its usage.** `build_export` takes an `Estimator`. A voice call's speech,
+  listening and room minutes are not measured anywhere, so they are derived from the snapshot
+  (characters Ana spoke, `active_seconds`, twice that in participant minutes) and marked
+  `estimated`. `cost_is_partial` is true when any usage has no price, when any is estimated,
+  or when no estimator is bound.
+- **Content is opt-in.** Only `CAFE_NORTE_TRACE_CONTENT=on` exports it: the turn's input and
+  output, each generation's input (the newest messages it saw, system prompt excluded since
+  `prompt_version` pins it) and a tool's arguments and result. Always redacted first
+  (emails, phones, DNI/NIE, IBAN, cards, secrets), truncated after.
+- **Events replace the ad hoc logs**: `turn_failed`, `model_round` (attempt, first output,
+  total), `model_round_silent`, `answer_cut`, as JSON lines keyed by session and turn. A payload
+  key named `text`, `transcript`, `content` or `message` is refused.
+- **The shutdown flush is bounded** (5 s) and runs in a thread, last in the lifespan.
+
+**Consequences we accept.** A trace is only as good as its flush: a crash loses the last batch
+(at most 2 s). Langfuse shows euros as dollars. The hosted app sends nothing until the
+`LANGFUSE_*` variables and `CAFE_NORTE_ENVIRONMENT=production` are added to `infra/app`.
+Not yet recorded: the signal analyzer's tokens, a cancelled generation's tokens (no usage
+chunk arrives), Pipecat's own STT/TTS metrics. Live evals, datasets and experiments are a
+later stage.
 
 ## D37 · Runtime robustness: a repair budget, an active-time cap, cancellation that leaves a trace
 
@@ -899,3 +974,43 @@ admission row (600 s) and the voice room expiry still bound it. An interruption 
 before the user turn is stored leaves no assistant record. The scenarios were each checked by
 breaking the rule they guard; S16's first version could not tell a refused save from a swallowed
 one (the script ran out and failed the turn either way) and was strengthened.
+
+---
+
+## D38 · The page and API gaps: a chooser in the URL, buttons that answer as a turn, one boundary
+
+_Added 21 October 2026._
+
+**Context.** The spec's browser and API contract (§10) still lacked the store chooser, the
+reviewer panel's versions and per-turn detail, the snapshot, the UI confirmation, the end
+endpoint and a hardened boundary.
+
+**Decisions.**
+- **Chooser.** The page creates nothing until a store is chosen. The choice lives in
+  `?store=&lang=`; the chooser reloads into a new session, as the language picker did (D28).
+  The header names the store; a resumed session reads its store, language and versions from
+  `GET /api/sessions/{id}`.
+- **Buttons are a turn with an explicit answer.** `POST …/confirmations/{id}` names the
+  read-back pending now (404 otherwise) at the revision the candidate saw (409 if it moved or
+  was answered), then runs a turn whose `TurnInput.ui_answer` replaces the parsing of words. The
+  runtime resolves it with the tool a spoken answer uses (D35), so the domain refuses what it
+  refuses for the model. The card on screen counts as heard: pressing the button marks a
+  read-back delivered first. The transcript records the language's label (`ui.<lang>.md`).
+  Rejected: sending "sí" as text (language-dependent, ignores the id) and calling the tool in
+  the route (Ana would say nothing, and a second path to keep in step).
+- **Snapshot and end.** The snapshot is typed (`SessionState`, `TurnRecord`, `VersionStamp`)
+  and carries `last_seq`, where the stream resumes. `POST …/end` stops a running call, then ends
+  like any stop; ending twice changes nothing. Both check ownership like every session route.
+- **Versions** come in the create reply and the snapshot; timings, usage, tool outcomes and
+  retrieval excerpts come from the stream the page already follows. The panel shows no hidden
+  reasoning.
+- **One boundary.** `HttpBoundary` is installed by the app factory, so local and hosted runs
+  send the same headers: a CSP with no inline code (Daily is the only third party),
+  `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`.
+  A body over 64 KiB is refused with 413, declared or streamed. Validation errors carry a fixed
+  message and never the input.
+
+**Consequences we accept.** A new conversation is a page load. A button answer to a read-back
+the voice has not finished saying counts as read. The browser speech mode (D22) stays until a
+follow-up removes it. `ui.<lang>.md` is new candidate-facing text; `PROMPT_VERSION` is unchanged
+because the model never sees it.

@@ -22,9 +22,8 @@ def test_hosted_voice_names_its_models_and_voice_in_the_stamp() -> None:
     )
 
 
-@pytest.mark.parametrize("mode", ["off", "browser"])
-def test_without_hosted_voice_the_stamp_names_no_voice_provider(mode: str) -> None:
-    process = _process_versions({"ELEVENLABS_VOICE_ID": "voice-1"}, "fake", mode)  # type: ignore[arg-type]
+def test_without_hosted_voice_the_stamp_names_no_voice_provider() -> None:
+    process = _process_versions({"ELEVENLABS_VOICE_ID": "voice-1"}, "fake", "off")
     assert (process.stt_model, process.tts_model, process.voice_id) == ("", "", "")
     assert process.model_id == "fake" and process.commit_sha == "local"
 

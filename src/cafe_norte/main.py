@@ -231,7 +231,7 @@ def _process_versions(
     env: Mapping[str, str], model_id: str, voice_mode: VoiceMode
 ) -> ProcessVersions:
     """The part of the version stamp fixed for this process. Hosted voice also names its
-    providers' models; the browser's own speech is not one of ours."""
+    providers' models."""
     hosted = voice_mode == "pipecat"
     return ProcessVersions(
         model_id=model_id,
@@ -301,8 +301,10 @@ def _retriever(
 
 def _voice_mode(env: Mapping[str, str]) -> VoiceMode:
     value = env.get("CAFE_NORTE_VOICE", "off")
-    if value not in ("off", "browser", "pipecat"):
-        raise ValueError(f"CAFE_NORTE_VOICE must be off, browser or pipecat, not {value!r}")
+    modes = get_args(VoiceMode)
+    if value not in modes:
+        removed = " (browser speech was removed in D45)" if value == "browser" else ""
+        raise ValueError(f"CAFE_NORTE_VOICE must be {' or '.join(modes)}, not {value!r}{removed}")
     return value  # type: ignore[return-value]
 
 

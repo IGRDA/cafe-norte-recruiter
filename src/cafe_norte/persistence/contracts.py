@@ -205,6 +205,13 @@ class Store(Protocol):
     def transaction(self) -> AbstractAsyncContextManager[Transaction]: ...
     async def check_ready(self) -> bool: ...
 
+    async def snapshot(
+        self, session_id: SessionId, *, versions: VersionStamp, taken_at: datetime
+    ) -> "SessionSnapshot | None":
+        """One consistent read of everything the export needs; ``None`` for an unknown
+        session. Confirmations are the history journaled in ``state_updated`` events."""
+        ...
+
 
 class SessionSnapshot(Frozen):
     """One consistent read used for the export and the browser's snapshot endpoint."""

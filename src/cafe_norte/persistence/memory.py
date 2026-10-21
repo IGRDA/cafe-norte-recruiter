@@ -23,14 +23,18 @@ from cafe_norte.domain.contracts import (
     TurnId,
 )
 from cafe_norte.errors import ServiceError
-from cafe_norte.observability.contracts import StageTiming, UsageRecord
+from cafe_norte.observability.contracts import StageTiming, UsageRecord, VersionStamp
 from cafe_norte.persistence.contracts import (
     EventRecord,
     Lease,
+    SessionSnapshot,
     SummaryJob,
     Transaction,
     TurnRecord,
 )
+from cafe_norte.persistence.export import confirmations_from_events
+
+SNAPSHOT_TURNS = 10_000  # far above the session cap; a snapshot is the whole transcript
 
 
 class MemoryTransaction:
@@ -178,6 +182,9 @@ class MemoryEvents:
         events = self._events.get(session_id, [])
         return events[-1].seq if events else 0
 
+    def all(self, session_id: SessionId) -> tuple[EventRecord, ...]:
+        return tuple(self._events.get(session_id, []))
+
     async def record_usage(self, tx: Transaction, usage: UsageRecord) -> None:
         _tx(tx).enlist(lambda: self.usage.append(usage))
 
@@ -302,3 +309,21 @@ class MemoryStore:
 
     async def check_ready(self) -> bool:
         return True
+
+    async def snapshot(
+        self, session_id: SessionId, *, versions: VersionStamp, taken_at: datetime
+    ) -> SessionSnapshot | None:
+        state = await self.sessions.get(session_id)
+        if state is None:
+            return None
+        events = self.events.all(session_id)
+        return SessionSnapshot(
+            state=state,
+            turns=await self.turns.recent(session_id, SNAPSHOT_TURNS),
+            confirmations=confirmations_from_events(events),
+            events=events,
+            usage=tuple(u for u in self.events.usage if u.session_id == session_id),
+            timings=tuple(t for t in self.events.timings if t.session_id == session_id),
+            versions=versions,
+            taken_at=taken_at,
+        )

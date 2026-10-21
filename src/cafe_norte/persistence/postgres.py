@@ -1,7 +1,10 @@
 """psycopg 3 implementation of the Store port."""
 
 from contextlib import AbstractAsyncContextManager
+from datetime import datetime
 
+from cafe_norte.domain.contracts import SessionId
+from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import (
     Admission,
     Calendar,
@@ -10,6 +13,7 @@ from cafe_norte.persistence.contracts import (
     Leases,
     ResumeTokens,
     Sessions,
+    SessionSnapshot,
     SummaryJobs,
     Transaction,
     Turns,
@@ -43,4 +47,9 @@ class PostgresStore:
         raise NotImplementedError
 
     async def check_ready(self) -> bool:
+        raise NotImplementedError
+
+    async def snapshot(
+        self, session_id: SessionId, *, versions: VersionStamp, taken_at: datetime
+    ) -> SessionSnapshot | None:
         raise NotImplementedError

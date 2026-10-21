@@ -59,6 +59,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Voice: filler while a tool runs | after 1.5 s in which the candidate heard nothing (D40) |
 | Voice: bot join timeout | 15 s |
 | Voice: user speech timeout before a turn ends | 1.0 s; a transcript can start a turn when VAD misses it (D35) |
+| Voice: a cut answer joined to the next words | when none of the cut turn's answer was heard (the filler aside) and the next transcript comes within 5 s of it (D44) |
 | Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |

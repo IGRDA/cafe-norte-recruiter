@@ -3,7 +3,7 @@ events; a recorder stands in for TTS; a controllable clock drives the idle timer
 
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from cafe_norte.conversation.contracts import (
@@ -458,3 +458,67 @@ async def test_a_language_switch_is_reported_once_so_recognition_follows_it() ->
     await s.transcript("my name is Lucy")
     await s.wait()
     assert switched == ["en"]
+
+
+# ---- an answer cut by a pause (KI-07, D44) -------------------------------------------------------
+
+
+def cut_answer(now: list[datetime]) -> tuple[FakeRuntime, VoiceSession]:
+    runtime = FakeRuntime([[say("¿Y qué día?"), finished()], [say("Perfecto."), finished()]])
+    runtime.slow = True
+    s = VoiceSession(
+        runtime,
+        SID,
+        speak=Recorder().speak,
+        on_status=lambda _status: None,
+        texts=TEXTS,
+        language="es",
+        clock=lambda: now[0],
+    )
+    return runtime, s
+
+
+async def test_a_pause_longer_than_the_join_window_starts_a_new_answer() -> None:
+    now = [datetime(2026, 10, 20, tzinfo=UTC)]
+    runtime, s = cut_answer(now)
+    await s.transcript("El lunes,")
+    await s.interrupted()
+    now[0] += timedelta(seconds=VoiceSession.join_window_seconds + 0.1)
+    await s.transcript("uno, de, dos de noviembre.")
+    await s.wait()
+    assert runtime.turns[-1].text == "uno, de, dos de noviembre."
+    await s.close()
+
+
+async def test_an_answer_that_was_heard_is_not_joined_to_the_next_words() -> None:
+    now = [datetime(2026, 10, 20, tzinfo=UTC)]
+    runtime, s = cut_answer(now)
+    await s.transcript("El lunes,")
+    await asyncio.sleep(0.03)  # "¿Y qué día?" was said
+    await s.played_one()  # and heard
+    await s.interrupted()
+    await s.transcript("el dos de noviembre.")
+    await s.wait()
+    assert runtime.turns[-1].text == "el dos de noviembre."
+    await s.close()
+
+
+async def test_a_cut_part_is_joined_once() -> None:
+    now = [datetime(2026, 10, 20, tzinfo=UTC)]
+    runtime, s = cut_answer(now)
+    runtime.scripts.append([say("Vale."), finished()])
+    await s.transcript("El lunes,")
+    await asyncio.sleep(0.005)  # the turn has started; nothing of it was said yet
+    await s.interrupted()
+    await s.transcript("uno, de, dos de noviembre.")
+    await s.wait()
+    await s.played_one()
+    await s.played_one()
+    await s.transcript("Sí.")
+    await s.wait()
+    assert [t.text for t in runtime.turns] == [
+        "El lunes,",
+        "El lunes, uno, de, dos de noviembre.",
+        "Sí.",
+    ]
+    await s.close()

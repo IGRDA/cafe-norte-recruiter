@@ -140,7 +140,6 @@ async def test_ki06_a_day_and_a_time_end_in_a_booking_without_the_model_copying_
     assert state.booking.slot_id == FRI_1030
 
 
-@pytest.mark.xfail(strict=True, reason="KI-07: the first part of a split answer is lost")
 async def test_ki07_an_answer_cut_by_a_pause_reaches_the_model_whole() -> None:
     """Live: "El lunes," (seq 53) and "uno, de, dos de noviembre." (54) became two turns 4 s
     apart; the second cancelled the first before Ana said anything, and the model only ever

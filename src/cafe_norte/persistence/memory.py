@@ -9,7 +9,7 @@ would raise it. Repositories of later stages come from ``later.py`` and raise
 import asyncio
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import partial
 
 from cafe_norte.domain.contracts import (
@@ -27,17 +27,13 @@ from cafe_norte.observability.contracts import StageTiming, UsageRecord, Version
 from cafe_norte.persistence.contracts import (
     SNAPSHOT_TURNS,
     EventRecord,
+    Lease,
     SessionSnapshot,
     Transaction,
     TurnRecord,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-from cafe_norte.persistence.later import (
-    ExportsLater,
-    LeasesLater,
-    ResumeTokensLater,
-    SummaryJobsLater,
-)
+from cafe_norte.persistence.later import ExportsLater, ResumeTokensLater, SummaryJobsLater
 
 
 class MemoryTransaction:
@@ -283,6 +279,54 @@ class MemoryCalendar:
         return self._by_key.get(idempotency_key)
 
 
+class MemoryLeases:
+    """One lease per session; ``clock`` decides expiry, as ``now()`` does in Postgres."""
+
+    def __init__(self, clock: Callable[[], datetime], sessions: MemorySessions) -> None:
+        self._clock = clock
+        self._sessions = sessions
+        self._leases: dict[SessionId, Lease] = {}
+
+    def _live(self, session_id: SessionId) -> Lease | None:
+        lease = self._leases.get(session_id)
+        return lease if lease is not None and lease.expires_at > self._clock() else None
+
+    async def claim(self, session_id: SessionId, owner: str, ttl_seconds: int) -> Lease | None:
+        if session_id not in self._sessions._states:
+            return None
+        live = self._live(session_id)
+        if live is not None and live.owner != owner:
+            return None
+        previous = self._leases.get(session_id)
+        lease = Lease(
+            session_id=session_id,
+            owner=owner,
+            generation=(previous.generation if previous else 0) + 1,
+            expires_at=self._clock() + timedelta(seconds=ttl_seconds),
+        )
+        self._leases[session_id] = lease
+        return lease
+
+    async def renew(self, lease: Lease, ttl_seconds: int) -> Lease | None:
+        live = self._live(lease.session_id)
+        if live != lease:
+            return None
+        renewed = lease.model_copy(
+            update={"expires_at": self._clock() + timedelta(seconds=ttl_seconds)}
+        )
+        self._leases[lease.session_id] = renewed
+        return renewed
+
+    async def release(self, lease: Lease) -> None:
+        """Expire, never forget: the generation keeps growing across claims."""
+        if self._leases.get(lease.session_id) == lease:
+            self._leases[lease.session_id] = lease.model_copy(update={"expires_at": self._clock()})
+
+    def generation_is_live(self, session_id: SessionId, generation: int) -> bool:
+        live = self._live(session_id)
+        return live is not None and live.generation == generation
+
+
 class MemoryAdmission:
     """Voice capacity for one process: a set of active session ids. Postgres makes it
     cross-container; the spend reservation is recorded, not enforced, until pricing lands."""
@@ -312,7 +356,7 @@ class MemoryStore:
         self.turns = MemoryTurns()
         self.events = MemoryEvents()
         self.calendar = MemoryCalendar(clock)
-        self.leases = LeasesLater()
+        self.leases = MemoryLeases(clock, self.sessions)
         self.admission = MemoryAdmission()
         self.summary_jobs = SummaryJobsLater()
         self.resume_tokens = ResumeTokensLater()

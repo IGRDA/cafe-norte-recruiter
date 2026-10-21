@@ -11,7 +11,6 @@ from cafe_norte.persistence.contracts import (
     SNAPSHOT_TURNS,
     Admission,
     Exports,
-    Leases,
     ResumeTokens,
     SessionSnapshot,
     SummaryJobs,
@@ -21,7 +20,6 @@ from cafe_norte.persistence.export import confirmations_from_events
 from cafe_norte.persistence.later import (
     AdmissionLater,
     ExportsLater,
-    LeasesLater,
     ResumeTokensLater,
     SummaryJobsLater,
 )
@@ -33,6 +31,7 @@ from cafe_norte.persistence.postgres.events import (
     select_timings,
     select_usage,
 )
+from cafe_norte.persistence.postgres.leases import PostgresLeases
 from cafe_norte.persistence.postgres.sessions import PostgresSessions, select_state
 from cafe_norte.persistence.postgres.support import (
     PostgresTransaction,
@@ -74,7 +73,7 @@ class PostgresStore:
         self.turns = PostgresTurns(connect)
         self.events = PostgresEvents(connect, poll_seconds=poll_seconds)
         self.calendar = PostgresCalendar(connect)
-        self.leases: Leases = LeasesLater()
+        self.leases = PostgresLeases(connect)
         self.admission: Admission = AdmissionLater()
         self.summary_jobs: SummaryJobs = SummaryJobsLater()
         self.resume_tokens: ResumeTokens = ResumeTokensLater()

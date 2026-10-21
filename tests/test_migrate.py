@@ -9,7 +9,19 @@ from cafe_norte.persistence.migrate import apply_pending, main
 
 pytestmark = pytest.mark.postgres
 
-PR1_TABLES = {"sessions", "turns", "events", "interview_slots", "bookings", "usage", "timings"}
+MIGRATIONS = ("0001_initial.sql", "0002_leases_admission_resume.sql")
+TABLES = {
+    "sessions",
+    "turns",
+    "events",
+    "interview_slots",
+    "bookings",
+    "usage",
+    "timings",
+    "leases",
+    "admission",
+    "resume_tokens",
+}
 
 
 async def tables(url: str) -> set[str]:
@@ -23,12 +35,12 @@ async def tables(url: str) -> set[str]:
 
 
 async def test_apply_pending_creates_the_schema_once_and_records_it(empty_database: str) -> None:
-    assert await apply_pending(empty_database) == ("0001_initial.sql",)
-    assert PR1_TABLES | {"schema_migrations"} <= await tables(empty_database)
+    assert await apply_pending(empty_database) == MIGRATIONS
+    assert TABLES | {"schema_migrations"} <= await tables(empty_database)
     assert await apply_pending(empty_database) == ()
     async with await psycopg.AsyncConnection.connect(empty_database) as conn:
         rows = await (await conn.execute("select name from schema_migrations")).fetchall()
-    assert [row[0] for row in rows] == ["0001_initial.sql"]
+    assert tuple(row[0] for row in rows) == MIGRATIONS
 
 
 async def test_a_failing_file_is_rolled_back_and_the_lock_is_released(

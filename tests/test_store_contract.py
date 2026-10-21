@@ -273,3 +273,44 @@ async def test_open_and_close_are_idempotent(store: Store) -> None:
     await store.open()
     assert await store.check_ready()
     await store.close()
+
+
+# ---- leases --------------------------------------------------------------------------------------
+
+
+async def test_a_lease_is_held_by_one_owner_until_it_expires_or_is_released(store: Store) -> None:
+    await created(store)
+    first = await store.leases.claim(SID, "a", ttl_seconds=60)
+    assert first is not None and (first.owner, first.generation) == ("a", 1)
+    assert await store.leases.claim(SID, "b", ttl_seconds=60) is None  # live, someone else's
+    again = await store.leases.claim(SID, "a", ttl_seconds=60)  # the owner may claim again
+    assert again is not None and again.generation == 2
+    await store.leases.release(again)
+    taken = await store.leases.claim(SID, "b", ttl_seconds=60)
+    assert taken is not None and (taken.owner, taken.generation) == ("b", 3)
+
+
+async def test_an_expired_lease_can_be_claimed_by_another_owner(store: Store) -> None:
+    await created(store)
+    short = await store.leases.claim(SID, "a", ttl_seconds=0)
+    assert short is not None
+    await asyncio.sleep(0.01)
+    other = await store.leases.claim(SID, "b", ttl_seconds=60)
+    assert other is not None and other.owner == "b" and other.generation == 2
+    assert await store.leases.renew(short, ttl_seconds=60) is None  # superseded
+    renewed = await store.leases.renew(other, ttl_seconds=60)
+    assert (
+        renewed is not None and renewed.generation == 2 and renewed.expires_at >= other.expires_at
+    )
+
+
+async def test_a_lease_needs_a_session_and_release_of_a_stale_lease_is_harmless(
+    store: Store,
+) -> None:
+    assert await store.leases.claim(SessionId("nope"), "a", ttl_seconds=60) is None
+    await created(store)
+    mine = await store.leases.claim(SID, "a", ttl_seconds=60)
+    assert mine is not None
+    theirs = mine.model_copy(update={"generation": mine.generation + 5})
+    await store.leases.release(theirs)  # not the current lease: nothing happens
+    assert await store.leases.claim(SID, "b", ttl_seconds=60) is None

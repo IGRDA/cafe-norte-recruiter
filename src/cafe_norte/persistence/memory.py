@@ -18,7 +18,6 @@ from cafe_norte.domain.contracts import (
     InterviewSlot,
     SessionId,
     SessionState,
-    Signal,
     SlotId,
     TurnId,
 )
@@ -143,7 +142,6 @@ class MemoryEvents:
         self._events: dict[SessionId, list[EventRecord]] = {}
         self.usage: list[UsageRecord] = []
         self.timings: list[StageTiming] = []
-        self.signals: list[tuple[SessionId, Signal]] = []
         self._changed = asyncio.Condition()
 
     async def append(self, tx: Transaction, event: EventRecord) -> None:
@@ -190,9 +188,6 @@ class MemoryEvents:
 
     async def record_timing(self, tx: Transaction, timing: StageTiming) -> None:
         _tx(tx).enlist(lambda: self.timings.append(timing))
-
-    async def record_signal(self, tx: Transaction, session_id: SessionId, signal: Signal) -> None:
-        _tx(tx).enlist(lambda: self.signals.append((session_id, signal)))
 
 
 class _CalendarLater:

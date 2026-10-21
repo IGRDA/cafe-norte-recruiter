@@ -1,0 +1,45 @@
+id: S09
+title: Frustration and explicit human request, Chamberí
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# Line 2 is classified as frustrated after its turn ends; line 3 is the explicit request: the
+# runtime saves the follow-up and says the fixed reply before the model runs; line 4 ends early,
+# so the outcome is the follow-up rather than incomplete.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Uf, esto es muy lento y no me entero."
+  - "Quiero hablar con una persona."
+  - "Vale, lo dejo aquí."
+fake_signals:
+  - { sentiment: neutral }
+  - { sentiment: frustrated, evidence_text: "esto es muy lento y no me entero" }
+  - { sentiment: neutral }
+  - { sentiment: neutral }
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - say: "Perdona, voy más despacio. ¿Cómo te llamas?"
+  - - say: ""
+  - - tool: end_session
+      args: { reason: candidate_stop }
+    - say: "Gracias por tu tiempo. ¡Hasta pronto!"
+persona:
+  facts: {}
+  mood: frustrated
+  wants_interview: false
+checks:
+  - name: signal_recorded
+    args: { turn: "2", sentiment: frustrated }
+  - name: said_control_reply
+    args: { turn: "3", control: human }
+  - name: review_flag_present
+    args: { kind: human_followup }
+  - name: lifecycle_is
+    args: { lifecycle: stopped }
+  - name: outcome_is
+    args: { outcome: human_followup_requested }
+  - name: no_fabricated_confirmed_values
+rubric:
+  - After the frustrated line Ana acknowledged it briefly and asked a shorter question.
+  - Ana answered the request for a person calmly, said nobody real is notified and that the candidate may leave at any time.
+  - Ana did not judge the candidate or end the conversation on her own.

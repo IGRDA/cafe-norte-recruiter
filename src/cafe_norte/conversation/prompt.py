@@ -4,9 +4,17 @@ import json
 import re
 from datetime import date, timedelta
 
+from pydantic import BaseModel, ConfigDict
+
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.signals import Control
 from cafe_norte.domain.candidate import VALUE_FIELDS, unfinished_fields
-from cafe_norte.domain.contracts import CandidateRecord, SessionState, StoreConfiguration
+from cafe_norte.domain.contracts import (
+    CandidateRecord,
+    Sentiment,
+    SessionState,
+    StoreConfiguration,
+)
 from cafe_norte.domain.fields import value_of
 from cafe_norte.model.contracts import ModelMessage
 from cafe_norte.persistence.contracts import TurnRecord
@@ -18,11 +26,21 @@ HISTORY_TURNS = 20
 _SENTENCE_END = re.compile(r"(?:(?<=[.!?…])|(?<=[.!?…][)\]]))(?:\s+|(?=[¿¡(A-ZÁÉÍÓÚÑÜ]))")
 
 
+class PromptHints(BaseModel):
+    """What this turn adds beyond the stored state: the explicit requests detected in its text
+    and the sentiment of the previous turn, when fresh (``signals.fresh_sentiment``)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    explicit: frozenset[Control] = frozenset()
+    sentiment: Sentiment | None = None
+
+
 WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 
 
 def system_message(
-    configuration: StoreConfiguration, state: SessionState, today: date
+    configuration: StoreConfiguration, state: SessionState, today: date, hints: PromptHints
 ) -> ModelMessage:
     facts = {
         "today": {"date": today.isoformat(), "weekday": WEEKDAYS[today.weekday()]},
@@ -49,6 +67,8 @@ def system_message(
         "fields_still_to_ask": list(unfinished_fields(state.candidate)),
         "pending_confirmation": pending_facts(state),
         "lifecycle": state.lifecycle,
+        "explicit_requests": sorted(hints.explicit),
+        "candidate_sentiment": hints.sentiment,
     }
     content = (
         prompts.load("system")
@@ -96,9 +116,10 @@ def build_messages(
     history: tuple[TurnRecord, ...],
     user_text: str,
     today: date,
+    hints: PromptHints,
 ) -> tuple[ModelMessage, ...]:
     return (
-        system_message(configuration, state, today),
+        system_message(configuration, state, today, hints),
         *history_messages(history),
         ModelMessage(role="user", content=user_text),
     )

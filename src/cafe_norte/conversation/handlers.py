@@ -50,6 +50,7 @@ from cafe_norte.domain.contracts import (
 )
 from cafe_norte.domain.lifecycle import LifecycleEvent, transition
 from cafe_norte.domain.result import Err
+from cafe_norte.domain.review import add_followup, has_followup
 from cafe_norte.knowledge.contracts import TOPIC_DOCS, RetrievalQuery, RetrievedChunk, Retriever
 from cafe_norte.persistence.contracts import Store
 
@@ -98,14 +99,7 @@ class _Handler:
 
     @staticmethod
     def _updated(state: SessionState) -> StateUpdated:
-        return StateUpdated(
-            revision=state.candidate.revision,
-            candidate=state.candidate,
-            pending_confirmation=state.pending_confirmation,
-            booking=state.booking,
-            lifecycle=state.lifecycle,
-            outcome=state.outcome,
-        )
+        return StateUpdated.of(state)
 
     @staticmethod
     def _refuse(summary: str, model_text: str) -> ToolOutcome:
@@ -322,8 +316,7 @@ class RequestHumanFollowupHandler(_Handler):
         state = await self._state(context)
         if state is None:
             return self._refuse("not_found", "Session not found.")
-        flag = ReviewFlag(kind="human_followup", turn_id=context.turn_id, note=arguments.reason)
-        new_state = state.model_copy(update={"review_flags": (*state.review_flags, flag)})
+        new_state = add_followup(state, context.turn_id, arguments.reason)
         await self._save(new_state, expected_revision=state.candidate.revision)
         return ToolOutcome(
             ok=True,
@@ -369,7 +362,7 @@ class PresentConfirmationHandler(_Handler):
                     "call confirm_field with the candidate's answer first.",
                 )
             target: FieldTarget | BriefTarget = BriefTarget(revision=revision)
-            text = render_brief_es(state.candidate, configuration)
+            text = render_brief_es(state.candidate, configuration, followup=has_followup(state))
         elif arguments.target == "field" and arguments.field in READBACK_FIELDS:
             field_name: ReadbackField = arguments.field
             value = fields.value_of(getattr(state.candidate, field_name))

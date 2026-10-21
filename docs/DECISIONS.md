@@ -519,6 +519,39 @@ no lexical match scored ≥ 0.40, and the unsupported questions with no lexical 
 **Not done.** ragas and Langfuse sync (not chosen), and a floor that uses the second-best
 chunk's margin (no evidence it would help on 24 questions).
 
+## D28 · Explicit requests are patterns in the runtime; frustration is an opt-in classifier
+
+_Added 21 October 2026, the signals stage (frustration bonus, S09)._
+
+**Decisions.**
+- `explicit_controls(text, language)` is pure: anchored phrases for `human` and `stop` (es,
+  en), matched per clause after lowercasing and removing accents; a negation in the three words
+  before a match cancels it, so "no quiero hablar con una persona" is not a request and "para"
+  as a preposition is not a stop. Language switches are not detected until the English stage.
+- A human request is handled by the runtime before the model: `add_followup` saves a
+  `human_followup` flag (one per turn; the tool handler uses the same function), `StateUpdated`
+  is emitted, then the fixed reply in `prompts/controls.md` is said word for word: nobody can be
+  reached now, the interview will be with a person, the request is noted, the demo notifies
+  nobody real, the candidate may leave at any time. The conversation continues; the model runs
+  for any fact in the same sentence but voices nothing more.
+- A stop request is a hint (`explicit_requests` in the session facts); the model still calls
+  `end_session(candidate_stop)` and says goodbye. No second ending path in the runtime.
+- Outcome: an early end (`stop`, `abandon`, `fail`) with any `human_followup` flag is
+  `human_followup_requested`; withdrawn interest still wins as `not_interested`; `complete`
+  keeps `reserved`/`brief_only` with the flag beside it. The brief states the request in one
+  fixed sentence.
+- The classifier is opt-in (`CAFE_NORTE_SIGNAL_MODEL`), so the default setup and CI pay
+  nothing. It runs after `TurnFinished` in a background task, through the same `Model` port; a
+  verdict without verbatim evidence, late (5 s) or malformed is no signal. Verdicts are
+  journaled as `SignalRecorded` (the export's `signals` come from the journal;
+  `Events.record_signal` is removed) and the latest is kept in memory. Only a `frustrated` or
+  `uncertain` verdict from the immediately previous user turn reaches the prompt
+  (`candidate_sentiment`); the prompt then shortens the question and offers to skip a
+  nonessential field or ask for a person. Never a hiring input.
+
+**Not done.** Language switch controls (English stage); persisting the latest signal across
+resume (it is soft and per-turn); a frustration lexicon without a model.
+
 ## Assumptions recorded without a question
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.

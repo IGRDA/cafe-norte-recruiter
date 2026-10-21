@@ -15,6 +15,7 @@ from cafe_norte.domain.contracts import (
     Lifecycle,
     Outcome,
     SessionId,
+    SessionState,
     Signal,
     TurnId,
 )
@@ -83,6 +84,17 @@ class StateUpdated(Frozen):
     lifecycle: Lifecycle
     outcome: Outcome | None
 
+    @classmethod
+    def of(cls, state: SessionState) -> "StateUpdated":
+        return cls(
+            revision=state.candidate.revision,
+            candidate=state.candidate,
+            pending_confirmation=state.pending_confirmation,
+            booking=state.booking,
+            lifecycle=state.lifecycle,
+            outcome=state.outcome,
+        )
+
 
 class SourcesShown(Frozen):
     """What the candidate asked and which chunks were shown for it, title › section."""
@@ -93,6 +105,14 @@ class SourcesShown(Frozen):
     titles: tuple[str, ...]
     sections: tuple[str, ...]
     excerpts: tuple[str, ...]
+
+
+class SignalRecorded(Frozen):
+    """The asynchronous classifier's verdict on one user turn, journaled after that turn
+    ended. Advisory: the reviewer panel and the export show it; it never scores anyone."""
+
+    type: Literal["signal_recorded"] = "signal_recorded"
+    signal: Signal
 
 
 class TurnFinished(Frozen):
@@ -119,6 +139,7 @@ RuntimeEvent = (
     | ToolFinished
     | StateUpdated
     | SourcesShown
+    | SignalRecorded
     | TurnFinished
     | TurnFailed
 )
@@ -176,7 +197,7 @@ class ToolHandler(Protocol):
 
 class SignalAnalyzer(Protocol):
     """Asynchronous sentiment/intent classification of finalized text; results are advisory and
-    attached to their turn. Explicit stop/human/language requests have a synchronous path in
-    ``signals.py`` and never wait for this."""
+    attached to their turn. ``None`` when there is no evidence-backed verdict. Explicit stop and
+    human requests have a synchronous path in ``signals.py`` and never wait for this."""
 
-    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal: ...
+    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal | None: ...

@@ -33,7 +33,7 @@ def test_the_s01_record_renders_as_short_spoken_sentences() -> None:
         earliest_start_date=date(2026, 10, 26),
         experience="dos años en una cafetería",
     )
-    assert render_brief_es(lucia, CONFIG) == (
+    assert render_brief_es(lucia, CONFIG, followup=False) == (
         "Te resumo lo que tengo. Te llamas Lucía Marín. Te interesa el puesto. "
         "Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, "
         "unas 30 horas a la semana. Podrías empezar el lunes 26 de octubre de 2026. "
@@ -51,7 +51,7 @@ def test_unknown_and_declined_fields_stay_visible_and_optional_phone_is_omitted(
         unknown=frozenset({"hours_per_week"}),
         declined=frozenset({"earliest_start_date", "experience"}),
     )
-    text = render_brief_es(gaps, CONFIG)
+    text = render_brief_es(gaps, CONFIG, followup=False)
     assert "No tienes claro si te interesa." in text
     assert "No tienes claro si tienes permiso de trabajo." in text
     assert "Horas a la semana: no lo sabes." in text
@@ -62,7 +62,9 @@ def test_unknown_and_declined_fields_stay_visible_and_optional_phone_is_omitted(
 
 
 def test_an_experience_ending_in_a_period_does_not_double_it() -> None:
-    text = render_brief_es(record(name="Ane", experience="He trabajado dos años."), CONFIG)
+    text = render_brief_es(
+        record(name="Ane", experience="He trabajado dos años."), CONFIG, followup=False
+    )
     assert "Experiencia: He trabajado dos años." in text and ".." not in text
 
 
@@ -73,3 +75,12 @@ def test_field_readbacks_for_phone_and_date() -> None:
     assert field_readback("earliest_start_date", date(2026, 10, 26), CONFIG) == (
         "He apuntado que podrías empezar el lunes 26 de octubre de 2026. ¿Es correcto?"
     )
+
+
+def test_a_requested_follow_up_is_stated_just_before_the_question() -> None:
+    ane = record(name="Ane")
+    with_followup = render_brief_es(ane, CONFIG, followup=True)
+    assert with_followup.endswith(
+        "Has pedido que una persona del equipo se ponga en contacto contigo. ¿Es todo correcto?"
+    )
+    assert "persona del equipo" not in render_brief_es(ane, CONFIG, followup=False)

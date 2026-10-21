@@ -1,4 +1,4 @@
-# Brief and read-back sentences (ana_v4, es)
+# Brief and read-back sentences (ana_v6, es)
 
 One `key: sentence` per line; `#` lines and blank lines are ignored. `{value}` is filled by
 `conversation/brief.py`. English arrives with the language stage.
@@ -19,6 +19,7 @@ hours_per_week: Unas {value} horas a la semana.
 earliest_start_date: Podrías empezar el {value}.
 experience: Experiencia: {value}.
 contact_phone: Tu teléfono es el {value}.
+followup: Has pedido que una persona del equipo se ponga en contacto contigo.
 unknown: {label}: no lo sabes.
 declined: {label}: prefieres no decirlo.
 readback.contact_phone: He apuntado el teléfono {value}. ¿Es correcto?

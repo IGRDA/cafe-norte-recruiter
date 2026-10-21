@@ -1,14 +1,18 @@
 """Behaviour of ``Runtime.run_turn`` against the fake model and the memory store."""
 
+import asyncio
 import json
 from collections.abc import AsyncGenerator, Sequence
 from datetime import UTC, datetime
 
 import pytest
 
+from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
+    SignalAnalyzer,
+    SignalRecorded,
     StateUpdated,
     ToolFinished,
     TurnFailed,
@@ -19,8 +23,10 @@ from cafe_norte.conversation.contracts import (
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
+from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import ConfigId, InputId, SessionId, SessionState
+from cafe_norte.domain.contracts import ConfigId, InputId, SessionId, SessionState, Signal, TurnId
+from cafe_norte.errors import Language
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.model.contracts import (
     ModelError,
@@ -64,7 +70,13 @@ def turn(text: str, input_id: str = "in-1") -> TurnInput:
 
 
 class Harness:
-    def __init__(self, scripts: Sequence[Sequence[ModelEvent]], *, limits: Limits | None = None):
+    def __init__(
+        self,
+        scripts: Sequence[Sequence[ModelEvent]],
+        *,
+        limits: Limits | None = None,
+        signals: SignalAnalyzer | None = None,
+    ):
         self.store = MemoryStore()
         configurations = load_configurations(CONFIG_DIR)
         self.model = FakeModel(scripts)
@@ -77,7 +89,7 @@ class Harness:
             ),
             store=self.store,
             configurations=configurations,
-            signals=None,
+            signals=signals,
             limits=limits or Limits(),
             owner="test",
             clock=lambda: NOW,
@@ -508,3 +520,125 @@ async def test_an_answer_the_model_invents_after_its_question_is_not_spoken() ->
     events = await h.run("mi nombre es Iñaki")
     said = [e.text for e in events if isinstance(e, AssistantText)]
     assert said == ["¿Te interesa el puesto de barista?"]
+
+
+# ---- explicit controls and signals ---------------------------------------------------------------
+
+
+def session_facts(messages: tuple[ModelMessage, ...]) -> dict[str, object]:
+    facts: dict[str, object] = json.loads(messages[0].content.split("(JSON)\n", 1)[1])
+    return facts
+
+
+def verdicts(*sentiments: str) -> ModelSignalAnalyzer:
+    """A classifier that answers one verdict per turn; the evidence is the word "lento"."""
+    replies = [
+        json.dumps({"sentiment": s, "evidence_text": "" if s == "neutral" else "lento"})
+        for s in sentiments
+    ]
+    return ModelSignalAnalyzer(FakeModel([says(r) for r in replies]))
+
+
+async def test_a_human_request_is_saved_then_answered_with_the_fixed_reply() -> None:
+    h = Harness([says("Claro, te paso. ¿Algo más?")])
+    await h.open_session()
+    events: list[RuntimeEvent] = []
+    async for event in h.runtime.run_turn(turn("Quiero hablar con una persona.")):
+        if isinstance(event, AssistantText) and not any(
+            isinstance(e, AssistantText) for e in events
+        ):
+            state = await h.store.sessions.get(SESSION)
+            assert state is not None and [f.kind for f in state.review_flags] == ["human_followup"]
+        events.append(event)
+    reply = prompts.table("controls")["human.es"]
+    assert " ".join(e.text for e in events if isinstance(e, AssistantText)) == reply
+    assert any(isinstance(e, StateUpdated) for e in events)
+    assert session_facts(h.model.calls[0])["explicit_requests"] == ["human"]
+
+
+async def test_the_models_own_follow_up_call_in_that_turn_adds_no_second_flag() -> None:
+    call = ToolCall(
+        call_id="c1",
+        name="request_human_followup",
+        arguments_json=json.dumps({"reason": "quiere hablar con una persona"}),
+    )
+    h = Harness([[call, WANTS_TOOLS], says("")])
+    await h.open_session()
+    await h.run("Quiero hablar con una persona.")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and len(state.review_flags) == 1
+
+
+async def test_a_stop_request_is_a_hint_for_the_model_not_a_runtime_ending() -> None:
+    h = Harness([says("Vale.")])
+    await h.open_session()
+    await h.run("Quiero parar.")
+    assert session_facts(h.model.calls[0])["explicit_requests"] == ["stop"]
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.lifecycle == "active"
+
+
+async def test_a_frustrated_turn_shapes_the_next_prompt_only() -> None:
+    h = Harness(
+        [says("Uno."), says("Dos."), says("Tres.")],
+        signals=verdicts("frustrated", "neutral", "neutral"),
+    )
+    await h.open_session()
+    for index, text in enumerate(["Esto va lento.", "Me llamo Ane.", "Vale."], start=1):
+        await h.run(text, f"in-{index}")
+        await h.runtime.settle()
+    sentiments = [session_facts(call)["candidate_sentiment"] for call in h.model.calls]
+    assert sentiments == [None, "frustrated", None]
+
+
+async def test_a_verdict_is_journaled_against_its_source_turn() -> None:
+    h = Harness([says("Uno.")], signals=verdicts("frustrated"))
+    await h.open_session()
+    events = await h.run("Esto va lento.")
+    await h.runtime.settle()
+    source = next(e.turn_id for e in events if isinstance(e, TurnStarted))
+    recorded = [
+        SignalRecorded.model_validate_json(e.payload_json).signal
+        for e in h.store.events.all(SESSION)
+        if e.kind == "signal_recorded"
+    ]
+    assert [(s.turn_id, s.sentiment, s.evidence_text) for s in recorded] == [
+        (source, "frustrated", "lento")
+    ]
+
+
+async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() -> None:
+    class Slow:
+        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal:
+            await asyncio.sleep(0.05)
+            return Signal(
+                turn_id=turn_id,
+                sentiment="frustrated",
+                explicit_human_request=False,
+                explicit_stop=False,
+                language_switch_to=None,
+                evidence_text="",
+            )
+
+    h = Harness([says("Uno."), says("Dos."), says("Tres.")], signals=Slow())
+    await h.open_session()
+    await h.run("Esto va lento.", "in-1")
+    await h.run("Me llamo Ane.", "in-2")  # turn 1's verdict is not in yet
+    await h.runtime.settle()
+    await h.run("Vale.", "in-3")  # turn 2's verdict is fresh
+    sentiments = [session_facts(call)["candidate_sentiment"] for call in h.model.calls]
+    assert sentiments == [None, None, "frustrated"]
+
+
+async def test_a_failing_analyzer_never_reaches_the_turn() -> None:
+    class Broken:
+        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal:
+            raise RuntimeError("boom")
+
+    h = Harness([says("Uno."), says("Dos.")], signals=Broken())
+    await h.open_session()
+    first = await h.run("Hola.", "in-1")
+    await h.runtime.settle()
+    second = await h.run("Hola otra vez.", "in-2")
+    assert isinstance(first[-1], TurnFinished) and isinstance(second[-1], TurnFinished)
+    assert not any(e.kind == "signal_recorded" for e in h.store.events.all(SESSION))

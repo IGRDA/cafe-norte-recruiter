@@ -5,6 +5,7 @@ from collections import Counter
 import yaml
 from evals.contracts import RetrievalCase
 
+from cafe_norte.knowledge.loader import chunk_document, load_documents
 from tests.support import ROOT
 
 FIXTURE = ROOT / "evals" / "cases" / "retrieval" / "questions.yaml"
@@ -26,3 +27,10 @@ def test_the_fixture_is_16_answerable_4_unsupported_4_leakage_and_balanced() -> 
             assert c.expected_sections and c.expected_facts, c.id
         else:
             assert not c.expected_sections, c.id
+
+
+def test_every_expected_section_exists_in_the_configured_documents() -> None:
+    chunk_ids = {c.chunk_id for d in load_documents(ROOT / "kb") for c in chunk_document(d)}
+    for case in cases():
+        for section in case.expected_sections:
+            assert section in chunk_ids, f"{case.id}: {section}"

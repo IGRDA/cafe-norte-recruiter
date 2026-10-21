@@ -11,22 +11,6 @@ variable "image_digest" {
   type        = string
   description = "Full image reference with digest, e.g. europe-west1-docker.pkg.dev/p/r/app@sha256:..."
 }
-variable "min_instances" {
-  type    = number
-  default = 1
-}
-variable "max_instances" {
-  type    = number
-  default = 1
-}
-variable "cpu" {
-  type    = string
-  default = "1"
-}
-variable "memory" {
-  type    = string
-  default = "2Gi"
-}
 variable "db_tier" {
   type    = string
   default = "db-g1-small"
@@ -51,4 +35,10 @@ variable "enable_database" {
   type        = bool
   default     = false
   description = "Cloud SQL arrives with the Postgres stage; the checkpoint runs on the memory store."
+}
+
+variable "machine_type" {
+  type        = string
+  default     = "e2-small"
+  description = "One VM runs the app and Caddy; e2-small is enough for two voice sessions."
 }

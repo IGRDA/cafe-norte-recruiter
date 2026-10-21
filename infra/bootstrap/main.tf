@@ -59,11 +59,11 @@ resource "google_service_account_iam_member" "deployer_wif" {
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repository}"
 }
 
-# Deploy permissions only: push images, change the Cloud Run service, read secrets' names,
+# Deploy permissions only: push images, manage the VM, read secrets' names,
 # act as the runtime service account, keep Terraform state.
 resource "google_project_iam_member" "deployer" {
   for_each = toset([
-    "roles/run.admin",
+    "roles/compute.admin",
     "roles/artifactregistry.writer",
     "roles/secretmanager.admin",
     "roles/iam.serviceAccountUser",

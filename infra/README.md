@@ -6,7 +6,7 @@ or secret version that does not exist yet (D23).
 | Stack | Creates | Applied by | State |
 | --- | --- | --- | --- |
 | `bootstrap/` | Versioned state bucket (public access prevention), Workload Identity Federation pool and provider for GitHub Actions restricted to this repository's `main`, deployer service account with deploy roles, the billing budget (50/80/100 %) | a person, once, with ADC: `scripts/bootstrap.sh` | local on first run, then migrated to `gs://<bucket>/bootstrap` |
-| `app/` | Artifact Registry repository, runtime service account (secret accessor, log writer), Secret Manager secrets (names only), Cloud Run v2 service (gen2, 1 vCPU, 2 GiB, CPU always allocated, min 1 / max 1, concurrency 20, 600 s timeout, session affinity, startup and liveness probes, secrets as env from `latest`), public invoker (the app enforces the access code) | CI on every push to `main` (`deploy.yml`) with the image digest it built; the first time by a person | `gs://<bucket>/app` |
+| `app/` | Artifact Registry repository, runtime service account (secret accessor, image reader, log writer), Secret Manager secrets (names only), a static address, an ingress rule for 80/443, and one `e2-small` Container-Optimized OS instance whose startup script runs the app image by digest and Caddy (automatic HTTPS on `<ip-with-dashes>.sslip.io`) with host networking (D24). The page is public; the app enforces the access code | CI on every push to `main` (`deploy.yml`) with the image digest it built, then an instance reset; the first time by a person | `gs://<bucket>/app` |
 | `environments/` | `demo.tfvars.example` (project, region, sizing, image digest, end date) and `demo.backend.hcl.example` | copied to ignored files | |
 
 Not provisioned yet: Cloud SQL (`enable_database = false`, Postgres stage), uptime check and
@@ -15,7 +15,7 @@ Not provisioned yet: Cloud SQL (`enable_database = false`, Postgres stage), upti
 Sequence, first time: `scripts/bootstrap.sh` → `make infra-init` → targeted apply of the
 repository → build and push the image by digest → targeted apply of the secret names →
 `scripts/set_secrets.py` → `make infra-apply` with the digest → `scripts/smoke.py <url>`.
-Thereafter `deploy.yml` does build, apply, smoke on every push to `main`. Secrets never pass
+Thereafter `deploy.yml` does build, apply, reset the instance, wait for `/health/ready`, smoke on every push to `main`. Secrets never pass
 through Terraform inputs; only secret names do. Terraform state is private in the bucket and
 the plan is never published as a CI artifact.
 

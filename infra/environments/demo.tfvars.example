@@ -1,6 +1,4 @@
 project_id      = "cafe-norte-demo"
 region          = "europe-west1"
 image_digest    = "europe-west1-docker.pkg.dev/cafe-norte-demo/app/cafe-norte@sha256:replace"
-min_instances   = 1
-max_instances   = 1
 demo_end_date   = "2026-11-10"

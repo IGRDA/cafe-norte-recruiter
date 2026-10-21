@@ -371,6 +371,68 @@ _Added 21 October 2026._
 **Measured on the first deploy.** Bot joins a Daily room from the container in 2.9 s;
 `POST /voice` end to end 200 in 2.9 s; smoke green; both plans empty after apply.
 
+## D24 · Hosted demo on one Compute Engine VM, not Cloud Run
+
+_Added 21 October 2026. Overturns the hosting half of D23 and spec §11; spec §11 already named
+Compute Engine as the fallback "if the early checkpoint shows Cloud Run cannot sustain it"._
+
+**What the checkpoint showed.** Every hosted voice attempt (Firefox and Chrome, with and without
+a VPN, and a synthetic `daily-python` candidate playing a PCM file) ended the same way: the bot
+joins the Daily room, Deepgram and ElevenLabs connect, TTS audio is generated, and no media
+flows in either direction; "¿Sigues ahí?" after the 8 s silence. Daily's session logs show the
+bot's send and receive transports stuck in ICE `checking` while laptop clients reach
+`connected`. Cause: a Cloud Run container's only IPv4 address is link-local (`169.254.8.1` on
+`ipvlan-eth0`), which libwebrtc excludes from candidate gathering, so daily-core never offers
+an ICE candidate. UDP egress itself works (STUN binding to four public servers answered).
+Direct VPC egress plus Cloud NAT gives the container `169.254.9.1`: same result. `daily-python`
+exposes `iceServers` and `placement` but not `iceTransportPolicy`, so a relay-only (TURN)
+workaround is not available from the SDK.
+
+**Options weighed.**
+
+| Option | Cost (standing) | Voice media | Why not / why |
+| --- | --- | --- | --- |
+| Cloud Run, always-on instance (D23) | ≈ 45 EUR/month | No: no ICE candidates (above) | Rejected by evidence |
+| Cloud Run + Direct VPC egress + Cloud NAT | ≈ 45 + NAT ≈ 35 EUR/month | No: still a link-local address | Tried, rejected |
+| Cloud Run with a TURN-only ICE policy | ≈ 45 EUR/month + TURN | Unknown: the SDK cannot set the policy | Not reachable without forking daily-core |
+| GKE Autopilot or a Cloud Run sidecar proxying media | > 70 EUR/month, days of work | Probably | Disproportionate for a two-session demo |
+| **One e2-small VM, Container-Optimized OS, Docker, Caddy for TLS** | **≈ 15 EUR/month + static IP** | **Yes: a routable NIC** | **Chosen** |
+
+**Decisions.**
+- `infra/app` provisions a static regional address, an ingress rule for 80/443, and one
+  `e2-small` Container-Optimized OS instance running two containers with host networking:
+  the app image by digest and `caddy:2.9` as a reverse proxy with automatic HTTPS on the free
+  `sslip.io` name derived from the address (`https://<ip-with-dashes>.sslip.io`). No domain to
+  register for a three-week demo; the URL changes only if the address does.
+- The instance's startup script (`infra/app/startup.sh`) is the whole deploy: it reads the
+  image reference and plain settings from instance metadata, fetches secret versions from
+  Secret Manager with the runtime service account (`latest`, as on Cloud Run), writes a
+  root-only env file, pulls the image and starts both containers. Secrets still never pass
+  through Terraform.
+- A deploy is Terraform apply with the new digest (metadata changes in place) followed by
+  `gcloud compute instances reset`, which re-runs the startup script. The reset is a step in
+  `deploy.yml`, not a provisioner, so Terraform stays declarative and a by-hand deploy is two
+  commands. Downtime per deploy is the boot plus image pull, about a minute; sessions are in
+  memory and are lost either way until the Postgres stage.
+- The runtime service account gains `roles/artifactregistry.reader` (image pull) and keeps
+  secret accessor and log writer; the deployer swaps `roles/run.admin` for
+  `roles/compute.admin`. Nothing else in bootstrap changes.
+- What we give up versus Cloud Run: managed TLS (Caddy does it), zero-downtime revisions,
+  automatic OS patching (COS auto-updates, the container does not), and request-level
+  autoscaling, which the two-session cap never needed. What we gain: voice works, and the
+  standing cost drops to roughly a third.
+- Cloud SQL, when it arrives, connects over the VM's public address with the Cloud SQL Auth
+  Proxy as a third container or the Python connector; D17's Unix socket note applies to Cloud
+  Run only and is superseded.
+
+**Measured on the VM (synthetic `daily-python` candidate, 2026-10-21).** `POST /voice` 200 in
+3.5 s; the bot gathers a host candidate on the VM's NIC and a server-reflexive one on the
+static address, DTLS completes in under 2 s; the candidate's 7 s of speech triggers VAD, the
+bot stops its opening (barge-in) and answers through ElevenLabs; smoke green; both plans empty
+after apply. Two Container-Optimized OS facts cost a boot each: `/root` is read-only (docker
+login needs a writable `HOME`) and the host firewall drops inbound except ssh (the startup
+script opens 80/443). The browser exchange with an interruption is recorded in the PR.
+
 ## Assumptions recorded without a question
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.

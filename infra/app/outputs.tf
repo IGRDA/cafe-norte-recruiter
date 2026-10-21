@@ -1,6 +1,10 @@
 output "service_url" {
-  value       = google_cloud_run_v2_service.app.uri
-  description = "The managed run.app URL; no custom domain for the demo."
+  value       = "https://${local.public_host}"
+  description = "Caddy terminates TLS on a free sslip.io hostname derived from the static IP."
+}
+
+output "instance" {
+  value = "${google_compute_instance.app.name} (${google_compute_instance.app.zone})"
 }
 
 output "artifact_repository" {

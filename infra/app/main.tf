@@ -1,5 +1,5 @@
 # Everything the running demo needs. The image is an input (image_digest), so a deployment is a
-# Terraform change. Cloud SQL and the uptime check arrive with their stages (enable_database).
+# Terraform change plus an instance reset. Cloud SQL and the uptime check arrive with their stages.
 
 provider "google" {
   project               = var.project_id
@@ -29,7 +29,7 @@ resource "google_artifact_registry_repository" "app" {
 
 resource "google_service_account" "runtime" {
   account_id   = "cafe-norte-runtime"
-  display_name = "Cloud Run runtime: secrets and logs only"
+  display_name = "VM runtime: secrets, images and logs only"
 }
 
 resource "google_project_iam_member" "runtime_logs" {
@@ -55,101 +55,88 @@ resource "google_secret_manager_secret_iam_member" "runtime_reads" {
   member    = "serviceAccount:${google_service_account.runtime.email}"
 }
 
-resource "google_cloud_run_v2_service" "app" {
-  name                = var.service_name
-  location            = var.region
-  ingress             = "INGRESS_TRAFFIC_ALL"
-  deletion_protection = false
+# One small VM instead of Cloud Run: Cloud Run containers only have a link-local address and
+# libwebrtc (daily-core) cannot gather ICE candidates there, so no voice media ever flows (D24).
+resource "google_compute_address" "app" {
+  name   = "${var.service_name}-ip"
+  region = var.region
+}
 
-  template {
-    service_account                  = google_service_account.runtime.email
-    timeout                          = "600s"
-    max_instance_request_concurrency = 20
-    session_affinity                 = true
-    execution_environment            = "EXECUTION_ENVIRONMENT_GEN2"
+locals {
+  public_host = "${replace(google_compute_address.app.address, ".", "-")}.sslip.io"
+  plain_env = join("\n", [
+    "CAFE_NORTE_ENV=demo",
+    "CAFE_NORTE_MODEL=${var.model}",
+    "CAFE_NORTE_VOICE=pipecat",
+    "ELEVENLABS_VOICE_ID=${var.elevenlabs_voice_id}",
+    "CAFE_NORTE_MAX_VOICE_SESSIONS=2",
+  ])
+}
 
-    scaling {
-      min_instance_count = var.min_instances
-      max_instance_count = var.max_instances
-    }
+resource "google_compute_firewall" "web" {
+  name          = "${var.service_name}-web"
+  network       = "default"
+  direction     = "INGRESS"
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = [var.service_name]
 
-    containers {
-      image = var.image_digest
-
-      resources {
-        limits            = { cpu = var.cpu, memory = var.memory }
-        cpu_idle          = false # CPU always allocated: voice tasks run between requests
-        startup_cpu_boost = true
-      }
-
-      ports {
-        container_port = 8080
-      }
-
-      env {
-        name  = "CAFE_NORTE_ENV"
-        value = "demo"
-      }
-      env {
-        name  = "CAFE_NORTE_MODEL"
-        value = var.model
-      }
-      env {
-        name  = "CAFE_NORTE_VOICE"
-        value = "pipecat"
-      }
-      env {
-        name  = "ELEVENLABS_VOICE_ID"
-        value = var.elevenlabs_voice_id
-      }
-      env {
-        name  = "CAFE_NORTE_MAX_VOICE_SESSIONS"
-        value = "2"
-      }
-      dynamic "env" {
-        for_each = toset(local.secret_names)
-        content {
-          name = env.value
-          value_source {
-            secret_key_ref {
-              secret  = google_secret_manager_secret.keys[env.value].secret_id
-              version = "latest"
-            }
-          }
-        }
-      }
-
-      startup_probe {
-        http_get {
-          path = "/health/ready"
-        }
-        initial_delay_seconds = 5
-        period_seconds        = 5
-        failure_threshold     = 12
-      }
-      liveness_probe {
-        http_get {
-          path = "/health/live"
-        }
-        period_seconds = 30
-      }
-    }
-  }
-
-  depends_on = [google_secret_manager_secret_iam_member.runtime_reads]
-
-  lifecycle {
-    # The API fills service-level scaling defaults the provider then wants to remove.
-    ignore_changes = [scaling]
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
   }
 }
 
-# The page is public; the app enforces the shared access code.
-resource "google_cloud_run_v2_service_iam_member" "public" {
-  name     = google_cloud_run_v2_service.app.name
-  location = var.region
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+data "google_compute_image" "cos" {
+  family  = "cos-stable"
+  project = "cos-cloud"
+}
+
+resource "google_compute_instance" "app" {
+  name                      = var.service_name
+  machine_type              = var.machine_type
+  zone                      = "${var.region}-b"
+  tags                      = [var.service_name]
+  allow_stopping_for_update = true
+
+  boot_disk {
+    initialize_params {
+      image = data.google_compute_image.cos.self_link
+      size  = 20
+    }
+  }
+
+  network_interface {
+    network = "default"
+    access_config {
+      nat_ip = google_compute_address.app.address
+    }
+  }
+
+  service_account {
+    email  = google_service_account.runtime.email
+    scopes = ["cloud-platform"]
+  }
+
+  metadata = {
+    image                  = var.image_digest
+    public_host            = local.public_host
+    env                    = local.plain_env
+    secret_names           = join(" ", local.secret_names)
+    google-logging-enabled = "true"
+  }
+  metadata_startup_script = file("${path.module}/startup.sh")
+
+  labels = {
+    demo_end_date = replace(var.demo_end_date, "-", "_")
+  }
+
+  depends_on = [google_secret_manager_secret_iam_member.runtime_reads]
+}
+
+resource "google_project_iam_member" "runtime_pulls_images" {
+  project = var.project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:${google_service_account.runtime.email}"
 }
 
 data "google_project" "this" {

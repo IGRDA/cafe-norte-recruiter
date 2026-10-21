@@ -23,8 +23,8 @@ the session never paused during the call; no model round timed out.
 | KI-04 | "¿Sigues ahí?" twice after a failed turn | Medium | `test_ki04_…` | **fixed (D40)** |
 | KI-05 | System sentences are said ahead of the audio still playing | Medium | `test_ki05_…` | **fixed (D40)** |
 | KI-06 | Choosing an interview slot loops and never books | High | `test_ki06_…`, S20 | **fixed (D41)** |
-| KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | manual (below) | runtime robustness |
-| KI-08 | Wasted model rounds add latency | Low | journal | runtime, prompt |
+| KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | `test_ki07_…` | runtime robustness |
+| KI-08 | Wasted model rounds add latency | Low | `test_ki08_…` (two) | runtime, prompt |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 

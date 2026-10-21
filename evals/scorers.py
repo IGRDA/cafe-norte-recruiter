@@ -10,6 +10,7 @@ from functools import cache
 from typing import get_args
 
 from cafe_norte.conversation import prompts
+from cafe_norte.domain.confirmation import assurance
 from cafe_norte.domain.contracts import CandidateFieldName, Captured, Confirmed
 from cafe_norte.domain.fields import value_of
 from cafe_norte.errors import Language
@@ -216,6 +217,24 @@ def _turn_failed(result: SessionResult, check: Check) -> tuple[bool, str]:
     return (code or "none") == wanted, f"turn {turn} ended with {code or 'none'} (wanted {wanted})"
 
 
+def _readback_assurance(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """The pending read-back is confirmed, and as the check says: heard, reviewed or waived."""
+    pending = result.state.pending_confirmation
+    if pending is None or pending.status != "confirmed":
+        return False, f"no confirmed read-back ({pending.status if pending else 'none'})"
+    got = assurance(pending)
+    return got == check.args["assurance"], f"confirmed as {got}"
+
+
+def _readback_said_whole(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """How many turns said the pending read-back's whole text (D39: never more than twice)."""
+    pending = result.state.pending_confirmation
+    text = pending.presentation_text if pending is not None else None
+    times = sum(text is not None and text in " ".join(said) for said in result.spoken_by_turn)
+    limit = int(check.args.get("max", "1"))
+    return times <= limit, f"said whole in {times} turns (max {limit})"
+
+
 def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
     def scorer(result: SessionResult, check: Check) -> tuple[bool, str]:
         raise NotImplementedError(f"check {check.name!r} arrives with the {stage} stage")
@@ -243,6 +262,8 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "said_control_reply": _said_control_reply,
     "tool_ok": _tool_ok,
     "turn_failed": _turn_failed,
+    "readback_assurance": _readback_assurance,
+    "readback_said_whole": _readback_said_whole,
 }
 LATER: dict[str, str] = {}
 
@@ -257,11 +278,12 @@ def _user_turn_ids(result: SessionResult) -> list[str]:
 @cache
 def _system_questions() -> frozenset[str]:
     """The fixed questions of prompts/brief.<language>.md, in every language: the brief's
-    closing question and the last sentence of each read-back template."""
+    closing question, the last sentence of each read-back template and the review's check."""
     questions: set[str] = set()
     for language in get_args(Language):
         table = prompts.table("brief", language)
         questions.add(table["question"])
+        questions.add(table["review.check"])  # said after each part of a review (D39)
         for key, template in table.items():
             if key.startswith("readback."):
                 questions.add(template.rsplit(". ", 1)[-1])

@@ -122,11 +122,12 @@ class Harness:
         slow_calls: int = 0,
         on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
         clock: Callable[[], datetime] | None = None,
+        model: FakeModel | None = None,
     ):
         self.store = store or MemoryStore()
         self.telemetry = RecordingTelemetry()
         configurations = load_configurations(CONFIG_DIR)
-        self.model = SlowFirst(scripts, slow_calls) if slow_calls else FakeModel(scripts)
+        self.model = model or (SlowFirst(scripts, slow_calls) if slow_calls else FakeModel(scripts))
         self.runtime = Runtime(
             model=self.model,
             tools=ToolRegistry(

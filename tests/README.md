@@ -29,6 +29,13 @@ Fakes live next to the port they implement (`model/fake.py`, `persistence/memory
 `knowledge/fake.py`, `voice/fake.py`); production code never selects them except `main.py`
 when the environment asks for them.
 
+`tests/test_readback_matrix.py` is the read-back behaviour matrix (D39): every kind of read-back
+(date, phone, brief, slot) x where its saying is cut x the first reply (yes, no, correction,
+carry on, unrelated) x how the candidate goes on, driven by a small policy model that follows
+the prompt's rules from the session facts. Every row must settle without a failed turn, end
+in the export `assurance` its path predicts, and never say a read-back whole more than twice.
+`Harness(model=…)` takes such a model.
+
 `tests/test_known_issues.py` holds strict `xfail` reproductions of `docs/known-issues.md`:
 they fail today by design; the commit that fixes an issue removes its marker, and the test
 stays as the regression guard.

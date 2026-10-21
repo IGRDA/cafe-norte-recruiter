@@ -44,8 +44,10 @@ One file `evals/cases/scenarios/Snn.yaml`:
   `no_fabricated_confirmed_values`, `max_repeated_questions`, `review_flag_present`,
   `sources_shown_for_policy_answer`, `no_cross_store_sources`,
   `language_of_last_assistant_turn`, `brief_language`, `signal_recorded`,
-  `said_control_reply`, `tool_ok`, `turn_failed`, `brief_unconfirmed`; the rest raise until
-  their stage).
+  `said_control_reply`, `tool_ok`, `turn_failed`, `brief_unconfirmed`, `readback_assurance`
+  (how the pending read-back was confirmed: heard, reviewed or waived, D39) and
+  `readback_said_whole` (how many turns said its whole text); the rest raise until their stage).
+  The review's `¿Está bien?` after each part is a system question, never a repeated one.
 - `today`: the fake clock's date, so relative dates in the script stay fixed.
 - `seconds_per_turn` (optional): how long each turn lasts on the runtime's clock; the active-time
   cap needs it (`S18`).

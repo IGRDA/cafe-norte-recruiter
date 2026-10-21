@@ -14,6 +14,7 @@ from cafe_norte.domain.contracts import ConfigId, InputId, SessionId, SessionSta
 from cafe_norte.domain.fields import value_of
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.model.fake import FakeModel
+from cafe_norte.observability.fakes import NullTelemetry
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import ExportDocument
 from cafe_norte.persistence.postgres import PostgresStore
@@ -53,6 +54,7 @@ async def test_s01_runs_on_postgres_and_survives_a_restart(
         configurations=configurations,
         signals=None,
         limits=Limits(),
+        telemetry=NullTelemetry(),
         owner="restarted",
     )
     turn = TurnInput(
@@ -80,6 +82,7 @@ def runtime_over(store: Store, model: FakeModel, owner: str) -> Runtime:
         configurations=configurations,
         signals=None,
         limits=Limits(),
+        telemetry=NullTelemetry(),
         owner=owner,
         clock=lambda: NOW,
     )

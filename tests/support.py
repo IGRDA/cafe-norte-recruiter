@@ -13,6 +13,7 @@ from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.main import close_hook, create_app
 from cafe_norte.model.contracts import Model
 from cafe_norte.observability.contracts import Estimator, ProcessVersions
+from cafe_norte.observability.fakes import NullTelemetry
 from cafe_norte.persistence.export import SCHEMA_VERSION
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.voice.contracts import RoomProvisioner, VoiceMode, VoiceSessionController
@@ -46,6 +47,7 @@ def build_test_app(
         configurations=configurations,
         signals=None,
         limits=Limits(),
+        telemetry=NullTelemetry(),
         owner="test",
         on_closed=close_hook(store, configurations, VERSIONS, estimate),
     )

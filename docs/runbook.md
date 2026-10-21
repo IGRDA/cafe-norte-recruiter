@@ -27,8 +27,9 @@
   jsonPayload.container.name="/app"' --project cafe-norte-orbio --freshness=1h`, or on the
   box `gcloud compute ssh cafe-norte --zone europe-west1-b -- docker logs app`. The startup
   script's own lines are in the serial console (`get-serial-port-output`).
-  Failed turns log `turn failed … code=… detail=…`; every model round logs its first-output and
-  total latency (`model round: …`).
+  The app logs JSON lines keyed by `session_id` and `turn_id` (`event` is `turn_failed`,
+  `model_round`, `model_round_silent` or `answer_cut`); `model_round` carries `first_output_ms`
+  and `total_ms`. Filter with `jsonPayload.session_id="<id>"`.
 - **A call that went wrong**: the session's journal is the trace (Langfuse is not wired yet).
   Read it in order from the app container:
   `docker exec app uv run --no-sync python -c "import os,psycopg; c=psycopg.connect(os.environ['CAFE_NORTE_DATABASE_URL']); [print(r) for r in c.execute('select seq, kind, at, payload from events where session_id=%s order by seq', ('<id>',))]"`,

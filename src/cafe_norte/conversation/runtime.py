@@ -64,7 +64,16 @@ from cafe_norte.model.contracts import (
     ModelUsage,
     ToolCall,
 )
-from cafe_norte.observability.contracts import Stage, StageTiming, UsageRecord
+from cafe_norte.observability.contracts import (
+    EventName,
+    Severity,
+    SpanValue,
+    Stage,
+    StageTiming,
+    StructuredEvent,
+    Telemetry,
+    UsageRecord,
+)
 from cafe_norte.persistence.contracts import EventRecord, Lease, Store, TurnRecord
 
 
@@ -200,6 +209,7 @@ class Runtime:
         configurations: dict[ConfigId, StoreConfiguration],
         signals: SignalAnalyzer | None,
         limits: Limits,
+        telemetry: Telemetry,
         owner: str,
         clock: Callable[[], datetime] = _utcnow,
         on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
@@ -211,6 +221,7 @@ class Runtime:
         self._configurations = configurations
         self._signals = signals
         self._limits = limits
+        self._telemetry = telemetry
         self._owner = owner
         self._clock = clock
         self._locks: dict[SessionId, asyncio.Lock] = {}
@@ -238,17 +249,23 @@ class Runtime:
                 async for event in self._turn(run):
                     yield event
             except ServiceError as error:
-                log.warning(
-                    "turn failed session=%s turn=%s code=%s detail=%s",
-                    run.session_id,
-                    run.turn_id,
-                    error.code,
-                    error,
-                )
+                self._event(run, "turn_failed", "WARNING", code=error.code, detail=str(error))
                 run.lease = None  # the fence may be what failed; journal the failure unfenced
                 yield await self._emit(run, run.failed(error.code))
             finally:
                 await self._release(run)
+
+    def _event(self, run: _Turn, name: EventName, severity: Severity, **payload: SpanValue) -> None:
+        self._telemetry.emit(
+            StructuredEvent(
+                at=self._clock(),
+                severity=severity,
+                session_id=run.session_id,
+                turn_id=run.turn_id,
+                event=name,
+                payload=dict(payload),
+            )
+        )
 
     async def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
         """The spec's opening sentence, word for word, before any candidate input."""
@@ -553,8 +570,11 @@ class Runtime:
                             yield await self._emit(run, _say(sentence))
                     if sum(map(len, said)) + len(buffer) > self._limits.max_answer_characters:
                         # A runaway generation: stop reading, keep what was said, drop the rest.
-                        log.warning(
-                            "answer cut at %d characters", self._limits.max_answer_characters
+                        self._event(
+                            run,
+                            "answer_cut",
+                            "WARNING",
+                            limit_characters=self._limits.max_answer_characters,
                         )
                         buffer = ""
                         break
@@ -607,15 +627,13 @@ class Runtime:
             except TimeoutError as error:
                 await stream.aclose()
                 if attempt == 1:
-                    log.warning("model round: no output in %.1f s, asking once more", bound)
+                    self._event(
+                        run, "model_round_silent", "WARNING", attempt=attempt, bound_seconds=bound
+                    )
                     continue
                 raise ServiceError("no model output in time", code="timeout") from error
             break
-        log.info(
-            "model round: first output after %d ms (attempt %d)",
-            (time.monotonic() - started) * 1000,
-            attempt,
-        )
+        first_output_ms = int((time.monotonic() - started) * 1000)
         try:
             if first is None:
                 raise ServiceError("empty model stream", code="invalid_response")
@@ -626,7 +644,14 @@ class Runtime:
                     yield event
         finally:
             await stream.aclose()
-            log.info("model round: done after %d ms", (time.monotonic() - started) * 1000)
+            self._event(
+                run,
+                "model_round",
+                "INFO",
+                attempt=attempt,
+                first_output_ms=first_output_ms,
+                total_ms=int((time.monotonic() - started) * 1000),
+            )
 
     async def _tool_calls(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """Dispatch every call of the round in order; each result becomes a tool message."""

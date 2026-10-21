@@ -38,6 +38,7 @@ from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
 from cafe_norte.observability.contracts import Estimator, ProcessVersions, stamp
+from cafe_norte.observability.events import StdoutTelemetry
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, persist_export
 from cafe_norte.persistence.memory import MemoryStore
@@ -191,6 +192,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
             session_seconds=float(env.get("CAFE_NORTE_SESSION_SECONDS", "480")),
             max_answer_characters=int(env.get("CAFE_NORTE_MAX_ANSWER_CHARACTERS", "600")),
         ),
+        telemetry=StdoutTelemetry(),
         owner=env.get("K_REVISION", "local"),
         on_closed=close_hook(store, configurations, process),
     )

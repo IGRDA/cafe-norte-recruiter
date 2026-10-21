@@ -9,13 +9,12 @@ from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import (
     SNAPSHOT_TURNS,
-    Exports,
     SessionSnapshot,
     SummaryJobs,
     Transaction,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-from cafe_norte.persistence.later import ExportsLater, SummaryJobsLater
+from cafe_norte.persistence.later import SummaryJobsLater
 from cafe_norte.persistence.migrate import apply_pending
 from cafe_norte.persistence.postgres.admission import PostgresAdmission
 from cafe_norte.persistence.postgres.calendar import PostgresCalendar
@@ -25,20 +24,21 @@ from cafe_norte.persistence.postgres.events import (
     select_timings,
     select_usage,
 )
+from cafe_norte.persistence.postgres.exports import PostgresExports
 from cafe_norte.persistence.postgres.leases import PostgresLeases
 from cafe_norte.persistence.postgres.resume_tokens import PostgresResumeTokens
 from cafe_norte.persistence.postgres.sessions import PostgresSessions, select_state
 from cafe_norte.persistence.postgres.support import (
     PostgresTransaction,
+    fetch_one,
     make_pool,
     reading,
     translating,
 )
 from cafe_norte.persistence.postgres.turns import PostgresTurns, select_turns
 
-SNAPSHOT_EVENTS = (
-    100_000  # a session journals a few dozen events per turn; the cap keeps it far below
-)
+MAINTENANCE_LOCK = 7_423_002  # one advisory lock for every container's retention purge
+SNAPSHOT_EVENTS = 100_000  # dozens of events per turn; the session cap keeps it far below
 
 
 class PostgresStore:
@@ -73,7 +73,7 @@ class PostgresStore:
         self.admission = PostgresAdmission(connect, ttl_seconds=admission_ttl_seconds)
         self.summary_jobs: SummaryJobs = SummaryJobsLater()
         self.resume_tokens = PostgresResumeTokens(connect)
-        self.exports: Exports = ExportsLater()
+        self.exports = PostgresExports(connect)
         self._open = False
 
     async def open(self) -> None:
@@ -115,6 +115,24 @@ class PostgresStore:
         except ServiceError:
             return False
         return True
+
+    def maintenance(self) -> AbstractAsyncContextManager[bool]:
+        return self._maintenance()
+
+    @asynccontextmanager
+    async def _maintenance(self) -> AsyncIterator[bool]:
+        """A session-level advisory lock on one dedicated connection, released with it."""
+        async with translating(), self._pool.connection() as conn:
+            row = await fetch_one(
+                conn, "select pg_try_advisory_lock(%s) as held", (MAINTENANCE_LOCK,)
+            )
+            held = bool(row and row["held"])
+            try:
+                yield held
+            finally:
+                if held:
+                    await conn.execute("select pg_advisory_unlock(%s)", (MAINTENANCE_LOCK,))
+                await conn.commit()
 
     async def snapshot(
         self, session_id: SessionId, *, versions: VersionStamp, taken_at: datetime

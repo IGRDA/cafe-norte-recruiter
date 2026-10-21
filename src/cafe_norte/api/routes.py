@@ -243,11 +243,16 @@ def build_router(
 
     @router.get("/api/sessions/{session_id}/export")
     async def export_session(session_id: str, request: Request) -> Response:
-        """The JSON record of the owner's session, built on demand from one snapshot."""
+        """The JSON record of the owner's session: the snapshot stored at close (D34), or
+        one built on demand while the session is still open."""
         sid = owner(request, session_id)
         state = await store.sessions.get(sid)
         if state is None:
             raise ServiceError("session not found", code="not_found")
+        headers = {"Content-Disposition": f'attachment; filename="{sid}.json"'}
+        stored = await store.exports.read_snapshot(sid)
+        if stored is not None:
+            return Response(stored, media_type="application/json", headers=headers)
         snapshot = await store.snapshot(
             sid,
             versions=stamp(configurations[state.config_id], versions),
@@ -258,8 +263,19 @@ def build_router(
         return Response(
             build_export(snapshot).model_dump_json(indent=2),
             media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="{sid}.json"'},
+            headers=headers,
         )
+
+    @router.delete("/api/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+    async def delete_session(session_id: str, request: Request) -> Response:
+        """The owner's delete action (spec §8): the session and everything that belongs to it,
+        the stored export, the resume token and the simulated reservation included. A voice
+        session still running is stopped first. Idempotent."""
+        sid = owner(request, session_id)
+        if voice is not None and voice.status(sid) is not None:
+            await voice.stop(sid, reason="stop")
+        await store.sessions.delete(sid)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @router.get("/api/sessions/{session_id}/events")
     async def session_events(session_id: str, request: Request) -> StreamingResponse:

@@ -10,7 +10,7 @@ from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.knowledge.fake import FakeRetriever
-from cafe_norte.main import create_app
+from cafe_norte.main import close_hook, create_app
 from cafe_norte.model.contracts import Model
 from cafe_norte.observability.contracts import ProcessVersions
 from cafe_norte.persistence.export import SCHEMA_VERSION
@@ -46,6 +46,7 @@ def build_test_app(
         signals=None,
         limits=Limits(),
         owner="test",
+        on_closed=close_hook(store, configurations, VERSIONS),
     )
     return create_app(
         runtime=runtime,

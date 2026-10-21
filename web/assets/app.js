@@ -40,6 +40,7 @@ const el = {
   exportLink: document.getElementById("export-link"),
   resume: document.getElementById("resume"),
   resumeLink: document.getElementById("resume-link"),
+  delete: document.getElementById("delete"),
 };
 
 let voice = {
@@ -109,6 +110,7 @@ async function resumeSession(token) {
   renderCandidate();
   openStream();
   review("conversación recuperada con el enlace privado");
+  el.delete.hidden = false;
   setStatus("Conversación recuperada.");
 }
 
@@ -137,6 +139,7 @@ async function openSession() {
   el.resumeLink.textContent = `${location.origin}${body.resume_url}`;
   el.resume.hidden = false;
   review("enlace privado de reanudación emitido (válido 7 días)");
+  el.delete.hidden = false;
   renderCandidate();
   openStream();
   setStatus("Conectada.");
@@ -430,6 +433,25 @@ el.access.addEventListener("submit", async (event) => {
   } else {
     showError("Código incorrecto.");
   }
+});
+
+// The delete action (spec §8): the session, its export, its link and its simulated reservation
+// go together; a new conversation starts on reload.
+el.delete.addEventListener("click", async () => {
+  if (!state.sessionId || !confirm("¿Borrar esta conversación y todos sus datos?")) return;
+  const response = await fetch(`/api/sessions/${state.sessionId}`, { method: "DELETE" });
+  if (response.status !== 204) {
+    showError("No se pudo borrar la conversación.");
+    return;
+  }
+  state.ended = true;
+  el.delete.hidden = true;
+  el.resume.hidden = true;
+  el.export.hidden = true;
+  el.text.disabled = true;
+  el.send.disabled = true;
+  el.talk.disabled = true;
+  setStatus("Conversación borrada. Recarga la página para empezar otra.");
 });
 
 el.composer.addEventListener("submit", (event) => {

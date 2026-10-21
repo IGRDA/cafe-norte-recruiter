@@ -2,8 +2,9 @@
 ``build_export`` fills it from one ``SessionSnapshot``."""
 
 import json
+from collections.abc import Callable
 from datetime import datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -11,6 +12,7 @@ from cafe_norte.domain.contracts import (
     Booking,
     BriefTarget,
     CandidateRecord,
+    ConfigId,
     Confirmation,
     Lifecycle,
     Outcome,
@@ -21,6 +23,9 @@ from cafe_norte.domain.contracts import (
 from cafe_norte.domain.lifecycle import TERMINAL
 from cafe_norte.observability.contracts import StageTiming, UsageRecord, VersionStamp
 from cafe_norte.persistence.contracts import EventRecord, SessionSnapshot, TurnRecord
+
+if TYPE_CHECKING:
+    from cafe_norte.persistence.contracts import Store
 
 SCHEMA_VERSION: Literal["1"] = "1"
 
@@ -88,6 +93,28 @@ class ExportDocument(Frozen):
 RESERVATION_NOTICE: Literal["Simulated reservation — no real appointment created"] = (
     "Simulated reservation — no real appointment created"
 )
+
+
+async def persist_export(
+    store: "Store",
+    session_id: SessionId,
+    *,
+    versions_for: Callable[[ConfigId], VersionStamp],
+    now: datetime,
+) -> None:
+    """Build the session's export from one snapshot and store it: what a closed session serves
+    from then on (D34). Idempotent; a second close overwrites."""
+    state = await store.sessions.get(session_id)
+    if state is None:
+        return
+    snapshot = await store.snapshot(
+        session_id, versions=versions_for(state.config_id), taken_at=now
+    )
+    if snapshot is None:
+        return
+    document = build_export(snapshot)
+    async with store.transaction() as tx:
+        await store.exports.write_snapshot(tx, session_id, document.model_dump_json(indent=2))
 
 
 def build_export(snapshot: SessionSnapshot) -> ExportDocument:

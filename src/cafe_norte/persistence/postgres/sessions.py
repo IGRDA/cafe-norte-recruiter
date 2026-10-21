@@ -11,6 +11,7 @@ from cafe_norte.persistence.postgres.support import (
     Connect,
     Connection,
     connection,
+    fetch_all,
     fetch_one,
     reading,
     writing,
@@ -98,4 +99,12 @@ class PostgresSessions:
             await conn.execute("delete from sessions where session_id = %s", (session_id,))
 
     async def expired(self, before: datetime, limit: int) -> tuple[SessionId, ...]:
-        raise NotImplementedError  # retention stage
+        """Sessions created before ``before``, oldest first: what retention deletes."""
+        async with reading(self._connect) as conn:
+            rows = await fetch_all(
+                conn,
+                "select session_id from sessions where created_at < %s "
+                "order by created_at limit %s",
+                (before, limit),
+            )
+        return tuple(SessionId(row["session_id"]) for row in rows)

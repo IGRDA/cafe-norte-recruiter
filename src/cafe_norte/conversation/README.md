@@ -7,7 +7,7 @@ its own.
 
 | File | Contents |
 | --- | --- |
-| `contracts.py` | `TurnInput`, the `RuntimeEvent` union (`SignalRecorded` included), `ToolContext`, `ToolOutcome`, ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
+| `contracts.py` | `TurnInput` (and `UiAnswer`, the page's Sí / No on a read-back, D38), the `RuntimeEvent` union (`SignalRecorded` included), `ToolContext`, `ToolOutcome`, ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
 | `handlers.py` | `all_handlers()`: update, search knowledge, list interview slots, present (read-backs, the brief, a slot), confirm field/brief, reserve interview, request human follow-up, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
@@ -46,7 +46,7 @@ answered. After booking the next step is `end_session`, which yields `completed 
 
 ## Turn execution
 
-1. Accept one finalized `TurnInput` with a unique `input_id`; persist the user turn.
+1. Accept one finalized `TurnInput` with a unique `input_id`; persist the user turn (a button answer has no words: the language's `ui` label is recorded).
 2. Apply explicit controls: a language request is saved with the user turn, before the
    model is called (D28). Stop and human requests and stale-output cancellation follow.
 3. Build messages from: system prompt, configuration facts, validated candidate state, pending

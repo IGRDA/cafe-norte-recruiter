@@ -6,6 +6,7 @@ the retrieval and comparison suites, the judge and the simulator arrive with the
 import argparse
 import asyncio
 import json
+import os
 from collections.abc import Sequence
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
@@ -35,6 +36,8 @@ from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
 from evals.contracts import FakeSignal, Fault, RunRecord, Scenario, Step, TurnObservation
+from evals.live import MAX_LIVE_TURNS
+from evals.live_runs import DEFAULT_SIMULATOR, Planned, execute
 from evals.observation import fold, session_result
 from evals.retrieval import load_cases, run_retrieval, write_report
 from evals.scorers import run_check
@@ -43,6 +46,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SCENARIOS_DIR = ROOT / "evals" / "cases" / "scenarios"
 CONFIG_DIR = ROOT / "config"
 KB_DIR = ROOT / "kb"
+RETRIEVAL_RESULTS = ROOT / "evals" / "results" / "retrieval"
+LIVE_RESULTS = ROOT / "evals" / "results" / "live"
+DEFAULT_MODEL = "openai/gpt-4o-mini"  # what the hosted demo runs
 
 _FAKE_INDEX: dict[str, Index] = {}
 
@@ -200,8 +206,11 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         checks=checks,
         judge=None,
         provider_failed=bool(surprises),
-        latency_ms={},
         estimated_cost_eur=0.0,
+        scenario_id=scenario.id,
+        model=model.model_id,
+        lines=len(scenario.scripted_turns),
+        cost_is_partial=False,
     )
 
 
@@ -228,8 +237,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--models", nargs="*", default=[])
     parser.add_argument("--judge", default="off")
     parser.add_argument("--retriever", choices=["hybrid", "lexical"], default="hybrid")
-    parser.add_argument("--out", default=str(ROOT / "evals" / "results" / "retrieval"))
+    parser.add_argument("--out", default=None, help="results directory (per suite default)")
     parser.add_argument("--list", action="store_true")
+    live = parser.add_argument_group("live runs (paid; the estimate is printed first)")
+    live.add_argument("--model", default=os.environ.get("CAFE_NORTE_MODEL") or DEFAULT_MODEL)
+    live.add_argument("--simulator", default=DEFAULT_SIMULATOR)
+    live.add_argument(
+        "--base-url", default=None, help="an existing server; access code from EVAL_ACCESS_CODE"
+    )
+    live.add_argument("--max-turns", type=int, default=MAX_LIVE_TURNS)
+    live.add_argument("--yes", action="store_true", help="spend: without it nothing is called")
     args = parser.parse_args(argv)
 
     if args.list:
@@ -237,7 +254,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{scenario.id}  {scenario.title}")
         return 0
     if args.suite == "retrieval":
-        return retrieval_main(args.retriever, args.only, Path(args.out))
+        return retrieval_main(args.retriever, args.only, Path(args.out or RETRIEVAL_RESULTS))
+    if args.suite == "scenarios" and args.mode == "live":
+        return live_main(args)
     if args.suite != "scenarios" or args.mode != "fake":
         print(f"{args.suite} in {args.mode} mode is not available yet (later stage).")
         return 2
@@ -259,6 +278,34 @@ def main(argv: list[str] | None = None) -> int:
         failed += bool(bad or record.provider_failed)
     print(f"scenarios: {len(scenarios)}  failed: {failed}  prompt: {PROMPT_VERSION}")
     return 1 if failed else 0
+
+
+def live_main(args: argparse.Namespace) -> int:
+    """Scenarios with ``live_checks``, the simulated candidate, the chosen model."""
+    try:
+        scenarios = load_scenarios(only=args.only)
+    except ValueError as error:
+        print(error)
+        return 1
+    not_live = [s.id for s in scenarios if not s.live_checks]
+    if not_live:
+        print(f"no live_checks, not run live: {', '.join(not_live)}")
+        return 2
+    plan = [
+        Planned(case_id=s.id, scenario=s, model=args.model, repetition=r)
+        for s in scenarios
+        for r in range(1, args.repeat + 1)
+    ]
+    return execute(
+        plan,
+        suite="scenarios",
+        simulator=args.simulator,
+        base_url=args.base_url,
+        access_code=os.environ.get("EVAL_ACCESS_CODE") or None,
+        max_turns=args.max_turns,
+        out=Path(args.out or LIVE_RESULTS),
+        yes=args.yes,
+    )
 
 
 def retrieval_main(mode: str, only: Sequence[str], out: Path) -> int:

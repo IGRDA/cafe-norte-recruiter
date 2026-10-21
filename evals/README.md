@@ -11,7 +11,9 @@ are part of CI; live runs call paid providers and are manual.
 
 ```bash
 make evals ARGS="--suite scenarios --mode fake"          # what CI runs
-make evals ARGS="--suite scenarios --mode live --only S01 S02"
+make evals ARGS="--suite scenarios --mode live --only S01 S02"          # prints the estimate only
+make evals ARGS="--suite scenarios --mode live --only S01 S02 --yes"    # spends
+make evals ARGS="--suite scenarios --mode live --only S01 --model fake --simulator fake --yes"  # free dry run
 make evals-retrieval ARGS="--retriever hybrid"   # lexical: BM25 only, no extra
 make compare ARGS="--models groq/openai/gpt-oss-120b groq/openai/gpt-oss-20b --repeat 2"
 uv run python -m evals.run --list
@@ -23,10 +25,18 @@ Scenarios in fake mode. `S01`–`S11`, `S16`–`S19` replay against the real run
 domain, memory store and the real `HybridRetriever` over `kb/` with `FakeEmbedder`, driven by
 the scripted `FakeModel`; `tests/test_scenarios.py` parametrizes over the
 files, so `make check` and CI fail on a broken scenario with the check named. `make evals
-ARGS="--suite scenarios --mode fake"` is the same replay printed as a table. Live mode, the
-retrieval and comparison suites, the judge and the simulator arrive with their stages (the
-CLI says so and exits 2). Every fake run carries its `ExportDocument` in `RunRecord.export`;
-`make export-example` writes S01's to `examples/`.
+ARGS="--suite scenarios --mode fake"` is the same replay printed as a table. Every fake run
+carries its `ExportDocument` in `RunRecord.export`; `make export-example` writes S01's to
+`examples/`.
+
+Live mode (D43) runs the scenarios that carry `live_checks` against a real model with the
+simulated candidate: by default on a loopback server the runner starts with `--model`
+(memory store, text only, traces tagged `evaluation`), or against `--base-url` (hosted or
+`make run`; the access code comes from `EVAL_ACCESS_CODE`, never the command line). Every
+live command prints its estimated spend and calls nothing without `--yes`. Results go to
+`evals/results/live/<UTC time>-<suite>/`: `report.json` (no conversations) and `exports/`
+(full exports); the directory is ignored by git. A run that breaks is a recorded miss with
+its reason.
 
 ### Adding a scenario
 

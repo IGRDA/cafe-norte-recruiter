@@ -1,0 +1,240 @@
+"""Live runs from plan to results: which server, which candidate, what is recorded and where.
+
+A plan is a list of (case, scenario, model, repetition). Runs are grouped by model so the
+loopback target builds one app per model (``serve``); ``--base-url`` points every run at an
+existing server instead (hosted, or ``make run``). Nothing here runs until the caller has
+printed the spend estimate and the owner passed ``--yes``."""
+
+import asyncio
+import os
+from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from itertools import groupby
+from pathlib import Path
+from typing import Literal
+
+import httpx
+from pydantic import BaseModel, ConfigDict
+
+from cafe_norte.domain.configuration import load_configurations
+from cafe_norte.errors import ServiceError
+from cafe_norte.main import create_default_app
+from cafe_norte.model.contracts import Model, ModelFinished, ModelText
+from cafe_norte.model.fake import FakeModel
+from cafe_norte.model.select import model_from_env
+from cafe_norte.observability.cost import load_prices
+from evals.contracts import Candidate, Report, RunRecord, Scenario
+from evals.live import MAX_LIVE_TURNS, HttpConversation, LiveError, drive, serve
+from evals.scorers import extraction_accuracy, run_check
+from evals.simulator import ModelCandidateSimulator, SimulatedCandidate, SimulatorError
+from evals.spend import estimate_spend
+
+ROOT = Path(__file__).resolve().parents[1]
+HTTP_TIMEOUT = httpx.Timeout(30.0, read=60.0)  # reads outlast the 15 s SSE heartbeat
+DEFAULT_SIMULATOR = "openai/gpt-4o-mini"
+
+
+class Planned(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    case_id: str
+    scenario: Scenario
+    model: str  # the answering model's selector
+    repetition: int
+
+
+def loopback_env(env: Mapping[str, str], model: str) -> dict[str, str]:
+    """The app a loopback run serves: the given model, the memory store, text only, no access
+    code, and its traces (when Langfuse keys are set) tagged ``evaluation``."""
+    return {
+        **env,
+        "CAFE_NORTE_MODEL": model,
+        "CAFE_NORTE_DATABASE_URL": "",
+        "CAFE_NORTE_ACCESS_CODE": "",
+        "CAFE_NORTE_VOICE": "off",
+        "CAFE_NORTE_ENVIRONMENT": "evaluation",
+    }
+
+
+def simulator_model(selector: str, env: Mapping[str, str]) -> Model:
+    """``fake`` answers "Sí." to everything, so a free run exercises the whole loop."""
+    if selector == "fake":
+        return FakeModel([], fallback=(ModelText(text="Sí."), ModelFinished(reason="stop")))
+    return model_from_env(selector, env)
+
+
+async def run_live(
+    scenario: Scenario,
+    conversation: HttpConversation,
+    candidate: Candidate,
+    *,
+    model: str,
+    repetition: int,
+    max_turns: int,
+    case_id: str = "",
+) -> RunRecord:
+    """Drive one session and score it with the scenario's ``live_checks``. A run that breaks
+    (refused request, silent simulator, provider error) is recorded with its reason."""
+    base = {
+        "case_id": case_id or scenario.id,
+        "scenario_id": scenario.id,
+        "mode": "live",
+        "model": model,
+        "repetition": repetition,
+    }
+    try:
+        finished = await drive(conversation, candidate, max_turns=max_turns)
+    except (LiveError, SimulatorError, ServiceError, httpx.HTTPError) as error:
+        return RunRecord(
+            **base,
+            versions=None,
+            export=None,
+            checks=(),
+            judge=None,
+            provider_failed=False,
+            estimated_cost_eur=None,
+            failure=f"{type(error).__name__}: {error}",
+        )
+    turns = finished.observations[1:]
+    export = finished.export
+    return RunRecord(
+        **base,
+        versions=export.versions,
+        export=export,
+        checks=tuple(run_check(finished.result, check) for check in scenario.live_checks),
+        judge=None,
+        provider_failed=any(t.failed for t in turns),
+        estimated_cost_eur=export.metrics.estimated_marginal_cost_eur,
+        extraction=extraction_accuracy(scenario.persona, finished.result.state),
+        tool_calls=tuple(call for t in turns for call in t.tools),
+        first_text_ms=tuple(t.client_first_text_ms for t in turns if t.client_first_text_ms),
+        turn_ms=tuple(t.client_total_ms for t in turns if t.client_total_ms is not None),
+        lines=len(turns),
+        hit_turn_cap=len(turns) >= max_turns and export.session.lifecycle == "active",
+        cost_is_partial=export.metrics.cost_is_partial,
+    )
+
+
+async def run_plan(
+    plan: Sequence[Planned],
+    *,
+    simulator: str,
+    base_url: str | None,
+    access_code: str | None,
+    max_turns: int = MAX_LIVE_TURNS,
+    env: Mapping[str, str] | None = None,
+) -> list[RunRecord]:
+    """Every planned run, one at a time (provider rate limits), grouped by model."""
+    env = env if env is not None else os.environ
+    configurations = load_configurations(ROOT / "config")
+    voice = ModelCandidateSimulator(simulator_model(simulator, env))
+    records: list[RunRecord] = []
+    for model, runs in groupby(plan, key=lambda p: p.model):
+        async with _target(model, base_url, env) as url:
+            for planned in runs:
+                scenario = planned.scenario
+                async with httpx.AsyncClient(base_url=url, timeout=HTTP_TIMEOUT) as client:
+                    conversation = HttpConversation(
+                        client,
+                        config_id=scenario.config_id,
+                        language=scenario.language,
+                        allowed_doc_ids=configurations[scenario.config_id].kb_doc_ids,
+                        access_code=access_code if base_url else None,
+                    )
+                    candidate = SimulatedCandidate(voice, scenario.persona, scenario.language)
+                    record = await run_live(
+                        scenario,
+                        conversation,
+                        candidate,
+                        model=model,
+                        repetition=planned.repetition,
+                        max_turns=max_turns,
+                        case_id=planned.case_id,
+                    )
+                records.append(record)
+                print(_line(record), flush=True)
+    return records
+
+
+def write_results(report: Report, out: Path, *, now: datetime | None = None) -> Path:
+    """``<out>/<UTC time>-<suite>/``: ``report.json`` without exports, and every export in
+    ``exports/<case>-<repetition>.json``. Ignored by git: exports hold conversations."""
+    stamp = (now or datetime.now(UTC)).strftime("%Y%m%dT%H%M%SZ")
+    directory = out / f"{stamp}-{report.suite}"
+    (directory / "exports").mkdir(parents=True)
+    (directory / "report.json").write_text(_without_exports(report) + "\n", encoding="utf-8")
+    many_models = len({run.model for run in report.runs}) > 1
+    for run in report.runs:
+        if run.export is not None:
+            model = f"{run.model.replace('/', '_')}-" if many_models else ""
+            name = f"{run.case_id}-{model}{run.repetition}.json"
+            (directory / "exports" / name).write_text(
+                run.export.model_dump_json(indent=2) + "\n", encoding="utf-8"
+            )
+    return directory
+
+
+def _without_exports(report: Report) -> str:
+    return report.model_dump_json(indent=2, exclude={"runs": {"__all__": {"export"}}})
+
+
+def _line(record: RunRecord) -> str:
+    status = "ok  " if record.passed else "MISS"
+    extraction = (
+        f"facts {record.extraction.correct}/{record.extraction.supplied}"
+        if record.extraction
+        else "facts -"
+    )
+    detail = record.failure or ", ".join(c.name for c in record.checks if not c.ok) or ""
+    return (
+        f"{status} {record.case_id} {record.model} #{record.repetition}  {extraction}  "
+        f"lines {record.lines}  {detail}"
+    ).rstrip()
+
+
+@asynccontextmanager
+async def _target(model: str, base_url: str | None, env: Mapping[str, str]) -> AsyncIterator[str]:
+    if base_url:
+        yield base_url
+        return
+    async with serve(create_default_app(loopback_env(env, model))) as url:
+        yield url
+
+
+def execute(
+    plan: Sequence[Planned],
+    *,
+    suite: Literal["scenarios", "comparison"],
+    simulator: str,
+    base_url: str | None,
+    access_code: str | None,
+    max_turns: int,
+    out: Path,
+    yes: bool,
+) -> int:
+    """Print what the plan will cost; without ``yes`` stop there. Otherwise run it, write the
+    results, and exit 0 only when every run passed."""
+    spend = estimate_spend(
+        [p.model for p in plan], simulator=simulator, judge=None, prices=load_prices()
+    )
+    print(spend.describe())
+    if not yes:
+        print("Nothing was spent. Add --yes to run it.")
+        return 0
+    records = asyncio.run(
+        run_plan(
+            plan,
+            simulator=simulator,
+            base_url=base_url,
+            access_code=access_code,
+            max_turns=max_turns,
+        )
+    )
+    passed = sum(r.passed for r in records)
+    report = Report(
+        suite=suite, runs=tuple(records), denominators={"runs": len(records), "passed": passed}
+    )
+    path = write_results(report, out)
+    print(f"{suite}: {passed}/{len(records)} passed  -> {path}")
+    return 0 if passed == len(records) else 1

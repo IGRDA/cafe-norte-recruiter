@@ -201,15 +201,32 @@ class CheckResult(Frozen):
 
 
 class RunRecord(Frozen):
+    """One run of one case. Live runs fill the metrics; a run that broke before its end has
+    a ``failure`` and counts as a miss, never as a skipped case."""
+
     case_id: str
     mode: Literal["fake", "live"]
-    versions: VersionStamp
+    versions: VersionStamp | None  # None only when the session was never created
     export: ExportDocument | None
     checks: tuple[CheckResult, ...]
     judge: dict[str, bool] | None
-    provider_failed: bool
-    latency_ms: dict[str, int]
-    estimated_cost_eur: float | None
+    provider_failed: bool  # a turn failed that the case did not expect to
+    estimated_cost_eur: float | None  # the answering model's, from the export
+    scenario_id: str = ""
+    model: str = ""  # the answering model's selector
+    repetition: int = 1
+    failure: str = ""  # why the run stopped early
+    extraction: Extraction | None = None
+    tool_calls: tuple[tuple[str, bool], ...] = ()  # (tool, ok), every candidate turn
+    first_text_ms: tuple[int, ...] = ()  # per candidate turn that spoke, runner's clock
+    turn_ms: tuple[int, ...] = ()  # per candidate turn, POST to its end, runner's clock
+    lines: int = 0  # candidate lines said
+    hit_turn_cap: bool = False
+    cost_is_partial: bool = True
+
+    @property
+    def passed(self) -> bool:
+        return not self.failure and not self.provider_failed and all(c.ok for c in self.checks)
 
 
 class Report(Frozen):

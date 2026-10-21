@@ -9,8 +9,6 @@ from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import (
     Admission,
-    Calendar,
-    Events,
     Exports,
     Leases,
     ResumeTokens,
@@ -26,6 +24,8 @@ from cafe_norte.persistence.later import (
     SummaryJobsLater,
 )
 from cafe_norte.persistence.migrate import apply_pending
+from cafe_norte.persistence.postgres.calendar import PostgresCalendar
+from cafe_norte.persistence.postgres.events import PostgresEvents
 from cafe_norte.persistence.postgres.sessions import PostgresSessions
 from cafe_norte.persistence.postgres.support import (
     PostgresTransaction,
@@ -61,8 +61,8 @@ class PostgresStore:
         connect = self._pool.connection
         self.sessions = PostgresSessions(connect)
         self.turns = PostgresTurns(connect)
-        self.events: Events = _NotYet()  # type: ignore[assignment]
-        self.calendar: Calendar = _NotYet()  # type: ignore[assignment]
+        self.events = PostgresEvents(connect, poll_seconds=poll_seconds)
+        self.calendar = PostgresCalendar(connect)
         self.leases: Leases = LeasesLater()
         self.admission: Admission = AdmissionLater()
         self.summary_jobs: SummaryJobs = SummaryJobsLater()
@@ -114,10 +114,3 @@ class PostgresStore:
         self, session_id: SessionId, *, versions: VersionStamp, taken_at: datetime
     ) -> SessionSnapshot | None:
         raise NotImplementedError
-
-
-class _NotYet:
-    """A repository of this pull request that a later commit fills in."""
-
-    def __getattr__(self, name: str) -> None:
-        raise NotImplementedError(name)

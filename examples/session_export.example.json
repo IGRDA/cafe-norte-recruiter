@@ -19,7 +19,7 @@
       "status": "captured",
       "value": "Lucía Marín",
       "evidence": {
-        "source_turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+        "source_turn_id": "79463c98b90144c389f0499a45628ccc",
         "text": "Me llamo Lucía Marín, sí me interesa el puesto."
       }
     },
@@ -30,7 +30,7 @@
       "status": "captured",
       "value": "yes",
       "evidence": {
-        "source_turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+        "source_turn_id": "79463c98b90144c389f0499a45628ccc",
         "text": "Me llamo Lucía Marín, sí me interesa el puesto."
       }
     },
@@ -38,19 +38,19 @@
       "status": "captured",
       "value": "yes",
       "evidence": {
-        "source_turn_id": "796109230c5e4f9cafa7036ce02c552f",
+        "source_turn_id": "62689744e8414fd0b4c734ef324d8c15",
         "text": "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
       }
     },
     "availability_days": {
       "status": "captured",
       "value": [
+        "tue",
         "mon",
-        "thu",
-        "tue"
+        "thu"
       ],
       "evidence": {
-        "source_turn_id": "796109230c5e4f9cafa7036ce02c552f",
+        "source_turn_id": "62689744e8414fd0b4c734ef324d8c15",
         "text": "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
       }
     },
@@ -60,7 +60,7 @@
         "morning"
       ],
       "evidence": {
-        "source_turn_id": "796109230c5e4f9cafa7036ce02c552f",
+        "source_turn_id": "62689744e8414fd0b4c734ef324d8c15",
         "text": "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
       }
     },
@@ -68,7 +68,7 @@
       "status": "captured",
       "value": 30,
       "evidence": {
-        "source_turn_id": "796109230c5e4f9cafa7036ce02c552f",
+        "source_turn_id": "62689744e8414fd0b4c734ef324d8c15",
         "text": "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
       }
     },
@@ -76,16 +76,16 @@
       "status": "confirmed",
       "value": "2026-10-26",
       "evidence": {
-        "source_turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+        "source_turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
         "text": "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
       },
-      "confirmation_id": "ef8ea19b4ff64f359ba2d44f5e3bada1"
+      "confirmation_id": "65d7a56acca342b7bfd148157579bf8c"
     },
     "experience": {
       "status": "captured",
       "value": "dos años en una cafetería",
       "evidence": {
-        "source_turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+        "source_turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
         "text": "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
       }
     },
@@ -93,7 +93,7 @@
   },
   "transcript": [
     {
-      "turn_id": "e83f1c7825034c63a43a1190cef12010",
+      "turn_id": "2feff723bbdc4d01ad91378da4b03251",
       "session_id": "eval-S01",
       "input_id": "opening",
       "role": "assistant",
@@ -106,7 +106,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "33c57fbddff84a668f99e85ee50bed5b",
+      "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
       "session_id": "eval-S01",
       "input_id": "in-0",
       "role": "user",
@@ -119,7 +119,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "33c57fbddff84a668f99e85ee50bed5b",
+      "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
       "session_id": "eval-S01",
       "input_id": "in-0",
       "role": "assistant",
@@ -132,7 +132,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+      "turn_id": "79463c98b90144c389f0499a45628ccc",
       "session_id": "eval-S01",
       "input_id": "in-1",
       "role": "user",
@@ -145,7 +145,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+      "turn_id": "79463c98b90144c389f0499a45628ccc",
       "session_id": "eval-S01",
       "input_id": "in-1",
       "role": "assistant",
@@ -158,7 +158,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+      "turn_id": "62689744e8414fd0b4c734ef324d8c15",
       "session_id": "eval-S01",
       "input_id": "in-2",
       "role": "user",
@@ -171,7 +171,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+      "turn_id": "62689744e8414fd0b4c734ef324d8c15",
       "session_id": "eval-S01",
       "input_id": "in-2",
       "role": "assistant",
@@ -184,7 +184,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "session_id": "eval-S01",
       "input_id": "in-3",
       "role": "user",
@@ -197,7 +197,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "session_id": "eval-S01",
       "input_id": "in-3",
       "role": "assistant",
@@ -210,7 +210,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "session_id": "eval-S01",
       "input_id": "in-4",
       "role": "user",
@@ -223,7 +223,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "session_id": "eval-S01",
       "input_id": "in-4",
       "role": "assistant",
@@ -236,7 +236,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "session_id": "eval-S01",
       "input_id": "in-5",
       "role": "user",
@@ -249,7 +249,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "session_id": "eval-S01",
       "input_id": "in-5",
       "role": "assistant",
@@ -262,7 +262,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+      "turn_id": "5614c026fff8441cacf0d0bf0825878b",
       "session_id": "eval-S01",
       "input_id": "in-6",
       "role": "user",
@@ -275,7 +275,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+      "turn_id": "5614c026fff8441cacf0d0bf0825878b",
       "session_id": "eval-S01",
       "input_id": "in-6",
       "role": "assistant",
@@ -288,7 +288,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "session_id": "eval-S01",
       "input_id": "in-7",
       "role": "user",
@@ -301,7 +301,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "session_id": "eval-S01",
       "input_id": "in-7",
       "role": "assistant",
@@ -314,7 +314,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "session_id": "eval-S01",
       "input_id": "in-8",
       "role": "user",
@@ -327,7 +327,7 @@
       "finished_at": "2026-10-20T10:00:00Z"
     },
     {
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "session_id": "eval-S01",
       "input_id": "in-8",
       "role": "assistant",
@@ -342,46 +342,46 @@
   ],
   "confirmations": [
     {
-      "confirmation_id": "ef8ea19b4ff64f359ba2d44f5e3bada1",
+      "confirmation_id": "65d7a56acca342b7bfd148157579bf8c",
       "target": {
         "kind": "field",
         "field": "earliest_start_date",
         "revision": 3
       },
       "presentation_text": "He apuntado que podrías empezar el lunes 26 de octubre de 2026. ¿Es correcto?",
-      "presented_turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "presented_turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "fully_delivered": true,
       "review": null,
-      "response_turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "response_turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "status": "confirmed",
       "source": "model"
     },
     {
-      "confirmation_id": "0f969e26991d44809f7ae9885105de3b",
+      "confirmation_id": "b9deb053d5d54652a7b68f352697293b",
       "target": {
         "kind": "brief",
         "revision": 3
       },
       "presentation_text": "Te resumo lo que tengo. Te llamas Lucía Marín. Te interesa el puesto. Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, unas 30 horas a la semana. Podrías empezar el lunes 26 de octubre de 2026. Experiencia: dos años en una cafetería. ¿Es todo correcto?",
-      "presented_turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "presented_turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "fully_delivered": true,
       "review": null,
-      "response_turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "response_turn_id": "cfaf6938938241cba9a54605593e167b",
       "status": "confirmed",
       "source": "model"
     },
     {
-      "confirmation_id": "c9d8d39281604879be0267f9c0e583d6",
+      "confirmation_id": "415a0f17a73d4e6684d5952a023dee9d",
       "target": {
         "kind": "slot",
         "slot_id": "chamberi_barista_v1-2026-10-20-1700",
         "brief_revision": 3
       },
       "presentation_text": "He apuntado la entrevista en Café Norte Chamberí el martes 20 de octubre de 2026 a las 17:00, hora de Madrid. ¿Te la reservo?",
-      "presented_turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "presented_turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "fully_delivered": true,
       "review": null,
-      "response_turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "response_turn_id": "f3a890fc0e8b443380532829653b5688",
       "status": "confirmed",
       "source": "model"
     }
@@ -390,8 +390,8 @@
     "slot_id": "chamberi_barista_v1-2026-10-20-1700",
     "config_id": "chamberi_barista_v1",
     "starts_at_utc": "2026-10-20T15:00:00Z",
-    "confirmation_id": "c9d8d39281604879be0267f9c0e583d6",
-    "idempotency_key": "d829fd808f5e86b9e3cdeb0ad75fb9e66935f715042a4ec5b31818c5ed86bb97",
+    "confirmation_id": "415a0f17a73d4e6684d5952a023dee9d",
+    "idempotency_key": "930eb494fe6441f1741306f569bbabd7d5936042e3c974ec6a5f4a0eb6e0dfee",
     "committed_at": "2026-10-20T10:00:00Z",
     "simulated": true
   },
@@ -401,15 +401,15 @@
   "events": [
     {
       "session_id": "eval-S01",
-      "turn_id": "e83f1c7825034c63a43a1190cef12010",
+      "turn_id": "2feff723bbdc4d01ad91378da4b03251",
       "seq": 1,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"e83f1c7825034c63a43a1190cef12010\",\"language\":\"es\",\"text\":\"\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"2feff723bbdc4d01ad91378da4b03251\",\"language\":\"es\",\"text\":\"\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "e83f1c7825034c63a43a1190cef12010",
+      "turn_id": "2feff723bbdc4d01ad91378da4b03251",
       "seq": 2,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Hola, soy Ana, la asistente de IA de Café Norte. Esta es una demostración con datos ficticios. Puedes preguntarme lo que quieras sobre el puesto o la tienda. ¿Te viene bien hablar unos minutos sobre el puesto de barista?\",\"spoken_form\":\"Hola, soy Ana, la asistente de IA de Café Norte. Esta es una demostración con datos ficticios. Puedes preguntarme lo que quieras sobre el puesto o la tienda. ¿Te viene bien hablar unos minutos sobre el puesto de barista?\"}",
@@ -417,23 +417,23 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "e83f1c7825034c63a43a1190cef12010",
+      "turn_id": "2feff723bbdc4d01ad91378da4b03251",
       "seq": 3,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"e83f1c7825034c63a43a1190cef12010\",\"interrupted\":false,\"usage\":[],\"timings\":[]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"2feff723bbdc4d01ad91378da4b03251\",\"interrupted\":false,\"usage\":[],\"timings\":[]}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "33c57fbddff84a668f99e85ee50bed5b",
+      "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
       "seq": 4,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"33c57fbddff84a668f99e85ee50bed5b\",\"language\":\"es\",\"text\":\"Sí, me viene bien.\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"08b1ae365fe04c5e8a35bee79b736e0f\",\"language\":\"es\",\"text\":\"Sí, me viene bien.\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "33c57fbddff84a668f99e85ee50bed5b",
+      "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
       "seq": 5,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Genial.\",\"spoken_form\":\"Genial.\"}",
@@ -441,7 +441,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "33c57fbddff84a668f99e85ee50bed5b",
+      "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
       "seq": 6,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"¿Cómo te llamas y te interesa el puesto de barista?\",\"spoken_form\":\"¿Cómo te llamas y te interesa el puesto de barista?\"}",
@@ -449,39 +449,39 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "33c57fbddff84a668f99e85ee50bed5b",
+      "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
       "seq": 7,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"33c57fbddff84a668f99e85ee50bed5b\",\"interrupted\":false,\"usage\":[],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"33c57fbddff84a668f99e85ee50bed5b\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"33c57fbddff84a668f99e85ee50bed5b\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"08b1ae365fe04c5e8a35bee79b736e0f\",\"interrupted\":false,\"usage\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"08b1ae365fe04c5e8a35bee79b736e0f\",\"kind\":\"llm_tokens\",\"quantity\":4880.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"08b1ae365fe04c5e8a35bee79b736e0f\",\"kind\":\"llm_tokens\",\"quantity\":15.0,\"unit_detail\":\"fake:output\",\"estimated\":true}],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"08b1ae365fe04c5e8a35bee79b736e0f\",\"stage\":\"llm_first_output\",\"milliseconds\":1,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"08b1ae365fe04c5e8a35bee79b736e0f\",\"stage\":\"llm_total\",\"milliseconds\":1,\"source\":\"server\",\"tool_name\":\"\"}]}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+      "turn_id": "79463c98b90144c389f0499a45628ccc",
       "seq": 8,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"language\":\"es\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"language\":\"es\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+      "turn_id": "79463c98b90144c389f0499a45628ccc",
       "seq": 9,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"update_candidate\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"update_candidate\",\"arguments\":\"{\\\"patch\\\": {\\\"name\\\": \\\"Lucía Marín\\\", \\\"interest\\\": \\\"yes\\\"}, \\\"evidence_text\\\": \\\"Me llamo Lucía Marín, sí me interesa el puesto.\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+      "turn_id": "79463c98b90144c389f0499a45628ccc",
       "seq": 10,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":1,\"candidate\":{\"revision\":1,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"unset\"},\"availability_days\":{\"status\":\"unset\"},\"availability_shifts\":{\"status\":\"unset\"},\"hours_per_week\":{\"status\":\"unset\"},\"earliest_start_date\":{\"status\":\"unset\"},\"experience\":{\"status\":\"unset\"},\"notes\":[]},\"pending_confirmation\":null,\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":1,\"candidate\":{\"revision\":1,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"unset\"},\"availability_days\":{\"status\":\"unset\"},\"availability_shifts\":{\"status\":\"unset\"},\"hours_per_week\":{\"status\":\"unset\"},\"earliest_start_date\":{\"status\":\"unset\"},\"experience\":{\"status\":\"unset\"},\"notes\":[]},\"pending_confirmation\":null,\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+      "turn_id": "79463c98b90144c389f0499a45628ccc",
       "seq": 11,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"update_candidate\",\"ok\":true,\"summary\":\"captured:name, interest\"}",
@@ -489,7 +489,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+      "turn_id": "79463c98b90144c389f0499a45628ccc",
       "seq": 12,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Encantada, Lucía.\",\"spoken_form\":\"Encantada, Lucía.\"}",
@@ -497,7 +497,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+      "turn_id": "79463c98b90144c389f0499a45628ccc",
       "seq": 13,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"¿Tienes permiso de trabajo y qué disponibilidad tienes?\",\"spoken_form\":\"¿Tienes permiso de trabajo y qué disponibilidad tienes?\"}",
@@ -505,39 +505,39 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+      "turn_id": "79463c98b90144c389f0499a45628ccc",
       "seq": 14,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"interrupted\":false,\"usage\":[],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"stage\":\"tool\",\"milliseconds\":2,\"source\":\"server\",\"tool_name\":\"update_candidate\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"stage\":\"llm_first_output\",\"milliseconds\":2,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"stage\":\"llm_total\",\"milliseconds\":2,\"source\":\"server\",\"tool_name\":\"\"}]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"interrupted\":false,\"usage\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"kind\":\"llm_tokens\",\"quantity\":4906.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"kind\":\"llm_tokens\",\"quantity\":4932.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"kind\":\"llm_tokens\",\"quantity\":19.0,\"unit_detail\":\"fake:output\",\"estimated\":true}],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"stage\":\"tool\",\"milliseconds\":1,\"source\":\"server\",\"tool_name\":\"update_candidate\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"stage\":\"llm_first_output\",\"milliseconds\":1,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"stage\":\"llm_total\",\"milliseconds\":1,\"source\":\"server\",\"tool_name\":\"\"}]}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+      "turn_id": "62689744e8414fd0b4c734ef324d8c15",
       "seq": 15,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"language\":\"es\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"language\":\"es\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+      "turn_id": "62689744e8414fd0b4c734ef324d8c15",
       "seq": 16,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"update_candidate\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"update_candidate\",\"arguments\":\"{\\\"patch\\\": {\\\"work_authorization\\\": \\\"yes\\\", \\\"availability_days\\\": [\\\"mon\\\", \\\"tue\\\", \\\"thu\\\"], \\\"availability_shifts\\\": [\\\"morning\\\"], \\\"hours_per_week\\\": 30}, \\\"evidence_text\\\": \\\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+      "turn_id": "62689744e8414fd0b4c734ef324d8c15",
       "seq": 17,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":2,\"candidate\":{\"revision\":2,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"mon\",\"thu\",\"tue\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"unset\"},\"experience\":{\"status\":\"unset\"},\"notes\":[]},\"pending_confirmation\":null,\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":2,\"candidate\":{\"revision\":2,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"tue\",\"mon\",\"thu\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"unset\"},\"experience\":{\"status\":\"unset\"},\"notes\":[]},\"pending_confirmation\":null,\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+      "turn_id": "62689744e8414fd0b4c734ef324d8c15",
       "seq": 18,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"update_candidate\",\"ok\":true,\"summary\":\"captured:work_authorization, availability_days, availability_shifts, hours_per_week\"}",
@@ -545,7 +545,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+      "turn_id": "62689744e8414fd0b4c734ef324d8c15",
       "seq": 19,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Perfecto.\",\"spoken_form\":\"Perfecto.\"}",
@@ -553,7 +553,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+      "turn_id": "62689744e8414fd0b4c734ef324d8c15",
       "seq": 20,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"¿Cuándo podrías empezar y qué experiencia tienes?\",\"spoken_form\":\"¿Cuándo podrías empezar y qué experiencia tienes?\"}",
@@ -561,39 +561,39 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+      "turn_id": "62689744e8414fd0b4c734ef324d8c15",
       "seq": 21,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"interrupted\":false,\"usage\":[],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"update_candidate\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"interrupted\":false,\"usage\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"kind\":\"llm_tokens\",\"quantity\":4952.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"kind\":\"llm_tokens\",\"quantity\":4993.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"kind\":\"llm_tokens\",\"quantity\":15.0,\"unit_detail\":\"fake:output\",\"estimated\":true}],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"update_candidate\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "seq": 22,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"language\":\"es\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"language\":\"es\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "seq": 23,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"update_candidate\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"update_candidate\",\"arguments\":\"{\\\"patch\\\": {\\\"earliest_start_date\\\": \\\"2026-10-26\\\", \\\"experience\\\": \\\"dos años en una cafetería\\\"}, \\\"evidence_text\\\": \\\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "seq": 24,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"mon\",\"thu\",\"tue\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"captured\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"ef8ea19b4ff64f359ba2d44f5e3bada1\",\"target\":{\"kind\":\"field\",\"field\":\"earliest_start_date\",\"revision\":3},\"presentation_text\":\"He apuntado que podrías empezar el lunes 26 de octubre de 2026. ¿Es correcto?\",\"presented_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"fully_delivered\":false,\"review\":null,\"response_turn_id\":null,\"status\":\"pending\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"tue\",\"mon\",\"thu\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"captured\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"65d7a56acca342b7bfd148157579bf8c\",\"target\":{\"kind\":\"field\",\"field\":\"earliest_start_date\",\"revision\":3},\"presentation_text\":\"He apuntado que podrías empezar el lunes 26 de octubre de 2026. ¿Es correcto?\",\"presented_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"fully_delivered\":false,\"review\":null,\"response_turn_id\":null,\"status\":\"pending\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "seq": 25,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"He apuntado que podrías empezar el lunes 26 de octubre de 2026.\",\"spoken_form\":\"He apuntado que podrías empezar el lunes 26 de octubre de 2026.\"}",
@@ -601,7 +601,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "seq": 26,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"¿Es correcto?\",\"spoken_form\":\"¿Es correcto?\"}",
@@ -609,7 +609,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "seq": 27,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"update_candidate\",\"ok\":true,\"summary\":\"captured:earliest_start_date, experience\"}",
@@ -617,39 +617,39 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+      "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
       "seq": 28,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"interrupted\":false,\"usage\":[],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"update_candidate\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"interrupted\":false,\"usage\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"kind\":\"llm_tokens\",\"quantity\":5000.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"kind\":\"llm_tokens\",\"quantity\":5075.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true}],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"update_candidate\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 29,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"language\":\"es\",\"text\":\"Sí, es correcto.\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"language\":\"es\",\"text\":\"Sí, es correcto.\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 30,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"confirm_field\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"confirm_field\",\"arguments\":\"{\\\"answer\\\": \\\"affirm\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 31,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"mon\",\"thu\",\"tue\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"ef8ea19b4ff64f359ba2d44f5e3bada1\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"ef8ea19b4ff64f359ba2d44f5e3bada1\",\"target\":{\"kind\":\"field\",\"field\":\"earliest_start_date\",\"revision\":3},\"presentation_text\":\"He apuntado que podrías empezar el lunes 26 de octubre de 2026. ¿Es correcto?\",\"presented_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"tue\",\"mon\",\"thu\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"65d7a56acca342b7bfd148157579bf8c\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"65d7a56acca342b7bfd148157579bf8c\",\"target\":{\"kind\":\"field\",\"field\":\"earliest_start_date\",\"revision\":3},\"presentation_text\":\"He apuntado que podrías empezar el lunes 26 de octubre de 2026. ¿Es correcto?\",\"presented_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 32,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"confirm_field\",\"ok\":true,\"summary\":\"field:confirmed\"}",
@@ -657,15 +657,15 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 33,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"confirm_field\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"confirm_field\",\"arguments\":\"{\\\"answer\\\": \\\"affirm\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 34,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"confirm_field\",\"ok\":false,\"summary\":\"confirmation_refused:already_answered\"}",
@@ -673,23 +673,23 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 35,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"present_confirmation\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"present_confirmation\",\"arguments\":\"{\\\"target\\\": \\\"brief\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 36,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"mon\",\"thu\",\"tue\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"ef8ea19b4ff64f359ba2d44f5e3bada1\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"0f969e26991d44809f7ae9885105de3b\",\"target\":{\"kind\":\"brief\",\"revision\":3},\"presentation_text\":\"Te resumo lo que tengo. Te llamas Lucía Marín. Te interesa el puesto. Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, unas 30 horas a la semana. Podrías empezar el lunes 26 de octubre de 2026. Experiencia: dos años en una cafetería. ¿Es todo correcto?\",\"presented_turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"fully_delivered\":false,\"review\":null,\"response_turn_id\":null,\"status\":\"pending\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"tue\",\"mon\",\"thu\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"65d7a56acca342b7bfd148157579bf8c\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"b9deb053d5d54652a7b68f352697293b\",\"target\":{\"kind\":\"brief\",\"revision\":3},\"presentation_text\":\"Te resumo lo que tengo. Te llamas Lucía Marín. Te interesa el puesto. Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, unas 30 horas a la semana. Podrías empezar el lunes 26 de octubre de 2026. Experiencia: dos años en una cafetería. ¿Es todo correcto?\",\"presented_turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"fully_delivered\":false,\"review\":null,\"response_turn_id\":null,\"status\":\"pending\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 37,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Te resumo lo que tengo.\",\"spoken_form\":\"Te resumo lo que tengo.\"}",
@@ -697,7 +697,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 38,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Te llamas Lucía Marín.\",\"spoken_form\":\"Te llamas Lucía Marín.\"}",
@@ -705,7 +705,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 39,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Te interesa el puesto.\",\"spoken_form\":\"Te interesa el puesto.\"}",
@@ -713,7 +713,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 40,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Tienes permiso de trabajo.\",\"spoken_form\":\"Tienes permiso de trabajo.\"}",
@@ -721,7 +721,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 41,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Puedes trabajar lunes, martes y jueves, en turno de Mañana, unas 30 horas a la semana.\",\"spoken_form\":\"Puedes trabajar lunes, martes y jueves, en turno de Mañana, unas 30 horas a la semana.\"}",
@@ -729,7 +729,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 42,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Podrías empezar el lunes 26 de octubre de 2026.\",\"spoken_form\":\"Podrías empezar el lunes 26 de octubre de 2026.\"}",
@@ -737,7 +737,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 43,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Experiencia: dos años en una cafetería.\",\"spoken_form\":\"Experiencia: dos años en una cafetería.\"}",
@@ -745,7 +745,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 44,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"¿Es todo correcto?\",\"spoken_form\":\"¿Es todo correcto?\"}",
@@ -753,7 +753,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 45,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"present_confirmation\",\"ok\":true,\"summary\":\"presented:brief\"}",
@@ -761,39 +761,39 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+      "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
       "seq": 46,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"interrupted\":false,\"usage\":[],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"confirm_field\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"confirm_field\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"present_confirmation\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"interrupted\":false,\"usage\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"kind\":\"llm_tokens\",\"quantity\":5070.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"kind\":\"llm_tokens\",\"quantity\":5089.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"kind\":\"llm_tokens\",\"quantity\":5208.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true}],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"confirm_field\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"confirm_field\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"present_confirmation\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "seq": 47,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"abc52d02311a45b5b56f577c8b3a49d5\",\"language\":\"es\",\"text\":\"Sí, todo correcto.\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"language\":\"es\",\"text\":\"Sí, todo correcto.\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "seq": 48,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"confirm_brief\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"confirm_brief\",\"arguments\":\"{\\\"answer\\\": \\\"affirm\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "seq": 49,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"mon\",\"thu\",\"tue\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"ef8ea19b4ff64f359ba2d44f5e3bada1\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"0f969e26991d44809f7ae9885105de3b\",\"target\":{\"kind\":\"brief\",\"revision\":3},\"presentation_text\":\"Te resumo lo que tengo. Te llamas Lucía Marín. Te interesa el puesto. Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, unas 30 horas a la semana. Podrías empezar el lunes 26 de octubre de 2026. Experiencia: dos años en una cafetería. ¿Es todo correcto?\",\"presented_turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"abc52d02311a45b5b56f577c8b3a49d5\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"tue\",\"mon\",\"thu\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"65d7a56acca342b7bfd148157579bf8c\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"b9deb053d5d54652a7b68f352697293b\",\"target\":{\"kind\":\"brief\",\"revision\":3},\"presentation_text\":\"Te resumo lo que tengo. Te llamas Lucía Marín. Te interesa el puesto. Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, unas 30 horas a la semana. Podrías empezar el lunes 26 de octubre de 2026. Experiencia: dos años en una cafetería. ¿Es todo correcto?\",\"presented_turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "seq": 50,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"confirm_brief\",\"ok\":true,\"summary\":\"brief:confirmed\"}",
@@ -801,15 +801,15 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "seq": 51,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"confirm_brief\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"confirm_brief\",\"arguments\":\"{\\\"answer\\\": \\\"affirm\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "seq": 52,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"confirm_brief\",\"ok\":false,\"summary\":\"confirmation_refused:already_answered\"}",
@@ -817,7 +817,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "seq": 53,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"¿Te gustaría tener una entrevista?\",\"spoken_form\":\"¿Te gustaría tener una entrevista?\"}",
@@ -825,39 +825,39 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+      "turn_id": "cfaf6938938241cba9a54605593e167b",
       "seq": 54,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"abc52d02311a45b5b56f577c8b3a49d5\",\"interrupted\":false,\"usage\":[],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"abc52d02311a45b5b56f577c8b3a49d5\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"confirm_brief\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"abc52d02311a45b5b56f577c8b3a49d5\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"abc52d02311a45b5b56f577c8b3a49d5\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"confirm_brief\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"abc52d02311a45b5b56f577c8b3a49d5\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"abc52d02311a45b5b56f577c8b3a49d5\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"interrupted\":false,\"usage\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"kind\":\"llm_tokens\",\"quantity\":5170.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"kind\":\"llm_tokens\",\"quantity\":5189.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"kind\":\"llm_tokens\",\"quantity\":9.0,\"unit_detail\":\"fake:output\",\"estimated\":true}],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"confirm_brief\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"confirm_brief\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+      "turn_id": "5614c026fff8441cacf0d0bf0825878b",
       "seq": 55,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"b4acb7629cd948f6a9510a7c59e28c90\",\"language\":\"es\",\"text\":\"Sí, quiero entrevista.\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"language\":\"es\",\"text\":\"Sí, quiero entrevista.\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+      "turn_id": "5614c026fff8441cacf0d0bf0825878b",
       "seq": 56,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"list_interview_slots\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"list_interview_slots\",\"arguments\":\"{\\\"evidence_text\\\": \\\"Sí, quiero entrevista.\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+      "turn_id": "5614c026fff8441cacf0d0bf0825878b",
       "seq": 57,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"mon\",\"thu\",\"tue\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"ef8ea19b4ff64f359ba2d44f5e3bada1\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"0f969e26991d44809f7ae9885105de3b\",\"target\":{\"kind\":\"brief\",\"revision\":3},\"presentation_text\":\"Te resumo lo que tengo. Te llamas Lucía Marín. Te interesa el puesto. Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, unas 30 horas a la semana. Podrías empezar el lunes 26 de octubre de 2026. Experiencia: dos años en una cafetería. ¿Es todo correcto?\",\"presented_turn_id\":\"a158ea2782684b0a850827ebdb2bcef1\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"abc52d02311a45b5b56f577c8b3a49d5\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"tue\",\"mon\",\"thu\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"65d7a56acca342b7bfd148157579bf8c\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"b9deb053d5d54652a7b68f352697293b\",\"target\":{\"kind\":\"brief\",\"revision\":3},\"presentation_text\":\"Te resumo lo que tengo. Te llamas Lucía Marín. Te interesa el puesto. Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, unas 30 horas a la semana. Podrías empezar el lunes 26 de octubre de 2026. Experiencia: dos años en una cafetería. ¿Es todo correcto?\",\"presented_turn_id\":\"224b070ff608493fab3d9386d7ef4cc7\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"cfaf6938938241cba9a54605593e167b\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+      "turn_id": "5614c026fff8441cacf0d0bf0825878b",
       "seq": 58,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Tengo estos huecos para la entrevista en Café Norte Chamberí: el martes 20 de octubre de 2026 a las 17:00, el miércoles 21 de octubre de 2026 a las 10:30 y el miércoles 21 de octubre de 2026 a las 17:00.\",\"spoken_form\":\"Tengo estos huecos para la entrevista en Café Norte Chamberí: el martes 20 de octubre de 2026 a las 17:00, el miércoles 21 de octubre de 2026 a las 10:30 y el miércoles 21 de octubre de 2026 a las 17:00.\"}",
@@ -865,7 +865,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+      "turn_id": "5614c026fff8441cacf0d0bf0825878b",
       "seq": 59,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"¿Cuál te viene mejor?\",\"spoken_form\":\"¿Cuál te viene mejor?\"}",
@@ -873,7 +873,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+      "turn_id": "5614c026fff8441cacf0d0bf0825878b",
       "seq": 60,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"list_interview_slots\",\"ok\":true,\"summary\":\"offered:3\"}",
@@ -881,39 +881,39 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+      "turn_id": "5614c026fff8441cacf0d0bf0825878b",
       "seq": 61,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"b4acb7629cd948f6a9510a7c59e28c90\",\"interrupted\":false,\"usage\":[],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"b4acb7629cd948f6a9510a7c59e28c90\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"b4acb7629cd948f6a9510a7c59e28c90\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"list_interview_slots\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"b4acb7629cd948f6a9510a7c59e28c90\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"b4acb7629cd948f6a9510a7c59e28c90\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"interrupted\":false,\"usage\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"kind\":\"llm_tokens\",\"quantity\":5136.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"kind\":\"llm_tokens\",\"quantity\":5334.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true}],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"list_interview_slots\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"5614c026fff8441cacf0d0bf0825878b\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "seq": 62,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"91da6971131e4a3db37c4f4594687c8f\",\"language\":\"es\",\"text\":\"El primero me va bien.\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"language\":\"es\",\"text\":\"El primero me va bien.\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "seq": 63,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"present_confirmation\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"present_confirmation\",\"arguments\":\"{\\\"target\\\": \\\"slot\\\", \\\"slot_id\\\": \\\"chamberi_barista_v[card]\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "seq": 64,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"mon\",\"thu\",\"tue\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"ef8ea19b4ff64f359ba2d44f5e3bada1\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"c9d8d39281604879be0267f9c0e583d6\",\"target\":{\"kind\":\"slot\",\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"brief_revision\":3},\"presentation_text\":\"He apuntado la entrevista en Café Norte Chamberí el martes 20 de octubre de 2026 a las 17:00, hora de Madrid. ¿Te la reservo?\",\"presented_turn_id\":\"91da6971131e4a3db37c4f4594687c8f\",\"fully_delivered\":false,\"review\":null,\"response_turn_id\":null,\"status\":\"pending\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"tue\",\"mon\",\"thu\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"65d7a56acca342b7bfd148157579bf8c\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"415a0f17a73d4e6684d5952a023dee9d\",\"target\":{\"kind\":\"slot\",\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"brief_revision\":3},\"presentation_text\":\"He apuntado la entrevista en Café Norte Chamberí el martes 20 de octubre de 2026 a las 17:00, hora de Madrid. ¿Te la reservo?\",\"presented_turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"fully_delivered\":false,\"review\":null,\"response_turn_id\":null,\"status\":\"pending\",\"source\":\"model\"},\"booking\":null,\"lifecycle\":\"active\",\"outcome\":null}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "seq": 65,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"He apuntado la entrevista en Café Norte Chamberí el martes 20 de octubre de 2026 a las 17:00, hora de Madrid.\",\"spoken_form\":\"He apuntado la entrevista en Café Norte Chamberí el martes 20 de octubre de 2026 a las 17:00, hora de Madrid.\"}",
@@ -921,7 +921,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "seq": 66,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"¿Te la reservo?\",\"spoken_form\":\"¿Te la reservo?\"}",
@@ -929,7 +929,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "seq": 67,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"present_confirmation\",\"ok\":true,\"summary\":\"presented:slot\"}",
@@ -937,39 +937,39 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+      "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
       "seq": 68,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"91da6971131e4a3db37c4f4594687c8f\",\"interrupted\":false,\"usage\":[],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"91da6971131e4a3db37c4f4594687c8f\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"present_confirmation\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"91da6971131e4a3db37c4f4594687c8f\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"91da6971131e4a3db37c4f4594687c8f\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"interrupted\":false,\"usage\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"kind\":\"llm_tokens\",\"quantity\":5224.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true}],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"present_confirmation\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 69,
       "kind": "turn_started",
-      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"language\":\"es\",\"text\":\"Sí, confirmo.\"}",
+      "payload_json": "{\"type\":\"turn_started\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"language\":\"es\",\"text\":\"Sí, confirmo.\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 70,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"reserve_interview\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"reserve_interview\",\"arguments\":\"{\\\"slot_id\\\": \\\"chamberi_barista_v[card]\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 71,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"mon\",\"thu\",\"tue\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"ef8ea19b4ff64f359ba2d44f5e3bada1\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"c9d8d39281604879be0267f9c0e583d6\",\"target\":{\"kind\":\"slot\",\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"brief_revision\":3},\"presentation_text\":\"He apuntado la entrevista en Café Norte Chamberí el martes 20 de octubre de 2026 a las 17:00, hora de Madrid. ¿Te la reservo?\",\"presented_turn_id\":\"91da6971131e4a3db37c4f4594687c8f\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":{\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"config_id\":\"chamberi_barista_v1\",\"starts_at_utc\":\"2026-10-20T15:00:00Z\",\"confirmation_id\":\"c9d8d39281604879be0267f9c0e583d6\",\"idempotency_key\":\"d829fd808f5e86b9e3cdeb0ad75fb9e66935f715042a4ec5b31818c5ed86bb97\",\"committed_at\":\"2026-10-20T10:00:00Z\",\"simulated\":true},\"lifecycle\":\"active\",\"outcome\":null}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"tue\",\"mon\",\"thu\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"65d7a56acca342b7bfd148157579bf8c\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"415a0f17a73d4e6684d5952a023dee9d\",\"target\":{\"kind\":\"slot\",\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"brief_revision\":3},\"presentation_text\":\"He apuntado la entrevista en Café Norte Chamberí el martes 20 de octubre de 2026 a las 17:00, hora de Madrid. ¿Te la reservo?\",\"presented_turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":{\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"config_id\":\"chamberi_barista_v1\",\"starts_at_utc\":\"2026-10-20T15:00:00Z\",\"confirmation_id\":\"415a0f17a73d4e6684d5952a023dee9d\",\"idempotency_key\":\"930eb494fe6441f1741306f569bbabd7d5936042e3c974ec6a5f4a0eb6e0dfee\",\"committed_at\":\"2026-10-20T10:00:00Z\",\"simulated\":true},\"lifecycle\":\"active\",\"outcome\":null}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 72,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"reserve_interview\",\"ok\":true,\"summary\":\"reserved\"}",
@@ -977,23 +977,23 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 73,
       "kind": "tool_started",
-      "payload_json": "{\"type\":\"tool_started\",\"name\":\"end_session\"}",
+      "payload_json": "{\"type\":\"tool_started\",\"name\":\"end_session\",\"arguments\":\"{\\\"reason\\\": \\\"candidate_done\\\"}\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 74,
       "kind": "state_updated",
-      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"f9af6d9c8e8c4251a9320546acc92ea8\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"mon\",\"thu\",\"tue\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"796109230c5e4f9cafa7036ce02c552f\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"ef8ea19b4ff64f359ba2d44f5e3bada1\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"9bcc217fcceb4c97aebf13c8cd0ce701\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"c9d8d39281604879be0267f9c0e583d6\",\"target\":{\"kind\":\"slot\",\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"brief_revision\":3},\"presentation_text\":\"He apuntado la entrevista en Café Norte Chamberí el martes 20 de octubre de 2026 a las 17:00, hora de Madrid. ¿Te la reservo?\",\"presented_turn_id\":\"91da6971131e4a3db37c4f4594687c8f\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":{\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"config_id\":\"chamberi_barista_v1\",\"starts_at_utc\":\"2026-10-20T15:00:00Z\",\"confirmation_id\":\"c9d8d39281604879be0267f9c0e583d6\",\"idempotency_key\":\"d829fd808f5e86b9e3cdeb0ad75fb9e66935f715042a4ec5b31818c5ed86bb97\",\"committed_at\":\"2026-10-20T10:00:00Z\",\"simulated\":true},\"lifecycle\":\"completed\",\"outcome\":\"reserved\"}",
+      "payload_json": "{\"type\":\"state_updated\",\"revision\":3,\"candidate\":{\"revision\":3,\"name\":{\"status\":\"captured\",\"value\":\"Lucía Marín\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"contact_phone\":{\"status\":\"unset\"},\"interest\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"79463c98b90144c389f0499a45628ccc\",\"text\":\"Me llamo Lucía Marín, sí me interesa el puesto.\"}},\"work_authorization\":{\"status\":\"captured\",\"value\":\"yes\",\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_days\":{\"status\":\"captured\",\"value\":[\"tue\",\"mon\",\"thu\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"availability_shifts\":{\"status\":\"captured\",\"value\":[\"morning\"],\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"hours_per_week\":{\"status\":\"captured\",\"value\":30,\"evidence\":{\"source_turn_id\":\"62689744e8414fd0b4c734ef324d8c15\",\"text\":\"Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas.\"}},\"earliest_start_date\":{\"status\":\"confirmed\",\"value\":\"2026-10-26\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"},\"confirmation_id\":\"65d7a56acca342b7bfd148157579bf8c\"},\"experience\":{\"status\":\"captured\",\"value\":\"dos años en una cafetería\",\"evidence\":{\"source_turn_id\":\"75da2e083a6a4ec6948ffe3a5cc8c065\",\"text\":\"Podría empezar el lunes que viene. He trabajado dos años en una cafetería.\"}},\"notes\":[]},\"pending_confirmation\":{\"confirmation_id\":\"415a0f17a73d4e6684d5952a023dee9d\",\"target\":{\"kind\":\"slot\",\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"brief_revision\":3},\"presentation_text\":\"He apuntado la entrevista en Café Norte Chamberí el martes 20 de octubre de 2026 a las 17:00, hora de Madrid. ¿Te la reservo?\",\"presented_turn_id\":\"cf59b77e34c64b9691d624e166ff15c4\",\"fully_delivered\":true,\"review\":null,\"response_turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"status\":\"confirmed\",\"source\":\"model\"},\"booking\":{\"slot_id\":\"chamberi_barista_v1-2026-10-20-1700\",\"config_id\":\"chamberi_barista_v1\",\"starts_at_utc\":\"2026-10-20T15:00:00Z\",\"confirmation_id\":\"415a0f17a73d4e6684d5952a023dee9d\",\"idempotency_key\":\"930eb494fe6441f1741306f569bbabd7d5936042e3c974ec6a5f4a0eb6e0dfee\",\"committed_at\":\"2026-10-20T10:00:00Z\",\"simulated\":true},\"lifecycle\":\"completed\",\"outcome\":\"reserved\"}",
       "at": "2026-10-20T10:00:00Z"
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 75,
       "kind": "tool_finished",
       "payload_json": "{\"type\":\"tool_finished\",\"name\":\"end_session\",\"ok\":true,\"summary\":\"ended:completed:reserved\"}",
@@ -1001,7 +1001,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 76,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Reservada la entrevista el martes 20 de octubre a las 17:00; es una reserva simulada, sin cita real.\",\"spoken_form\":\"Reservada la entrevista el martes 20 de octubre a las 17:00; es una reserva simulada, sin cita real.\"}",
@@ -1009,7 +1009,7 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 77,
       "kind": "assistant_text",
       "payload_json": "{\"type\":\"assistant_text\",\"text\":\"Hasta pronto, Lucía.\",\"spoken_form\":\"Hasta pronto, Lucía.\"}",
@@ -1017,10 +1017,10 @@
     },
     {
       "session_id": "eval-S01",
-      "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+      "turn_id": "f3a890fc0e8b443380532829653b5688",
       "seq": 78,
       "kind": "turn_finished",
-      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"interrupted\":false,\"usage\":[],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"reserve_interview\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"end_session\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"1fbe01a399ff43ef913b1f0b78038121\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
+      "payload_json": "{\"type\":\"turn_finished\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"interrupted\":false,\"usage\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"kind\":\"llm_tokens\",\"quantity\":5244.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"kind\":\"llm_tokens\",\"quantity\":5303.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"kind\":\"llm_tokens\",\"quantity\":0.0,\"unit_detail\":\"fake:output\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"kind\":\"llm_tokens\",\"quantity\":5316.0,\"unit_detail\":\"fake:input\",\"estimated\":true},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"kind\":\"llm_tokens\",\"quantity\":31.0,\"unit_detail\":\"fake:output\",\"estimated\":true}],\"timings\":[{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"reserve_interview\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"stage\":\"tool\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"end_session\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"stage\":\"llm_first_output\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"},{\"session_id\":\"eval-S01\",\"turn_id\":\"f3a890fc0e8b443380532829653b5688\",\"stage\":\"llm_total\",\"milliseconds\":0,\"source\":\"server\",\"tool_name\":\"\"}]}",
       "at": "2026-10-20T10:00:00Z"
     }
   ],
@@ -1034,23 +1034,23 @@
     "timings": [
       {
         "session_id": "eval-S01",
-        "turn_id": "33c57fbddff84a668f99e85ee50bed5b",
+        "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
         "stage": "llm_first_output",
-        "milliseconds": 0,
+        "milliseconds": 1,
         "source": "server",
         "tool_name": ""
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "33c57fbddff84a668f99e85ee50bed5b",
+        "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
         "stage": "llm_total",
-        "milliseconds": 0,
+        "milliseconds": 1,
         "source": "server",
         "tool_name": ""
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+        "turn_id": "79463c98b90144c389f0499a45628ccc",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1058,31 +1058,31 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+        "turn_id": "79463c98b90144c389f0499a45628ccc",
         "stage": "tool",
-        "milliseconds": 2,
+        "milliseconds": 1,
         "source": "server",
         "tool_name": "update_candidate"
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+        "turn_id": "79463c98b90144c389f0499a45628ccc",
         "stage": "llm_first_output",
-        "milliseconds": 2,
+        "milliseconds": 1,
         "source": "server",
         "tool_name": ""
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "f9af6d9c8e8c4251a9320546acc92ea8",
+        "turn_id": "79463c98b90144c389f0499a45628ccc",
         "stage": "llm_total",
-        "milliseconds": 2,
+        "milliseconds": 1,
         "source": "server",
         "tool_name": ""
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "796109230c5e4f9cafa7036ce02c552f",
+        "turn_id": "62689744e8414fd0b4c734ef324d8c15",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1090,39 +1090,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "796109230c5e4f9cafa7036ce02c552f",
-        "stage": "tool",
-        "milliseconds": 0,
-        "source": "server",
-        "tool_name": "update_candidate"
-      },
-      {
-        "session_id": "eval-S01",
-        "turn_id": "796109230c5e4f9cafa7036ce02c552f",
-        "stage": "llm_first_output",
-        "milliseconds": 0,
-        "source": "server",
-        "tool_name": ""
-      },
-      {
-        "session_id": "eval-S01",
-        "turn_id": "796109230c5e4f9cafa7036ce02c552f",
-        "stage": "llm_total",
-        "milliseconds": 0,
-        "source": "server",
-        "tool_name": ""
-      },
-      {
-        "session_id": "eval-S01",
-        "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
-        "stage": "llm_first_output",
-        "milliseconds": 0,
-        "source": "server",
-        "tool_name": ""
-      },
-      {
-        "session_id": "eval-S01",
-        "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+        "turn_id": "62689744e8414fd0b4c734ef324d8c15",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1130,7 +1098,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+        "turn_id": "62689744e8414fd0b4c734ef324d8c15",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1138,7 +1106,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "9bcc217fcceb4c97aebf13c8cd0ce701",
+        "turn_id": "62689744e8414fd0b4c734ef324d8c15",
         "stage": "llm_total",
         "milliseconds": 0,
         "source": "server",
@@ -1146,7 +1114,39 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+        "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
+        "stage": "llm_first_output",
+        "milliseconds": 0,
+        "source": "server",
+        "tool_name": ""
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
+        "stage": "tool",
+        "milliseconds": 0,
+        "source": "server",
+        "tool_name": "update_candidate"
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
+        "stage": "llm_first_output",
+        "milliseconds": 0,
+        "source": "server",
+        "tool_name": ""
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
+        "stage": "llm_total",
+        "milliseconds": 0,
+        "source": "server",
+        "tool_name": ""
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1154,7 +1154,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1162,7 +1162,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1170,7 +1170,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1178,7 +1178,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1186,7 +1186,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1194,7 +1194,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "a158ea2782684b0a850827ebdb2bcef1",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
         "stage": "llm_total",
         "milliseconds": 0,
         "source": "server",
@@ -1202,7 +1202,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+        "turn_id": "cfaf6938938241cba9a54605593e167b",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1210,7 +1210,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+        "turn_id": "cfaf6938938241cba9a54605593e167b",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1218,7 +1218,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+        "turn_id": "cfaf6938938241cba9a54605593e167b",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1226,7 +1226,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+        "turn_id": "cfaf6938938241cba9a54605593e167b",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1234,7 +1234,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "abc52d02311a45b5b56f577c8b3a49d5",
+        "turn_id": "cfaf6938938241cba9a54605593e167b",
         "stage": "llm_total",
         "milliseconds": 0,
         "source": "server",
@@ -1242,7 +1242,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+        "turn_id": "5614c026fff8441cacf0d0bf0825878b",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1250,7 +1250,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+        "turn_id": "5614c026fff8441cacf0d0bf0825878b",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1258,7 +1258,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+        "turn_id": "5614c026fff8441cacf0d0bf0825878b",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1266,7 +1266,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "b4acb7629cd948f6a9510a7c59e28c90",
+        "turn_id": "5614c026fff8441cacf0d0bf0825878b",
         "stage": "llm_total",
         "milliseconds": 0,
         "source": "server",
@@ -1274,7 +1274,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+        "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1282,7 +1282,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+        "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1290,7 +1290,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "91da6971131e4a3db37c4f4594687c8f",
+        "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
         "stage": "llm_total",
         "milliseconds": 0,
         "source": "server",
@@ -1298,7 +1298,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1306,7 +1306,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1314,7 +1314,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1322,7 +1322,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
         "stage": "tool",
         "milliseconds": 0,
         "source": "server",
@@ -1330,7 +1330,7 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
         "stage": "llm_first_output",
         "milliseconds": 0,
         "source": "server",
@@ -1338,14 +1338,303 @@
       },
       {
         "session_id": "eval-S01",
-        "turn_id": "1fbe01a399ff43ef913b1f0b78038121",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
         "stage": "llm_total",
         "milliseconds": 0,
         "source": "server",
         "tool_name": ""
       }
     ],
-    "usage": [],
+    "usage": [
+      {
+        "session_id": "eval-S01",
+        "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
+        "kind": "llm_tokens",
+        "quantity": 4880.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "08b1ae365fe04c5e8a35bee79b736e0f",
+        "kind": "llm_tokens",
+        "quantity": 15.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "79463c98b90144c389f0499a45628ccc",
+        "kind": "llm_tokens",
+        "quantity": 4906.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "79463c98b90144c389f0499a45628ccc",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "79463c98b90144c389f0499a45628ccc",
+        "kind": "llm_tokens",
+        "quantity": 4932.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "79463c98b90144c389f0499a45628ccc",
+        "kind": "llm_tokens",
+        "quantity": 19.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "62689744e8414fd0b4c734ef324d8c15",
+        "kind": "llm_tokens",
+        "quantity": 4952.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "62689744e8414fd0b4c734ef324d8c15",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "62689744e8414fd0b4c734ef324d8c15",
+        "kind": "llm_tokens",
+        "quantity": 4993.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "62689744e8414fd0b4c734ef324d8c15",
+        "kind": "llm_tokens",
+        "quantity": 15.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
+        "kind": "llm_tokens",
+        "quantity": 5000.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
+        "kind": "llm_tokens",
+        "quantity": 5075.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "75da2e083a6a4ec6948ffe3a5cc8c065",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
+        "kind": "llm_tokens",
+        "quantity": 5070.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
+        "kind": "llm_tokens",
+        "quantity": 5089.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
+        "kind": "llm_tokens",
+        "quantity": 5208.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "224b070ff608493fab3d9386d7ef4cc7",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "cfaf6938938241cba9a54605593e167b",
+        "kind": "llm_tokens",
+        "quantity": 5170.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "cfaf6938938241cba9a54605593e167b",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "cfaf6938938241cba9a54605593e167b",
+        "kind": "llm_tokens",
+        "quantity": 5189.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "cfaf6938938241cba9a54605593e167b",
+        "kind": "llm_tokens",
+        "quantity": 9.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "5614c026fff8441cacf0d0bf0825878b",
+        "kind": "llm_tokens",
+        "quantity": 5136.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "5614c026fff8441cacf0d0bf0825878b",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "5614c026fff8441cacf0d0bf0825878b",
+        "kind": "llm_tokens",
+        "quantity": 5334.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "5614c026fff8441cacf0d0bf0825878b",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
+        "kind": "llm_tokens",
+        "quantity": 5224.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "cf59b77e34c64b9691d624e166ff15c4",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
+        "kind": "llm_tokens",
+        "quantity": 5244.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
+        "kind": "llm_tokens",
+        "quantity": 5303.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
+        "kind": "llm_tokens",
+        "quantity": 0.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
+        "kind": "llm_tokens",
+        "quantity": 5316.0,
+        "unit_detail": "fake:input",
+        "estimated": true
+      },
+      {
+        "session_id": "eval-S01",
+        "turn_id": "f3a890fc0e8b443380532829653b5688",
+        "kind": "llm_tokens",
+        "quantity": 31.0,
+        "unit_detail": "fake:output",
+        "estimated": true
+      }
+    ],
     "estimated_marginal_cost_eur": null,
     "cost_is_partial": true
   },

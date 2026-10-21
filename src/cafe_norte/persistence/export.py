@@ -128,7 +128,8 @@ def build_export(snapshot: SessionSnapshot, *, estimate: Estimator | None = None
     """Pure: one consistent snapshot in, one document out. The brief is the text the
     candidate actually heard and confirmed. Without an ``estimate`` the cost is unknown."""
     state = snapshot.state
-    usage = (*snapshot.usage, *voice_usage(snapshot))
+    derived = voice_usage(snapshot)
+    usage = (*snapshot.usage, *derived)
     cost = None if estimate is None else estimate(state.session_id, usage)
     return ExportDocument(
         session=SessionExport(
@@ -160,23 +161,22 @@ def build_export(snapshot: SessionSnapshot, *, estimate: Estimator | None = None
             timings=snapshot.timings,
             usage=usage,
             estimated_marginal_cost_eur=None if cost is None else cost.marginal_eur,
-            # Estimated usage is inferred, not measured, so it never makes a total complete.
-            cost_is_partial=cost is None or bool(cost.missing_prices) or _any_estimated(usage),
+            # Partial when something is missing: no prices, or speech nothing measured (D44).
+            # An estimate of a cut generation is flagged on its record, not here.
+            cost_is_partial=cost is None or bool(cost.missing_prices) or bool(derived),
         ),
         versions=snapshot.versions,
     )
 
 
-def _any_estimated(usage: tuple[UsageRecord, ...]) -> bool:
-    return any(record.estimated for record in usage)
-
-
 def voice_usage(snapshot: SessionSnapshot) -> tuple[UsageRecord, ...]:
-    """What a voice session used but nothing measured: the characters Ana spoke, the seconds
-    the candidate was heard, and the minutes of the bot and the candidate in the room."""
+    """What a voice session used that nothing measured, derived from the snapshot: the
+    characters Ana spoke, the seconds the candidate was heard, and the minutes of the bot and
+    the candidate in the room. A kind the call measured (D44) is never derived again."""
     state = snapshot.state
     if state.channel != "voice":
         return ()
+    measured = {record.kind for record in snapshot.usage if not record.estimated}
     spoken = sum(len(turn.text) for turn in snapshot.turns if turn.role == "assistant")
     derived: tuple[tuple[UsageKind, str, float], ...] = (
         ("tts_characters", snapshot.versions.tts_model, float(spoken)),
@@ -193,6 +193,7 @@ def voice_usage(snapshot: SessionSnapshot) -> tuple[UsageRecord, ...]:
             estimated=True,
         )
         for kind, detail, quantity in derived
+        if kind not in measured
     )
 
 

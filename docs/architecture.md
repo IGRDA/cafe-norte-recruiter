@@ -35,9 +35,13 @@ the snapshot stored when the session closed (D34), or one built on demand by `bu
 from one `Store.snapshot` while it is open. The confirmation history and the
 session's end time are read from the journaled `state_updated` events; the brief is the text
 the candidate confirmed. The cost is priced from `observability/prices/v1.yaml`:
-`cost_is_partial` is true when any usage has no price or is estimated (a voice call's speech,
-listening and room minutes are derived from the snapshot, not measured), and the cost is `None`
-when no estimator is bound. The schema is `examples/session_export.schema.json`, the fictional example
+`cost_is_partial` is true when something is missing: a usage with no price, no estimator bound
+(the cost is then `None`), or a voice call's speech, listening or room minutes that were not
+measured and had to be derived from the snapshot. A call measures them (Deepgram's seconds,
+ElevenLabs' characters, each participant's minutes in the room) and records them when it ends;
+the snapshot derives only a kind with no measurement. Tokens of a generation cut before its
+usage report are estimated and flagged on their own record; they do not make the total
+partial (D44). The schema is `examples/session_export.schema.json`, the fictional example
 `examples/session_export.example.json`.
 
 ## Limits

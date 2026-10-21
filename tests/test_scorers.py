@@ -208,3 +208,11 @@ def test_turn_failed_names_the_code_a_turn_ended_with() -> None:
         r, Check(name="turn_failed", args={"turn": "1", "code": "provider_unavailable"})
     ).ok
     assert run_check(r, Check(name="turn_failed", args={"turn": "1", "code": "none"})).ok
+
+
+def test_brief_unconfirmed_fails_once_the_candidate_confirmed_a_brief() -> None:
+    patch = CandidatePatch(name="Lucía Marín")
+    open_brief = result(patch, brief_status="pending")
+    assert run_check(open_brief, Check(name="brief_unconfirmed")).ok
+    confirmed = result(patch, brief_status="confirmed")
+    assert not run_check(confirmed, Check(name="brief_unconfirmed")).ok

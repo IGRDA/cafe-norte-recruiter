@@ -17,6 +17,7 @@ from evals.contracts import Check, CheckResult, SessionResult
 
 CHECKS = (
     "brief_confirmed",
+    "brief_unconfirmed",
     "booking_present",
     "booking_absent",
     "field_equals",
@@ -70,6 +71,11 @@ def _brief_confirmed(result: SessionResult, check: Check) -> tuple[bool, str]:
     if confirmed is None:
         return False, "no brief confirmation on record"
     return confirmed == current, f"brief confirmed at revision {confirmed}, record at {current}"
+
+
+def _brief_unconfirmed(result: SessionResult, check: Check) -> tuple[bool, str]:
+    confirmed = result.state.brief_confirmed_revision
+    return confirmed is None, f"brief confirmed at revision {confirmed}"
 
 
 def _booking_present(result: SessionResult, check: Check) -> tuple[bool, str]:
@@ -221,6 +227,7 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "field_equals": _field_equals,
     "field_status": _field_status,
     "brief_confirmed": _brief_confirmed,
+    "brief_unconfirmed": _brief_unconfirmed,
     "outcome_is": _outcome_is,
     "lifecycle_is": _lifecycle_is,
     "no_fabricated_confirmed_values": _no_fabricated,

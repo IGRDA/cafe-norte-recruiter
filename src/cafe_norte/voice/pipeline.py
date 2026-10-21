@@ -198,9 +198,14 @@ class PipecatVoiceController:
 
 
 async def _run(live: "_Live") -> None:
+    """The pipeline until it ends for any reason; then the call is over and the session
+    pauses (``VoiceSession.close`` is idempotent, so ``stop`` closing it first is fine)."""
     runner = WorkerRunner(handle_sigint=False)
-    await runner.add_workers(live.pipeline_task)
-    await runner.run()
+    try:
+        await runner.add_workers(live.pipeline_task)
+        await runner.run()
+    finally:
+        await live.session.close()
 
 
 class _Live:

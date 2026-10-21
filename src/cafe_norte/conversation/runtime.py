@@ -403,11 +403,18 @@ class Runtime:
         controls = explicit_controls(run.input.text)
         language = requested_language(controls, previous.language)
         run.state = previous.model_copy(update={"language": language})
+        if previous.lifecycle == "paused":  # the candidate is back: the session is live again
+            resumed = transition(run.state, "resume")
+            if not isinstance(resumed, Err):
+                lifecycle, outcome = resumed.value
+                run.state = run.state.model_copy(
+                    update={"lifecycle": lifecycle, "outcome": outcome}
+                )
         async with self._store.transaction() as tx:  # duplicate input_id raises conflict here
             await self._store.turns.append(
                 tx, run.record("user", run.input.text, run.input.received_at)
             )
-            if language != previous.language:
+            if run.state != previous:
                 await self._store.sessions.save(
                     tx,
                     run.state,

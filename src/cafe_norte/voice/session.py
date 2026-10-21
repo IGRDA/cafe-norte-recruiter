@@ -56,7 +56,6 @@ class VoiceSession:
         language: Language,
         clock: Callable[[], datetime] | None = None,
         idle_prompt_seconds: float = 8.0,
-        idle_pause_seconds: float = 12.0,
     ) -> None:
         self._runtime = runtime
         self._session_id = session_id
@@ -66,7 +65,7 @@ class VoiceSession:
         self._language = language  # follows each turn, so a switch changes the next filler
         self._clock = clock or _utcnow
         self._idle_prompt_seconds = idle_prompt_seconds
-        self._idle_pause_seconds = idle_pause_seconds
+        self._closed = False
         self.status: VoiceStatus = "connecting"
         self._ledger = Ledger()
         self._turn_task: asyncio.Task[None] | None = None
@@ -136,12 +135,24 @@ class VoiceSession:
         if self._turn_task is not None:
             await asyncio.gather(self._turn_task, return_exceptions=True)
 
+    async def heard_speech(self) -> None:
+        """Any raw transcript, interim or final: the candidate is talking, so it is not
+        silence, even when VAD missed it and no turn has started yet (D35)."""
+        if self.status == "listening":
+            self._start_idle()
+
     async def close(self) -> None:
+        """The call is over (hang-up, disconnect, expiry, stop): the session pauses here, and
+        only here, so it can be resumed with the private link. Idempotent."""
+        if self._closed:
+            return
+        self._closed = True
         self._cancel_idle()
         self._cancel_filler()
         if self._turn_task is not None:
             self._turn_task.cancel()
             await asyncio.gather(self._turn_task, return_exceptions=True)
+        await self._runtime.end(self._session_id, "shutdown")
         self._set("ended")
 
     # ---- the turn --------------------------------------------------------------------------------
@@ -195,11 +206,9 @@ class VoiceSession:
         self._idle_task = asyncio.create_task(self._idle())
 
     async def _idle(self) -> None:
+        """One "¿Sigues ahí?" after the silence; a live call is never paused for silence."""
         await asyncio.sleep(self._idle_prompt_seconds)
         await self._speak(self._texts.idle_prompt)
-        await asyncio.sleep(self._idle_pause_seconds)
-        await self._runtime.end(self._session_id, "shutdown")
-        self._set("paused")
 
     def _cancel_idle(self) -> None:
         if self._idle_task is not None:

@@ -854,3 +854,14 @@ async def test_a_yes_with_more_words_is_left_to_the_model() -> None:
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.pending_confirmation is not None
     assert state.pending_confirmation.status == "pending"
+
+
+async def test_a_turn_on_a_paused_session_makes_it_active_again() -> None:
+    h = Harness([says("Aquí sigo.")])
+    await h.open_session()
+    await h.runtime.end(SESSION, "shutdown")
+    paused = await h.store.sessions.get(SESSION)
+    assert paused is not None and paused.lifecycle == "paused"
+    await h.run("Hola, sigo aquí", "in-1")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.lifecycle == "active"

@@ -90,7 +90,6 @@ def session(
         language=language,
         clock=lambda: datetime(2026, 10, 20, tzinfo=UTC),
         idle_prompt_seconds=limits.get("prompt", 8.0),
-        idle_pause_seconds=limits.get("pause", 12.0),
     )
 
 
@@ -189,16 +188,41 @@ async def test_the_filler_follows_a_language_switched_in_the_turn() -> None:
     assert recorder.spoken[0] == "One moment."
 
 
-async def test_silence_prompts_once_then_pauses_the_session() -> None:
+async def test_silence_prompts_once_and_never_pauses_a_live_call() -> None:
+    """The hosted call: the session went "paused" while the candidate was still talking."""
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.02, pause=0.03)
+    s = session(runtime, recorder, prompt=0.02)
     await s.transcript("hola")
     await s.wait()
     await s.played_one()  # listening starts the idle clock
     await asyncio.sleep(0.03)
     assert recorder.spoken[-1] == "¿Sigues ahí?"
-    await asyncio.sleep(0.04)
-    assert runtime.ended == ["shutdown"]
-    assert recorder.status[-1] == "paused"
+    await asyncio.sleep(0.06)
+    assert recorder.spoken.count("¿Sigues ahí?") == 1
+    assert runtime.ended == []
+    assert recorder.status[-1] != "paused"
     await s.close()
+
+
+async def test_any_heard_speech_resets_the_silence_clock() -> None:
+    """A soft "sí" that VAD misses still reaches STT: it is not silence."""
+    runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
+    recorder = Recorder()
+    s = session(runtime, recorder, prompt=0.03)
+    await s.transcript("hola")
+    await s.wait()
+    await s.played_one()
+    await asyncio.sleep(0.02)
+    await s.heard_speech()
+    await asyncio.sleep(0.02)  # 0.04 since listening, 0.02 since speech: no prompt yet
+    assert "¿Sigues ahí?" not in recorder.spoken
+    await s.close()
+
+
+async def test_the_call_ending_pauses_the_session_once() -> None:
+    runtime = FakeRuntime([])
+    s = session(runtime, Recorder())
+    await s.close()
+    await s.close()
+    assert runtime.ended == ["shutdown"]

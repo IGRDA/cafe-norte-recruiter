@@ -57,3 +57,9 @@ variable "machine_type" {
   default     = "e2-small"
   description = "One VM runs the app and Caddy; e2-small is enough for two voice sessions."
 }
+
+variable "langfuse_base_url" {
+  type        = string
+  default     = "https://cloud.langfuse.com"
+  description = "Langfuse host for traces (EU cloud, D05); the keys are secrets, not variables."
+}

@@ -9,8 +9,14 @@
   `gcloud compute instances reset cafe-norte --zone europe-west1-b`. About a minute of
   downtime per deploy.
 - **Rotate a secret** (keys, access code, cookie secret): export the new value, run
-  `uv run python scripts/set_secrets.py --project cafe-norte-orbio`, then reset the
-  instance (the startup script reads `latest` on every boot). The database password is
+  `uv run python scripts/set_secrets.py --project cafe-norte-orbio --only <NAME>…`, then reset
+  the instance (the startup script reads `latest` on every boot). Always pass `--only`: without
+  it every key present in the local `.env` is written, including a local access code or cookie
+  secret that differs from the hosted one.
+- **Langfuse** (D36): traces go to the EU cloud project whose keys are the secrets
+  `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY`; the host is the `langfuse_base_url`
+  variable of `infra/app`; hosted traces carry `environment=production`. An empty secret means
+  tracing off, never a failed boot. The database password is
   Terraform's: bump `db_password_version` in `infra/app` and deploy; the user and the secret
   version change together.
 - **Database** (Cloud SQL `cafe-norte-db`, D33): the app reaches it through the Auth Proxy on

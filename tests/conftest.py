@@ -8,10 +8,12 @@ import pytest
 
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.memory import MemoryStore
+from cafe_norte.persistence.postgres import PostgresStore
 
 # The store contract runs against every implementation. ``make check`` runs the memory
 # parameter (pytest's addopts deselects ``postgres``); ``make test-db`` runs the other.
-STORES = ["memory"]
+STORES = ["memory", pytest.param("postgres", marks=pytest.mark.postgres)]
+TABLES = "sessions, interview_slots"  # the roots; every other table cascades from them
 
 
 @pytest.fixture
@@ -36,4 +38,10 @@ async def store(request: pytest.FixtureRequest) -> AsyncIterator[Store]:
     if request.param == "memory":
         yield MemoryStore()
         return
-    raise NotImplementedError(request.param)
+    url = request.getfixturevalue("test_database_url")
+    postgres = PostgresStore(url, poll_seconds=0.02)
+    await postgres.open()  # applies the migrations when the database is fresh
+    with psycopg.connect(url, autocommit=True) as conn:
+        conn.execute(f"truncate {TABLES} restart identity cascade")
+    yield postgres
+    await postgres.close()

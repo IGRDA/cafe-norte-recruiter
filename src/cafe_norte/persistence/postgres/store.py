@@ -8,6 +8,7 @@ from cafe_norte.domain.contracts import SessionId
 from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import (
+    SNAPSHOT_TURNS,
     Admission,
     Exports,
     Leases,
@@ -16,6 +17,7 @@ from cafe_norte.persistence.contracts import (
     SummaryJobs,
     Transaction,
 )
+from cafe_norte.persistence.export import confirmations_from_events
 from cafe_norte.persistence.later import (
     AdmissionLater,
     ExportsLater,
@@ -25,15 +27,24 @@ from cafe_norte.persistence.later import (
 )
 from cafe_norte.persistence.migrate import apply_pending
 from cafe_norte.persistence.postgres.calendar import PostgresCalendar
-from cafe_norte.persistence.postgres.events import PostgresEvents
-from cafe_norte.persistence.postgres.sessions import PostgresSessions
+from cafe_norte.persistence.postgres.events import (
+    PostgresEvents,
+    select_events,
+    select_timings,
+    select_usage,
+)
+from cafe_norte.persistence.postgres.sessions import PostgresSessions, select_state
 from cafe_norte.persistence.postgres.support import (
     PostgresTransaction,
     make_pool,
     reading,
     translating,
 )
-from cafe_norte.persistence.postgres.turns import PostgresTurns
+from cafe_norte.persistence.postgres.turns import PostgresTurns, select_turns
+
+SNAPSHOT_EVENTS = (
+    100_000  # a session journals a few dozen events per turn; the cap keeps it far below
+)
 
 
 class PostgresStore:
@@ -113,4 +124,20 @@ class PostgresStore:
     async def snapshot(
         self, session_id: SessionId, *, versions: VersionStamp, taken_at: datetime
     ) -> SessionSnapshot | None:
-        raise NotImplementedError
+        """One repeatable-read transaction: every read sees the same committed state."""
+        async with reading(self._pool.connection) as conn:
+            await conn.execute("set transaction isolation level repeatable read read only")
+            state = await select_state(conn, session_id)
+            if state is None:
+                return None
+            events = await select_events(conn, session_id, after=0, limit=SNAPSHOT_EVENTS)
+            return SessionSnapshot(
+                state=state,
+                turns=await select_turns(conn, session_id, SNAPSHOT_TURNS),
+                confirmations=confirmations_from_events(events),
+                events=events,
+                usage=await select_usage(conn, session_id),
+                timings=await select_timings(conn, session_id),
+                versions=versions,
+                taken_at=taken_at,
+            )

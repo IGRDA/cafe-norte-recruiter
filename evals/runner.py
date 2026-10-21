@@ -28,6 +28,7 @@ from cafe_norte.knowledge.loader import load_documents
 from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelText, ToolCall
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.observability.contracts import ProcessVersions, stamp
+from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
@@ -95,10 +96,11 @@ def signal_analyzer(verdicts: Sequence[FakeSignal]) -> ModelSignalAnalyzer | Non
     return ModelSignalAnalyzer(FakeModel(scripts))
 
 
-async def run_fake(scenario: Scenario) -> RunRecord:
-    """Replay the scenario: open the session, one turn per candidate line, then the checks."""
+async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
+    """Replay the scenario: open the session, one turn per candidate line, then the checks.
+    ``store`` defaults to a fresh memory store; a test may pass an opened Postgres one."""
     clock_at = datetime.combine(datetime.fromisoformat(scenario.today), time(10, 0), tzinfo=UTC)
-    store = MemoryStore(clock=lambda: clock_at)
+    store = store if store is not None else MemoryStore(clock=lambda: clock_at)
     configurations = load_configurations(CONFIG_DIR)
     configuration = configurations[scenario.config_id]
     await seed_calendar(store, configurations, now=clock_at)

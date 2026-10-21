@@ -489,6 +489,51 @@ async def test_a_date_preference_narrows_the_offer_when_it_can() -> None:
     assert none.ok and none.summary == "offered:3"  # no match: the first three are offered
 
 
+async def test_the_offer_is_remembered_in_the_order_it_was_spoken() -> None:
+    """The runtime matches "el primero" or "el miércoles" against it (D41)."""
+    w = await (await Interview().ready()).offered()
+    offer = (await w.current()).slot_offer
+    assert offer is not None and offer.shortlist == ()
+    assert [s.slot_id for s in offer.slots] == [
+        "chamberi_barista_v1-2026-10-20-1700",
+        SLOT,
+        "chamberi_barista_v1-2026-10-21-1700",
+    ]
+    assert offer.slots[1].starts_at_utc == datetime(2026, 10, 21, 8, 30, tzinfo=UTC)
+
+
+async def test_offering_again_keeps_the_first_words_that_asked_for_an_interview() -> None:
+    """A second offer (the runtime's, for another day) replaces the slots, not the evidence."""
+    w = await (await Interview().ready()).offered()
+    await w.slots(
+        context("t5"),
+        args("list_interview_slots", evidence_text="El jueves.", date_preference="2026-10-22"),
+    )
+    state = await w.current()
+    assert state.schedule_intent == Evidence(source_turn_id=TurnId("t3"), text="Sí, quiero.")
+    assert state.slot_offer is not None
+    assert [s.slot_id for s in state.slot_offer.slots] == [
+        "chamberi_barista_v1-2026-10-22-1030",
+        "chamberi_barista_v1-2026-10-22-1700",
+    ]
+
+
+async def test_presenting_a_slot_clears_the_shortlist() -> None:
+    w = await (await Interview().ready()).offered()
+    state = await w.current()
+    assert state.slot_offer is not None
+    narrowed = state.slot_offer.model_copy(update={"shortlist": (SlotId(SLOT),)})
+    async with w.store.transaction() as tx:
+        await w.store.sessions.save(
+            tx,
+            state.model_copy(update={"slot_offer": narrowed}),
+            expected_revision=state.candidate.revision,
+        )
+    await w.read_back()
+    offer = (await w.current()).slot_offer
+    assert offer is not None and offer.shortlist == () and len(offer.slots) == 3
+
+
 async def test_the_slot_read_back_needs_an_offer_and_a_known_future_slot_of_this_store() -> None:
     w = await Interview().ready()
     no_offer = await w.present(

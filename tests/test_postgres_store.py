@@ -80,3 +80,17 @@ async def test_pool_exhaustion_is_busy(empty_database: str) -> None:
     assert full.value.code == "busy"
     await holder
     await store.close()
+
+
+async def test_an_admission_older_than_its_ttl_no_longer_counts(empty_database: str) -> None:
+    """A crashed container never releases its place; the row ages out instead."""
+    store = PostgresStore(empty_database, admission_ttl_seconds=0)
+    await store.open()
+    for session_id in ("s1", "s2"):
+        await store.sessions.create(
+            STATE.model_copy(update={"session_id": SessionId(session_id)}), access_hash=""
+        )
+    assert await store.admission.acquire(SessionId("s1"), max_active=1, reserve_eur=0.5)
+    await asyncio.sleep(0.01)
+    assert await store.admission.acquire(SessionId("s2"), max_active=1, reserve_eur=0.5)
+    await store.close()

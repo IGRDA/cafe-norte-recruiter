@@ -9,21 +9,15 @@ from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import (
     SNAPSHOT_TURNS,
-    Admission,
     Exports,
-    ResumeTokens,
     SessionSnapshot,
     SummaryJobs,
     Transaction,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-from cafe_norte.persistence.later import (
-    AdmissionLater,
-    ExportsLater,
-    ResumeTokensLater,
-    SummaryJobsLater,
-)
+from cafe_norte.persistence.later import ExportsLater, SummaryJobsLater
 from cafe_norte.persistence.migrate import apply_pending
+from cafe_norte.persistence.postgres.admission import PostgresAdmission
 from cafe_norte.persistence.postgres.calendar import PostgresCalendar
 from cafe_norte.persistence.postgres.events import (
     PostgresEvents,
@@ -32,6 +26,7 @@ from cafe_norte.persistence.postgres.events import (
     select_usage,
 )
 from cafe_norte.persistence.postgres.leases import PostgresLeases
+from cafe_norte.persistence.postgres.resume_tokens import PostgresResumeTokens
 from cafe_norte.persistence.postgres.sessions import PostgresSessions, select_state
 from cafe_norte.persistence.postgres.support import (
     PostgresTransaction,
@@ -59,6 +54,7 @@ class PostgresStore:
         checkout_seconds: float = 5.0,
         statement_seconds: float = 3.0,
         lock_seconds: float = 2.0,
+        admission_ttl_seconds: float = 600.0,
     ) -> None:
         self._dsn = dsn
         self._pool = make_pool(
@@ -74,9 +70,9 @@ class PostgresStore:
         self.events = PostgresEvents(connect, poll_seconds=poll_seconds)
         self.calendar = PostgresCalendar(connect)
         self.leases = PostgresLeases(connect)
-        self.admission: Admission = AdmissionLater()
+        self.admission = PostgresAdmission(connect, ttl_seconds=admission_ttl_seconds)
         self.summary_jobs: SummaryJobs = SummaryJobsLater()
-        self.resume_tokens: ResumeTokens = ResumeTokensLater()
+        self.resume_tokens = PostgresResumeTokens(connect)
         self.exports: Exports = ExportsLater()
         self._open = False
 

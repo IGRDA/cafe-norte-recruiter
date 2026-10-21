@@ -39,9 +39,11 @@ function createDailyVoice({ onStatus, onError, startVoice, postTiming }) {
       audio = audio ?? new Audio();
       audio.autoplay = true;
       audio.srcObject = new MediaStream([event.track]);
-      audio.play().catch(() => {});
       postTiming("first_audio", ms());
-      onStatus("Ana está hablando…");
+      audio
+        .play()
+        .then(() => onStatus("Audio de Ana activo. Escuchando…"))
+        .catch((error) => onError(`El navegador bloqueó el audio de Ana (${error.name}). Pulsa en la página y vuelve a intentarlo.`));
     });
     // The local microphone track state is the one diagnostic the server cannot see: a
     // "blocked" or "off" track means no audio ever reaches Ana.

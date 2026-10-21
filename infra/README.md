@@ -21,8 +21,9 @@ the plan is never published as a CI artifact.
 
 GitHub Actions needs these repository variables: `GCP_PROJECT_ID`, `GCP_REGION`,
 `GCP_ARTIFACT_REPOSITORY` (`app`), `GCP_WORKLOAD_IDENTITY_PROVIDER` and
-`GCP_DEPLOYER_SERVICE_ACCOUNT` (bootstrap outputs), `TF_STATE_BUCKET`; and the repository
-secret `SMOKE_ACCESS_CODE`. The `demo` environment exists without required reviewers.
+`GCP_DEPLOYER_SERVICE_ACCOUNT` (bootstrap outputs), `TF_STATE_BUCKET`, `DEMO_END_DATE`; and the
+repository secret `SMOKE_ACCESS_CODE`. `demo.tfvars` is local and git-ignored; CI passes the
+same non-secret values as `TF_VAR_*`. The `demo` environment exists without required reviewers.
 
 Terraform is pinned to 1.5.7 and the Google provider to `~> 6.0`; both lock files are
 committed. `make infra-check` formats and validates both stacks without a backend. Both

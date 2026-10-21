@@ -62,9 +62,12 @@ jobs:
         with:
           terraform_version: "1.5.7"
       - run: terraform -chdir=infra/app init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="prefix=app"
-      - run: terraform -chdir=infra/app apply -input=false -auto-approve -var-file=../environments/demo.tfvars -var "image_digest=${{ steps.build.outputs.digest }}"
+      # demo.tfvars is a local, git-ignored file; CI passes the same non-secret values as TF_VAR_*.
+      - run: terraform -chdir=infra/app apply -input=false -auto-approve -var "image_digest=${{ steps.build.outputs.digest }}"
         env:
           TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_region: ${{ vars.GCP_REGION }}
+          TF_VAR_demo_end_date: ${{ vars.DEMO_END_DATE }}
       # The instance only reads its image metadata at boot (startup.sh); a reset is the deploy.
       - run: gcloud compute instances reset "$SERVICE" --zone "$REGION-b" --project "$PROJECT_ID" --quiet
       - run: |

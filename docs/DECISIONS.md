@@ -1018,6 +1018,96 @@ because the model never sees it.
 
 ---
 
+## D39 · A read-back the candidate cut is offered once, gone over in parts, or carried on
+
+_Added 21 October 2026, after the second hosted voice call (KI-01, KI-02). Built in two parts:
+the word families, the domain stage and the parts (PR #26); the tool, the router, the prompt,
+the export and the matrix (branch `readback-review-2`)._
+
+**Context.** The summary takes about 12 s to say and is shown on the page at once. The
+candidate read it and said "Sí, está todo bien" 10.8 s in. D22 counts only what was heard, so
+the yes could not confirm it; D35 read it again, word for word; it was cut the same way,
+three times, until the turn hit its round limit. "Está todo bien" was not even a plain yes
+(KI-01): the phrases had to match whole.
+
+**Decided with the owner (21 October).** Voice only first: the page mirrors the call and
+never counts as hearing it. A read-back cut by a yes gets one natural offer to go over it or
+carry on, and then the candidate decides. An explicit carry-on confirms it, recorded as
+*confirmed without full review*. What is confirmed stays the fixed text (D20); the bridge
+around it is the model's, from a short general policy. A long read-back is gone over in short
+parts, each one checked. No verbatim re-read loops.
+
+**Decisions.**
+- **A yes is a family of words**, in any order, with fillers and at least one core word and no
+  negation (`signals.answer_to_readback`). A carry-on ("sigue", "adelante", "no hace falta";
+  "carry on", "skip") is a third answer, `skip`. A bare "no" never rides along with a carry-on.
+- **The review is domain state.** `Confirmation.review` is `None` (said once, whole), or
+  `offered`, `in_parts(part, parts)` or `waived`, each stamped with the turn that moved it: one
+  move per turn. `fully_delivered` means the latest saying (the whole text, or the part) was
+  heard. `advance_review` holds the table:
+
+  | now | yes | carry on |
+  | --- | --- | --- |
+  | said, not heard | offered | offered (no carry-on before the offer) |
+  | offered | first part | waived |
+  | a part that is not the last (heard, or cut by the yes) | next part | waived |
+  | the last part, cut | waived | waived |
+
+  A yes over a part answers that part's check, so the review moves on; only a cut last part
+  ends it waived. `ready_to_confirm` is true when the read-back was heard whole, its last part
+  was heard, or it was waived; `respond` and the booking conditions use it. `assurance` says
+  which: `heard`, `reviewed` or `waived`.
+- **Parts** are slices of the read-back's own sentences (`readback.review_parts`): at most two
+  sentences and 160 characters, without the intro and the closing question, each followed by
+  `review.check` ("¿Está bien?" / "Is that right?"). A one-sentence read-back is one part.
+- **One tool, `review_readback(answer: affirm | skip)`.** Its handler moves the review and
+  saves; it says the part verbatim through the runtime, or asks the model for the offer; on a
+  waiver it confirms in the same call through the read-back's own handler (`confirm_field`,
+  `confirm_brief`, `reserve_interview`), so a model that stops there leaves nothing pending. A
+  read-back that is ready goes straight to that handler. The allowlist has ten tools.
+- **The runtime routes a plain answer by the stage** (`readback.answer_call`, one pure table),
+  before the model, as D35 does for a heard read-back:
+
+  | read-back | yes | carry on | no |
+  | --- | --- | --- | --- |
+  | ready to confirm | its tool, yes | its tool, yes | its tool, no |
+  | cut, not reviewed | review (the offer) | review (the offer) | its tool, no |
+  | offered | review (first part) | review, carry on | review, carry on |
+  | in parts | review (next part) | review, carry on | its tool, no |
+
+  A plain "no" to the offer ("¿lo repasamos?") is carrying on. A no to a slot stays the
+  model's. The button is routed the same way and no longer marks a read-back delivered:
+  **D38's "the card counts as heard" is superseded.**
+- **Presented again, a cut read-back starts with its first part** (`start_parts`), once:
+  **D35's verbatim re-read is superseded.** Under review, `present_confirmation`, `confirm_*`,
+  `reserve_interview` and the next step after a save all point at `review_readback`.
+- **The prompt** (`ana_v16`) gets `heard` and `review` in `pending_confirmation` and one short
+  policy: offer once, briefly, in your own words, phrased so that a yes means going over it;
+  never repeat the read-back; the system says the parts.
+- **The export** carries `assurance` on every confirmed read-back, so a reviewer tells a
+  heard one from one confirmed without full review.
+
+**Evaluation.** The behaviour matrix (`tests/test_readback_matrix.py`, 180 rows on fakes):
+each kind of read-back x where it is cut x yes, no, correction, carry on or unrelated x going
+over it or carrying on. In every row nothing is confirmed outside the three assurance paths,
+the assurance is the one the path predicts, no read-back is said whole more than twice, and
+nothing loops to the round limit. Before the router 106 rows never settled. S21 (carried on)
+and S22 (gone over) replay the call. The live, simulator-judged half runs S21 and S22 through
+task B's simulated candidate with their `persona` and `rubric`; no second simulator is built
+here.
+
+**Rejected.** A short spoken summary with the full one on the page (the page must not be
+needed). Counting a read-back as heard once shown on a connected page (voice only first).
+Saying a cut part again (a verbatim loop). Leaving "no" at the offer to the model (gpt-4o-mini
+has skipped confirmation tools before). A second call from the runtime to confirm after a
+waiver (the model would have to make it too, or task C's tool loop would).
+
+**Consequences we accept.** A yes that cuts a part moves on even though that part was not
+heard to its end; a cut last part is recorded as waived, never as reviewed. A press of Sí on a
+card whose audio was cut earns the offer instead of confirming. The resume sentence still
+repeats a pending read-back in full (a third saying across a hang-up). A button answer in a
+voice call is not spoken in the call (D38's gap).
+
 ---
 
 ## D40 · What Ana says is timed by what the candidate can hear

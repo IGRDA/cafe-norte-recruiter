@@ -250,11 +250,11 @@ is Daily over WebRTC; the runtime does not know that.
 
 **What breaks first.** The read-back rule. A read-back counts as presented only when its audio
 has fully played (D22, "delivered means heard"), and the page only mirrors it. In a browser a
-candidate can read a summary and answer before the audio ends; KI-02 shows the cost, a lost
-yes and a loop. On a phone there is no page, so the rule is the only channel and applies
-unchanged: the summary must be short enough to be heard whole, and an interruption means the
-read-back is read again. Telephony therefore inherits KI-02's fix (short spoken read-backs,
-re-read at most once) rather than needing one of its own.
+candidate can read a summary and answer before the audio ends; KI-02 showed the cost, a lost
+yes and a loop. D39 fixed it for voice alone, with no page needed: a yes over the summary earns
+one offer to go over it in short parts or carry on, and a carry-on is recorded as confirmed
+without full review. On a phone there is no page, so telephony inherits that fix unchanged
+rather than needing one of its own.
 
 **Next step.** A Twilio adapter for the transport only: a webhook that validates Twilio's
 signature, a media-stream connection carrying 8 kHz mu-law that Pipecat's serializer converts,

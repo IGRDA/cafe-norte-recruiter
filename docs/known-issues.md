@@ -17,8 +17,8 @@ the session never paused during the call; no model round timed out.
 
 | Id | Problem | Severity | Reproduced by | Belongs with |
 |---|---|---|---|---|
-| KI-01 | "Está todo bien" is not taken as a yes | High | `test_ki01_…` | runtime yes/no |
-| KI-02 | A yes to the summary on screen is lost when its audio was cut; the summary loops | High | `test_ki02_…` | read-back design |
+| KI-01 | "Está todo bien" is not taken as a yes | High | `test_ki01_…` | **fixed (D39)** |
+| KI-02 | A yes to the summary on screen is lost when its audio was cut; the summary loops | High | `test_ki02_…`, S21, S22, the read-back matrix | **fixed (D39)** |
 | KI-03 | "¿Sigues ahí?" while the candidate is speaking | High | `test_ki03_…` | **fixed (D40)** |
 | KI-04 | "¿Sigues ahí?" twice after a failed turn | Medium | `test_ki04_…` | **fixed (D40)** |
 | KI-05 | System sentences are said ahead of the audio still playing | Medium | `test_ki05_…` | **fixed (D40)** |
@@ -36,6 +36,8 @@ the session never paused during the call; no model round timed out.
 - **Fix.** Add "está todo bien", "todo bien", "está bien todo", "todo está bien" (and the
   English "all good", "that's all right") to the affirmations; consider word-set matching for
   the "todo / bien / correcto" family.
+- **Fixed (D39).** A plain yes is a family of words in any order, with fillers, at least one
+  core word and no negation; a carry-on ("sigue", "adelante") is its own answer.
 
 ## KI-02 · A yes to the summary on screen is lost when its audio was cut
 
@@ -54,6 +56,12 @@ the session never paused during the call; no model round timed out.
 - **Fix (decide first).** Speak a short summary ("Te lo he puesto en pantalla, ¿está todo
   bien?") and show the full one; or count a read-back as presented once its last sentence was
   shown on a connected page, keeping "heard" for voice-only; and re-read at most once.
+- **Fixed (D39).** Decided with the owner: voice only, the page never counts as hearing. The
+  yes over the summary earns one offer, in the model's words, to go over it or carry on.
+  "Sigue." (or a plain "no" to the offer) confirms it, recorded in the export as `waived`;
+  "sí" goes over it in short parts, each with "¿Está bien?", and the yes to the last one
+  confirms it as `reviewed`. A cut read-back is never said whole again. `test_ki02_…` replays
+  the call; S21, S22 and `tests/test_readback_matrix.py` cover every kind and cut.
 
 ## KI-03 · "¿Sigues ahí?" while the candidate is speaking
 

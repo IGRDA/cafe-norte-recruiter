@@ -50,6 +50,8 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Questions spoken per turn | 1; later sentences are read, not voiced |
 | Brief length | 4–8 sentences, deterministic |
 | A part of a read-back gone over after a cut | at most 2 of its sentences and 160 characters (one longer sentence is a part alone), then the short check (D39) |
+| Offers to go over a read-back the candidate cut | 1 per read-back; then the candidate decides (D39) |
+| A read-back said whole | at most twice; a cut one is never said whole again, only in parts (D39) |
 | Fields read back right after capture | `contact_phone`, `earliest_start_date` |
 | Interview slots offered per `list_interview_slots` | 3, from a window of 50 when a date is preferred |
 | Simulated calendar | 7 days ahead, 30-minute slots at each store's `interview_times` on shift days (D29) |

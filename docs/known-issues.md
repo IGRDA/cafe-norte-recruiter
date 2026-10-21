@@ -1,7 +1,7 @@
 # Known issues
 
-Problems seen in real calls that are documented, reproduced where possible, and left for a
-later stage. Each entry says what happened, the evidence, the cause, how to reproduce it and
+Problems seen in real calls, documented and reproduced where possible. A fixed entry stays,
+with the decision or commit that fixed it, so the evidence trail is complete. Each entry says what happened, the evidence, the cause, how to reproduce it and
 the fix proposed. A reproduction in `tests/test_known_issues.py` is a strict `xfail`: it fails
 today, and the commit that fixes the issue removes the marker.
 
@@ -17,14 +17,14 @@ the session never paused during the call; no model round timed out.
 
 | Id | Problem | Severity | Reproduced by | Belongs with |
 |---|---|---|---|---|
-| KI-01 | "Está todo bien" is not taken as a yes | High | `test_ki01_…` | runtime yes/no |
-| KI-02 | A yes to the summary on screen is lost when its audio was cut; the summary loops | High | `test_ki02_…` | read-back design |
+| KI-01 | "Está todo bien" is not taken as a yes | High | `test_ki01_…` | **fixed (yes by word families)** |
+| KI-02 | A yes to the summary on screen is lost when its audio was cut; the summary loops | High | `test_ki02_…` (strict xfail) | **open**: read-back review (D39, in progress) |
 | KI-03 | "¿Sigues ahí?" while the candidate is speaking | High | `test_ki03_…` | **fixed (D40)** |
 | KI-04 | "¿Sigues ahí?" twice after a failed turn | Medium | `test_ki04_…` | **fixed (D40)** |
 | KI-05 | System sentences are said ahead of the audio still playing | Medium | `test_ki05_…` | **fixed (D40)** |
 | KI-06 | Choosing an interview slot loops and never books | High | `test_ki06_…`, S20 | **fixed (D41)** |
-| KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | manual (below) | runtime robustness |
-| KI-08 | Wasted model rounds add latency | Low | journal | runtime, prompt |
+| KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | manual (below) | **partly fixed (D37)**: no longer silent; the split is open |
+| KI-08 | Wasted model rounds add latency | Low | journal | **open**: runtime, prompt |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -36,6 +36,11 @@ the session never paused during the call; no model round timed out.
 - **Fix.** Add "está todo bien", "todo bien", "está bien todo", "todo está bien" (and the
   English "all good", "that's all right") to the affirmations; consider word-set matching for
   the "todo / bien / correcto" family.
+- **Fixed** (commit `bdc588d`, merged in PR #26). `signals.answer_to_readback` takes a yes as an
+  answer made only of yes-words and fillers, in any order, with at least one core yes-word and
+  no negation; "todo" or "está" alone only support a core word. "Está todo bien", "Todo bien",
+  "Está bien todo", "All good" and "That is all right" are a plain yes; `test_ki01_…` passes
+  with no marker, and a no still wins first.
 
 ## KI-02 · A yes to the summary on screen is lost when its audio was cut
 
@@ -128,6 +133,11 @@ the session never paused during the call; no model round timed out.
   the running one; cancellation is not journaled (runtime robustness item).
 - **Fix.** Journal the cancelled turn as interrupted (runtime robustness stream); consider a
   longer timeout after a question that expects a date or a number, or Pipecat's smart-turn.
+- **Partly fixed (D37).** A cancelled turn is now journaled as an interrupted assistant turn and
+  ends with `turn_finished` (`interrupted: true`), so the page closes it instead of showing "…"
+  (`tests/test_runtime.py`, `test_closing_a_turn_mid_stream_journals_it_as_interrupted` and
+  `test_cancelling_a_turn_inside_a_model_call_journals_it_as_interrupted`). **Still open:** a
+  pause longer than the speech timeout still splits one answer into two turns.
 
 ## KI-08 · Wasted model rounds add latency
 

@@ -10,15 +10,18 @@
 <body>
   <main id="app">
     <header>
-      <h1>Ana · Café Norte Chamberí</h1>
+      <h1>Ana · <span id="store-name">Café Norte</span></h1>
       <p class="notice">Demostración ficticia de selección. Usa datos inventados. Se guardan los textos y transcripciones; no se graba audio.</p>
-      <p class="language">
+      <form id="chooser" class="chooser">
+        <label for="store">Tienda</label>
+        <select id="store"></select>
         <label for="language">Idioma · Language</label>
         <select id="language">
           <option value="es">Español</option>
           <option value="en">English</option>
         </select>
-      </p>
+        <button type="submit" id="start">Empezar</button>
+      </form>
       <p class="status" id="status" aria-live="polite">Conectando…</p>
       <p class="notice resume" id="resume" hidden>Guarda este enlace para continuar más tarde (válido 7 días): <a id="resume-link" href="#"></a></p>
       <form id="access" class="access" hidden autocomplete="off">
@@ -46,6 +49,10 @@
         <dl id="candidate"></dl>
         <h2>Confirmación</h2>
         <p id="confirmation" class="confirmation">—</p>
+        <p id="confirm-actions" class="actions" hidden>
+          <button type="button" id="confirm-yes">Sí</button>
+          <button type="button" id="confirm-no">No</button>
+        </p>
         <section id="booking" class="booking" hidden aria-live="polite">
           <h2>Entrevista</h2>
           <p id="booking-when"></p>
@@ -54,10 +61,18 @@
         </section>
         <h2>Fuentes</h2>
         <ul id="sources" class="sources" aria-label="Fragmentos consultados"><li>—</li></ul>
-        <h2>Panel de revisión</h2>
-        <ul id="review" class="review" aria-label="Eventos técnicos"></ul>
+        <details id="reviewer" class="reviewer">
+          <summary>Panel de revisión</summary>
+          <h3>Versiones</h3>
+          <dl id="versions" class="versions"><dt>—</dt><dd>—</dd></dl>
+          <h3>Turnos</h3>
+          <ol id="review" class="review" aria-label="Eventos técnicos por turno"></ol>
+        </details>
         <p id="export" hidden><a id="export-link" href="#" download>Descargar JSON de la sesión</a></p>
-        <p class="delete"><button type="button" id="delete" hidden>Borrar esta conversación</button></p>
+        <p class="actions">
+          <button type="button" id="end" hidden>Terminar conversación</button>
+          <button type="button" id="delete" hidden>Borrar esta conversación</button>
+        </p>
       </aside>
     </section>
     <noscript>Esta demo necesita JavaScript.</noscript>

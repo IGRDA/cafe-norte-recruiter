@@ -105,6 +105,8 @@ class TurnObservation(Frozen):
     usage: tuple[UsageRecord, ...] = ()
     timings: tuple[StageTiming, ...] = ()
     done: bool = False  # turn_finished or turn_failed seen
+    client_first_text_ms: int | None = None  # live: POST to first assistant_text, runner's clock
+    client_total_ms: int | None = None  # live: POST to the turn's end, runner's clock
 
 
 class SessionResult(Frozen):
@@ -195,6 +197,25 @@ class Report(Frozen):
 
 class Scorer(Protocol):
     def __call__(self, result: SessionResult, check: Check) -> CheckResult: ...
+
+
+class Finished(Frozen):
+    """A live session after it was ended: what the checks read, the export, and every turn as
+    observed (the opening first, then one per candidate line)."""
+
+    result: SessionResult
+    export: ExportDocument
+    observations: tuple[TurnObservation, ...]
+
+
+class Conversation(Protocol):
+    """One session seen from the candidate's side: Ana's opening, one turn per line, the end."""
+
+    async def start(self) -> TurnObservation: ...
+
+    async def say(self, text: str) -> TurnObservation: ...
+
+    async def finish(self) -> Finished: ...
 
 
 class CandidateSimulator(Protocol):

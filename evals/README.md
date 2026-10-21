@@ -62,6 +62,7 @@ is built as well, and the checks move to it when the remaining checks land (D21)
 
 - `contracts.py`: `Scenario`, `RetrievalCase`, `RetrievalRun`/`RetrievalReport`, `ComparisonCase`, `Check`, `RunRecord`, `Report`, and the `Scorer` and `CandidateSimulator` ports.
 - `observation.py`: folds one turn's runtime events into a `TurnObservation` (said, shown, called, failed, usage, timings); the fake replay and the live SSE stream feed the same reducer, and `session_result` assembles what the checks read.
+- `live.py`: `HttpConversation` drives one session through the public API (access, create, one POST per line, the turn's events from SSE resumed by `Last-Event-ID` until it ends, then end, snapshot and export); a turn with no end after 90 s is reported as `no_turn_end`.
 - `retrieval.py`: the retrieval suite: fixture questions through a retriever, recall@3, leakage, timings; one committed JSON per embedding model and KB version.
 - `runner.py`: loads cases, drives a session through the HTTP API (live) or the runtime with fakes (CI), collects the export and timings, applies scorers, writes a report with a `VersionStamp`.
 - `scorers.py`: pure functions over `ExportDocument` and retrieval results.

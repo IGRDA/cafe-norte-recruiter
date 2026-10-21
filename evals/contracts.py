@@ -251,6 +251,7 @@ class RunRecord(Frozen):
     provider_failed: bool  # a turn failed that the case did not expect to
     estimated_cost_eur: float | None  # the answering model's, from the export
     scenario_id: str = ""
+    session_id: str = ""  # live: the server's session, the key to its turn traces
     model: str = ""  # the answering model's selector
     language: Language | None = None  # the session's starting language
     repetition: int = 1

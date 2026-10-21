@@ -261,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
         "--base-url", default=None, help="an existing server; access code from EVAL_ACCESS_CODE"
     )
     live.add_argument("--max-turns", type=int, default=MAX_LIVE_TURNS)
+    live.add_argument("--langfuse", action="store_true", help="sync cases and runs (needs keys)")
     live.add_argument("--yes", action="store_true", help="spend: without it nothing is called")
     args = parser.parse_args(argv)
 
@@ -324,6 +325,7 @@ def live_main(args: argparse.Namespace) -> int:
         out=Path(args.out or LIVE_RESULTS),
         yes=args.yes,
         judge=None if args.judge == "off" else args.judge,
+        langfuse=args.langfuse,
     )
 
 
@@ -332,7 +334,13 @@ def comparison_plan(models: Sequence[str], *, repeat: int) -> list[Planned]:
     cases = [ComparisonCase.model_validate(c) for c in yaml.safe_load(COMPARISON_CASES.read_text())]
     scenarios = {s.id: s for s in load_scenarios(only=[c.scenario_id for c in cases])}
     return [
-        Planned(case_id=case.id, scenario=scenarios[case.scenario_id], model=model, repetition=r)
+        Planned(
+            case_id=case.id,
+            scenario=scenarios[case.scenario_id],
+            model=model,
+            repetition=r,
+            emphasis=case.emphasis,
+        )
         for model in models
         for case in cases
         for r in range(1, repeat + 1)
@@ -354,6 +362,7 @@ def comparison_main(args: argparse.Namespace) -> int:
         out=Path(args.out or LIVE_RESULTS),
         yes=args.yes,
         judge=None if args.judge == "off" else args.judge,
+        langfuse=args.langfuse,
         committed=COMPARISON_RESULTS,
     )
 

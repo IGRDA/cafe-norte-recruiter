@@ -7,6 +7,7 @@ denominator of everything it could have passed and is listed under misses with i
 import statistics
 from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -156,7 +157,7 @@ class ReportFile(Frozen):
     conversations and live next to it, ignored by git)."""
 
     generated_at: datetime
-    suite: str
+    suite: Literal["scenarios", "retrieval", "comparison"]
     denominators: dict[str, int]
     summary: Summary
     runs: tuple[RunRecord, ...]

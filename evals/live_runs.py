@@ -26,6 +26,7 @@ from cafe_norte.model.select import model_from_env
 from cafe_norte.observability.cost import load_prices
 from evals.contracts import Candidate, JudgeVerdict, Report, RunRecord, Scenario
 from evals.judge import judge as judge_run
+from evals.langfuse_sync import SdkSink, dataset_name, keys_present, sync
 from evals.live import MAX_LIVE_TURNS, HttpConversation, LiveError, drive, serve
 from evals.report import render_json, render_markdown
 from evals.scorers import extraction_accuracy, run_check
@@ -44,6 +45,7 @@ class Planned(BaseModel):
     scenario: Scenario
     model: str  # the answering model's selector
     repetition: int
+    emphasis: str = ""  # comparison: what the case stresses
 
 
 def loopback_env(env: Mapping[str, str], model: str) -> dict[str, str]:
@@ -100,6 +102,7 @@ async def run_live(
             failure=f"{type(error).__name__}: {error}",
         )
     turns = finished.observations[1:]
+    base["session_id"] = conversation.session_id
     export = finished.export
     return RunRecord(
         **base,
@@ -247,6 +250,7 @@ def execute(
     yes: bool,
     judge: str | None = None,
     committed: Path | None = None,
+    langfuse: bool = False,
 ) -> int:
     """Print what the plan will cost; without ``yes`` stop there. Otherwise run it, write the
     results, and exit 0 only when every run passed."""
@@ -276,4 +280,10 @@ def execute(
     print(f"{suite}: {passed}/{len(records)} passed  -> {path}")
     if committed is not None:
         print(f"results to commit -> {write_committed(report, committed, now=now)}")
+    if langfuse:
+        if keys_present():
+            sync(report, plan, SdkSink.from_env())
+            print(f"Langfuse: dataset {dataset_name(suite)}, {len(records)} runs as experiments")
+        else:
+            print("Langfuse: skipped, LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are not set")
     return 0 if passed == len(records) else 1

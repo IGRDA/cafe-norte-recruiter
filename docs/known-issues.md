@@ -22,7 +22,7 @@ the session never paused during the call; no model round timed out.
 | KI-03 | "¿Sigues ahí?" while the candidate is speaking | High | `test_ki03_…` | **fixed (D40)** |
 | KI-04 | "¿Sigues ahí?" twice after a failed turn | Medium | `test_ki04_…` | **fixed (D40)** |
 | KI-05 | System sentences are said ahead of the audio still playing | Medium | `test_ki05_…` | **fixed (D40)** |
-| KI-06 | Choosing an interview slot loops and never books | High | manual (below) | booking, observability |
+| KI-06 | Choosing an interview slot loops and never books | High | `test_ki06_…`, S20 | **fixed (D41)** |
 | KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | manual (below) | runtime robustness |
 | KI-08 | Wasted model rounds add latency | Low | journal | runtime, prompt |
 
@@ -114,6 +114,10 @@ the session never paused during the call; no model round timed out.
 - **Fix.** Resolve the choice in the runtime like a yes/no: match "el primero", "el viernes",
   "a las diez y media", "el 23" against the slots just offered and present the read-back
   without the model; journal tool arguments (the observability stream).
+- **Fixed (D41).** The runtime matches the answer against the offer
+  (`domain/slot_choice.py`), reads one fitting slot back, keeps a shortlist and lets the model
+  ask when several fit, offers again when none does, and books a yes that restates the slot.
+  `test_ki06_…` and scenario S20 replay the call. **Still open:** tool arguments in the journal.
 
 ## KI-07 · A hesitation splits the answer and the first part is lost silently
 

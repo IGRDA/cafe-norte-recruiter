@@ -7,7 +7,8 @@ today: "2026-10-20"
 # first sentence (`faults`), so the question "¿Te la reservo?" was never heard. Line 9 is a
 # yes: it cannot authorize the booking, `reserve_interview` is refused and the read-back is
 # said again in full. Line 10 answers the read-back that was heard, and only that books.
-# Line 8 has no closing `say`: the turn is cut after the tool, so the model never gets there.
+# Line 8 is the runtime's: it reads the first slot back itself (D41) and the candidate cuts it
+# after one sentence, so the model is never called and the line has no script.
 scripted_turns:
   - "Sí, me viene bien."
   - "Me llamo Lucía Marín, sí me interesa el puesto."
@@ -53,8 +54,7 @@ fake_script:
   - - tool: list_interview_slots
       args: { evidence_text: "Sí, quiero entrevista." }
     - say: ""
-  - - tool: present_confirmation
-      args: { target: slot, slot_id: chamberi_barista_v1-2026-10-20-1700 }
+  - []
   - - tool: reserve_interview
       args: { slot_id: chamberi_barista_v1-2026-10-20-1700 }
     - tool: present_confirmation

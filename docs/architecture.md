@@ -52,6 +52,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Fields read back right after capture | `contact_phone`, `earliest_start_date` |
 | Interview slots offered per `list_interview_slots` | 3, from a window of 50 when a date is preferred |
 | Simulated calendar | 7 days ahead, 30-minute slots at each store's `interview_times` on shift days (D29) |
+| Slot choice matched by the runtime | against the last offer (at most 3 slots); positions 1–3 and last; days of the month 1–31; a day not offered is offered again when it falls within the 7-day horizon; an hour below 12 also matches the same hour after noon; afternoon from 14:00 (D41) |
 | Bookings | one per slot, one per session, same idempotency key returns the same booking |
 | Coverage floor | 80% of the package |
 | Voice: filler while a tool runs | after 1.5 s in which the candidate heard nothing (D40) |

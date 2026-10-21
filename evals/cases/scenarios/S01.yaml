@@ -48,9 +48,8 @@ fake_script:
   - - tool: list_interview_slots
       args: { evidence_text: "Sí, quiero entrevista." }
     - say: ""
-  - - tool: present_confirmation
-      args: { target: slot, slot_id: chamberi_barista_v1-2026-10-20-1700 }
-    - say: ""
+  # "El primero me va bien.": the runtime reads the first slot back itself (D41).
+  - - say: ""
   - - tool: reserve_interview
       args: { slot_id: chamberi_barista_v1-2026-10-20-1700 }
     - tool: end_session

@@ -224,6 +224,19 @@ class InterviewSlot(Frozen):
     status: Literal["available", "reserved"] = "available"
 
 
+class OfferedSlot(Frozen):
+    slot_id: SlotId
+    starts_at_utc: datetime
+
+
+class SlotOffer(Frozen):
+    """The slots Ana last offered, in the order she said them, and the ones an ambiguous answer
+    left in question (D41). The runtime matches the candidate's choice against it."""
+
+    slots: tuple[OfferedSlot, ...]
+    shortlist: tuple[SlotId, ...] = ()
+
+
 class Booking(Frozen):
     """A committed simulated reservation. Exists only after the database transaction commits."""
 
@@ -323,6 +336,7 @@ class SessionState(Frozen):
     pending_confirmation: Confirmation | None = None
     brief_confirmed_revision: int | None = None  # the revision the candidate last confirmed
     schedule_intent: Evidence | None = None  # the candidate's words asking for an interview
+    slot_offer: SlotOffer | None = None  # the slots last offered, for the runtime's matcher
     booking: Booking | None = None
     review_flags: tuple[ReviewFlag, ...] = ()
     active_seconds: float = 0.0

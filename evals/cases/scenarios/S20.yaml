@@ -1,0 +1,96 @@
+id: S20
+title: The slot choice of the second hosted call, replayed with a model that never presents a slot
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# What went wrong live (KI-06): three slots were offered; "El viernes." made the model list
+# again, "El viernes." again got a plain question, "Exacto, sí." a reservation with nothing
+# read back and then a read-back of a slot id that does not exist; nothing was booked. The
+# runtime now matches the words against the offer (D41): line 8 names a day not offered, so
+# the runtime offers Friday's two slots; line 9 fits both, so the model asks which; line 10
+# is the model's, and its slips are refused; line 11 picks one, which the runtime reads back;
+# line 12's yes books it.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
+  - "Sí, todo correcto."
+  - "Sí, quiero entrevista."
+  - "El viernes."
+  - "El viernes."
+  - "Exacto, sí."
+  - "El viernes, veintitrés, a las diez y media."
+  - "Sí."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: confirm_brief
+      args: { answer: affirm }
+    - say: "¿Te gustaría tener una entrevista?"
+  - - tool: list_interview_slots
+      args: { evidence_text: "Sí, quiero entrevista." }
+    - say: ""
+  - - say: ""
+  - - say: "¿Te viene mejor a las 10:30 o a las 17:00?"
+  # The model reserves with nothing read back, then reads back an id it mangled.
+  - - tool: reserve_interview
+      args: { slot_id: chamberi_barista_v1-2026-10-23-1030 }
+    - tool: present_confirmation
+      args: { target: slot, slot_id: "chamberi_barista_v1-2026-10-23-10:30" }
+    - say: "¿Cuál de los dos prefieres?"
+  - - say: ""
+  - - tool: end_session
+      args: { reason: candidate_done }
+    - say: "Reservada la entrevista el viernes 23 de octubre a las 10:30; es una reserva simulada, sin cita real. Hasta pronto, Lucía."
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: next monday
+    experience: dos años en una cafetería de barrio
+  wants_interview: true
+checks:
+  - name: tool_ok
+    args: { turn: "8", tool: list_interview_slots, ok: "true" }
+  - name: tool_ok
+    args: { turn: "10", tool: reserve_interview, ok: "false" }
+  - name: tool_ok
+    args: { turn: "10", tool: present_confirmation, ok: "false" }
+  - name: tool_ok
+    args: { turn: "11", tool: present_confirmation, ok: "true" }
+  - name: tool_ok
+    args: { turn: "12", tool: reserve_interview, ok: "true" }
+  - name: booking_present
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+  - name: outcome_is
+    args: { outcome: reserved }
+  - name: no_fabricated_confirmed_values

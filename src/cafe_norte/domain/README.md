@@ -13,6 +13,8 @@ spec means by "code-enforced validation": the LLM proposes, these functions deci
 | `confirmation.py` | Presenting a pending confirmation and interpreting a response against it |
 | `booking.py` | The five conditions a reservation needs (`reservation_allowed`), the slot half of them (`slot_offerable`) and the server-generated `idempotency_key` |
 | `calendar.py` | `interview_slots`: the simulated calendar as a deterministic rule over a store's shifts and `interview_times` (D29) |
+| `numbers.py` | Whether a number appears in the candidate's words, as digits or spoken (`mentions_number`), `spelled` (0–99, es/en) and `plain` (case-folded, no accents) |
+| `slot_choice.py` | Which offered slot an answer means: `read_slot_words` (positions, weekdays, days, relative days, times, part of day, leftover words) and `choose_slot` → `Chosen \| Ambiguous \| NoMatch \| NotAChoice`; only an answer all about the slot is a choice (D41) |
 | `lifecycle.py` | Allowed `lifecycle` transitions (`transition`, `is_terminal`) and the outcome each terminal event implies: an early end with a follow-up flag is `human_followup_requested` |
 | `review.py` | `add_followup` (at most one `human_followup` flag per turn) and `has_followup`: the one place the tool handler and the runtime's explicit-request control add a follow-up |
 | `configuration.py` | Loading and validating the two store configurations from `config/` |

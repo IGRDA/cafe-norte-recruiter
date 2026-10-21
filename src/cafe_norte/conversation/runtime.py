@@ -13,6 +13,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.brief import slot_time
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
@@ -48,6 +49,8 @@ from cafe_norte.domain.contracts import (
     SessionId,
     SessionState,
     Signal,
+    SlotId,
+    SlotOffer,
     SlotTarget,
     StoreConfiguration,
     TurnId,
@@ -56,6 +59,13 @@ from cafe_norte.domain.lifecycle import TERMINAL, LifecycleEvent, is_terminal, t
 from cafe_norte.domain.result import Err
 from cafe_norte.domain.review import add_followup
 from cafe_norte.domain.session_time import active_increment
+from cafe_norte.domain.slot_choice import (
+    Ambiguous,
+    Chosen,
+    NoMatch,
+    choose_slot,
+    read_slot_words,
+)
 from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
 from cafe_norte.model.contracts import (
     Model,
@@ -169,6 +179,7 @@ class _Turn:
         default_factory=lambda: ToolOutcome(ok=True, model_text="", summary="")
     )
     answered: str | None = None  # what the runtime's own read-back answer told the model
+    slot_choice: str | None = None  # what the runtime did with the candidate's slot choice
     trace: Span = field(init=False)  # the root span; set by run_turn before anything else
     tools_called: int = 0
     rounds: int = 0
@@ -557,8 +568,13 @@ class Runtime:
                 yield event
         async for event in self._plain_answer(run):
             yield event
+        if run.answered is None and "human" not in controls:
+            async for event in self._slot_choice(run):
+                yield event
         if run.answered is not None:
             hints = hints.model_copy(update={"readback_answered": run.answered})
+        if run.slot_choice is not None:
+            hints = hints.model_copy(update={"slot_choice": run.slot_choice})
 
         history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
         if len(history) > 1:
@@ -914,6 +930,86 @@ class Runtime:
         if refreshed is not None:
             run.state = refreshed
 
+    async def _slot_choice(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        """The candidate's answer to the slot offer, matched against it here (D41), so a model
+        that does not copy the slot id can no longer leave the choice looping. One slot that
+        fits is read back and several are kept as a shortlist for the model to ask about,
+        through the tools the model would call; words that fit nothing offered are offered
+        again, for the day they name. Anything that is not a choice is the model's."""
+        state = run.state
+        offer = _open_offer(run)
+        if offer is None:
+            return
+        configuration = self._configurations[state.config_id]
+        zone = ZoneInfo(configuration.timezone)
+        ids = [slot.slot_id for slot in offer.slots]
+        words = read_slot_words(run.input.text)
+        choice = choose_slot(
+            words,
+            [slot.starts_at_utc.astimezone(zone).replace(tzinfo=None) for slot in offer.slots],
+            today=self._clock().astimezone(zone).date(),
+            shortlist=tuple(i for i, slot_id in enumerate(ids) if slot_id in offer.shortlist),
+        )
+        arguments: dict[str, str]
+        match choice:
+            case Chosen(index=index) if _heard_read_back_of(run, ids[index]):
+                if answer_to_readback(words.rest) != "affirm":
+                    return  # the slot said again without a yes: the model's to read
+                name, arguments = "reserve_interview", {"slot_id": ids[index]}
+            case Chosen(index=index):
+                name, arguments = "present_confirmation", {"target": "slot", "slot_id": ids[index]}
+            case NoMatch(day=day):
+                intent = state.schedule_intent
+                name = "list_interview_slots"
+                arguments = {"evidence_text": intent.text if intent else run.input.text}
+                if day is not None:
+                    arguments["date_preference"] = day.isoformat()
+            case Ambiguous(indices=indices):
+                await self._save_shortlist(run, tuple(ids[i] for i in indices))
+                options = "; ".join(
+                    f"{i + 1}: "
+                    + slot_time(offer.slots[i].starts_at_utc, configuration, state.language)
+                    for i in indices
+                )
+                run.slot_choice = (
+                    f"The candidate's words fit more than one offered slot ({options}). Ask in "
+                    "one short sentence which of these they prefer; the system reads it back."
+                )
+                return
+            case _:
+                return  # NotAChoice: the words are the model's
+        async for event in self._runtime_call(run, name, arguments):
+            yield event
+        run.slot_choice = run.outcome.model_text
+
+    async def _save_shortlist(self, run: _Turn, shortlist: tuple[SlotId, ...]) -> None:
+        """The slots an ambiguous answer left in question; the next answer is held to them."""
+        offer = run.state.slot_offer
+        assert offer is not None
+        state = run.state.model_copy(
+            update={"slot_offer": offer.model_copy(update={"shortlist": shortlist})}
+        )
+        async with self._store.transaction() as tx:
+            await self._store.sessions.save(
+                tx,
+                state,
+                expected_revision=state.candidate.revision,
+                lease_generation=run.generation,
+            )
+        run.state = state
+
+    async def _runtime_call(
+        self, run: _Turn, name: str, arguments: dict[str, str]
+    ) -> AsyncIterator[RuntimeEvent]:
+        """A tool the runtime calls for the candidate, through the registry and the domain like
+        the model's; ``run.outcome`` and ``run.state`` are fresh afterwards."""
+        call = ToolCall(call_id=f"runtime-{name}", name=name, arguments_json=json.dumps(arguments))
+        async for event in self._run_tool(run, call, run.trace):
+            yield event
+        refreshed = await self._store.sessions.get(run.session_id)
+        if refreshed is not None:
+            run.state = refreshed
+
     async def _verbatim(self, run: _Turn, text: str) -> AsyncIterator[RuntimeEvent]:
         """Authoritative text (a read-back, a control reply): said in full even if the model
         already asked something this turn; nothing else is voiced after it."""
@@ -985,6 +1081,44 @@ class Runtime:
                 ),
             )
         return event
+
+
+def _open_offer(run: _Turn) -> SlotOffer | None:
+    """The offer a spoken answer may choose from: there is one, nothing is booked, the session
+    is live, and no field or brief read-back is waiting for its own answer. A button press
+    answers a read-back, never an offer."""
+    state = run.state
+    offer = state.slot_offer
+    pending = state.pending_confirmation
+    waiting = (
+        pending is not None
+        and pending.status == "pending"
+        and not isinstance(pending.target, SlotTarget)
+    )
+    if (
+        run.input.ui_answer is not None
+        or offer is None
+        or not offer.slots
+        or state.booking is not None
+        or state.lifecycle != "active"
+        or waiting
+    ):
+        return None
+    return offer
+
+
+def _heard_read_back_of(run: _Turn, slot_id: SlotId) -> bool:
+    """That very slot was read back in an earlier turn and heard to the end: naming it again is
+    an answer to "¿Te la reservo?", not a new choice."""
+    pending = run.state.pending_confirmation
+    return (
+        pending is not None
+        and pending.status == "pending"
+        and isinstance(pending.target, SlotTarget)
+        and pending.target.slot_id == slot_id
+        and pending.fully_delivered
+        and pending.presented_turn_id != run.turn_id
+    )
 
 
 def _opening(state: SessionState) -> list[str]:

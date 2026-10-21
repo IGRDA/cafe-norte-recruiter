@@ -57,8 +57,10 @@ from cafe_norte.domain.contracts import (
     Evidence,
     FieldTarget,
     InterviewSlot,
+    OfferedSlot,
     ReviewFlag,
     SessionState,
+    SlotOffer,
     SlotTarget,
     StoreConfiguration,
 )
@@ -454,7 +456,10 @@ class PresentConfirmationHandler(_Handler):
         pending = confirmation.present(
             state, target, text, context.turn_id, ConfirmationId(uuid.uuid4().hex)
         )
-        new_state = state.model_copy(update={"pending_confirmation": pending})
+        offer = state.slot_offer
+        if isinstance(target, SlotTarget) and offer is not None:
+            offer = offer.model_copy(update={"shortlist": ()})  # a slot was picked out
+        new_state = state.model_copy(update={"pending_confirmation": pending, "slot_offer": offer})
         await self._save(context, new_state, expected_revision=revision)
         return ToolOutcome(
             ok=True,
@@ -579,8 +584,17 @@ class ListInterviewSlotsHandler(_InterviewHandler):
             s for s in window if _local_date(s, configuration) == arguments.date_preference
         )
         slots = (preferred or window)[:OFFERED_SLOTS]
-        intent = Evidence(source_turn_id=context.turn_id, text=arguments.evidence_text)
-        new_state = state.model_copy(update={"schedule_intent": intent})
+        # The first words asking for an interview stay its evidence when the offer is made
+        # again for another day.
+        intent = state.schedule_intent or Evidence(
+            source_turn_id=context.turn_id, text=arguments.evidence_text
+        )
+        offer = SlotOffer(
+            slots=tuple(
+                OfferedSlot(slot_id=s.slot_id, starts_at_utc=s.starts_at_utc) for s in slots
+            )
+        )
+        new_state = state.model_copy(update={"schedule_intent": intent, "slot_offer": offer})
         await self._save(context, new_state, expected_revision=state.candidate.revision)
         if not slots:
             step = (

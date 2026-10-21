@@ -14,13 +14,16 @@ from cafe_norte.conversation.contracts import TurnFailed
 from cafe_norte.conversation.signals import answer_to_readback
 from cafe_norte.domain.contracts import TurnId
 from tests.test_runtime import (
+    FRI_1030,
     SESSION,
     WANTS_TOOLS,
     Harness,
     fill_record,
     present_brief,
     says,
+    slots_offered,
     turn,
+    with_slots_offered,
 )
 from tests.test_voice_session import FakeRuntime, Recorder, finished, say, session
 
@@ -101,3 +104,30 @@ async def test_ki02_a_yes_to_the_summary_on_screen_confirms_it_even_if_its_audio
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.pending_confirmation is not None
     assert state.pending_confirmation.status == "confirmed"
+
+
+async def test_ki06_a_day_and_a_time_end_in_a_booking_without_the_model_copying_an_id() -> None:
+    """Live: after "el viernes", "el viernes", "exacto, sí" and "el viernes, veintitrés, a las
+    diez y media" the model re-listed the slots, asked in plain text, reserved with nothing
+    pending and presented an id that does not exist (seq 172 to 183). Here the model never
+    presents a slot; the runtime turns the words into the read-back, and the yes into the
+    booking (D41)."""
+    ask = "¿Cuál te viene mejor?"
+    h = with_slots_offered(
+        says(ask), says(ask), says(ask), says(""), says("Reservado."), date_preference="2026-10-23"
+    )
+    await slots_offered(h)
+    for n, words in enumerate(
+        [
+            "El viernes.",
+            "El viernes.",
+            "Exacto, sí.",
+            "El viernes, veintitrés, a las diez y media.",
+            "Sí.",
+        ],
+        start=2,
+    ):
+        await h.run(words, f"in-{n}")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.booking is not None
+    assert state.booking.slot_id == FRI_1030

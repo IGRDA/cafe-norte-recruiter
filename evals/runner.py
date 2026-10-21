@@ -91,6 +91,7 @@ async def run_fake(scenario: Scenario) -> RunRecord:
             config_version=configuration.version,
             language=scenario.language,
             channel="text",
+            created_at=clock_at,
         ),
         access_hash="",
     )

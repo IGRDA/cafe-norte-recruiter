@@ -187,6 +187,7 @@ def build_router(
             config_version=configuration.version,
             language=body.language,
             channel=body.channel,
+            created_at=datetime.now(UTC),
         )
         await store.sessions.create(state, access_hash="")
         tasks.start(_drain(runtime.open_session(session_id)))

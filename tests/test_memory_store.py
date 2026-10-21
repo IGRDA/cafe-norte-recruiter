@@ -28,6 +28,7 @@ def state(revision: int = 0) -> SessionState:
         config_version="1",
         language="es",
         channel="text",
+        created_at=NOW,
         candidate=CandidateRecord(revision=revision),
     )
 

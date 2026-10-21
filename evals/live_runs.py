@@ -24,7 +24,8 @@ from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
 from cafe_norte.observability.cost import load_prices
-from evals.contracts import Candidate, Report, RunRecord, Scenario
+from evals.contracts import Candidate, JudgeVerdict, Report, RunRecord, Scenario
+from evals.judge import judge as judge_run
 from evals.live import MAX_LIVE_TURNS, HttpConversation, LiveError, drive, serve
 from evals.report import render_json, render_markdown
 from evals.scorers import extraction_accuracy, run_check
@@ -125,12 +126,14 @@ async def run_plan(
     base_url: str | None,
     access_code: str | None,
     max_turns: int = MAX_LIVE_TURNS,
+    judge: str | None = None,
     env: Mapping[str, str] | None = None,
 ) -> list[RunRecord]:
     """Every planned run, one at a time (provider rate limits), grouped by model."""
     env = env if env is not None else os.environ
     configurations = load_configurations(ROOT / "config")
     voice = ModelCandidateSimulator(simulator_model(simulator, env))
+    judge_model = model_from_env(judge, env) if judge else None
     records: list[RunRecord] = []
     for model, runs in groupby(plan, key=lambda p: p.model):
         async with _target(model, base_url, env) as url:
@@ -154,9 +157,29 @@ async def run_plan(
                         max_turns=max_turns,
                         case_id=planned.case_id,
                     )
+                record = await with_judge(record, scenario, judge_model)
                 records.append(record)
                 print(_line(record), flush=True)
     return records
+
+
+async def with_judge(record: RunRecord, scenario: Scenario, model: Model | None) -> RunRecord:
+    """The rubric judge's verdict on the run's exported transcript, when there is a judge, a
+    rubric and a transcript. A judge that fails is recorded as unparsable, not raised."""
+    if model is None or not scenario.rubric or record.export is None:
+        return record
+    lines = tuple((turn.role, turn.text) for turn in record.export.transcript)
+    try:
+        verdict = await judge_run(
+            model, transcript=lines, rubric=scenario.rubric, answering_model=record.model
+        )
+    except ServiceError as error:
+        verdict = JudgeVerdict(
+            judge_model=model.model_id,
+            unparsable=f"judge call failed: {error.code}",
+            same_model=False,
+        )
+    return record.model_copy(update={"judge": verdict})
 
 
 def write_results(report: Report, out: Path, *, now: datetime | None = None) -> Path:
@@ -222,12 +245,13 @@ def execute(
     max_turns: int,
     out: Path,
     yes: bool,
+    judge: str | None = None,
     committed: Path | None = None,
 ) -> int:
     """Print what the plan will cost; without ``yes`` stop there. Otherwise run it, write the
     results, and exit 0 only when every run passed."""
     spend = estimate_spend(
-        [p.model for p in plan], simulator=simulator, judge=None, prices=load_prices()
+        [p.model for p in plan], simulator=simulator, judge=judge, prices=load_prices()
     )
     print(spend.describe())
     if not yes:
@@ -240,6 +264,7 @@ def execute(
             base_url=base_url,
             access_code=access_code,
             max_turns=max_turns,
+            judge=judge,
         )
     )
     passed = sum(r.passed for r in records)

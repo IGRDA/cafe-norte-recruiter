@@ -62,6 +62,9 @@ class ModelSummary(Frozen):
     cost_eur: float  # the answering model, priced runs only
     unpriced_runs: int  # runs with no cost or a partial one
     turn_cap_runs: int
+    judge_held: Ratio  # rubric bullets the judge said held, over bullets it answered
+    judge_unparsable: int  # judged runs with no usable answer
+    judge_same_model: bool  # some run was judged by its own answering model
 
 
 class CaseRow(Frozen):
@@ -127,6 +130,7 @@ def render_markdown(report: Report, *, generated_at: datetime) -> str:
         "Samples are small: no number here is a production percentile.",
         "",
         *(_DECISION if report.suite == "comparison" else []),
+        *_judge_section(report.runs, summary),
         "## By configuration and language",
         "",
         "| Configuration | Language | Model | Runs passed |",
@@ -180,6 +184,8 @@ def _model(model: str, runs: Sequence[RunRecord]) -> ModelSummary:
     grounding = [c for r in runs for c in r.checks if c.name in GROUNDING_CHECKS]
     tools = [ok for r in runs for _, ok in r.tool_calls]
     priced = [r for r in runs if r.estimated_cost_eur is not None and not r.cost_is_partial]
+    verdicts = [r.judge for r in runs if r.judge is not None]
+    answers = [held for v in verdicts for held in v.answers.values()]
     return ModelSummary(
         model=model,
         runs=len(runs),
@@ -195,7 +201,32 @@ def _model(model: str, runs: Sequence[RunRecord]) -> ModelSummary:
         cost_eur=round(sum(r.estimated_cost_eur or 0.0 for r in priced), 6),
         unpriced_runs=len(runs) - len(priced),
         turn_cap_runs=sum(r.hit_turn_cap for r in runs),
+        judge_held=Ratio(k=sum(answers), n=len(answers)),
+        judge_unparsable=sum(1 for v in verdicts if v.unparsable),
+        judge_same_model=any(v.same_model for v in verdicts),
     )
+
+
+def _judge_section(runs: Sequence[RunRecord], summary: Summary) -> list[str]:
+    if not any(r.judge is not None for r in runs):
+        return []
+    judges = sorted({r.judge.judge_model for r in runs if r.judge is not None})
+    rows = [
+        f"| `{m.model}` | {m.judge_held} | {m.judge_unparsable} | "
+        f"{'yes: biased' if m.judge_same_model else 'no'} |"
+        for m in summary.models
+    ]
+    return [
+        "## Rubric judge",
+        "",
+        f"A secondary signal, never pass/fail (D06); judged by `{', '.join(judges)}`. Bullets "
+        "held over bullets answered.",
+        "",
+        "| Model | Bullets held | Unparsable runs | Judge is the answering model |",
+        "| --- | --- | --- | --- |",
+        *rows,
+        "",
+    ]
 
 
 def _passed(runs: Sequence[RunRecord]) -> Ratio:

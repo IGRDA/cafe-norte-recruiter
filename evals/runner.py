@@ -248,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--only", nargs="*", default=[])
     parser.add_argument("--repeat", type=int, default=None, help="scenarios 1, comparison 2")
     parser.add_argument("--models", nargs="*", default=[])
-    parser.add_argument("--judge", default="off")
+    parser.add_argument("--judge", default="off", help="provider/model for the rubric judge")
     parser.add_argument("--retriever", choices=["hybrid", "lexical"], default="hybrid")
     parser.add_argument("--out", default=None, help="results directory (per suite default)")
     parser.add_argument("--list", action="store_true")
@@ -320,6 +320,7 @@ def live_main(args: argparse.Namespace) -> int:
         max_turns=args.max_turns,
         out=Path(args.out or LIVE_RESULTS),
         yes=args.yes,
+        judge=None if args.judge == "off" else args.judge,
     )
 
 
@@ -349,6 +350,7 @@ def comparison_main(args: argparse.Namespace) -> int:
         max_turns=args.max_turns,
         out=Path(args.out or LIVE_RESULTS),
         yes=args.yes,
+        judge=None if args.judge == "off" else args.judge,
         committed=COMPARISON_RESULTS,
     )
 

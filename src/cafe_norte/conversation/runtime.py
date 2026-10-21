@@ -377,7 +377,7 @@ class Runtime:
         self,
         session_id: SessionId,
         input_id: InputId,
-        sentences: Callable[[SessionState], list[str]],
+        lines: Callable[[SessionState], list[str]],
         *,
         reactivate: bool = False,
     ) -> AsyncIterator[RuntimeEvent]:
@@ -403,7 +403,7 @@ class Runtime:
                 yield await self._emit(run, run.failed("conflict"))
                 return
             try:
-                spoken = sentences(state)
+                spoken = lines(state)
                 async with self._store.transaction() as tx:
                     if reactivate and state.lifecycle == "paused":
                         result = transition(state, "resume")

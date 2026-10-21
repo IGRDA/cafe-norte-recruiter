@@ -21,13 +21,9 @@ def review_parts(presentation_text: str, language: Language) -> tuple[str, ...]:
         said = said[1:]
     groups: list[list[str]] = []
     for sentence in said:
-        last = groups[-1] if groups else None
-        if (
-            last is not None
-            and len(last) < PART_SENTENCES
-            and len(" ".join([*last, sentence])) <= PART_CHARACTERS
-        ):
-            last.append(sentence)
+        fits = groups and len(groups[-1]) < PART_SENTENCES
+        if fits and len(" ".join([*groups[-1], sentence])) <= PART_CHARACTERS:
+            groups[-1].append(sentence)
         else:
             groups.append([sentence])
     check = review_check(language)

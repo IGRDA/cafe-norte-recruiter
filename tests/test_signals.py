@@ -274,7 +274,6 @@ def test_a_plain_yes_is_an_affirmation(text: str) -> None:
         "Adelante.",
         "No hace falta.",
         "No hace falta, sigue.",
-        "No, sigue.",
         "Mhmm, sigue adelante.",
         "Carry on.",
         "Yes, carry on.",
@@ -295,6 +294,9 @@ def test_an_explicit_carry_on_is_a_skip(text: str) -> None:
         "Sigue, pero el teléfono es otro",  # a correction rides along: the model handles it
         "Sigue. ¿Dónde está la tienda?",
         "No sigas",
+        "No, sigue.",  # a bare no rides with nothing: the model reads it
+        "No es correcto. Sigue.",  # a correction is never a skip
+        "No está bien, sigue",
         "No hace falta que lo repitas, el teléfono es otro",
         "Carry on, but the date is wrong",
     ],

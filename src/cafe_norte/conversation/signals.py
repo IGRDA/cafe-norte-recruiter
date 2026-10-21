@@ -151,16 +151,17 @@ _DENY = (
     "wrong",
 )
 # A yes is made of yes-words in any order. ``_YES_CORE`` words say yes by themselves; the weak
-# ones ("todo", "está", "eso") only support them, so "todo" alone is not an answer. Phrases are
-# taken out first, so "de acuerdo" counts as one core word.
-_YES_PHRASES = ("de acuerdo", "eso es", "asi es", "si lo es", "thats right", "that is right")
+# ones ("todo", "está", "eso") only support them, so "todo" alone is not an answer. The phrases
+# say yes with weak words only, or with words that are not yes-words on their own.
+_YES_PHRASES = ("de acuerdo", "eso es", "asi es")
 _YES_CORE = frozenset(
     {"si", "vale", "correcto", "bien", "perfecto", "exacto", "claro", "efectivamente"}
     | {"yes", "right", "correct", "fine", "good", "exactly", "yeah", "yep", "sure"}
 )
 _YES_WEAK = frozenset({"todo", "esta", "eso", "asi", "es", "lo", "all", "that", "thats", "is"})
 # "Carry on" is its own answer: to an offer to go over a read-back it means "no need" (an informed
-# skip), and it is checked before a no because "no hace falta" and "no need" start with one.
+# skip), and it is checked before a no because "no hace falta" and "no need" start with one. A
+# bare "no" never rides along: "No es correcto. Sigue." is a correction, so it is the model's.
 _SKIP = (
     "no hace falta",
     "no es necesario",
@@ -177,7 +178,7 @@ _SKIP = (
     "continuemos",
     "adelante",
 )
-_SKIP_ALONGSIDE = frozenset({"no", "lets", "it", "please", "por", "favor", "ya"})
+_SKIP_ALONGSIDE = frozenset({"lets", "it", "please", "por", "favor", "ya"})
 # Checked in order: the first whose phrase is found decides, and only what it allows may remain.
 _PHRASE_ANSWERS: tuple[tuple[ReadbackAnswer, tuple[str, ...], frozenset[str]], ...] = (
     ("skip", _SKIP, _YES_CORE | _YES_WEAK | _SKIP_ALONGSIDE),
@@ -211,14 +212,12 @@ def _without(words: str, phrases: tuple[str, ...]) -> tuple[str, bool]:
 
 
 def _is_plain_yes(words: str) -> bool:
-    """Only yes-words and fillers, at least one core yes-word, no negation, any order."""
-    for phrase in _YES_PHRASES:
-        words = re.sub(rf"\b{re.escape(phrase)}\b", " yes ", words)
-    rest = [w for w in words.split() if w not in _FILLERS]
-    return (
-        bool(rest)
-        and all(w in _YES_CORE or w in _YES_WEAK for w in rest)
-        and any(w in _YES_CORE for w in rest)
+    """Only yes-words and fillers, at least one core yes-word or yes phrase, any order. A
+    negation is never a yes-word, so "no está todo bien" is not a yes."""
+    rest, phrase = _without(words, _YES_PHRASES)
+    left = [w for w in rest.split() if w not in _FILLERS]
+    return all(w in _YES_CORE or w in _YES_WEAK for w in left) and (
+        phrase or any(w in _YES_CORE for w in left)
     )
 
 

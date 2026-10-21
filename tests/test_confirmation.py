@@ -7,12 +7,12 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from cafe_norte.domain.confirmation import (
+    advance_review,
     assurance,
     invalidated_by_patch,
     present,
     ready_to_confirm,
     respond,
-    review,
     start_parts,
 )
 from cafe_norte.domain.contracts import (
@@ -200,36 +200,46 @@ def test_a_read_back_is_ready_to_confirm_when_heard_whole_reviewed_to_the_end_or
 def test_the_review_moves_one_step_per_answer(
     confirmation: Confirmation, answer: str, expected: object
 ) -> None:
-    moved = review(state(confirmation), answer, T3, parts=PARTS)  # type: ignore[arg-type]
+    moved = advance_review(state(confirmation), answer, T3, parts=PARTS)  # type: ignore[arg-type]
     assert isinstance(moved, Ok) and moved.value.review == expected
 
 
 def test_a_part_starts_unheard_and_is_acknowledged_by_the_turn_that_says_it() -> None:
-    moved = review(state(stage("offered")), "affirm", T3, parts=PARTS)
+    moved = advance_review(state(stage("offered")), "affirm", T3, parts=PARTS)
     assert isinstance(moved, Ok)
     assert moved.value.fully_delivered is False and moved.value.presented_turn_id == T3
-    waived = review(state(stage("offered")), "skip", T3, parts=PARTS)
+    waived = advance_review(state(stage("offered")), "skip", T3, parts=PARTS)
     assert isinstance(waived, Ok) and waived.value.presented_turn_id == T1  # nothing is said
+
+
+def test_the_number_of_parts_is_fixed_when_the_first_part_is_said() -> None:
+    moved = advance_review(state(stage("in_parts", part=0, heard=True)), "affirm", T3, parts=9)
+    assert isinstance(moved, Ok) and moved.value.review == ReviewInParts(
+        part=1, parts=PARTS, turn_id=T3
+    )
 
 
 def test_a_heard_read_back_has_nothing_to_review_and_the_review_never_confirms() -> None:
     for answer in ("affirm", "skip"):
-        assert review(state(stage(None, heard=True)), answer, T3, parts=PARTS) == Err(
-            "already_heard"
-        )
+        heard = stage(None, heard=True)
+        assert advance_review(state(heard), answer, T3, parts=PARTS) == Err("nothing_to_review")
+        waived = stage("waived")
+        assert advance_review(state(waived), answer, T3, parts=PARTS) == Err("nothing_to_review")
         last = stage("in_parts", part=PARTS - 1, heard=True)
-        assert review(state(last), answer, T3, parts=PARTS) == Err("already_heard")
-        moved = review(state(stage("offered")), answer, T3, parts=PARTS)
+        assert advance_review(state(last), answer, T3, parts=PARTS) == Err("nothing_to_review")
+        moved = advance_review(state(stage("offered")), answer, T3, parts=PARTS)
         assert isinstance(moved, Ok) and moved.value.status == "pending"
 
 
 def test_the_review_refuses_what_a_confirmation_refuses_and_one_move_per_turn() -> None:
-    assert review(state(None), "affirm", T3, parts=PARTS) == Err("nothing_pending")
+    assert advance_review(state(None), "affirm", T3, parts=PARTS) == Err("nothing_pending")
     answered = stage(None).model_copy(update={"status": "confirmed"})
-    assert review(state(answered), "affirm", T3, parts=PARTS) == Err("already_answered")
-    assert review(state(stage(None)), "affirm", T1, parts=PARTS) == Err("same_turn")
+    assert advance_review(state(answered), "affirm", T3, parts=PARTS) == Err("already_answered")
+    assert advance_review(state(stage(None)), "affirm", T1, parts=PARTS) == Err("same_turn")
     # The offer was made in T2: the candidate has not answered it in T2.
-    assert review(state(stage("offered", at=T2)), "affirm", T2, parts=PARTS) == Err("same_turn")
+    assert advance_review(state(stage("offered", at=T2)), "affirm", T2, parts=PARTS) == Err(
+        "same_turn"
+    )
 
 
 def test_a_cut_read_back_presented_again_goes_straight_to_its_first_part_once() -> None:
@@ -237,7 +247,7 @@ def test_a_cut_read_back_presented_again_goes_straight_to_its_first_part_once() 
     assert isinstance(started, Ok)
     assert started.value.review == ReviewInParts(part=0, parts=PARTS, turn_id=T3)
     assert started.value.fully_delivered is False and started.value.presented_turn_id == T3
-    assert start_parts(state(stage(None, heard=True)), T3, parts=PARTS) == Err("already_heard")
+    assert start_parts(state(stage(None, heard=True)), T3, parts=PARTS) == Err("nothing_to_review")
     for reviewed in (stage("offered"), stage("in_parts", heard=True), stage("waived")):
         assert start_parts(state(reviewed), T3, parts=PARTS) == Err("already_reviewed")
     assert start_parts(state(None), T3, parts=PARTS) == Err("nothing_pending")
@@ -287,7 +297,7 @@ def test_nothing_is_confirmed_without_a_full_hearing_a_review_to_the_end_or_an_i
         elif ready_to_confirm(current):
             result = respond(state(current), "affirm", turn)
         else:
-            result = review(state(current), action, turn, parts=PARTS)  # type: ignore[arg-type]
+            result = advance_review(state(current), action, turn, parts=PARTS)  # type: ignore[arg-type]
         if isinstance(result, Err):
             continue
         current = result.value

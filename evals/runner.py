@@ -209,6 +209,7 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         estimated_cost_eur=0.0,
         scenario_id=scenario.id,
         model=model.model_id,
+        language=scenario.language,
         lines=len(scenario.scripted_turns),
         cost_is_partial=False,
     )

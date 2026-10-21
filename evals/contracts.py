@@ -214,6 +214,7 @@ class RunRecord(Frozen):
     estimated_cost_eur: float | None  # the answering model's, from the export
     scenario_id: str = ""
     model: str = ""  # the answering model's selector
+    language: Language | None = None  # the session's starting language
     repetition: int = 1
     failure: str = ""  # why the run stopped early
     extraction: Extraction | None = None

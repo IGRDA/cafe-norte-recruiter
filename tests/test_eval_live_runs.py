@@ -116,4 +116,5 @@ def test_a_free_live_run_writes_its_report(
     assert report["suite"] == "scenarios"
     assert report["runs"][0]["case_id"] == "S01"
     assert (run_dir / "exports" / "S01-1.json").exists()
+    assert "## Misses" in (run_dir / "report.md").read_text()
     assert "S01" in capsys.readouterr().out

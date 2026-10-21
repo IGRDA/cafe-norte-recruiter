@@ -26,6 +26,7 @@ from cafe_norte.model.select import model_from_env
 from cafe_norte.observability.cost import load_prices
 from evals.contracts import Candidate, Report, RunRecord, Scenario
 from evals.live import MAX_LIVE_TURNS, HttpConversation, LiveError, drive, serve
+from evals.report import render_json, render_markdown
 from evals.scorers import extraction_accuracy, run_check
 from evals.simulator import ModelCandidateSimulator, SimulatedCandidate, SimulatorError
 from evals.spend import estimate_spend
@@ -81,6 +82,7 @@ async def run_live(
         "scenario_id": scenario.id,
         "mode": "live",
         "model": model,
+        "language": scenario.language,
         "repetition": repetition,
     }
     try:
@@ -158,12 +160,13 @@ async def run_plan(
 
 
 def write_results(report: Report, out: Path, *, now: datetime | None = None) -> Path:
-    """``<out>/<UTC time>-<suite>/``: ``report.json`` without exports, and every export in
-    ``exports/<case>-<repetition>.json``. Ignored by git: exports hold conversations."""
-    stamp = (now or datetime.now(UTC)).strftime("%Y%m%dT%H%M%SZ")
-    directory = out / f"{stamp}-{report.suite}"
+    """``<out>/<UTC time>-<suite>/``: ``report.md``, ``report.json`` (no conversations) and
+    every export in ``exports/``. Ignored by git: exports hold conversations."""
+    now = now or datetime.now(UTC)
+    directory = out / f"{now.strftime('%Y%m%dT%H%M%SZ')}-{report.suite}"
     (directory / "exports").mkdir(parents=True)
-    (directory / "report.json").write_text(_without_exports(report) + "\n", encoding="utf-8")
+    (directory / "report.md").write_text(render_markdown(report, generated_at=now), "utf-8")
+    (directory / "report.json").write_text(render_json(report, generated_at=now), "utf-8")
     many_models = len({run.model for run in report.runs}) > 1
     for run in report.runs:
         if run.export is not None:
@@ -173,10 +176,6 @@ def write_results(report: Report, out: Path, *, now: datetime | None = None) -> 
                 run.export.model_dump_json(indent=2) + "\n", encoding="utf-8"
             )
     return directory
-
-
-def _without_exports(report: Report) -> str:
-    return report.model_dump_json(indent=2, exclude={"runs": {"__all__": {"export"}}})
 
 
 def _line(record: RunRecord) -> str:

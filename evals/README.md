@@ -34,7 +34,7 @@ simulated candidate: by default on a loopback server the runner starts with `--m
 (memory store, text only, traces tagged `evaluation`), or against `--base-url` (hosted or
 `make run`; the access code comes from `EVAL_ACCESS_CODE`, never the command line). Every
 live command prints its estimated spend and calls nothing without `--yes`. Results go to
-`evals/results/live/<UTC time>-<suite>/`: `report.json` (no conversations) and `exports/`
+`evals/results/live/<UTC time>-<suite>/`: `report.md`, `report.json` (no conversations) and `exports/`
 (full exports); the directory is ignored by git. A run that breaks is a recorded miss with
 its reason.
 
@@ -91,7 +91,7 @@ is built as well, and the checks move to it when the remaining checks land (D21)
 - `judge.py`: rubric judge through the same `Model` port; secondary signal, never pass/fail.
 - `ragas_bridge.py`: converts retrieval runs into ragas samples.
 - `langfuse_sync.py`: pushes cases as a Langfuse dataset and runs as experiments, so traces, scores and prompt versions line up in one place.
-- `report.py`: Markdown and JSON with denominators; a median from ten turns says "n=10".
+- `report.py`: `summarize` (pure) gives one row per answering model: runs passed, extraction (exact facts), no fabricated field, tool calls ok, grounding checks, median first sentence and turn time, cost of the priced runs; then by configuration and language, by case, and every miss with its reason. Every rate is k/n and every median says its n ("2.0 s (n=96 turns)"). `render_markdown` states the spec's targets next to the numbers; `render_json` is the same without exports.
 
 Raw live reports contain conversations and stay out of git (`results/` is ignored); the
 comparison's aggregated structured results and the retrieval scores are committed under

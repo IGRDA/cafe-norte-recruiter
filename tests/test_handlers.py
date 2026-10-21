@@ -95,7 +95,6 @@ class World:
         self.reserve = ReserveInterviewHandler(store=self.store, configurations=CONFIGS)
         self.review = ReviewReadbackHandler(
             store=self.store,
-            configurations=CONFIGS,
             targets={
                 "field": self.confirm_field,
                 "brief": self.confirm_brief,

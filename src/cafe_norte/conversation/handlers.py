@@ -127,9 +127,7 @@ def all_handlers(
         ),
         "reserve_interview": reserve,
         "review_readback": ReviewReadbackHandler(
-            store=store,
-            configurations=configurations,
-            targets={"field": confirm_field, "brief": confirm_brief, "slot": reserve},
+            store=store, targets={"field": confirm_field, "brief": confirm_brief, "slot": reserve}
         ),
         "request_human_followup": RequestHumanFollowupHandler(store=store),
         "end_session": EndSessionHandler(store=store, configurations=configurations),
@@ -583,14 +581,9 @@ class ReviewReadbackHandler(_Handler):
     )
 
     def __init__(
-        self,
-        *,
-        store: Store,
-        configurations: Mapping[ConfigId, StoreConfiguration],
-        targets: Mapping[Literal["field", "brief", "slot"], ToolHandler],
+        self, *, store: Store, targets: Mapping[Literal["field", "brief", "slot"], ToolHandler]
     ) -> None:
         super().__init__(store=store)
-        self._configurations = configurations
         self._targets = targets
 
     async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:

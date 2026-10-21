@@ -1,7 +1,7 @@
 INFRA_APP := infra/app
 INFRA_BOOTSTRAP := infra/bootstrap
 
-.PHONY: setup check lint typecheck test test-db db-up db-down run migrate build-index export-schema \
+.PHONY: setup check lint typecheck test test-db db-up db-down run migrate build-index export-schema export-example \
         evals evals-retrieval compare smoke voice-listen voice-smoke infra-check infra-init infra-plan infra-apply
 
 # Locked install with every extra; CI and local use the same command.
@@ -43,6 +43,10 @@ build-index:
 # Regenerates examples/session_export.schema.json from the Pydantic export model.
 export-schema:
 	uv run python scripts/export_schema.py
+
+# Regenerates examples/session_export.example.json by replaying scenario S01 offline.
+export-example:
+	uv run python -m evals.export_example
 
 # Paid, manual, local. Needs a running server with a real model (evals/README.md).
 evals:

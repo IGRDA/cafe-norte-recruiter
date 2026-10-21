@@ -40,7 +40,7 @@ ALLOWED: dict[str, dict[str, set[str]]] = {
     "api": {
         "domain": {ANY},
         "conversation": {"contracts"},
-        "persistence": {"contracts"},
+        "persistence": {"contracts", "export"},  # the export document is a published record
         "voice": {"contracts"},
         "observability": {"contracts"},
     },

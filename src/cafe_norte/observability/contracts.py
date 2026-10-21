@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from cafe_norte.domain.contracts import ConfigId, SessionId, TurnId
+from cafe_norte.domain.contracts import ConfigId, SessionId, StoreConfiguration, TurnId
 
 
 class Frozen(BaseModel):
@@ -25,6 +25,33 @@ class VersionStamp(Frozen):
     tts_model: str = ""
     voice_id: str = ""
     commit_sha: str
+
+
+class ProcessVersions(Frozen):
+    """The part of a ``VersionStamp`` fixed for one process; the configuration adds the rest."""
+
+    model_id: str
+    prompt_version: str
+    schema_version: str
+    commit_sha: str
+    stt_model: str = ""
+    tts_model: str = ""
+    voice_id: str = ""
+
+
+def stamp(configuration: StoreConfiguration, process: ProcessVersions) -> VersionStamp:
+    return VersionStamp(
+        config_id=configuration.config_id,
+        config_version=configuration.version,
+        kb_version=configuration.kb_version,
+        prompt_version=process.prompt_version,
+        schema_version=process.schema_version,
+        model_id=process.model_id,
+        stt_model=process.stt_model,
+        tts_model=process.tts_model,
+        voice_id=process.voice_id,
+        commit_sha=process.commit_sha,
+    )
 
 
 Stage = Literal[

@@ -28,6 +28,15 @@ payload)` and delivered over SSE with `id: <seq>`. Voice status is a `VoiceState
 the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 `Last-Event-ID: <last_seq>` on the stream. Transient tokens are not replayed.
 
+## Export
+
+`GET /api/sessions/{id}/export` returns the owner's `ExportDocument` as `<session_id>.json`,
+built on demand by `build_export` from one `Store.snapshot`. The confirmation history and the
+session's end time are read from the journaled `state_updated` events; the brief is the text
+the candidate confirmed; the cost estimate stays `None` (`cost_is_partial: true`) until prices
+are recorded. The schema is `examples/session_export.schema.json`, the fictional example
+`examples/session_export.example.json`.
+
 ## Limits
 
 | Limit | Default |
@@ -45,6 +54,7 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | Recent turns in the prompt | 20 |
+| Turns read into one export snapshot | 10 000 (the whole transcript; the session cap keeps it far below) |
 | Tool arguments from the model | 16 KiB |
 | SSE heartbeat while idle | 15 s |
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
@@ -64,7 +74,7 @@ the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 
 | Destination | Data |
 | --- | --- |
-| Browser | Own session only: transcript, brief, confirmations, sources, reviewer panel |
+| Browser | Own session only: transcript, brief, confirmations, sources, reviewer panel, the JSON export |
 | Groq | System prompt, configuration facts, candidate state, recent turns, tool calls and results (US-hosted) |
 | Deepgram / ElevenLabs / Daily | Audio and text of the voice session; no raw audio stored by us |
 | Postgres | Everything the export contains; access codes and tokens only as hashes |

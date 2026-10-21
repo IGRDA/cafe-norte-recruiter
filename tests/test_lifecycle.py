@@ -28,6 +28,7 @@ def state(lifecycle: Lifecycle = "active", **extra: object) -> SessionState:
         config_version="1",
         language="es",
         channel="text",
+        created_at=datetime(2026, 10, 20, tzinfo=UTC),
         lifecycle=lifecycle,
         **extra,
     )

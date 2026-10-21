@@ -433,6 +433,29 @@ after apply. Two Container-Optimized OS facts cost a boot each: `/root` is read-
 login needs a writable `HOME`) and the host firewall drops inbound except ssh (the startup
 script opens 80/443). The browser exchange with an interruption is recorded in the PR.
 
+## D25 · The export is built on demand from one snapshot; history comes from the journal
+
+_Added 21 October 2026, with the export stage._
+
+**Decisions.**
+- `Store.snapshot(session_id, versions, taken_at)` is one consistent read; `build_export` is a
+  pure function over it. `GET /api/sessions/{id}/export` builds the document on request for the
+  session owner, at any lifecycle. `Exports.write_snapshot` (a stored JSONB copy at session
+  close) waits for the Postgres stage; on demand already covers "regenerate after a correction".
+- The confirmation history and the session's end time are derived from the journaled
+  `state_updated` events (last status per confirmation id, the first terminal lifecycle). No
+  domain record changed; Postgres keeps the same events table. `SessionState.created_at` is
+  set once by the route that creates the session.
+- The deterministic brief is the text of the confirmed brief read-back; `narrative_status` is
+  `skipped` and the cost estimate `None` until the summary job and prices exist.
+- `api` may import `persistence/export.py`: the document is a published record, not an adapter.
+- `examples/session_export.example.json` is S01 replayed offline (`make export-example`). Turn
+  and confirmation ids are random, so the test checks content, not bytes.
+
+**Why.** The export is the deliverable the spec names first; building it from what the store
+already journals ships it without a confirmations table, a summary worker or Postgres, and
+every piece moves unchanged when those land.
+
 ## Assumptions recorded without a question
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.

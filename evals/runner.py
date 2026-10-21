@@ -22,8 +22,8 @@ from cafe_norte.domain.contracts import InputId, SessionId, SessionState
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelText, ToolCall
 from cafe_norte.model.fake import FakeModel
-from cafe_norte.observability.contracts import VersionStamp
-from cafe_norte.persistence.export import SCHEMA_VERSION
+from cafe_norte.observability.contracts import ProcessVersions, stamp
+from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
 from evals.contracts import RunRecord, Scenario, SessionResult, Step
 from evals.scorers import run_check
@@ -83,6 +83,12 @@ async def run_fake(scenario: Scenario) -> RunRecord:
         owner="evals",
         clock=lambda: clock_at,
     )
+    process = ProcessVersions(
+        model_id=model.model_id,
+        prompt_version=PROMPT_VERSION,
+        schema_version=SCHEMA_VERSION,
+        commit_sha="local",
+    )
     session_id = SessionId(f"eval-{scenario.id}")
     await store.sessions.create(
         SessionState(
@@ -91,6 +97,7 @@ async def run_fake(scenario: Scenario) -> RunRecord:
             config_version=configuration.version,
             language=scenario.language,
             channel="text",
+            created_at=clock_at,
         ),
         access_hash="",
     )
@@ -122,19 +129,14 @@ async def run_fake(scenario: Scenario) -> RunRecord:
         spoken_by_turn=tuple(spoken_by_turn),
     )
     checks = tuple(run_check(result, check) for check in scenario.checks)
+    versions = stamp(configuration, process)
+    snapshot = await store.snapshot(session_id, versions=versions, taken_at=clock_at)
+    assert snapshot is not None
     return RunRecord(
         case_id=scenario.id,
         mode="fake",
-        versions=VersionStamp(
-            config_id=configuration.config_id,
-            config_version=configuration.version,
-            kb_version=configuration.kb_version,
-            prompt_version=PROMPT_VERSION,
-            schema_version=SCHEMA_VERSION,
-            model_id=model.model_id,
-            commit_sha="local",
-        ),
-        export=None,
+        versions=versions,
+        export=build_export(snapshot),
         checks=checks,
         judge=None,
         provider_failed=bool(failed_turns),

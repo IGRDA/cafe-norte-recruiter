@@ -19,7 +19,8 @@ and keeps adapters private. `tests/test_architecture.py` enforces the import rul
 Rules of thumb:
 
 - A module imports another module's `contracts.py`, never its adapters. `main.py` is the only
-  place that names a concrete adapter.
+  place that names a concrete adapter. One named exception: `api` imports
+  `persistence/export.py`, the published export document and its pure builder.
 - `domain/` is the only module whose functions are total and pure; everything the model proposes
   passes through it before it can touch state.
 - Public text lives in `errors.py` and `conversation/prompts/`; nothing else formats a sentence

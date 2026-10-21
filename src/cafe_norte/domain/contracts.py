@@ -309,6 +309,7 @@ class SessionState(Frozen):
     config_version: str
     language: Language
     channel: Channel
+    created_at: datetime
     lifecycle: Lifecycle = "active"
     outcome: Outcome | None = None
     candidate: CandidateRecord = CandidateRecord()

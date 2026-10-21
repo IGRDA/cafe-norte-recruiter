@@ -30,7 +30,9 @@ from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
+from cafe_norte.observability.contracts import ProcessVersions
 from cafe_norte.persistence.contracts import Store
+from cafe_norte.persistence.export import SCHEMA_VERSION
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.voice.contracts import (
     RoomProvisioner,
@@ -61,6 +63,7 @@ def create_app(
     store: Store,
     configurations: dict[ConfigId, StoreConfiguration],
     gate: AccessGate,
+    versions: ProcessVersions,
     rooms: RoomProvisioner | None = None,
     voice: VoiceSessionController | None = None,
     web_dir: Path | None = None,
@@ -86,6 +89,7 @@ def create_app(
             rooms=rooms,
             voice=voice,
             gate=gate,
+            versions=versions,
             tasks=tasks,
             voice_mode=voice_mode,
             max_voice_sessions=max_voice_sessions,
@@ -126,8 +130,9 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
     store = MemoryStore()
     configurations = load_configurations(Path(env.get("CAFE_NORTE_CONFIG_DIR", "config")))
     registry = ToolRegistry(all_handlers(store=store, configurations=configurations))
+    model = _model(env)
     runtime = Runtime(
-        model=_model(env),
+        model=model,
         tools=registry,
         retriever=FakeRetriever(),
         store=store,
@@ -151,6 +156,13 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         store=store,
         configurations=configurations,
         gate=gate_from_env(env),
+        versions=ProcessVersions(
+            model_id=model.model_id,
+            prompt_version=prompts.PROMPT_VERSION,
+            schema_version=SCHEMA_VERSION,
+            commit_sha=env.get("CAFE_NORTE_COMMIT_SHA", "local"),
+            voice_id=env.get("ELEVENLABS_VOICE_ID", "") if voice_mode == "pipecat" else "",
+        ),
         web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web")),
         voice_mode=voice_mode,
         rooms=rooms,

@@ -19,6 +19,8 @@ RUN uv sync --locked --no-dev --all-extras
 # Precompute the versioned retrieval index into the image. Enabled once knowledge/index.py lands.
 # RUN uv run python scripts/build_index.py
 
+ARG COMMIT_SHA=local
+ENV CAFE_NORTE_COMMIT_SHA=$COMMIT_SHA
 ENV PORT=8080
 EXPOSE 8080
 CMD ["uv", "run", "--no-sync", "uvicorn", "cafe_norte.main:create_default_app", "--factory", "--host", "0.0.0.0", "--port", "8080"]

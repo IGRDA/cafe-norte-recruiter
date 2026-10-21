@@ -6,7 +6,7 @@ voice status; one POST per text turn.
 
 | File | Responsibility |
 | --- | --- |
-| `index.html` | Entry: demo disclosure, status line, transcript, composer with Enviar/Hablar, candidate card with every field's value or status, notes, lifecycle and outcome, the pending confirmation and its status, reviewer panel; composer and mic disabled once the session ends. Access code, store and language choice: later |
+| `index.html` | Entry: demo disclosure, status line, transcript, composer with Enviar/Hablar, candidate card with every field's value or status, notes, lifecycle and outcome, the pending confirmation and its status, reviewer panel; composer and mic disabled once the session ends, and a link to download the session's JSON export appears. Access code, store and language choice: later |
 | `assets/app.js` | State store, SSE client with `Last-Event-ID`, turn submission with `input_id`, renderers |
 | `assets/voice.js` | Two modes chosen by `GET /api/runtime`: `pipecat` joins the session's Daily room with the vendored `daily-js` (audio only, mic only after **Hablar**), plays Ana's track, posts `connected` and `first_audio` timings; `browser` is the Web Speech path of D18, kept until hosted voice is verified |
 | `assets/app.css` | Compact responsive layout, readable contrast, visible errors |

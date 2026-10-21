@@ -70,6 +70,7 @@ def result(
         config_version="1",
         language="es",
         channel="text",
+        created_at=NOW,
         lifecycle=lifecycle,
         outcome=outcome,
         candidate=candidate,

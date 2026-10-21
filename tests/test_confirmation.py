@@ -1,5 +1,7 @@
 """Presenting a read-back and interpreting the candidate's answer against it."""
 
+from datetime import UTC, datetime
+
 from cafe_norte.domain.confirmation import invalidated_by_patch, present, respond
 from cafe_norte.domain.contracts import (
     BriefTarget,
@@ -24,6 +26,7 @@ def state(pending: Confirmation | None = None, revision: int = 3) -> SessionStat
         config_version="1",
         language="es",
         channel="text",
+        created_at=datetime(2026, 10, 20, tzinfo=UTC),
         candidate=CandidateRecord(revision=revision),
         pending_confirmation=pending,
     )

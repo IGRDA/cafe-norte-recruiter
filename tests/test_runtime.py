@@ -88,6 +88,7 @@ class Harness:
                 config_version="1",
                 language="es",
                 channel="text",
+                created_at=NOW,
             ),
             access_hash="",
         )

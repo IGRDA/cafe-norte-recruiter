@@ -193,7 +193,12 @@ def test_a_read_back_is_ready_to_confirm_when_heard_whole_reviewed_to_the_end_or
             ReviewInParts(part=1, parts=PARTS, turn_id=T3),
         ),
         (stage("in_parts", part=0, heard=True), "skip", ReviewWaived(turn_id=T3)),
-        (stage("in_parts", part=1, heard=False), "affirm", ReviewWaived(turn_id=T3)),  # cut again
+        (  # a yes over a part answers its check: on to the next part
+            stage("in_parts", part=1, heard=False),
+            "affirm",
+            ReviewInParts(part=2, parts=PARTS, turn_id=T3),
+        ),
+        (stage("in_parts", part=PARTS - 1, heard=False), "affirm", ReviewWaived(turn_id=T3)),
         (stage("in_parts", part=1, heard=False), "skip", ReviewWaived(turn_id=T3)),
     ],
 )
@@ -307,6 +312,8 @@ def test_nothing_is_confirmed_without_a_full_hearing_a_review_to_the_end_or_an_i
         moved, was = current.review, before.review
         if isinstance(moved, ReviewWaived):
             assert was is not None  # a waiver always follows an offer or a part
+            if action == "affirm":  # a yes waives only over the last part, cut
+                assert isinstance(was, ReviewInParts) and was.part == was.parts - 1
         if isinstance(moved, ReviewInParts) and isinstance(was, ReviewInParts):
             assert moved.part == was.part + 1  # parts are never skipped
         if moved is not None and moved != was:

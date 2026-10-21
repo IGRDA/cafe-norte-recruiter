@@ -37,6 +37,7 @@ from cafe_norte.conversation.prompt import (
     sentences,
     split_sentences,
 )
+from cafe_norte.conversation.readback import answer_call, current_saying
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.signals import (
     answer_to_readback,
@@ -465,8 +466,9 @@ class Runtime:
                 )
                 pending = state.pending_confirmation
                 if pending is not None and pending.presented_turn_id == turn_id:
-                    # Heard when playback reached the read-back's last sentence.
-                    last_sentence = sentences(pending.presentation_text)[-1]
+                    # Heard when playback reached the last sentence of what was said: the
+                    # whole read-back, or the part under review (D39).
+                    last_sentence = sentences(current_saying(pending, state.language))[-1]
                     was_heard = complete or text.endswith(last_sentence)
                     await self._store.sessions.save(
                         tx,
@@ -892,39 +894,20 @@ class Runtime:
         run.outcome = outcome
 
     async def _plain_answer(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
-        """A plain yes or no to a read-back the candidate has fully heard is resolved here,
-        through the same tool and domain rules as the model's call, so a model that forgets
-        ``confirm_field`` can no longer leave it pending (D35). Anything else is the model's."""
+        """A plain yes, no or carry-on to the pending read-back is resolved here, through the
+        same tools and domain rules as the model's call, so a model that forgets
+        ``confirm_field`` can no longer leave it pending (D35). Where the read-back stands
+        decides the tool (``readback.answer_call``): one heard to the end is answered, one the
+        candidate cut goes to the review (D39). Anything else is the model's."""
         ui = run.input.ui_answer
         answer = ui.answer if ui is not None else answer_to_readback(run.input.text)
-        if answer == "skip":
-            answer = None  # routed by the read-back review (D39); until then the model's
         pending = run.state.pending_confirmation
-        if ui is not None and pending is not None and pending.confirmation_id == ui.confirmation_id:
-            # The card was on the screen: pressing the button is reading it, even if the voice
-            # had not finished saying it.
-            await self._mark_delivered(run)
-            refreshed = await self._store.sessions.get(run.session_id)
-            if refreshed is not None:
-                run.state = refreshed
-                pending = refreshed.pending_confirmation
-        elif ui is not None:
+        if ui is not None and (pending is None or pending.confirmation_id != ui.confirmation_id):
             return  # an answer to a read-back that is no longer the pending one
-        if (
-            answer is None
-            or pending is None
-            or pending.status != "pending"
-            or not pending.fully_delivered
-            or pending.presented_turn_id == run.turn_id
-        ):
+        call = answer_call(pending, answer, run.turn_id) if answer is not None else None
+        if call is None:
             return
-        arguments: dict[str, str]
-        if isinstance(pending.target, SlotTarget):
-            if answer != "affirm":
-                return  # another slot or none: the model offers alternatives
-            name, arguments = "reserve_interview", {"slot_id": str(pending.target.slot_id)}
-        else:
-            name, arguments = f"confirm_{pending.target.kind}", {"answer": answer}
+        name, arguments = call
         async for event in self._runtime_call(run, name, arguments):
             yield event
         run.answered = run.outcome.model_text

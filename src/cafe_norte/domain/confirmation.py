@@ -104,8 +104,11 @@ def advance_review(
     | now | affirm | skip |
     | said, not heard | offered | offered (no skip before the offer) |
     | offered | first part | waived |
-    | part heard, not the last | next part | waived |
-    | part cut again | waived | waived |
+    | part, not the last (heard or cut by the yes) | next part | waived |
+    | last part cut | waived | waived |
+
+    A yes over a part answers that part's check, so the review moves on; a yes over the last
+    part leaves nothing to go over, so it is waived rather than reviewed.
 
     ``parts`` is how many parts the text has; it is read once, when the first part is said.
     The review never confirms: the confirming answer comes after, through ``respond``."""
@@ -120,7 +123,7 @@ def advance_review(
         return Err("same_turn")
     if isinstance(stage, ReviewOffered) and answer == "affirm":
         return Ok(_say_part(pending, ReviewInParts(part=0, parts=parts, turn_id=turn_id)))
-    if isinstance(stage, ReviewInParts) and pending.fully_delivered and answer == "affirm":
+    if isinstance(stage, ReviewInParts) and stage.part < stage.parts - 1 and answer == "affirm":
         moved = stage.model_copy(update={"part": stage.part + 1, "turn_id": turn_id})
         return Ok(_say_part(pending, moved))
     next_stage = ReviewOffered(turn_id=turn_id) if stage is None else ReviewWaived(turn_id=turn_id)

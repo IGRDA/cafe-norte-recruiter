@@ -9,6 +9,7 @@ from typing import Any, Literal
 import pytest
 
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.brief import render_brief
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
@@ -24,6 +25,7 @@ from cafe_norte.conversation.contracts import (
     UiAnswer,
 )
 from cafe_norte.conversation.handlers import all_handlers
+from cafe_norte.conversation.readback import review_parts
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime, conversation_tail
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
@@ -31,6 +33,7 @@ from cafe_norte.domain import confirmation
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import (
     ConfigId,
+    Confirmation,
     ConfirmationId,
     FieldTarget,
     InputId,
@@ -119,11 +122,12 @@ class Harness:
         slow_calls: int = 0,
         on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
         clock: Callable[[], datetime] | None = None,
+        model: FakeModel | None = None,
     ):
         self.store = store or MemoryStore()
         self.telemetry = RecordingTelemetry()
         configurations = load_configurations(CONFIG_DIR)
-        self.model = SlowFirst(scripts, slow_calls) if slow_calls else FakeModel(scripts)
+        self.model = model or (SlowFirst(scripts, slow_calls) if slow_calls else FakeModel(scripts))
         self.runtime = Runtime(
             model=self.model,
             tools=ToolRegistry(
@@ -221,6 +225,7 @@ async def test_the_model_sees_history_state_and_only_registered_tools() -> None:
         "confirm_field",
         "confirm_brief",
         "reserve_interview",
+        "review_readback",
         "request_human_followup",
         "end_session",
     ]
@@ -1152,9 +1157,10 @@ async def test_a_button_for_another_read_back_changes_nothing() -> None:
     assert not [e for e in events if isinstance(e, ToolStarted)]
 
 
-async def test_the_button_confirms_a_read_back_the_voice_has_not_finished_saying() -> None:
-    """The card is on the screen: pressing the button is reading it."""
-    h = with_date_read_back(says("Perfecto."))
+async def test_the_button_on_a_read_back_the_voice_has_not_finished_earns_the_offer() -> None:
+    """A page only mirrors the call (D39): pressing Sí on a card whose read-back was cut is a
+    yes to what was not heard, like a spoken one. It no longer counts as reading it (D38)."""
+    h = with_date_read_back(says("Perdona. ¿Lo repasamos o seguimos?"))
     await h.open_session()
     await readback_pending(h)
     state = await h.store.sessions.get(SESSION)
@@ -1166,10 +1172,13 @@ async def test_the_button_confirms_a_read_back_the_voice_has_not_finished_saying
             state.model_copy(update={"pending_confirmation": heard_nothing}),
             expected_revision=state.candidate.revision,
         )
-    await _run(h, button("affirm", heard_nothing.confirmation_id))
+    events = await _run(h, button("affirm", heard_nothing.confirmation_id))
+    assert [e.name for e in events if isinstance(e, ToolStarted)] == ["review_readback"]
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.pending_confirmation is not None
-    assert state.pending_confirmation.status == "confirmed"
+    assert state.pending_confirmation.status == "pending"
+    assert state.pending_confirmation.review is not None
+    assert state.pending_confirmation.review.stage == "offered"
 
 
 async def _run(h: Harness, turn_input: TurnInput) -> list[RuntimeEvent]:
@@ -1722,3 +1731,91 @@ async def test_a_question_after_the_offer_is_answered_by_the_model() -> None:
     assert tools_started(events) == []
     said = [e.text for e in events if isinstance(e, AssistantText)]
     assert said == ["Unos treinta minutos.", "¿Qué hueco prefieres?"]
+
+
+# ---- a read-back the candidate cut: the offer, the parts, carrying on (D39) -------------------
+
+OFFER = "Perdona, me has contestado antes de acabar. ¿Lo repasamos por partes o seguimos?"
+
+
+async def cut_summary(*scripts: list[ModelEvent]) -> Harness:
+    """The summary said by voice and cut after its first sentence; then ``scripts``."""
+    h = Harness([[present_brief(), WANTS_TOOLS], says(""), *scripts])
+    await h.open_session()
+    await fill_record(h)
+    events = await voice_run(h, "ya está todo", "v-1")
+    turn_id = next(e for e in events if isinstance(e, TurnStarted)).turn_id
+    await h.runtime.delivered(turn_id, text="Te resumo lo que tengo.", complete=False)
+    return h
+
+
+async def pending_now(h: Harness) -> Confirmation:
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    return state.pending_confirmation
+
+
+async def test_a_yes_over_the_cut_summary_is_routed_to_the_offer_without_the_model() -> None:
+    h = await cut_summary(says(OFFER))
+    events = await voice_run(h, "Sí, está todo bien.", "v-2")
+    assert tools_started(events) == ["review_readback"]
+    pending = await pending_now(h)
+    assert pending.status == "pending" and pending.review is not None
+    assert pending.review.stage == "offered"
+    assert "offer" in h.model.calls[-1][0].content  # readback_answered tells the model
+
+
+async def test_a_plain_no_to_the_offer_carries_on_and_confirms_it_as_waived() -> None:
+    h = await cut_summary(says(OFFER), says("¿Alguna duda?"))
+    await voice_run(h, "Sí.", "v-2")
+    events = await voice_run(h, "No.", "v-3")
+    assert tools_started(events) == ["review_readback"]
+    pending = await pending_now(h)
+    assert pending.status == "confirmed"
+    assert confirmation.assurance(pending) == "waived"
+
+
+async def test_a_no_over_the_cut_summary_rejects_it() -> None:
+    h = await cut_summary(says("Vale, ¿qué cambio?"))
+    events = await voice_run(h, "No es correcto.", "v-2")
+    assert tools_started(events) == ["confirm_brief"]
+    assert (await pending_now(h)).status == "rejected"
+
+
+async def test_going_over_it_each_part_is_said_and_heard_by_its_own_playback() -> None:
+    from tests.test_handlers import CONFIG, full_record
+
+    parts = review_parts(render_brief(full_record(), CONFIG, "es"), "es")
+    h = await cut_summary(says(OFFER), *[says("")] * len(parts), says("¿Alguna duda?"))
+    await voice_run(h, "Sí.", "v-2")
+    for number, part in enumerate(parts, start=3):
+        events = await voice_run(h, "Sí.", f"v-{number}")
+        said = " ".join(e.text for e in events if isinstance(e, AssistantText))
+        assert said == part  # the part, word for word, and nothing else
+        turn_id = next(e for e in events if isinstance(e, TurnStarted)).turn_id
+        await h.runtime.delivered(turn_id, text=part, complete=False)  # heard to its check
+        assert (await pending_now(h)).fully_delivered is True
+    await voice_run(h, "Sí.", "v-9")
+    pending = await pending_now(h)
+    assert pending.status == "confirmed"
+    assert confirmation.assurance(pending) == "reviewed"
+
+
+def pending_seen(h: Harness) -> dict[str, object]:
+    """The pending read-back as the model saw it in its last call."""
+    content = h.model.calls[-1][0].content
+    facts = json.loads(content.split("## Datos de esta sesión (JSON)\n", 1)[1].split("\n\n")[0])
+    pending = facts["pending_confirmation"]
+    assert isinstance(pending, dict)
+    return pending
+
+
+async def test_the_model_sees_whether_the_read_back_was_heard_and_where_its_review_is() -> None:
+    h = await cut_summary(says(OFFER), says(""), says(""))
+    await voice_run(h, "Sí.", "v-2")
+    assert pending_seen(h) | {"heard": False, "review": "offered"} == pending_seen(h)
+    await voice_run(h, "Sí.", "v-3")
+    review = pending_seen(h)["review"]
+    assert isinstance(review, str) and review.startswith("part 1 of ")
+    await voice_run(h, "Sigue.", "v-4")
+    assert pending_seen(h)["review"] == "waived" and pending_seen(h)["status"] == "confirmed"

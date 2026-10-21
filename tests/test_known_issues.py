@@ -3,15 +3,16 @@
 Each test reproduces one problem offline and is marked ``xfail(strict=True)``: it fails today,
 as it should, and the suite stays green. The fix makes it pass, strict xfail then fails the
 suite, and the marker comes off in the same commit as the fix. KI-03, KI-04 and KI-05 are fixed
-(D40); their tests stay as regression guards.
+(D40), KI-06 (D41), KI-01 and KI-02 (D39); their tests stay as regression guards.
 """
 
 import asyncio
 
 import pytest
 
-from cafe_norte.conversation.contracts import TurnFailed
+from cafe_norte.conversation.contracts import AssistantText, TurnFailed
 from cafe_norte.conversation.signals import answer_to_readback
+from cafe_norte.domain.confirmation import assurance
 from cafe_norte.domain.contracts import TurnId
 from tests.test_runtime import (
     FRI_1030,
@@ -85,24 +86,37 @@ async def test_ki05_the_apology_waits_for_the_sentences_still_playing() -> None:
     await s.close()
 
 
-@pytest.mark.xfail(strict=True, reason="KI-02: a yes to a summary cut short by speech is lost")
-async def test_ki02_a_yes_to_the_summary_on_screen_confirms_it_even_if_its_audio_was_cut() -> None:
+async def test_ki02_a_yes_over_the_summary_earns_one_offer_and_carrying_on_confirms_it() -> None:
     """Live: the summary takes about 12 s to speak and is shown at once on the page. Iñaki read
     it and answered "Sí, está todo bien" at 10.8 s, before "¿Es todo correcto?" played; the
     read-back was not heard, so the yes could not confirm it; it was read again three times,
-    each one interrupted the same way, until the turn hit its round limit (16:09:04)."""
-    h = Harness([[present_brief(), WANTS_TOOLS], says(""), says("¿Alguna duda?")])
+    each one interrupted the same way, until the turn hit its round limit (16:09:04).
+
+    Decided (D39): the yes is not a confirmation of what was not heard; it earns one offer, in
+    the model's words, and "sigue" confirms it, recorded as waived. The model never re-reads."""
+    offer = "Perdona, me has contestado antes de acabar. ¿Lo repasamos por partes o seguimos?"
+    h = Harness([[present_brief(), WANTS_TOOLS], says(""), says(offer), says("¿Alguna duda?")])
     await h.open_session()
     await fill_record(h)
     voice = turn("ya está todo", "in-1").model_copy(update={"channel": "voice"})
     async for _ in h.runtime.run_turn(voice):
         pass  # voice: delivery comes from playback, which the candidate cut short
-    answer = turn("Sí.", "in-2").model_copy(update={"channel": "voice"})
-    async for _ in h.runtime.run_turn(answer):
+    yes = turn("Sí, está todo bien.", "in-2").model_copy(update={"channel": "voice"})
+    said = [e async for e in h.runtime.run_turn(yes)]
+    assert [e.text for e in said if isinstance(e, AssistantText)] == [
+        "Perdona, me has contestado antes de acabar.",
+        "¿Lo repasamos por partes o seguimos?",
+    ]
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "pending"
+    carry_on = turn("Sigue.", "in-3").model_copy(update={"channel": "voice"})
+    async for _ in h.runtime.run_turn(carry_on):
         pass
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.pending_confirmation is not None
     assert state.pending_confirmation.status == "confirmed"
+    assert assurance(state.pending_confirmation) == "waived"
 
 
 async def test_ki06_a_day_and_a_time_end_in_a_booking_without_the_model_copying_an_id() -> None:

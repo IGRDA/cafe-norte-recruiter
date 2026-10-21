@@ -53,9 +53,12 @@ heard to its end. A read-back cut by a yes is not confirmed: it moves through `R
 per candidate answer and one per turn:
 
 ```
-said, not heard --yes or carry on--> offered --yes--> part 0 --yes, heard--> part 1 … last part
-                                         \--carry on--> waived <--carry on, or cut again--/
+said, not heard --yes or carry on--> offered --yes--> part 0 --yes--> part 1 … last part
+                                         \--carry on--> waived <--carry on, or last part cut--/
 ```
+
+A yes over a part answers that part's check, so it moves on even if the part was cut; only a
+cut last part ends the review as waived.
 
 `ready_to_confirm` is true when it was heard whole, its last part was heard, or it was waived;
 only then can `respond` confirm it. `assurance` (`heard`, `reviewed`, `waived`) is how it was

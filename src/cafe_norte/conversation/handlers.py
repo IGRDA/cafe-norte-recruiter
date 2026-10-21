@@ -27,7 +27,14 @@ from cafe_norte.conversation.contracts import (
     ToolHandler,
     ToolOutcome,
 )
+from cafe_norte.conversation.readback import (
+    CONFIRM_TOOL,
+    current_saying,
+    review_parts,
+    target_call,
+)
 from cafe_norte.conversation.tools import (
+    ARGUMENT_MODELS,
     ConfirmBriefArgs,
     ConfirmFieldArgs,
     EndSessionArgs,
@@ -35,6 +42,7 @@ from cafe_norte.conversation.tools import (
     PresentConfirmationArgs,
     RequestHumanFollowupArgs,
     ReserveInterviewArgs,
+    ReviewReadbackArgs,
     SearchKnowledgeArgs,
     ToolName,
     UpdateCandidateArgs,
@@ -53,19 +61,22 @@ from cafe_norte.domain.contracts import (
     CandidatePatch,
     CandidateRecord,
     ConfigId,
+    Confirmation,
     ConfirmationId,
     Evidence,
     FieldTarget,
     InterviewSlot,
     OfferedSlot,
     ReviewFlag,
+    ReviewInParts,
+    ReviewWaived,
     SessionState,
     SlotOffer,
     SlotTarget,
     StoreConfiguration,
 )
 from cafe_norte.domain.lifecycle import LifecycleEvent, transition
-from cafe_norte.domain.result import Err
+from cafe_norte.domain.result import Err, Ok
 from cafe_norte.domain.review import add_followup, has_followup
 from cafe_norte.errors import Language, ServiceError
 from cafe_norte.knowledge.contracts import TOPIC_DOCS, RetrievalQuery, RetrievedChunk, Retriever
@@ -86,12 +97,21 @@ NEXT_STEP = {
     "booked": "The interview is reserved. Call end_session(reason=candidate_done).",
     "goodbye": "Session ended. Say goodbye in one short sentence.",
 }
+# A read-back the candidate did not hear to the end: their answer goes to the review (D39).
+NOT_HEARD = (
+    "It was not heard to the end: call review_readback with the candidate's answer "
+    "(affirm for a yes, skip to carry on without going over it)."
+)
+WAIT = "The candidate has not answered yet. Reply with nothing and wait."
 
 
 def all_handlers(
     *, store: Store, configurations: Mapping[ConfigId, StoreConfiguration], retriever: Retriever
 ) -> dict[ToolName, ToolHandler]:
     """Every tool the model may call today; the registry advertises exactly these."""
+    confirm_field = ConfirmFieldHandler(store=store)
+    confirm_brief = ConfirmBriefHandler(store=store)
+    reserve = ReserveInterviewHandler(store=store, configurations=configurations)
     return {
         "update_candidate": UpdateCandidateHandler(store=store, configurations=configurations),
         "search_knowledge": SearchKnowledgeHandler(
@@ -100,12 +120,15 @@ def all_handlers(
         "present_confirmation": PresentConfirmationHandler(
             store=store, configurations=configurations
         ),
-        "confirm_field": ConfirmFieldHandler(store=store),
-        "confirm_brief": ConfirmBriefHandler(store=store),
+        "confirm_field": confirm_field,
+        "confirm_brief": confirm_brief,
         "list_interview_slots": ListInterviewSlotsHandler(
             store=store, configurations=configurations
         ),
-        "reserve_interview": ReserveInterviewHandler(store=store, configurations=configurations),
+        "reserve_interview": reserve,
+        "review_readback": ReviewReadbackHandler(
+            store=store, targets={"field": confirm_field, "brief": confirm_brief, "slot": reserve}
+        ),
         "request_human_followup": RequestHumanFollowupHandler(store=store),
         "end_session": EndSessionHandler(store=store, configurations=configurations),
     }
@@ -159,6 +182,8 @@ def _next_question(state: SessionState) -> str:
     brief, or the interview."""
     pending = state.pending_confirmation
     if pending is not None and pending.status == "pending":
+        if not confirmation.ready_to_confirm(pending):
+            return f"A read-back is unanswered. {NOT_HEARD}"
         if isinstance(pending.target, SlotTarget):
             return (
                 "The slot read-back is unanswered; on a yes call reserve_interview with "
@@ -438,19 +463,22 @@ class PresentConfirmationHandler(_Handler):
             )
 
         current = state.pending_confirmation
-        if (
-            current is not None
-            and current.status == "pending"
-            and current.target == target
-            and (current.fully_delivered or current.presented_turn_id == context.turn_id)
-        ):
-            # Heard, or just said this turn, and still unanswered: do not say it twice. One
-            # from an earlier turn that was not fully heard (interrupted, D22) is read again.
-            tool = {"field": "confirm_field", "brief": "confirm_brief", "slot": "reserve_interview"}
+        if current is not None and current.status == "pending" and current.target == target:
+            started = confirmation.start_parts(
+                state,
+                context.turn_id,
+                parts=len(review_parts(current.presentation_text, state.language)),
+            )
+            if isinstance(started, Ok):
+                # Cut in an earlier turn: gone over in parts, never said whole again (D39).
+                new_state = state.model_copy(update={"pending_confirmation": started.value})
+                await self._save(context, new_state, expected_revision=revision)
+                return _part_said(new_state)
+            # Heard, just said this turn, or under review: do not say it twice.
+            tool = "review_readback" if current.review else CONFIRM_TOOL[target.kind]
             return ToolOutcome(
                 ok=True,
-                model_text=f"That read-back is already pending; call {tool[target.kind]} with "
-                "the answer.",
+                model_text=f"That read-back is already pending; call {tool} with the answer.",
                 summary=f"already_pending:{target.kind}",
             )
         pending = confirmation.present(
@@ -490,10 +518,9 @@ class _ConfirmHandler(_Handler):
         result = confirmation.respond(state, arguments.answer, context.turn_id)
         if isinstance(result, Err):
             advice = {
-                "same_turn": "The candidate has not answered yet. Reply with nothing and wait.",
+                "same_turn": WAIT,
                 "nothing_pending": "Continue.",
-                "not_delivered": "It was not heard to the end: call present_confirmation "
-                f"(target={self.kind}) to read it again, then wait for the answer.",
+                "not_delivered": NOT_HEARD,
             }.get(result.error, "Present it again.")
             return self._refuse(
                 f"confirmation_refused:{result.error}",
@@ -540,6 +567,79 @@ class ConfirmFieldHandler(_ConfirmHandler):
 
 class ConfirmBriefHandler(_ConfirmHandler):
     kind = "brief"
+
+
+class ReviewReadbackHandler(_Handler):
+    """``review_readback``: the candidate's answer to a read-back they did not hear to the end
+    (D39). The domain moves the review one step: a yes earns the one offer, then each part in
+    turn; carrying on waives it. A waived read-back, or one ready to confirm, is confirmed in
+    this same call through its own tool, so a model that stops here leaves nothing pending."""
+
+    OFFER = (
+        "The candidate answered before hearing the read-back to the end. Make the one offer "
+        "now, as the review policy says, then wait and pass their choice to review_readback."
+    )
+
+    def __init__(
+        self, *, store: Store, targets: Mapping[Literal["field", "brief", "slot"], ToolHandler]
+    ) -> None:
+        super().__init__(store=store)
+        self._targets = targets
+
+    async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
+        assert isinstance(arguments, ReviewReadbackArgs)
+        state = await self._state(context)
+        if state is None:
+            return self._refuse("not_found", "Session not found.")
+        pending = state.pending_confirmation
+        if pending is not None and confirmation.ready_to_confirm(pending):
+            return await self._confirm(context, pending)  # nothing left to go over
+        text = pending.presentation_text if pending is not None else ""
+        result = confirmation.advance_review(
+            state, arguments.answer, context.turn_id, parts=len(review_parts(text, state.language))
+        )
+        if isinstance(result, Err):
+            advice = {"same_turn": WAIT}.get(result.error, "Continue.")
+            return self._refuse(
+                f"review_refused:{result.error}",
+                f"No read-back can be reviewed now ({result.error}). {advice}",
+            )
+        reviewed = result.value
+        new_state = state.model_copy(update={"pending_confirmation": reviewed})
+        await self._save(context, new_state, expected_revision=state.candidate.revision)
+        if isinstance(reviewed.review, ReviewWaived):
+            confirmed = await self._confirm(context, reviewed)
+            events = (self._updated(new_state), *confirmed.events)
+            return confirmed.model_copy(update={"events": events})
+        if isinstance(reviewed.review, ReviewInParts):
+            return _part_said(new_state)
+        return ToolOutcome(
+            ok=True,
+            model_text=self.OFFER,
+            summary="review:offered",
+            events=(self._updated(new_state),),
+        )
+
+    async def _confirm(self, context: ToolContext, pending: Confirmation) -> ToolOutcome:
+        """The read-back's own tool with a yes: the domain checks it is ready to confirm."""
+        name, arguments = target_call(pending.target, "affirm")
+        return await self._targets[pending.target.kind](
+            context, ARGUMENT_MODELS[name].model_validate(arguments)
+        )
+
+
+def _part_said(state: SessionState) -> ToolOutcome:
+    """The part of the pending read-back now under review, for the runtime to say verbatim."""
+    pending = state.pending_confirmation
+    assert pending is not None and isinstance(pending.review, ReviewInParts)
+    number, parts = pending.review.part + 1, pending.review.parts
+    return ToolOutcome(
+        ok=True,
+        model_text=f"Part {number} of {parts} was already spoken. Reply with nothing and wait.",
+        summary=f"review:part:{number}/{parts}",
+        events=(StateUpdated.of(state),),
+        spoken=current_saying(pending, state.language),
+    )
 
 
 class _InterviewHandler(_Handler):
@@ -623,7 +723,8 @@ class ReserveInterviewHandler(_InterviewHandler):
     session are written in one transaction; nothing is announced before it commits."""
 
     ADVICE: dict[str, str] = {
-        "same_turn": "The candidate has not answered yet. Reply with nothing and wait.",
+        "same_turn": WAIT,
+        "not_delivered": NOT_HEARD,
         "slot_unavailable": NEXT_STEP["slots"],
         "slot_in_past": NEXT_STEP["slots"],
         "already_booked": NEXT_STEP["booked"],

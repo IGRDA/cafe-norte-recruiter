@@ -9,7 +9,7 @@ tested when each module lands. Numbers are the defaults in `.env.example`.
 | --- | --- |
 | `Model.stream(messages, tools, *, deadline)` (`model`) | Async stream of `ModelText`, fully assembled `ToolCall`s, optional `ModelUsage`, one `ModelFinished`; malformed or late output raises `ModelError` with a stable code; provider-side tools never enabled |
 | `ConversationRuntime.run_turn(TurnInput)` (`conversation`) | Async generator of `RuntimeEvent`; serialized per session; requires the current lease generation; persists before `StateUpdated`; closing it cancels work and marks the turn interrupted; duplicate `input_id` → `TurnFailed(conflict)` |
-| `ToolRegistry.dispatch(ToolCall, ToolContext)` | Allowlist of nine names; arguments validated against the Pydantic model; one repair per turn; context injected by the server |
+| `ToolRegistry.dispatch(ToolCall, ToolContext)` | Allowlist of ten names; arguments validated against the Pydantic model; one repair per turn; context injected by the server |
 | `Retriever.retrieve(RetrievalQuery)` (`knowledge`) | Filters by `config_id`, `kb_version` and optional `doc_ids` before ranking; BM25 + dense fused by RRF among allowed chunks; at most three; may return none |
 | `Store` (`persistence`) | Repositories with conditional updates on revision, unique `(session_id, input_id)`, row-locked slot reservation with idempotency key, leases with generations, admission counted in rows |
 | `VoiceSessionController` / `RoomProvisioner` (`voice`) | Start/stop one Pipecat task per session; private expiring rooms; no orphan on provisioning failure |
@@ -50,6 +50,8 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Questions spoken per turn | 1; later sentences are read, not voiced |
 | Brief length | 4–8 sentences, deterministic |
 | A part of a read-back gone over after a cut | at most 2 of its sentences and 160 characters (one longer sentence is a part alone), then the short check (D39) |
+| Offers to go over a read-back the candidate cut | 1 per read-back; then the candidate decides (D39) |
+| A read-back said whole | at most twice; a cut one is never said whole again, only in parts (D39) |
 | Fields read back right after capture | `contact_phone`, `earliest_start_date` |
 | Interview slots offered per `list_interview_slots` | 3, from a window of 50 when a date is preferred |
 | Simulated calendar | 7 days ahead, 30-minute slots at each store's `interview_times` on shift days (D29) |

@@ -16,8 +16,10 @@ from cafe_norte.conversation.handlers import (
     ListInterviewSlotsHandler,
     PresentConfirmationHandler,
     ReserveInterviewHandler,
+    ReviewReadbackHandler,
     UpdateCandidateHandler,
 )
+from cafe_norte.conversation.readback import review_parts
 from cafe_norte.conversation.tools import ARGUMENT_MODELS, ToolName
 from cafe_norte.domain.candidate import apply_patch
 from cafe_norte.domain.configuration import load_configurations
@@ -30,6 +32,9 @@ from cafe_norte.domain.contracts import (
     ConfirmationId,
     Evidence,
     FieldTarget,
+    ReviewInParts,
+    ReviewOffered,
+    ReviewWaived,
     SessionId,
     SessionState,
     SlotId,
@@ -69,8 +74,10 @@ def args(name: ToolName, **payload: object) -> BaseModel:
 
 
 class World:
-    def __init__(self, candidate: CandidateRecord | None = None) -> None:
-        self.store = MemoryStore()
+    def __init__(
+        self, candidate: CandidateRecord | None = None, store: MemoryStore | None = None
+    ) -> None:
+        self.store = store or MemoryStore()
         self.state = SessionState(
             session_id=SID,
             config_id=CONFIG.config_id,
@@ -85,6 +92,15 @@ class World:
         self.confirm_field = ConfirmFieldHandler(store=self.store)
         self.confirm_brief = ConfirmBriefHandler(store=self.store)
         self.end = EndSessionHandler(store=self.store, configurations=CONFIGS)
+        self.reserve = ReserveInterviewHandler(store=self.store, configurations=CONFIGS)
+        self.review = ReviewReadbackHandler(
+            store=self.store,
+            targets={
+                "field": self.confirm_field,
+                "brief": self.confirm_brief,
+                "slot": self.reserve,
+            },
+        )
 
     async def open(self) -> "World":
         await self.store.sessions.create(self.state, access_hash="")
@@ -312,25 +328,29 @@ async def test_the_interview_answer_after_the_confirmed_brief_leads_to_the_end()
     assert done.ok and done.summary == "ended:completed:brief_only"
 
 
-async def test_a_read_back_that_was_not_fully_heard_is_read_again() -> None:
-    """The hosted call: "Mhmm" over the brief left it unheard; present_confirmation answered
-    "already pending" and confirm_brief "not delivered" until the turn hit its round limit."""
+async def test_a_read_back_that_was_not_fully_heard_is_gone_over_in_parts() -> None:
+    """The hosted call: "Mhmm" over the brief left it unheard and D35 read it again, word for
+    word, and it was cut again. Presented again, a cut read-back starts with its first part."""
     w = await World(full_record()).open()
     first = await w.present(context("t1"), args("present_confirmation", target="brief"))
     again = await w.present(context("t2"), args("present_confirmation", target="brief"))
-    assert again.ok and again.summary == "presented:brief"
-    assert again.spoken == first.spoken  # the same words, said again
-    state = await w.current()
-    assert state.pending_confirmation is not None
-    assert state.pending_confirmation.presented_turn_id == TurnId("t2")
-    assert state.pending_confirmation.fully_delivered is False
+    parts = review_parts(first.spoken, "es")
+    assert again.ok and again.summary == f"review:part:1/{len(parts)}"
+    assert again.spoken == parts[0]  # never the whole text a second time
+    pending = (await w.current()).pending_confirmation
+    assert pending is not None and pending.presentation_text == first.spoken
+    assert pending.review == ReviewInParts(part=0, parts=len(parts), turn_id=TurnId("t2"))
+    assert pending.presented_turn_id == TurnId("t2") and pending.fully_delivered is False
+    under_review = await w.present(context("t3"), args("present_confirmation", target="brief"))
+    assert under_review.spoken == "" and "review_readback" in under_review.model_text
 
 
-async def test_not_delivered_tells_the_model_to_present_it_again() -> None:
+async def test_not_delivered_tells_the_model_to_pass_the_answer_to_the_review() -> None:
     w = await World(full_record()).open()
     await w.present(context("t1"), args("present_confirmation", target="brief"))
     refused = await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
-    assert not refused.ok and "present_confirmation" in refused.model_text
+    assert not refused.ok and "review_readback" in refused.model_text
+    assert "present_confirmation" not in refused.model_text
 
 
 async def test_the_model_cannot_answer_a_read_back_in_the_turn_it_was_presented() -> None:
@@ -416,14 +436,8 @@ class Interview(World):
     """A world with the calendar seeded and the brief confirmed at revision 1."""
 
     def __init__(self) -> None:
-        super().__init__(full_record())
-        self.store = MemoryStore(clock=lambda: NOW)
-        self.update = UpdateCandidateHandler(store=self.store, configurations=CONFIGS)
-        self.present = PresentConfirmationHandler(store=self.store, configurations=CONFIGS)
-        self.confirm_brief = ConfirmBriefHandler(store=self.store)
-        self.end = EndSessionHandler(store=self.store, configurations=CONFIGS)
+        super().__init__(full_record(), MemoryStore(clock=lambda: NOW))
         self.slots = ListInterviewSlotsHandler(store=self.store, configurations=CONFIGS)
-        self.reserve = ReserveInterviewHandler(store=self.store, configurations=CONFIGS)
 
     async def ready(self) -> "Interview":
         await self.open()
@@ -669,3 +683,112 @@ async def test_a_handler_save_is_fenced_on_the_contexts_lease_generation() -> No
             stale, args("update_candidate", patch={"name": "Ane"}, evidence_text="Ane")
         )
     assert refused.value.code == "conflict"
+
+
+# ---- going over a read-back the candidate cut (D39) ------------------------------------------
+
+
+async def cut_brief() -> tuple[World, str]:
+    """The brief said in t1 and cut by the candidate: not heard to the end."""
+    w = await World(full_record()).open()
+    said = await w.present(context("t1"), args("present_confirmation", target="brief"))
+    return w, said.spoken
+
+
+async def test_a_yes_over_a_cut_read_back_earns_one_offer_in_the_models_words() -> None:
+    w, _ = await cut_brief()
+    offered = await w.review(context("t2"), args("review_readback", answer="affirm"))
+    assert offered.ok and offered.summary == "review:offered" and offered.spoken == ""
+    assert "offer" in offered.model_text and "review_readback" in offered.model_text
+    pending = (await w.current()).pending_confirmation
+    assert pending is not None and pending.review == ReviewOffered(turn_id=TurnId("t2"))
+    assert isinstance(offered.events[0], StateUpdated)
+
+
+async def test_going_over_it_says_each_part_and_the_yes_to_the_last_confirms() -> None:
+    w, text = await cut_brief()
+    parts = review_parts(text, "es")
+    await w.review(context("t2"), args("review_readback", answer="affirm"))
+    for number, part in enumerate(parts, start=1):
+        said = await w.review(context(f"t{number + 2}"), args("review_readback", answer="affirm"))
+        assert said.ok and said.summary == f"review:part:{number}/{len(parts)}"
+        assert said.spoken == part and "already spoken" in said.model_text
+        await w.deliver()
+    confirmed = await w.review(context("t9"), args("review_readback", answer="affirm"))
+    assert confirmed.ok and confirmed.summary == "brief:confirmed"
+    state = await w.current()
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "confirmed"
+    assert state.brief_confirmed_revision == 1
+
+
+async def test_carrying_on_after_the_offer_confirms_it_as_waived_in_one_call() -> None:
+    w, _ = await cut_brief()
+    await w.review(context("t2"), args("review_readback", answer="skip"))  # before: the offer
+    waived = await w.review(context("t3"), args("review_readback", answer="skip"))
+    assert waived.ok and waived.summary == "brief:confirmed"
+    assert NEXT_STEP["questions"] in waived.model_text
+    first, last = waived.events[0], waived.events[-1]
+    assert isinstance(first, StateUpdated) and isinstance(last, StateUpdated)
+    assert first.pending_confirmation is not None
+    assert first.pending_confirmation.status == "pending"  # the waiver is saved first
+    assert first.pending_confirmation.review == ReviewWaived(turn_id=TurnId("t3"))
+    state = await w.current()
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "confirmed"
+    assert state.pending_confirmation.review == ReviewWaived(turn_id=TurnId("t3"))
+
+
+async def test_a_cut_field_read_back_carried_on_confirms_the_field() -> None:
+    w = await World(full_record()).open()
+    await w.present(
+        context("t1"), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    await w.review(context("t2"), args("review_readback", answer="affirm"))
+    waived = await w.review(context("t3"), args("review_readback", answer="skip"))
+    assert waived.ok and waived.summary == "field:confirmed"
+    assert (await w.current()).candidate.earliest_start_date.status == "confirmed"
+
+
+async def test_a_cut_slot_read_back_carried_on_is_booked() -> None:
+    w = await (await Interview().ready()).offered()
+    await w.present(context("t4"), args("present_confirmation", target="slot", slot_id=SLOT))
+    await w.review(context("t5"), args("review_readback", answer="affirm"))
+    booked = await w.review(context("t6"), args("review_readback", answer="skip"))
+    assert booked.ok and booked.summary == "reserved"
+    booking = (await w.current()).booking
+    assert booking is not None and booking.slot_id == SLOT
+
+
+async def test_the_review_refuses_what_the_domain_refuses() -> None:
+    w = await World(full_record()).open()
+    nothing = await w.review(context("t1"), args("review_readback", answer="affirm"))
+    assert not nothing.ok and nothing.summary == "review_refused:nothing_pending"
+    await w.present(context("t1"), args("present_confirmation", target="brief"))
+    same_turn = await w.review(context("t1"), args("review_readback", answer="affirm"))
+    assert not same_turn.ok and same_turn.summary == "review_refused:same_turn"
+    assert "wait" in same_turn.model_text.lower()
+    await w.review(context("t2"), args("review_readback", answer="affirm"))
+    twice = await w.review(context("t2"), args("review_readback", answer="affirm"))
+    assert not twice.ok and twice.summary == "review_refused:same_turn"
+
+
+async def test_reserve_on_a_cut_slot_read_back_points_at_the_review() -> None:
+    w = await (await Interview().ready()).offered()
+    await w.present(context("t4"), args("present_confirmation", target="slot", slot_id=SLOT))
+    refused = await w.reserve(context("t5"), args("reserve_interview", slot_id=SLOT))
+    assert refused.summary == "confirmation_refused:not_delivered"
+    assert "review_readback" in refused.model_text
+
+
+async def test_a_save_beside_a_cut_read_back_points_at_the_review() -> None:
+    w = await World(full_record()).open()
+    await w.present(
+        context("t1"), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    saved = await w.update(
+        context("t2"),
+        args("update_candidate", patch={"note": "tiene coche"}, evidence_text="tengo coche"),
+    )
+    assert saved.ok and "review_readback" in saved.model_text
+    assert "confirm_field" not in saved.model_text

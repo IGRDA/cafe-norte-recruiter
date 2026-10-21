@@ -20,10 +20,10 @@
   Terraform's: bump `db_password_version` in `infra/app` and deploy; the user and the secret
   version change together.
 - **Trace content** (D42): the hosted app sends redacted words and tool arguments to Langfuse,
-  which is safe only while the data is fictional. To switch it off, delete the
-  `CAFE_NORTE_TRACE_CONTENT=on` line from `plain_env` in `infra/app/main.tf` (or set it to
-  `off`), deploy, and reset the instance. Traces keep their metadata, cost and timings. Spans
-  already exported stay in Langfuse until deleted there.
+  acceptable only while the data is fictional. To switch it off, change
+  `CAFE_NORTE_TRACE_CONTENT=on` to `off` in `plain_env` (`infra/app/main.tf`) and push to `main`;
+  the deploy applies and resets. Traces keep metadata, cost and timings; spans already exported
+  stay in Langfuse until deleted there.
 - **Database** (Cloud SQL `cafe-norte-db`, D33): the app reaches it through the Auth Proxy on
   the VM (`docker logs cloud-sql-proxy`). To look inside by hand:
   `gcloud sql connect cafe-norte-db --user=cafe_norte --database=cafe_norte --project cafe-norte-orbio`

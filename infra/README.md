@@ -24,9 +24,9 @@ GitHub Actions needs these repository variables: `GCP_PROJECT_ID`, `GCP_REGION`,
 repository secret `SMOKE_ACCESS_CODE`. `demo.tfvars` is local and git-ignored; CI passes the
 same non-secret values as `TF_VAR_*`. The `demo` environment exists without required reviewers.
 
-Terraform is 1.11 or later (write-only arguments, D33; CI runs `~> 1.12`) and the Google provider
-`~> 6.0`; both lock files are committed. `make infra-check` formats and validates both stacks without a backend. Both
-providers set `user_project_override` with the project as quota project so user-credential
+Terraform is 1.11 or later (write-only arguments, D33; CI runs `~> 1.12`) and the Google
+provider `~> 6.0`; both lock files are committed. `make infra-check` formats and validates both
+stacks without a backend. Both providers set `user_project_override` with the project as quota project so user-credential
 calls (the budget API) work.
 
 Set an explicit demo end date before provisioning; `scripts/teardown.sh` destroys the app

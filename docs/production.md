@@ -15,13 +15,13 @@ Every section has the same four parts: **Today** (built, with numbers), **What b
 | Higher availability | [3](#3-higher-availability) | D24, D33 | The single VM and the minute of downtime per deploy |
 | Candidate imports | [4](#4-candidate-imports) | D32, D34 | Nothing yet: there is no import path |
 | Background work | [5](#5-background-work) | D30, D34 | Work that dies with its process |
-| Configuration changes | [6](#6-configuration-changes) | D12, D36 | Nothing gates a change on the scenarios |
+| Configuration changes | [6](#6-configuration-changes) | D12, D21, D36 | Nothing gates a change on live behaviour |
 | Larger corpus | [7](#7-larger-corpus) | D26, D27 | The in-process index and the relevance floor |
 | Monitoring at scale | [8](#8-monitoring-at-scale) | D36, D42 | No alert fires; dashboards are the Langfuse defaults |
 | Regional voice quality | [9](#9-regional-voice-quality) | D22, D24, D35 | Speech recognition on short answers |
 | Privacy with real applicants | [10](#10-privacy-with-real-applicants) | D34, D42 | Redaction is patterns, not people |
 | Twilio telephony | [11](#11-twilio-telephony) | D01, D22, D38 | Read-backs that must be heard, with no screen |
-| Native speech-to-speech | [12](#12-native-speech-to-speech) | D01, D35 | Not applicable until measured |
+| Native speech-to-speech | [12](#12-native-speech-to-speech) | D01, D35 | The guarantees that rely on owning every sentence |
 
 ## 1. More simultaneous calls
 
@@ -58,10 +58,11 @@ runbook).
 
 **What breaks first.** A voice call is a process: the Pipecat task, the Daily connection and
 the delivery ledger live in the worker that started it. Anything that needs that call
-(`POST …/end`, a delete, a barge-in that arrives over HTTP) must reach the same worker. Request
-affinity is not enough: it does not survive the worker's replacement, and nothing records which
-worker owns which room. Second, a worker that dies mid-call leaves a session `active` with no
-one to speak until its lease and admission row expire.
+(`POST …/end`, a delete) must reach the same worker. Request affinity is not enough: it does
+not survive the worker's replacement, and nothing records which worker owns which room. Second,
+a worker that dies mid-call leaves the session `active` with no call: its turn lease frees in
+60 s and its admission row in 600 s, but nothing pauses it (D35 pauses when a call ends, which
+needs a live worker to notice).
 
 **Next step.** Record the owner in the admission row (one column), route control calls by that
 owner, and give a replacement worker a way to take over: expire the lease, then let the
@@ -198,9 +199,8 @@ with one job each.
 
 ## 9. Regional voice quality
 
-**Today.** Everything runs in `europe-west1`. Measured: the bot joins a Daily room in 2.9 s from
-Cloud Run and `POST /voice` returns in 3.5 s from the VM, with DTLS complete in under 2 s (D23,
-D24). A turn ends after 1.0 s of silence, which costs 0.4 s per spoken turn (D35). Deepgram runs
+**Today.** Everything runs in `europe-west1`. Measured on the VM: `POST /voice` (room, bot
+joined) returns in 3.5 s and DTLS completes in under 2 s (D24). A turn ends after 1.0 s of silence, which costs 0.4 s per spoken turn (D35). Deepgram runs
 in the session language and follows a switch (D35).
 
 **What breaks first.** Recognition of short answers: Deepgram `multi` heard "sí" as "C" and
@@ -230,13 +230,13 @@ name or an address said aloud is not a pattern (D42). Langfuse and the speech pr
 data under their own retention, not our seven days. One database user owns the schema and
 serves the app (D33).
 
-**Next step.** Before the first real applicant: turn `CAFE_NORTE_TRACE_CONTENT` off (runbook,
-one line); sign data processing agreements with every provider and choose EU processing where
+**Next step.** Before the first real applicant: set `CAFE_NORTE_TRACE_CONTENT` to `off`
+(runbook); sign data processing agreements with every provider and choose EU processing where
 offered, including the model; separate the migration role from the runtime role and give
 reviewers read access by role; a reviewed privacy notice, a retention period set by the real
-purpose and an assessment by a lawyer, since a recruiting assistant that scores people is
-likely to be a high-risk system under the AI Act. Keep the existing rule that Ana makes no
-hiring decision.
+purpose and a legal assessment, including whether an AI system used in recruitment falls in
+the AI Act's high-risk category even when, as here, it collects facts and makes no hiring
+decision.
 
 **Trade-off.** Turning content off returns to the blind spot D42 closed. The alternative is a
 reviewed redaction that also covers names, with its false negatives measured, which is slower
@@ -253,7 +253,8 @@ has fully played (D22, "delivered means heard"), and the page only mirrors it. I
 candidate can read a summary and answer before the audio ends; KI-02 shows the cost, a lost
 yes and a loop. On a phone there is no page, so the rule is the only channel and applies
 unchanged: the summary must be short enough to be heard whole, and an interruption means the
-read-back is read again. The fix for KI-02 is task A's, and this section relies on it.
+read-back is read again. Telephony therefore inherits KI-02's fix (short spoken read-backs,
+re-read at most once) rather than needing one of its own.
 
 **Next step.** A Twilio adapter for the transport only: a webhook that validates Twilio's
 signature, a media-stream connection carrying 8 kHz mu-law that Pipecat's serializer converts,
@@ -285,8 +286,9 @@ price table. Adopt it only where it wins on tool reliability and observability a
 latency.
 
 **Trade-off.** A native model can sound more natural and answer faster. In exchange the
-transcript becomes the model's own report of what it heard and said, and D20 and D35's
-guarantees (what was announced is what was persisted) would have to be rebuilt around it.
+transcript becomes the model's own report of what it heard and said, and the rule that nothing
+is announced before it is persisted, with D20's word-for-word read-backs, would have to be
+rebuilt around it.
 
 ## What would change first
 

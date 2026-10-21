@@ -54,6 +54,7 @@ from cafe_norte.domain.contracts import (
 from cafe_norte.domain.lifecycle import TERMINAL, LifecycleEvent, is_terminal, transition
 from cafe_norte.domain.result import Err
 from cafe_norte.domain.review import add_followup
+from cafe_norte.domain.session_time import active_increment
 from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
 from cafe_norte.model.contracts import (
     Model,
@@ -126,6 +127,7 @@ class _Turn:
     timings: list[StageTiming] = field(default_factory=list)
     asked: bool = False  # a question has been spoken; the turn says nothing more
     repairs: int = 0  # malformed tool calls this turn; the budget is ``Limits.max_repairs``
+    previous_end: datetime | None = None  # when Ana last finished, for the gap before this turn
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
     outcome: ToolOutcome = field(
         default_factory=lambda: ToolOutcome(ok=True, model_text="", summary="")
@@ -170,7 +172,12 @@ class _Turn:
             )
 
     def record(
-        self, role: Literal["user", "assistant"], text: str, finished_at: datetime
+        self,
+        role: Literal["user", "assistant"],
+        text: str,
+        finished_at: datetime,
+        *,
+        interrupted: bool = False,
     ) -> TurnRecord:
         return TurnRecord(
             turn_id=self.turn_id,
@@ -180,6 +187,7 @@ class _Turn:
             channel=self.input.channel,
             language=self.state.language,
             text=text,
+            interrupted=interrupted,
             started_at=self.input.received_at,
             finished_at=finished_at,
         )
@@ -466,6 +474,8 @@ class Runtime:
             hints = hints.model_copy(update={"readback_answered": run.answered})
 
         history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
+        if len(history) > 1:
+            run.previous_end = history[-2].finished_at
         configuration = self._configurations[run.state.config_id]
         today = self._clock().astimezone(ZoneInfo(configuration.timezone)).date()
         run.messages = list(
@@ -483,14 +493,12 @@ class Runtime:
                 yield event
 
         run.time("llm_total", run.started)
-        async with self._store.transaction() as tx:
-            await self._store.turns.append(
-                tx, run.record("assistant", " ".join(run.spoken), self._clock())
-            )
-            for usage in run.usage:
-                await self._store.events.record_usage(tx, usage)
-            for timing in run.timings:
-                await self._store.events.record_timing(tx, timing)
+        capped = await self._close_turn(run, interrupted=False)
+        if capped is not None:  # the session cap: saved above, announced, then said
+            state, goodbye = capped
+            yield await self._emit(run, StateUpdated.of(state))
+            for sentence in goodbye:
+                yield await self._emit(run, _say(sentence))
         yield await self._emit(
             run,
             TurnFinished(
@@ -502,6 +510,45 @@ class Runtime:
         )
         if self._signals is not None:
             self._analyze_later(self._signals, run)
+
+    async def _close_turn(
+        self, run: _Turn, *, interrupted: bool
+    ) -> tuple[SessionState, list[str]] | None:
+        """One transaction ends the turn: the assistant record, usage and timings, and the
+        turn's active seconds on the session. The turn that carries the session past its cap
+        also abandons it there and its record holds the goodbye; the state and the goodbye
+        are returned for the caller to announce."""
+        finished_at = self._clock()
+        state = await self._store.sessions.get(run.session_id)
+        goodbye: list[str] = []
+        ended: SessionState | None = None
+        if state is not None:
+            seconds = active_increment(run.previous_end, run.input.received_at, finished_at)
+            state = state.model_copy(update={"active_seconds": state.active_seconds + seconds})
+            if not is_terminal(state) and state.active_seconds >= self._limits.session_seconds:
+                result = transition(state, "abandon")
+                if not isinstance(result, Err):
+                    lifecycle, outcome = result.value
+                    state = state.model_copy(update={"lifecycle": lifecycle, "outcome": outcome})
+                    ended = state
+                    goodbye = _sentences(_control_reply("time_cap", state.language))
+        spoken = [*run.spoken, *goodbye]
+        async with self._store.transaction() as tx:
+            await self._store.turns.append(
+                tx, run.record("assistant", " ".join(spoken), finished_at, interrupted=interrupted)
+            )
+            for usage in run.usage:
+                await self._store.events.record_usage(tx, usage)
+            for timing in run.timings:
+                await self._store.events.record_timing(tx, timing)
+            if state is not None:
+                await self._store.sessions.save(
+                    tx,
+                    state,
+                    expected_revision=state.candidate.revision,
+                    lease_generation=run.generation,
+                )
+        return None if ended is None else (ended, goodbye)
 
     async def _human_request(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """An explicit request for a person: the follow-up flag is saved, then the fixed reply
@@ -808,7 +855,7 @@ def _tool_message(model_text: str, spoken: list[str]) -> str:
     )
 
 
-def _control_reply(control: Literal["human"], language: Language) -> str:
+def _control_reply(control: Literal["human", "time_cap"], language: Language) -> str:
     return prompts.table("controls", language)[control]
 
 

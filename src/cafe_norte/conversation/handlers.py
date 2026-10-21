@@ -189,7 +189,12 @@ class UpdateCandidateHandler(_Handler):
             return self._refuse("not_found", "Session not found.")
         configuration = self._configurations[state.config_id]
 
-        result = validate_patch(arguments.patch, configuration, context.now.date())
+        result = validate_patch(
+            arguments.patch,
+            configuration,
+            context.now.date(),
+            evidence_text=arguments.evidence_text,
+        )
         if isinstance(result, Err):
             error = result.error
             return self._refuse(

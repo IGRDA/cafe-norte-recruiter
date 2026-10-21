@@ -34,6 +34,7 @@ from cafe_norte.conversation.prompt import (
     PromptHints,
     build_messages,
     clean_sentence,
+    sentences,
     split_sentences,
 )
 from cafe_norte.conversation.registry import ToolRegistry
@@ -387,7 +388,7 @@ class Runtime:
         self,
         session_id: SessionId,
         input_id: InputId,
-        sentences: Callable[[SessionState], list[str]],
+        lines: Callable[[SessionState], list[str]],
         *,
         reactivate: bool = False,
     ) -> AsyncIterator[RuntimeEvent]:
@@ -413,7 +414,7 @@ class Runtime:
                 yield await self._emit(run, run.failed("conflict"))
                 return
             try:
-                spoken = sentences(state)
+                spoken = lines(state)
                 async with self._store.transaction() as tx:
                     if reactivate and state.lifecycle == "paused":
                         result = transition(state, "resume")
@@ -465,7 +466,7 @@ class Runtime:
                 pending = state.pending_confirmation
                 if pending is not None and pending.presented_turn_id == turn_id:
                     # Heard when playback reached the read-back's last sentence.
-                    last_sentence = _sentences(pending.presentation_text)[-1]
+                    last_sentence = sentences(pending.presentation_text)[-1]
                     was_heard = complete or text.endswith(last_sentence)
                     await self._store.sessions.save(
                         tx,
@@ -639,7 +640,7 @@ class Runtime:
                     lifecycle, outcome = result.value
                     state = state.model_copy(update={"lifecycle": lifecycle, "outcome": outcome})
                     ended = state
-                    goodbye = _sentences(_control_reply("time_cap", state.language))
+                    goodbye = sentences(_control_reply("time_cap", state.language))
         spoken = [*run.spoken, *goodbye]
         async with self._store.transaction() as tx:
             await self._store.turns.append(
@@ -729,8 +730,8 @@ class Runtime:
                         run.time("llm_first_output", run.started)
                     if isinstance(event, ModelText):
                         buffer += event.text
-                        sentences, buffer = split_sentences(buffer)
-                        for sentence in sentences:
+                        complete, buffer = split_sentences(buffer)
+                        for sentence in complete:
                             if self._say_once(run, sentence):
                                 yield await self._emit(run, _say(sentence))
                         said = run.spoken[start:]
@@ -896,6 +897,8 @@ class Runtime:
         ``confirm_field`` can no longer leave it pending (D35). Anything else is the model's."""
         ui = run.input.ui_answer
         answer = ui.answer if ui is not None else answer_to_readback(run.input.text)
+        if answer == "skip":
+            answer = None  # routed by the read-back review (D39); until then the model's
         pending = run.state.pending_confirmation
         if ui is not None and pending is not None and pending.confirmation_id == ui.confirmation_id:
             # The card was on the screen: pressing the button is reading it, even if the voice
@@ -1014,7 +1017,7 @@ class Runtime:
         """Authoritative text (a read-back, a control reply): said in full even if the model
         already asked something this turn; nothing else is voiced after it."""
         run.asked = False
-        for sentence in _sentences(text):
+        for sentence in sentences(text):
             if self._say_once(run, sentence):
                 yield await self._emit(run, _say(sentence))
         run.asked = True
@@ -1151,12 +1154,6 @@ def _tool_message(model_text: str, spoken: list[str]) -> str:
 
 def _control_reply(control: Literal["human", "time_cap"], language: Language) -> str:
     return prompts.table("controls", language)[control]
-
-
-def _sentences(text: str) -> list[str]:
-    complete, rest = split_sentences(text + " ")
-    tail = clean_sentence(rest)
-    return complete + ([tail] if tail else [])
 
 
 def _say(sentence: str) -> AssistantText:

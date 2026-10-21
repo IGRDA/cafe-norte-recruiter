@@ -29,6 +29,7 @@ slots.intro: Tengo estos huecos para la entrevista en {store}:
 slots.question: ¿Cuál te viene mejor?
 slots.none: Ahora mismo no tengo huecos libres para la entrevista.
 slot: el {value}
+review.check: ¿Está bien?
 slot_time: {date} a las {time}
 
 label.name: Nombre

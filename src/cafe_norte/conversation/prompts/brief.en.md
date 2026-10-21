@@ -29,6 +29,7 @@ slots.intro: I have these interview slots at {store}:
 slots.question: Which one suits you best?
 slots.none: I have no free interview slots right now.
 slot: {value}
+review.check: Is that right?
 slot_time: {date} at {time}
 
 label.name: Name

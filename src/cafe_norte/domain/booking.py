@@ -5,6 +5,7 @@ No work-authorization or sentiment value appears here: they are not booking gate
 from datetime import datetime
 from hashlib import sha256
 
+from cafe_norte.domain.confirmation import ready_to_confirm
 from cafe_norte.domain.contracts import (
     BookingRefusal,
     Confirmation,
@@ -37,8 +38,9 @@ def reservation_allowed(
     now: datetime,
 ) -> Result[SlotTarget, BookingRefusal]:
     """Check the five conditions, in this order: active session; brief confirmed at the current
-    revision; explicit intent; a fully delivered, affirmed slot confirmation for this slot and
-    this brief revision; a future, available slot of this store; no booking yet."""
+    revision; explicit intent; a slot confirmation ready to confirm (heard, reviewed or waived) and
+    affirmed, for this slot and this brief revision; a future, available slot of this store; no
+    booking yet."""
     revision = state.candidate.revision
     if state.lifecycle != "active":
         return Err("session_not_active")
@@ -48,7 +50,7 @@ def reservation_allowed(
         return Err("no_schedule_intent")
     if confirmation is None:
         return Err("confirmation_missing")
-    if not confirmation.fully_delivered:
+    if not ready_to_confirm(confirmation):
         return Err("confirmation_not_delivered")
     target = confirmation.target
     if (

@@ -200,6 +200,32 @@ ConfirmationTarget = Annotated[FieldTarget | BriefTarget | SlotTarget, Field(dis
 ConfirmationStatus = Literal["pending", "confirmed", "rejected", "invalidated", "expired"]
 
 
+class ReviewOffered(Frozen):
+    """The read-back was cut and Ana offered to go over it; the candidate has not chosen yet."""
+
+    stage: Literal["offered"] = "offered"
+    turn_id: TurnId  # the turn that made the move: one move per turn
+
+
+class ReviewInParts(Frozen):
+    """Being gone over in short parts; ``part`` is the one said last (0-based)."""
+
+    stage: Literal["in_parts"] = "in_parts"
+    part: int
+    parts: int
+    turn_id: TurnId
+
+
+class ReviewWaived(Frozen):
+    """The candidate chose to carry on without going over it: an informed skip."""
+
+    stage: Literal["waived"] = "waived"
+    turn_id: TurnId
+
+
+Review = Annotated[ReviewOffered | ReviewInParts | ReviewWaived, Field(discriminator="stage")]
+
+
 class Confirmation(Frozen):
     """One read-back and its answer. A bare "yes" only means something against the pending one."""
 
@@ -207,7 +233,8 @@ class Confirmation(Frozen):
     target: ConfirmationTarget
     presentation_text: str  # canonical recap, the exact words shown or spoken
     presented_turn_id: TurnId
-    fully_delivered: bool = False  # false until playback/acknowledgement says so
+    fully_delivered: bool = False  # the latest saying (whole text or one part) was heard to its end
+    review: Review | None = None  # None: said once, whole; set after a cut (D39)
     response_turn_id: TurnId | None = None
     status: ConfirmationStatus = "pending"
     source: Literal["model", "ui"] = "model"

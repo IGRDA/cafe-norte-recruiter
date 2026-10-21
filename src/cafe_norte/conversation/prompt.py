@@ -162,6 +162,13 @@ def split_sentences(buffer: str) -> tuple[list[str], str]:
     return complete, parts[-1]
 
 
+def sentences(text: str) -> list[str]:
+    """A whole text as sentences, its unfinished tail included."""
+    complete, rest = split_sentences(text + " ")
+    tail = clean_sentence(rest)
+    return complete + ([tail] if tail else [])
+
+
 def clean_sentence(text: str) -> str:
     """What is safe to say aloud from one sentence; empty when nothing is."""
     sentence = _DOT_RUN.sub(".", text.strip()).strip()  # "Vale........" -> "Vale."

@@ -13,6 +13,9 @@ from cafe_norte.domain.contracts import (
     ConfirmationId,
     ConfirmationTarget,
     FieldTarget,
+    ReviewInParts,
+    ReviewOffered,
+    ReviewWaived,
     SessionState,
     TurnId,
 )
@@ -27,7 +30,11 @@ ConfirmationRefusal = Literal[
     "wrong_target",
     "already_answered",
     "same_turn",  # answered in the turn that presented it: only the candidate may answer
+    "nothing_to_review",  # heard whole, reviewed to the end or waived: confirm it instead
+    "already_reviewed",  # the review has started: it is not started again
 ]
+ReviewAnswer = Literal["affirm", "skip"]
+Assurance = Literal["heard", "reviewed", "waived"]
 
 
 def present(
@@ -55,21 +62,19 @@ def respond(
 ) -> Result[Confirmation, ConfirmationRefusal]:
     """Resolve the pending confirmation with the candidate's answer.
 
-    ``affirm`` succeeds only if the confirmation is pending, was fully delivered and its target
-    revision is still the record's revision. ``correct`` and ``deny`` mark it rejected.
+    ``affirm`` succeeds only if the confirmation is pending, is ready to confirm (heard, reviewed
+    or waived) and its target revision is still the record's revision. ``correct`` and ``deny``
+    mark it rejected.
     ``unrelated`` changes nothing and is reported as ``wrong_target``. Any answer in the same
     turn that presented it is ``same_turn``: the candidate has not spoken yet."""
-    pending = state.pending_confirmation
-    if pending is None:
-        return Err("nothing_pending")
-    if pending.status != "pending":
-        return Err("already_answered")
-    if pending.presented_turn_id == response_turn_id:
-        return Err("same_turn")
+    opened = _open(state, response_turn_id)
+    if isinstance(opened, Err):
+        return opened
+    pending = opened.value
     if answer == "unrelated":
         return Err("wrong_target")
     if answer == "affirm":
-        if not pending.fully_delivered:
+        if not ready_to_confirm(pending):
             return Err("not_delivered")
         if _target_revision(pending.target) != state.candidate.revision:
             return Err("stale_revision")
@@ -77,6 +82,92 @@ def respond(
     else:
         status = "rejected"
     return Ok(pending.model_copy(update={"status": status, "response_turn_id": response_turn_id}))
+
+
+def ready_to_confirm(confirmation: Confirmation) -> bool:
+    """Heard whole; or gone over to the last part and heard; or the candidate waived the review.
+    Anything else (cut, offered, a part still to hear) cannot be confirmed."""
+    stage = confirmation.review
+    if stage is None:
+        return confirmation.fully_delivered
+    if isinstance(stage, ReviewInParts):
+        return confirmation.fully_delivered and stage.part == stage.parts - 1
+    return isinstance(stage, ReviewWaived)
+
+
+def advance_review(
+    state: SessionState, answer: ReviewAnswer, turn_id: TurnId, *, parts: int
+) -> Result[Confirmation, ConfirmationRefusal]:
+    """The candidate's answer to a read-back that is not ready: a yes goes one step further into
+    the review, "carry on" waives it. One step per answer, one answer per turn.
+
+    | now | affirm | skip |
+    | said, not heard | offered | offered (no skip before the offer) |
+    | offered | first part | waived |
+    | part heard, not the last | next part | waived |
+    | part cut again | waived | waived |
+
+    ``parts`` is how many parts the text has; it is read once, when the first part is said.
+    The review never confirms: the confirming answer comes after, through ``respond``."""
+    opened = _open(state, turn_id)
+    if isinstance(opened, Err):
+        return opened
+    pending = opened.value
+    if ready_to_confirm(pending):
+        return Err("nothing_to_review")
+    stage = pending.review
+    if stage is not None and stage.turn_id == turn_id:
+        return Err("same_turn")
+    if isinstance(stage, ReviewOffered) and answer == "affirm":
+        return Ok(_say_part(pending, ReviewInParts(part=0, parts=parts, turn_id=turn_id)))
+    if isinstance(stage, ReviewInParts) and pending.fully_delivered and answer == "affirm":
+        moved = stage.model_copy(update={"part": stage.part + 1, "turn_id": turn_id})
+        return Ok(_say_part(pending, moved))
+    next_stage = ReviewOffered(turn_id=turn_id) if stage is None else ReviewWaived(turn_id=turn_id)
+    return Ok(pending.model_copy(update={"review": next_stage}))
+
+
+def start_parts(
+    state: SessionState, turn_id: TurnId, *, parts: int
+) -> Result[Confirmation, ConfirmationRefusal]:
+    """A read-back that was cut and is presented again is gone over in parts instead of being
+    read the same way twice (D35 read it whole and was cut again). Only once."""
+    opened = _open(state, turn_id)
+    if isinstance(opened, Err):
+        return opened
+    pending = opened.value
+    if pending.review is not None:
+        return Err("already_reviewed")
+    if pending.fully_delivered:
+        return Err("nothing_to_review")
+    return Ok(_say_part(pending, ReviewInParts(part=0, parts=parts, turn_id=turn_id)))
+
+
+def assurance(confirmation: Confirmation) -> Assurance:
+    """How a confirmed read-back was confirmed: heard whole, gone over to the end, or carried on
+    without going over it. The export shows it."""
+    if isinstance(confirmation.review, ReviewWaived):
+        return "waived"
+    return "heard" if confirmation.review is None else "reviewed"
+
+
+def _open(state: SessionState, turn_id: TurnId) -> Result[Confirmation, ConfirmationRefusal]:
+    """The pending confirmation, when the candidate's answer in ``turn_id`` may act on it."""
+    pending = state.pending_confirmation
+    if pending is None:
+        return Err("nothing_pending")
+    if pending.status != "pending":
+        return Err("already_answered")
+    if pending.presented_turn_id == turn_id:
+        return Err("same_turn")
+    return Ok(pending)
+
+
+def _say_part(pending: Confirmation, stage: ReviewInParts) -> Confirmation:
+    """Move to a part, unheard. The turn that says it is the one whose playback acknowledges it."""
+    return pending.model_copy(
+        update={"review": stage, "fully_delivered": False, "presented_turn_id": stage.turn_id}
+    )
 
 
 def invalidated_by_patch(

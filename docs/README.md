@@ -7,6 +7,7 @@
 | `architecture.md` | Contracts, turn execution, event protocol, limits, data boundaries |
 | `evaluation.md` | Evaluation and observability design |
 | `runbook.md` | Operations |
+| `known-issues.md` | Problems seen in real calls, with evidence, cause, reproduction and the proposed fix |
 | `production.md` | Production discussion: scaling, replicas, telephony, speech-to-speech |
 | `evaluation-report.md` | Measured results; written at the evaluation stage |
 | `audio/` | Script of the spoken scaffold walkthrough; the recording is attached to the scaffold PR |

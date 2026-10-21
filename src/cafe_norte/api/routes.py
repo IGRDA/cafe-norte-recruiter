@@ -27,6 +27,7 @@ from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, Store
 from cafe_norte.errors import ServiceError
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.voice.contracts import (
+    Room,
     RoomProvisioner,
     VoiceMode,
     VoiceSessionController,
@@ -138,6 +139,7 @@ def build_router(
             await rooms.destroy(room)
             await store.admission.release(sid, actual_eur=0.0)
             raise
+        tasks.start(_release_when_over(voice, rooms, store, sid, room))
         return VoiceStartResponse(
             room_url=room.room_url, candidate_token=room.candidate_token, expires_at=expires_at
         )
@@ -227,6 +229,20 @@ def build_router(
         )
 
     return router
+
+
+async def _release_when_over(
+    voice: VoiceSessionController,
+    rooms: RoomProvisioner,
+    store: Store,
+    session_id: SessionId,
+    room: Room,
+) -> None:
+    """However the voice session ends (stop, candidate left, expiry, failure), the slot and
+    the room go with it; otherwise capacity leaks until the next deploy."""
+    await voice.wait(session_id)
+    await rooms.destroy(room)
+    await store.admission.release(session_id, actual_eur=0.0)
 
 
 async def _drain(events: Any) -> None:

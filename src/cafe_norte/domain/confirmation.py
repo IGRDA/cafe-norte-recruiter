@@ -85,14 +85,16 @@ def invalidated_by_patch(
     changed: Sequence[CandidateFieldName] | None = None,
 ) -> Confirmation | None:
     """The pending confirmation after a fact changed: brief and slot targets referencing an
-    older revision become ``invalidated``; a field target survives only when ``changed`` names
-    other fields than its own. Answered confirmations are left as they are."""
+    older revision become ``invalidated``; a field target survives when ``changed`` names
+    other fields than its own, and moves to ``new_revision`` so the candidate's yes can still
+    confirm it. Answered confirmations are left as they are."""
     pending = state.pending_confirmation
     if pending is None or pending.status != "pending":
         return pending
     if isinstance(pending.target, FieldTarget):
         if changed is not None and pending.target.field not in changed:
-            return pending
+            moved = pending.target.model_copy(update={"revision": new_revision})
+            return pending.model_copy(update={"target": moved})
     elif _target_revision(pending.target) == new_revision:
         return pending
     return pending.model_copy(update={"status": "invalidated"})

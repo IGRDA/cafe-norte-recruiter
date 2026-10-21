@@ -2,9 +2,13 @@
 
 from datetime import UTC, datetime
 
+from hypothesis import given
+from hypothesis import strategies as st
+
 from cafe_norte.domain.confirmation import invalidated_by_patch, present, respond
 from cafe_norte.domain.contracts import (
     BriefTarget,
+    CandidateFieldName,
     CandidateRecord,
     ConfigId,
     Confirmation,
@@ -15,6 +19,17 @@ from cafe_norte.domain.contracts import (
     TurnId,
 )
 from cafe_norte.domain.result import Err, Ok
+
+OTHER_FIELDS: tuple[CandidateFieldName, ...] = (
+    "name",
+    "interest",
+    "work_authorization",
+    "availability_days",
+    "availability_shifts",
+    "hours_per_week",
+    "experience",
+    "contact_phone",
+)
 
 T1, T2, T3 = TurnId("t1"), TurnId("t2"), TurnId("t3")
 
@@ -92,7 +107,28 @@ def test_a_patch_invalidates_the_brief_and_the_same_field_but_not_another_field(
     )
     same = invalidated_by_patch(state(phone), 4)
     assert same is not None and same.status == "invalidated"
-    assert invalidated_by_patch(state(phone), 4, changed=("hours_per_week",)) == phone
+    survived = invalidated_by_patch(state(phone), 4, changed=("hours_per_week",))
+    assert survived is not None and survived.status == "pending"
+    assert survived.target == FieldTarget(field="contact_phone", revision=4)  # retargeted
     assert invalidated_by_patch(state(None), 4) is None
     confirmed = phone.model_copy(update={"status": "confirmed"})
     assert invalidated_by_patch(state(confirmed), 4) == confirmed
+
+
+@given(st.integers(min_value=0, max_value=50), st.sampled_from(OTHER_FIELDS))
+def test_a_patch_of_another_field_never_leaves_a_field_read_back_unanswerable(
+    revision: int, other: CandidateFieldName
+) -> None:
+    """The hosted call of 21 October: the date was read back, the experience was saved, and
+    the candidate's "sí" could no longer confirm the date (stale revision)."""
+    date = present(
+        state(revision=revision),
+        FieldTarget(field="earliest_start_date", revision=revision),
+        "Fecha.",
+        T1,
+        ConfirmationId("k"),
+    ).model_copy(update={"fully_delivered": True})
+    survived = invalidated_by_patch(state(date, revision), revision + 1, changed=(other,))
+    after = state(survived, revision + 1)
+    answered = respond(after, "affirm", T2)
+    assert isinstance(answered, Ok) and answered.value.status == "confirmed"

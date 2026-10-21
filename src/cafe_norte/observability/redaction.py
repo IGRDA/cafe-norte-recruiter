@@ -12,7 +12,9 @@ _MASKS: tuple[tuple[re.Pattern[str], str], ...] = tuple(
         (r"\b(?:sk|pk)-[\w-]{8,}", "[secret]"),
         (r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", "[email]"),
         (r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){3,7}(?: ?[A-Z0-9]{1,3})?\b", "[iban]"),
-        (r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)", "[card]"),
+        # A card stands on its own: digits glued to a word or a dash are an identifier, such
+        # as a slot id ("…_v1-2026-10-21-1030"), which must stay legible (KI-06, D44).
+        (r"(?<![\w-])(?:\d[ -]?){12,18}\d(?![\w-])", "[card]"),
         (r"\b\d{8}[A-Za-z]\b|\b[XYZxyz]\d{7}[A-Za-z]\b", "[id]"),
         (r"(?<!\d)(?:(?:\+|00)34[ .-]?)?[6-9](?:[ .-]?\d){8}(?!\d)", "[phone]"),
     )

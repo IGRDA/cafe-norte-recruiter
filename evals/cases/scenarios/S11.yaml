@@ -1,0 +1,71 @@
+id: S11
+title: A declined field, then the candidate withdraws, Chamberí
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# Line 3: the candidate would rather not say their hours. The field is saved as declined and
+# the brief says so; no number is invented. After the brief the candidate changes their mind
+# and leaves: the session stops, nothing is booked, what was captured stays.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes y martes por la mañana, pero prefiero no decir cuántas horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
+  - "Pensándolo mejor, prefiero dejarlo aquí. Gracias."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue]
+          availability_shifts: [morning]
+          declined: [hours_per_week]
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes y martes por la mañana, pero prefiero no decir cuántas horas."
+    - say: "Sin problema. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: end_session
+      args: { reason: candidate_stop }
+    - say: "Entendido, Lucía. Gracias por tu tiempo. Que vaya bien."
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue
+    availability_shifts: morning
+    earliest_start_date: next monday
+    experience: dos años en una cafetería de barrio
+  declines:
+    - hours_per_week
+  wants_interview: false
+checks:
+  - name: field_status
+    args: { field: hours_per_week, status: declined }
+  - name: field_status
+    args: { field: name, status: captured }
+  - name: lifecycle_is
+    args: { lifecycle: stopped }
+  - name: outcome_is
+    args: { outcome: incomplete }
+  - name: booking_absent
+  - name: no_fabricated_confirmed_values
+  - name: max_repeated_questions
+    args: { max: "0" }
+rubric:
+  - The brief showed hours per week as something the candidate preferred not to say, not as a number.
+  - When the candidate left, Ana accepted it and did not try to keep them.

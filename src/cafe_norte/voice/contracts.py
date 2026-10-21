@@ -32,6 +32,11 @@ class Room(Frozen):
 
 
 VoiceStatus = Literal["connecting", "listening", "thinking", "speaking", "paused", "ended"]
+# The hosted pipeline's providers, named once: the pipeline runs them and the version stamp and
+# the price table (observability/prices) refer to them by these ids.
+STT_MODEL = "nova-3"
+TTS_MODEL = "eleven_flash_v2_5"
+
 VoiceMode = Literal[
     "off", "browser", "pipecat"
 ]  # browser = Web Speech until hosted voice is verified

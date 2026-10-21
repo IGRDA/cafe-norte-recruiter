@@ -11,6 +11,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.audio.vad.vad_analyzer import VADAnalyzer
 from pipecat.frames.frames import STTUpdateSettingsFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -19,6 +20,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregator,
     LLMUserAggregatorParams,
 )
+from pipecat.processors.frame_processor import FrameProcessor
 from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
 from pipecat.transcriptions.language import Language as PipecatLanguage
@@ -36,7 +38,7 @@ from pipecat.workers.runner import WorkerRunner
 from cafe_norte.domain.contracts import SessionId
 from cafe_norte.errors import Language, ServiceError
 from cafe_norte.observability.contracts import StageTiming
-from cafe_norte.voice.bridge import InboundBridge, PlaybackTap
+from cafe_norte.voice.bridge import InboundBridge, PlaybackTap, SessionPort
 from cafe_norte.voice.contracts import (
     STT_MODEL,
     TTS_MODEL,
@@ -76,6 +78,18 @@ def user_turn_strategies() -> UserTurnStrategies:
             )
         ],
     )
+
+
+def user_side(session: SessionPort, vad: VADAnalyzer | None) -> list[FrameProcessor]:
+    """What sits between STT and TTS, in order: Pipecat's user aggregator and our bridge.
+    One function, so the pipeline and the tests that run the real aggregator share it."""
+    turns = LLMUserAggregator(
+        LLMContext(),
+        params=LLMUserAggregatorParams(
+            vad_analyzer=vad, user_turn_strategies=user_turn_strategies()
+        ),
+    )
+    return [turns, InboundBridge(session)]
 
 
 class PipecatVoiceController:
@@ -167,13 +181,6 @@ class PipecatVoiceController:
             api_key=self._elevenlabs_api_key,
             settings=ElevenLabsTTSSettings(model=TTS_MODEL, voice=self._voice_id),
         )
-        turns = LLMUserAggregator(
-            LLMContext(),
-            params=LLMUserAggregatorParams(
-                vad_analyzer=SileroVADAnalyzer(),
-                user_turn_strategies=user_turn_strategies(),
-            ),
-        )
         holder: dict[str, InboundBridge] = {}
         tasks: set[asyncio.Future[None]] = set()
         task_holder: dict[str, PipelineTask] = {}
@@ -198,14 +205,15 @@ class PipecatVoiceController:
             clock=self._clock,
             on_language=lambda new: tasks.add(asyncio.ensure_future(recognise_in(new))),
         )
-        bridge = InboundBridge(session)
+        user = user_side(session, SileroVADAnalyzer())
+        bridge = user[-1]
+        assert isinstance(bridge, InboundBridge)
         holder["bridge"] = bridge
         pipeline = Pipeline(
             [
                 transport.input(),
                 stt,
-                turns,
-                bridge,
+                *user,
                 tts,
                 transport.output(),
                 PlaybackTap(session),

@@ -20,7 +20,7 @@ dependencies = [
 # Pipecat and the three voice providers. Only the hosted voice path needs them.
 voice = ["pipecat-ai[daily,deepgram,elevenlabs,silero]>=1.13"]
 # Local embeddings and BM25 for the knowledge index; built into the image, not needed for text tests.
-knowledge = ["fastembed>=0.4", "rank-bm25>=0.2.2"]
+knowledge = ["fastembed>=0.4"]
 
 [dependency-groups]
 dev = [

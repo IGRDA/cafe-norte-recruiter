@@ -69,7 +69,7 @@ Every directory has its own README.
 | [docs/architecture.md](docs/architecture.md) | Contracts, turn execution, event protocol, limits, who sees what |
 | [docs/evaluation.md](docs/evaluation.md) | Evaluation design: suites, scorers, judge, tracing, what runs where |
 | [docs/runbook.md](docs/runbook.md) | Restart, cleanup, failed calls, teardown |
-| [docs/production.md](docs/production.md) | Scaling, replicas, telephony and speech-to-speech discussion |
+| [docs/production.md](docs/production.md) | Production discussion (spec §17): what breaks first and the next step for calls, replicas, availability, imports, monitoring, privacy, Twilio and speech-to-speech |
 | [evals/README.md](evals/README.md) | Running the evaluation suites |
 | [infra/README.md](infra/README.md) | Google Cloud deployment with Terraform |
 

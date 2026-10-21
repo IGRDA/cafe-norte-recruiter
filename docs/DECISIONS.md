@@ -1015,3 +1015,36 @@ endpoint and a hardened boundary.
 the voice has not finished saying counts as read. The browser speech mode (D22) stays until a
 follow-up removes it. `ui.<lang>.md` is new candidate-facing text; `PROMPT_VERSION` is unchanged
 because the model never sees it.
+
+---
+
+## D42 · Hosted traces carry redacted content; one line turns it off
+
+_Added 21 October 2026, with the production notes (`docs/production.md`)._
+
+**Context.** D36 made content opt-in and left the hosted app without it. KI-06 showed the cost:
+the journal does not record tool arguments, and the trace did not either, so the slot id the
+model sent to `present_confirmation` could not be read anywhere. A bug seen only in a hosted call
+stayed a guess.
+
+**Decision.** `CAFE_NORTE_TRACE_CONTENT=on` in `plain_env` (`infra/app/main.tf`), decided by the
+owner on three terms: the demo's data is fictional, redaction runs before export (D36), and
+switching off is one word and a push (`docs/runbook.md`). Rejected: keeping content off (KI-06
+stays a guess) and a Terraform variable for it (a second place for the same fact, and the
+plain settings beside it are not variables either).
+
+**What is exported.** The turn's input and output, a generation's newest messages within 1 800
+characters (the system prompt is not sent: `prompt_version` pins it), and a tool's arguments and
+result, each redacted for emails, phones, DNI/NIE, IBAN, cards and secrets, then cut at 2 000
+characters (D36, `docs/architecture.md`).
+
+**Tests.** Redaction and what content exports are D36's (`tests/test_telemetry.py`). New:
+`tests/test_infra_settings.py` requires every `plain_env` key to be in `.env.example`, because
+the app ignores an unknown key and a misspelled switch would leave content off without a sound.
+A test pinning the value to `on` was rejected: it would make switching off a two-file change.
+
+**Consequences we accept.** Redaction is pattern-based: a name or an address said in free text is
+not a pattern, so this is safe because the data is fictional, not because the filter is complete.
+Langfuse keeps what it received under its own retention, not our seven days (D34). With real
+applicants it is `off`, and `docs/production.md` §10 lists what must exist first. Spans exported
+before the switch is turned off stay in Langfuse until deleted there.

@@ -19,6 +19,11 @@
   tracing off, never a failed boot. The database password is
   Terraform's: bump `db_password_version` in `infra/app` and deploy; the user and the secret
   version change together.
+- **Trace content** (D42): the hosted app sends redacted words and tool arguments to Langfuse,
+  acceptable only while the data is fictional. To switch it off, change
+  `CAFE_NORTE_TRACE_CONTENT=on` to `off` in `plain_env` (`infra/app/main.tf`) and push to `main`;
+  the deploy applies and resets. Traces keep metadata, cost and timings; spans already exported
+  stay in Langfuse until deleted there.
 - **Database** (Cloud SQL `cafe-norte-db`, D33): the app reaches it through the Auth Proxy on
   the VM (`docker logs cloud-sql-proxy`). To look inside by hand:
   `gcloud sql connect cafe-norte-db --user=cafe_norte --database=cafe_norte --project cafe-norte-orbio`
@@ -43,8 +48,8 @@
      a failed span is red with its code. A `chat` generation shows the tokens, the euros,
      the time to first token and `silent_attempts`; a tool shows its arguments and result.
      Every span carries the whole version stamp (prompt, model, knowledge base, commit).
-     Traces exist only where the `LANGFUSE_*` variables are set (a local run today; the hosted
-     app once they are in `infra/app`, D36).
+     Traces exist only where the `LANGFUSE_*` variables are set (a local run, and the hosted
+     app since D36). The hosted app exports the words and tool arguments too (D42).
   2. The JSON lines around it: `docker logs --since 1h app | grep <id>`, or in Cloud Logging
      `jsonPayload.session_id="<id>"`. For the voice pipeline (VAD, TTS, idle prompts) too.
   3. The journal, for what was announced to the candidate, in order:
@@ -62,6 +67,3 @@
   scripts/teardown.sh` before `demo_end_date`; the bootstrap stack stays unless the project is
   retired. `terraform destroy` removes the Cloud SQL instance too (no deletion protection); its
   backups go with it.
-
-Later stages add: failed-call triage with Langfuse traces, the retention job and manual delete,
-backup retention.

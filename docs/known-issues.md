@@ -101,7 +101,7 @@ the session never paused during the call; no model round timed out.
   full list again. The same loop three more times; nothing booked.
 - **Cause.** The model must copy a slot id from the tool text into `present_confirmation`;
   gpt-4o-mini did not, or mangled it. The journal does not record tool arguments, so the id it
-  sent cannot be checked (observability gap).
+  sent cannot be checked (observability gap; hosted traces carry tool arguments since D42).
 - **Reproduce (manual).** Hosted or `make voice-smoke`: confirm the summary, ask for an
   interview, answer the offer with a day only ("el viernes"), then "sí".
 - **Fix.** Resolve the choice in the runtime like a yes/no: match "el primero", "el viernes",

@@ -262,6 +262,47 @@ def test_a_plain_yes_is_an_affirmation(text: str) -> None:
     assert answer_to_readback(text) == "affirm"
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sigue.",
+        "Sigue, sigue.",
+        "Seguimos.",
+        "Sí, seguimos.",
+        "Vale, sigamos.",
+        "Continúa.",
+        "Adelante.",
+        "No hace falta.",
+        "No hace falta, sigue.",
+        "No, sigue.",
+        "Mhmm, sigue adelante.",
+        "Carry on.",
+        "Yes, carry on.",
+        "Go on.",
+        "Let's move on.",
+        "Keep going.",
+        "No need.",
+        "Skip it.",
+    ],
+)
+def test_an_explicit_carry_on_is_a_skip(text: str) -> None:
+    assert answer_to_readback(text) == "skip"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sigue, pero el teléfono es otro",  # a correction rides along: the model handles it
+        "Sigue. ¿Dónde está la tienda?",
+        "No sigas",
+        "No hace falta que lo repitas, el teléfono es otro",
+        "Carry on, but the date is wrong",
+    ],
+)
+def test_a_carry_on_with_something_more_goes_to_the_model(text: str) -> None:
+    assert answer_to_readback(text) is None
+
+
 @pytest.mark.parametrize("text", ["Todo.", "Está.", "Eso.", "Así.", "All.", "Es lo."])
 def test_a_yes_made_only_of_weak_words_needs_a_core_yes_word(text: str) -> None:
     assert answer_to_readback(text) is None

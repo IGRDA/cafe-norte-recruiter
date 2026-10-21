@@ -880,6 +880,8 @@ class Runtime:
         ``confirm_field`` can no longer leave it pending (D35). Anything else is the model's."""
         ui = run.input.ui_answer
         answer = ui.answer if ui is not None else answer_to_readback(run.input.text)
+        if answer == "skip":
+            answer = None  # routed by the read-back review (D39); until then the model's
         pending = run.state.pending_confirmation
         if ui is not None and pending is not None and pending.confirmation_id == ui.confirmation_id:
             # The card was on the screen: pressing the button is reading it, even if the voice

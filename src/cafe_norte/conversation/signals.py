@@ -132,7 +132,7 @@ def _negated(before: str) -> bool:
 
 # ---- plain answers to a read-back ----------------------------------------------------------------
 
-ReadbackAnswer = Literal["affirm", "deny"]
+ReadbackAnswer = Literal["affirm", "deny", "skip"]
 
 # Whole phrases, longest first, so "no es correcto" is a denial and never "no" + "es correcto".
 _DENY = (
@@ -159,26 +159,55 @@ _YES_CORE = frozenset(
     | {"yes", "right", "correct", "fine", "good", "exactly", "yeah", "yep", "sure"}
 )
 _YES_WEAK = frozenset({"todo", "esta", "eso", "asi", "es", "lo", "all", "that", "thats", "is"})
+# "Carry on" is its own answer: to an offer to go over a read-back it means "no need" (an informed
+# skip), and it is checked before a no because "no hace falta" and "no need" start with one.
+_SKIP = (
+    "no hace falta",
+    "no es necesario",
+    "no need",
+    "carry on",
+    "go on",
+    "move on",
+    "keep going",
+    "skip",
+    "sigue",
+    "sigamos",
+    "seguimos",
+    "continua",
+    "continuemos",
+    "adelante",
+)
+_SKIP_ALONGSIDE = frozenset({"no", "lets", "it", "please", "por", "favor", "ya"})
+# Checked in order: the first whose phrase is found decides, and only what it allows may remain.
+_PHRASE_ANSWERS: tuple[tuple[ReadbackAnswer, tuple[str, ...], frozenset[str]], ...] = (
+    ("skip", _SKIP, _YES_CORE | _YES_WEAK | _SKIP_ALONGSIDE),
+    ("deny", _DENY, frozenset()),
+)
 _FILLERS = frozenset(
     {"mhmm", "mhm", "mmm", "mm", "hmm", "eh", "ah", "uh", "um", "pues", "bueno", "ok", "okay"}
 )
 
 
 def answer_to_readback(text: str) -> ReadbackAnswer | None:
-    """``affirm`` or ``deny`` when the whole utterance is a plain yes or no (with fillers such
-    as "mhmm"); ``None`` when anything else is said, which stays the model's to interpret
-    ("sí, pero el teléfono es otro"). Pure; both languages."""
+    """``affirm``, ``deny`` or ``skip`` (carry on without going over it) when the whole utterance
+    is that plain answer (with fillers such as "mhmm"); ``None`` when anything else is said,
+    which stays the model's to interpret ("sí, pero el teléfono es otro"). Pure; both languages."""
     words = " ".join(" ".join(_clauses(text)).split())
-    rest, found = words, False
-    for phrase in _DENY:
-        pattern = re.compile(rf"\b{re.escape(phrase)}\b")
-        if pattern.search(rest):
-            found = True
-            rest = pattern.sub(" ", rest)
-    if found:
-        leftover = [w for w in rest.split() if w not in _FILLERS]
-        return "deny" if not leftover else None  # a plain no plus something else: the model decides
+    for answer, phrases, alongside in _PHRASE_ANSWERS:
+        rest, found = _without(words, phrases)
+        if found:
+            leftover = [w for w in rest.split() if w not in _FILLERS and w not in alongside]
+            return answer if not leftover else None  # a plain word plus more: the model decides
     return "affirm" if _is_plain_yes(words) else None
+
+
+def _without(words: str, phrases: tuple[str, ...]) -> tuple[str, bool]:
+    """``words`` minus every whole-word occurrence of the phrases, and whether any was found."""
+    rest, found = words, False
+    for phrase in phrases:
+        rest, hits = re.subn(rf"\b{re.escape(phrase)}\b", " ", rest)
+        found = found or hits > 0
+    return rest, found
 
 
 def _is_plain_yes(words: str) -> bool:

@@ -2,8 +2,12 @@
 model only words it. So a correction, a language switch or a question always happens, and on
 a line we can name."""
 
+import pytest
 from evals.contracts import Cue, Persona, Speaker, Transcript
-from evals.simulator import cue
+from evals.simulator import ModelCandidateSimulator, SimulatedCandidate, SimulatorError, cue
+
+from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelText
+from cafe_norte.model.fake import FakeModel
 
 PERSONA = Persona(
     facts={"name": "Lucía Marín", "hours_per_week": "30"},
@@ -61,3 +65,39 @@ def test_a_withdrawal_comes_after_the_named_line() -> None:
 def test_mood_comes_from_the_persona() -> None:
     persona = Persona(facts={}, mood="frustrated")
     assert cue(persona, "es", GREETING).mood == "frustrated"
+
+
+def said(text: str) -> list[ModelEvent]:
+    return [ModelText(text=text), ModelFinished(reason="stop")]
+
+
+async def test_the_model_words_the_cue_from_the_persona_and_the_transcript() -> None:
+    model = FakeModel([said('  "Me llamo Lucía Marín."  ')])
+    simulator = ModelCandidateSimulator(model)
+    line = await simulator.reply(
+        PERSONA, Cue(language="es", mood="neutral", ask="¿Hay parking?"), GREETING
+    )
+    assert line == "Me llamo Lucía Marín."
+    (messages,) = model.calls
+    system, user = messages[0].content, messages[-1].content
+    assert "Lucía Marín" in system and "hours_per_week: 30" in system
+    assert "Ana: Hola, soy Ana." in user
+    assert "¿Hay parking?" in user and "Spanish" in user
+
+
+async def test_a_simulator_that_says_nothing_stops_the_run() -> None:
+    simulator = ModelCandidateSimulator(FakeModel([said("   ")]))
+    with pytest.raises(SimulatorError):
+        await simulator.reply(PERSONA, Cue(language="es", mood="neutral"), GREETING)
+
+
+async def test_the_simulated_candidate_stops_after_withdrawing() -> None:
+    model = FakeModel([said("Sí, dime."), said("Lo dejo aquí, gracias.")])
+    candidate = SimulatedCandidate(
+        ModelCandidateSimulator(model), Persona(facts={}, withdraws_after_turn=1), "es"
+    )
+    first = await candidate.next_line(GREETING)
+    second = await candidate.next_line(after(("candidate", "Sí, dime."), ("ana", "¿Nombre?")))
+    assert (first, second) == ("Sí, dime.", "Lo dejo aquí, gracias.")
+    assert "leave" in model.calls[-1][-1].content
+    assert await candidate.next_line(GREETING) is None

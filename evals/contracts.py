@@ -253,4 +253,9 @@ class Candidate(Protocol):
 
 
 class CandidateSimulator(Protocol):
-    async def reply(self, persona: Persona, transcript: Transcript) -> str: ...
+    """Puts one cue into the candidate's words."""
+
+    @property
+    def model_id(self) -> str: ...
+
+    async def reply(self, persona: Persona, cue: Cue, transcript: Transcript) -> str: ...

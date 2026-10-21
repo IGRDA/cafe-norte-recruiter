@@ -81,6 +81,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Live eval: candidate lines per run | 24 (`MAX_LIVE_TURNS`); a run stops earlier when the session leaves `active` (D43) |
 | Live eval: wait for one turn's end | 90 s, then the turn is reported `no_turn_end` (D43) |
 | Live eval: loopback server start | 30 s to bind and finish its lifespan (D43) |
+| Live eval: simulator reply | 30 s per line; an empty reply stops the run (`SimulatorError`) (D43) |
 | Negation window for explicit requests | 3 words before the match, within one clause |
 | Follow-up flags | at most one per turn |
 | LLM first output | 6 s per round, one retry of a silent round, then `timeout` (D35) |

@@ -77,7 +77,9 @@ TOPIC_DOCS: dict[Topic, frozenset[str]] = {
 
 
 class RetrievalQuery(Frozen):
-    text: str
+    """One to three phrasings of the same question; rankings of every phrasing are fused."""
+
+    queries: tuple[str, ...] = Field(min_length=1, max_length=3)
     config_id: ConfigId
     kb_version: str
     doc_ids: frozenset[str] | None = None  # structured filter; None means every allowed doc
@@ -86,9 +88,11 @@ class RetrievalQuery(Frozen):
 
 class RetrievedChunk(Frozen):
     chunk: Chunk
-    fused_score: float
+    fused_score: float  # reciprocal rank fusion; comparable within one query only
     bm25_rank: int | None
     dense_rank: int | None
+    bm25_score: float = 0.0  # raw Okapi score; 0 when no query term occurs
+    dense_score: float | None = None  # cosine; None without an embedder
 
 
 class Embedder(Protocol):

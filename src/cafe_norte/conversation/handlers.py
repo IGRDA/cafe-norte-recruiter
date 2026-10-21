@@ -23,6 +23,7 @@ from cafe_norte.conversation.tools import (
     ConfirmFieldArgs,
     EndSessionArgs,
     PresentConfirmationArgs,
+    RequestHumanFollowupArgs,
     SearchKnowledgeArgs,
     ToolName,
     UpdateCandidateArgs,
@@ -79,6 +80,7 @@ def all_handlers(
         ),
         "confirm_field": ConfirmFieldHandler(store=store),
         "confirm_brief": ConfirmBriefHandler(store=store),
+        "request_human_followup": RequestHumanFollowupHandler(store=store),
         "end_session": EndSessionHandler(store=store, configurations=configurations),
     }
 
@@ -260,7 +262,7 @@ class SearchKnowledgeHandler(_Handler):
             allowed = allowed & TOPIC_DOCS[arguments.topic]
         found = await self._retriever.retrieve(
             RetrievalQuery(
-                text=arguments.query,
+                queries=arguments.queries,
                 config_id=state.config_id,
                 kb_version=configuration.kb_version,
                 doc_ids=allowed,
@@ -299,8 +301,9 @@ def snippets_message(found: tuple[RetrievedChunk, ...], next_step: str) -> str:
         ]
     else:
         lines = [
-            "No knowledge base snippet matched. Say you do not have that information and "
-            "that a person could follow up; do not guess.",
+            "No knowledge base snippet matched. Say you do not have that information, offer "
+            "that a person follows up, and if the candidate accepts call "
+            "request_human_followup with their question; do not guess.",
         ]
     return " ".join(lines) + f" Then: {next_step}"
 
@@ -308,6 +311,27 @@ def snippets_message(found: tuple[RetrievedChunk, ...], next_step: str) -> str:
 def _excerpt(text: str) -> str:
     flat = " ".join(text.split())
     return flat if len(flat) <= EXCERPT_CHARS else flat[: EXCERPT_CHARS - 1].rstrip() + "…"
+
+
+class RequestHumanFollowupHandler(_Handler):
+    """``request_human_followup``: one review flag per request, with the model's reason; the
+    conversation goes on. Nobody real is notified (the prompt says so to the candidate)."""
+
+    async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
+        assert isinstance(arguments, RequestHumanFollowupArgs)
+        state = await self._state(context)
+        if state is None:
+            return self._refuse("not_found", "Session not found.")
+        flag = ReviewFlag(kind="human_followup", turn_id=context.turn_id, note=arguments.reason)
+        new_state = state.model_copy(update={"review_flags": (*state.review_flags, flag)})
+        await self._save(new_state, expected_revision=state.candidate.revision)
+        return ToolOutcome(
+            ok=True,
+            model_text="Follow-up request saved. Say a person from the team would answer and that "
+            f"this demo notifies nobody real. Then: {_next_question(new_state)}",
+            summary="human_followup_saved",
+            events=(self._updated(new_state),),
+        )
 
 
 class PresentConfirmationHandler(_Handler):

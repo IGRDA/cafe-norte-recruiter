@@ -14,6 +14,11 @@ from cafe_norte.knowledge.contracts import (
 )
 
 RRF_K = 60
+# The relevance floor (D27): a chunk no query word occurs in, whose cosine is below this, is
+# noise. Chosen from evals/results/retrieval/: every answerable chunk without a lexical match
+# scored ≥ 0.40; the unsupported questions with no lexical match scored ≤ 0.37. Re-measure
+# when the embedding model changes.
+DENSE_FLOOR = 0.40
 
 
 def lexical_text(chunk: Chunk) -> str:
@@ -27,12 +32,20 @@ class HybridRetriever:
     document ids; both rankers rank among allowed chunks only, so a chunk of another store
     can never outrank anything. Without an embedder the retriever is BM25 only."""
 
-    def __init__(self, index: Index, embedder: Embedder | None, *, rrf_k: int = RRF_K) -> None:
+    def __init__(
+        self,
+        index: Index,
+        embedder: Embedder | None,
+        *,
+        rrf_k: int = RRF_K,
+        dense_floor: float = DENSE_FLOOR,
+    ) -> None:
         if embedder is not None and index.vectors is None:
             raise ValueError("an embedder needs an index with vectors")
         self._index = index
         self._embedder = embedder
         self._k = rrf_k
+        self._floor = dense_floor
         self._bm25 = BM25(tuple(tokenize(lexical_text(c)) for c in index.chunks))
 
     @property
@@ -50,13 +63,24 @@ class HybridRetriever:
         ]
         if not allowed:
             return ()
-        rankings: list[dict[int, int]] = [_ranks(allowed, self._bm25.scores(tokenize(query.text)))]
+        # One BM25 ranking per phrasing, one dense ranking per phrasing (one batched embed
+        # call), all fused by reciprocal rank. The raw scores kept per chunk are its best.
+        lexical = [self._bm25.scores(tokenize(text)) for text in query.queries]
+        rankings = [_ranks(allowed, scores) for scores in lexical]
+        bm25_scores = [max(scores[i] for scores in lexical) for i in range(len(self._index.chunks))]
+        dense_scores: list[float] | None = None
+        dense_rankings: list[dict[int, int]] = []
         if self._embedder is not None and self._index.vectors is not None:
-            (vector,) = await self._embedder.embed([query.text])
-            vectors = self._index.vectors
-            rankings.append(_ranks(allowed, [_cosine(vector, v) for v in vectors]))
+            vectors = await self._embedder.embed(list(query.queries))
+            per_query = [[_cosine(q, v) for v in self._index.vectors] for q in vectors]
+            dense_rankings = [_ranks(allowed, scores) for scores in per_query]
+            dense_scores = [max(scores[i] for scores in per_query) for i in range(len(bm25_scores))]
         fused = {
-            i: sum(1.0 / (self._k + ranking[i]) for ranking in rankings if i in ranking)
+            i: sum(
+                1.0 / (self._k + ranking[i])
+                for ranking in (*rankings, *dense_rankings)
+                if i in ranking
+            )
             for i in allowed
         }
         best = sorted(allowed, key=lambda i: (-fused[i], i))[: query.limit]
@@ -64,12 +88,25 @@ class HybridRetriever:
             RetrievedChunk(
                 chunk=self._index.chunks[i],
                 fused_score=fused[i],
-                bm25_rank=rankings[0].get(i),
-                dense_rank=rankings[1].get(i) if len(rankings) > 1 else None,
+                bm25_rank=_best_rank(rankings, i),
+                dense_rank=_best_rank(dense_rankings, i) if dense_rankings else None,
+                bm25_score=bm25_scores[i],
+                dense_score=dense_scores[i] if dense_scores is not None else None,
             )
             for i in best
-            if fused[i] > 0
+            if fused[i] > 0 and self._relevant(bm25_scores[i], dense_scores, i)
         )
+
+    def _relevant(self, bm25_score: float, dense_scores: list[float] | None, i: int) -> bool:
+        """Lexical overlap is evidence; without it the cosine must clear the floor."""
+        if bm25_score > 0 or dense_scores is None:
+            return True
+        return dense_scores[i] >= self._floor
+
+
+def _best_rank(rankings: list[dict[int, int]], i: int) -> int | None:
+    ranks = [r[i] for r in rankings if i in r]
+    return min(ranks) if ranks else None
 
 
 def _ranks(allowed: list[int], scores: list[float] | tuple[float, ...]) -> dict[int, int]:

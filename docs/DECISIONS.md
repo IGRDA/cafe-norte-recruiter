@@ -488,6 +488,37 @@ _Added 21 October 2026, with the RAG stage._
 answerable, 0/24 leaked, every unsupported question returned three chunks (no floor), median
 6 ms per retrieval after warm-up. BM25 alone finds every Spanish answerable question.
 
+## D27 · Relevance floor from measured scores; phrasings fused; follow-up as a flag
+
+_Added 21 October 2026, the second RAG pull request._
+
+**What the numbers said.** Fused RRF scores are rank-based: the top chunk of a supported and
+of an unsupported question both score ≈ 0.032, so no floor can live there. On raw scores
+(`evals/results/retrieval/`), the best cosine of answerable questions ran 0.41–0.78 and of
+unsupported ones 0.30–0.45: a cosine-only floor would cut the two weakest answerable questions
+before the strongest unsupported one. What separated cleanly: every answerable chunk that had
+no lexical match scored ≥ 0.40, and the unsupported questions with no lexical match scored
+≤ 0.37.
+
+**Decisions.**
+- Floor: a chunk no query word occurs in is kept only when its cosine is ≥ 0.40
+  (`DENSE_FLOOR`). Lexical overlap is evidence and survives any floor. Result: recall@3 stays
+  16/16, two of four unsupported questions return nothing; the other two (semantically close
+  to a real section, e.g. the manager's salary next to the barista's) stay the prompt's job.
+  The constant is re-measured whenever the embedding model or the KB changes; the manifest
+  records both.
+- Multi-query: `RetrievalQuery.queries` holds one to three phrasings; each gets a BM25 and a
+  dense ranking (one batched embed call), all fused by RRF; a chunk's raw scores are its best
+  across phrasings. The model adds a second Spanish phrasing for vague or English questions.
+- `request_human_followup(reason)` appends one `ReviewFlag(kind="human_followup")` and the
+  conversation continues; the tool text and the prompt offer it when nothing answers, and the
+  candidate is told nobody real is notified. No outcome change: `human_followup_requested`
+  as a session outcome waits for the signals stage, where an explicit "quiero hablar con una
+  persona" gets its synchronous path.
+
+**Not done.** ragas and Langfuse sync (not chosen), and a floor that uses the second-best
+chunk's margin (no evidence it would help on 24 questions).
+
 ## Assumptions recorded without a question
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.

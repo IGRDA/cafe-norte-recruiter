@@ -43,7 +43,7 @@ class SearchKnowledgeArgs(Args):
     documents before ranking."""
 
     question: str = Field(min_length=1, max_length=500)
-    query: str = Field(min_length=1, max_length=200)
+    queries: tuple[str, ...] = Field(min_length=1, max_length=3)
     topic: Topic = "any"
 
 
@@ -97,15 +97,18 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "search_knowledge": "Look up facts about the role, the store, pay, shifts, training, "
     "uniform, benefits, the interview or the company. Call it for every such question, in "
     "the same turn, even if you think you know the answer; never state these facts without it. "
-    "`question` is what the candidate said; `query` is one self-contained question in Spanish "
-    "with the key words; `topic` narrows the documents.",
+    "`question` is what the candidate said; `queries` are one to three self-contained Spanish "
+    "phrasings of it with the key words (two when the question is vague or in English); "
+    "`topic` narrows the documents.",
     "list_interview_slots": "Get two or three available interview slots for this store.",
     "present_confirmation": "Read back a phone/date, the brief, or a proposed slot and wait "
     "for the candidate's answer.",
     "confirm_field": "Resolve the pending field read-back with the candidate's answer.",
     "confirm_brief": "Resolve the pending brief read-back with the candidate's answer.",
     "reserve_interview": "Reserve the slot the candidate just confirmed.",
-    "request_human_followup": "Save a request for a person to follow up, with the reason.",
+    "request_human_followup": "Save a request for a person to follow up, with the reason: "
+    "the candidate's unanswered question, or their wish to talk to a person. Call it once the "
+    "candidate accepts the offer; nobody real is notified in this demo.",
     "end_session": "Close the conversation for an allowed reason.",
 }
 

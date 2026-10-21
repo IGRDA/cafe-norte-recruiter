@@ -7,11 +7,11 @@ loads at startup.
 
 | File | Contents |
 | --- | --- |
-| `contracts.py` | `Document`, `Chunk`, `Index`, `IndexManifest`, `RetrievalQuery` (with the optional `doc_ids` filter), `RetrievedChunk`, `Topic` and `TOPIC_DOCS`, ports `Retriever` and `Embedder` |
+| `contracts.py` | `Document`, `Chunk`, `Index`, `IndexManifest`, `RetrievalQuery` (one to three phrasings, optional `doc_ids` filter), `RetrievedChunk` (ranks and raw BM25/cosine scores), `Topic` and `TOPIC_DOCS`, ports `Retriever` and `Embedder` |
 | `loader.py` | Front matter to `Document` (sha256 content hash); `## ` sections to `Chunk` (`doc_id#slug`, split by paragraph above 90 words) |
 | `bm25.py` | Tokenizer (lowercase, accents stripped, short stop list) and a thirty-line BM25 Okapi; no dependency |
 | `index.py` | `lexical_index` / `index_from_documents` in memory; `build_index` / `load_index` for the artifact (`manifest.json`, `chunks.json`, `vectors.json`) |
-| `hybrid.py` | `HybridRetriever`: allowed chunks (configuration, KB version, `doc_ids`) ranked by BM25 and dense cosine **among themselves**, fused by reciprocal rank (k = 60), top three; BM25 only without an embedder |
+| `hybrid.py` | `HybridRetriever`: allowed chunks (configuration, KB version, `doc_ids`) ranked by BM25 and dense cosine **among themselves**, once per phrasing, fused by reciprocal rank (k = 60), top three; a chunk with no query word needs cosine ≥ 0.40 (`DENSE_FLOOR`, D27); BM25 only without an embedder |
 | `embedder.py` | `FastEmbedEmbedder`: local multilingual model, lazy load, `to_thread`, two concurrent embeddings, `warm_up()`; the only file that imports the `knowledge` extra |
 | `fake.py` | `FakeRetriever` (canned results keyed by query text) and `FakeEmbedder` (hashed bag of tokens: deterministic, shares no numbers with reality) |
 
@@ -22,5 +22,6 @@ default). `make evals-retrieval` runs the 24 fixture questions through either an
 numbers under `evals/results/retrieval/`.
 
 Retrieved text is reference material for the model, never instructions. A top-ranked chunk is
-not proof an answer exists: the runtime's prompt tells Ana to abstain when the snippets do not
-answer, and `evals/cases/retrieval/` checks that she does.
+not proof an answer exists: the floor removes chunks with neither lexical nor semantic
+evidence, the prompt tells Ana to abstain when the remaining snippets do not answer, and
+`evals/cases/retrieval/` records what every unsupported question gets back.

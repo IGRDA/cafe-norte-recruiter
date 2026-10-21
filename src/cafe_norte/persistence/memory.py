@@ -33,7 +33,7 @@ from cafe_norte.persistence.contracts import (
     TurnRecord,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-from cafe_norte.persistence.later import ExportsLater, SummaryJobsLater
+from cafe_norte.persistence.later import SummaryJobsLater
 
 
 class MemoryTransaction:
@@ -65,6 +65,7 @@ class MemorySessions:
         self._states: dict[SessionId, SessionState] = {}
         self._seq: dict[SessionId, int] = {}
         self.fence: Callable[[SessionId, int], bool] = lambda session_id, generation: True
+        self.cascade: list[Callable[[SessionId], None]] = []  # what delete takes with it
 
     def _fenced(self, session_id: SessionId, lease_generation: int | None) -> None:
         if lease_generation is not None and not self.fence(session_id, lease_generation):
@@ -110,9 +111,16 @@ class MemorySessions:
 
     async def delete(self, session_id: SessionId) -> None:
         self._states.pop(session_id, None)
+        self._seq.pop(session_id, None)
+        for forget in self.cascade:
+            forget(session_id)
 
     async def expired(self, before: datetime, limit: int) -> tuple[SessionId, ...]:
-        raise NotImplementedError
+        """Sessions created before ``before``, oldest first: what retention deletes."""
+        old = sorted(
+            (s for s in self._states.values() if s.created_at < before), key=lambda s: s.created_at
+        )
+        return tuple(s.session_id for s in old[:limit])
 
 
 class MemoryTurns:
@@ -136,6 +144,9 @@ class MemoryTurns:
             self._turns.setdefault(turn.session_id, []).append(turn)
 
         _tx(tx).enlist(apply)
+
+    def forget(self, session_id: SessionId) -> None:
+        self._turns.pop(session_id, None)
 
     async def recent(self, session_id: SessionId, limit: int) -> tuple[TurnRecord, ...]:
         """The last ``limit`` turns in chronological order."""
@@ -200,6 +211,11 @@ class MemoryEvents:
 
     def _has_after(self, session_id: SessionId, seq: int) -> bool:
         return any(e.seq > seq for e in self._events.get(session_id, []))
+
+    def forget(self, session_id: SessionId) -> None:
+        self._events.pop(session_id, None)
+        self.usage = [u for u in self.usage if u.session_id != session_id]
+        self.timings = [t for t in self.timings if t.session_id != session_id]
 
     def last_seq(self, session_id: SessionId) -> int:
         events = self._events.get(session_id, [])
@@ -294,6 +310,15 @@ class MemoryCalendar:
     async def booking_by_key(self, idempotency_key: str) -> Booking | None:
         return self._by_key.get(idempotency_key)
 
+    def forget(self, session_id: SessionId) -> None:
+        """The session's simulated reservation goes with it; the slot is free again."""
+        booking = self._by_session.pop(session_id, None)
+        if booking is None:
+            return
+        del self._by_key[booking.idempotency_key]
+        slot = self._slots[booking.slot_id]
+        self._slots[booking.slot_id] = slot.model_copy(update={"status": "available"})
+
 
 class MemoryLeases:
     """One lease per session; ``clock`` decides expiry, as ``now()`` does in Postgres."""
@@ -338,6 +363,9 @@ class MemoryLeases:
         if self._leases.get(lease.session_id) == lease:
             self._leases[lease.session_id] = lease.model_copy(update={"expires_at": self._clock()})
 
+    def forget(self, session_id: SessionId) -> None:
+        self._leases.pop(session_id, None)
+
     def generation_is_live(self, session_id: SessionId, generation: int) -> bool:
         live = self._live(session_id)
         return live is not None and live.generation == generation
@@ -365,6 +393,9 @@ class MemoryAdmission:
     def active(self) -> frozenset[SessionId]:
         return frozenset(self._active)
 
+    def forget(self, session_id: SessionId) -> None:
+        self._active.pop(session_id, None)
+
 
 class MemoryResumeTokens:
     def __init__(self) -> None:
@@ -381,6 +412,23 @@ class MemoryResumeTokens:
             return None
         return found[0]
 
+    def forget(self, session_id: SessionId) -> None:
+        self._tokens = {h: v for h, v in self._tokens.items() if v[0] != session_id}
+
+
+class MemoryExports:
+    def __init__(self) -> None:
+        self._snapshots: dict[SessionId, str] = {}
+
+    async def write_snapshot(self, tx: Transaction, session_id: SessionId, json_text: str) -> None:
+        _tx(tx).enlist(lambda: self._snapshots.__setitem__(session_id, json_text))
+
+    async def read_snapshot(self, session_id: SessionId) -> str | None:
+        return self._snapshots.get(session_id)
+
+    def forget(self, session_id: SessionId) -> None:
+        self._snapshots.pop(session_id, None)
+
 
 class MemoryStore:
     def __init__(self, clock: Callable[[], datetime] = lambda: datetime.now(UTC)) -> None:
@@ -393,7 +441,16 @@ class MemoryStore:
         self.admission = MemoryAdmission()
         self.summary_jobs = SummaryJobsLater()
         self.resume_tokens = MemoryResumeTokens()
-        self.exports = ExportsLater()
+        self.exports = MemoryExports()
+        self.sessions.cascade = [
+            self.turns.forget,
+            self.events.forget,
+            self.calendar.forget,
+            self.leases.forget,
+            self.admission.forget,
+            self.resume_tokens.forget,
+            self.exports.forget,
+        ]
 
     def transaction(self) -> AbstractAsyncContextManager[Transaction]:
         return self._transaction()

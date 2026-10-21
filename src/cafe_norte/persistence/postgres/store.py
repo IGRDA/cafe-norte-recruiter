@@ -9,13 +9,12 @@ from cafe_norte.errors import ServiceError
 from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import (
     SNAPSHOT_TURNS,
-    Exports,
     SessionSnapshot,
     SummaryJobs,
     Transaction,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-from cafe_norte.persistence.later import ExportsLater, SummaryJobsLater
+from cafe_norte.persistence.later import SummaryJobsLater
 from cafe_norte.persistence.migrate import apply_pending
 from cafe_norte.persistence.postgres.admission import PostgresAdmission
 from cafe_norte.persistence.postgres.calendar import PostgresCalendar
@@ -25,6 +24,7 @@ from cafe_norte.persistence.postgres.events import (
     select_timings,
     select_usage,
 )
+from cafe_norte.persistence.postgres.exports import PostgresExports
 from cafe_norte.persistence.postgres.leases import PostgresLeases
 from cafe_norte.persistence.postgres.resume_tokens import PostgresResumeTokens
 from cafe_norte.persistence.postgres.sessions import PostgresSessions, select_state
@@ -73,7 +73,7 @@ class PostgresStore:
         self.admission = PostgresAdmission(connect, ttl_seconds=admission_ttl_seconds)
         self.summary_jobs: SummaryJobs = SummaryJobsLater()
         self.resume_tokens = PostgresResumeTokens(connect)
-        self.exports: Exports = ExportsLater()
+        self.exports = PostgresExports(connect)
         self._open = False
 
     async def open(self) -> None:

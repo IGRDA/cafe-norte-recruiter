@@ -9,7 +9,11 @@ from cafe_norte.persistence.migrate import apply_pending, main
 
 pytestmark = pytest.mark.postgres
 
-MIGRATIONS = ("0001_initial.sql", "0002_leases_admission_resume.sql")
+MIGRATIONS = (
+    "0001_initial.sql",
+    "0002_leases_admission_resume.sql",
+    "0003_exports_and_cascades.sql",
+)
 TABLES = {
     "sessions",
     "turns",
@@ -21,6 +25,7 @@ TABLES = {
     "leases",
     "admission",
     "resume_tokens",
+    "exports",
 }
 
 

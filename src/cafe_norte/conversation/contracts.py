@@ -162,6 +162,12 @@ class ConversationRuntime(Protocol):
         """Ana's opening: the fixed disclosure greeting, journaled like any turn, no model."""
         ...
 
+    def resume_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
+        """A private resume link reopened the session: a paused session becomes active, Ana
+        says the fixed resume sentence and repeats a pending read-back; no model, nothing is
+        rebooked (D32)."""
+        ...
+
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:
         """Playback acknowledgement from the voice channel: what was actually heard."""
         ...

@@ -240,9 +240,28 @@ class Runtime:
 
     async def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
         """The spec's opening sentence, word for word, before any candidate input."""
-        opening = TurnInput(
+        async for event in self._system_turn(session_id, InputId("opening"), _opening):
+            yield event
+
+    async def resume_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
+        """A resume link reopened the session: ``paused`` becomes ``active``, then the fixed
+        resume sentence and, when a read-back is still unanswered, its text again."""
+        input_id = InputId(f"resume-{uuid.uuid4().hex[:8]}")
+        async for event in self._system_turn(session_id, input_id, _resume, reactivate=True):
+            yield event
+
+    async def _system_turn(
+        self,
+        session_id: SessionId,
+        input_id: InputId,
+        sentences: Callable[[SessionState], list[str]],
+        *,
+        reactivate: bool = False,
+    ) -> AsyncIterator[RuntimeEvent]:
+        """A turn the system speaks by itself, journaled like any other, under the lease."""
+        system = TurnInput(
             session_id=session_id,
-            input_id=InputId("opening"),
+            input_id=input_id,
             text="",
             channel="text",
             received_at=self._clock(),
@@ -253,20 +272,37 @@ class Runtime:
             if state is None:
                 yield _NOT_FOUND
                 return
-            run = _Turn(input=opening, state=state)
+            run = _Turn(input=system, state=state)
+            if is_terminal(state):
+                yield await self._emit(run, run.failed("session_ended"))
+                return
             if not await self._claim(run):
                 yield await self._emit(run, run.failed("conflict"))
                 return
-            greeting = prompts.load("opening", state.language).strip()
             try:
+                spoken = sentences(state)
                 async with self._store.transaction() as tx:
+                    if reactivate and state.lifecycle == "paused":
+                        result = transition(state, "resume")
+                        if not isinstance(result, Err):
+                            lifecycle, outcome = result.value
+                            run.state = state.model_copy(
+                                update={"lifecycle": lifecycle, "outcome": outcome}
+                            )
+                            await self._store.sessions.save(
+                                tx,
+                                run.state,
+                                expected_revision=state.candidate.revision,
+                                lease_generation=run.generation,
+                            )
                     await self._store.turns.append(
-                        tx, run.record("assistant", greeting, self._clock())
+                        tx, run.record("assistant", " ".join(spoken), self._clock())
                     )
                 yield await self._emit(
                     run, TurnStarted(turn_id=run.turn_id, language=state.language, text="")
                 )
-                yield await self._emit(run, _say(greeting))
+                for sentence in spoken:
+                    yield await self._emit(run, _say(sentence))
                 yield await self._emit(
                     run,
                     TurnFinished(turn_id=run.turn_id, interrupted=False, usage=(), timings=()),
@@ -622,6 +658,19 @@ class Runtime:
                 ),
             )
         return event
+
+
+def _opening(state: SessionState) -> list[str]:
+    return [prompts.load("opening", state.language).strip()]
+
+
+def _resume(state: SessionState) -> list[str]:
+    """The resume sentence, then the unanswered read-back so a yes or no still has a target."""
+    spoken = [prompts.load("resume", state.language).strip()]
+    pending = state.pending_confirmation
+    if pending is not None and pending.status == "pending":
+        spoken.append(pending.presentation_text)
+    return spoken
 
 
 _NOT_FOUND = TurnFailed(turn_id=TurnId(""), code="not_found", message=MESSAGES["es"]["not_found"])

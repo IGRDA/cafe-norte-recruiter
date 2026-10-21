@@ -1,0 +1,35 @@
+# Provider prices in USD, converted to EUR at load time (D36). A price is data, not code:
+# change this file, bump `version`, update `verified_on`. Re-verify before every release.
+version: "2026-10-21"
+verified_on: 2026-10-21
+# ECB euro reference rate of 21 October 2026, USD per 1 EUR.
+usd_per_eur: 1.1234
+prices:
+  # https://developers.openai.com/api/docs/models/gpt-4o-mini : $0.15 / 1M in, $0.60 / 1M out.
+  # Cached input ($0.075 / 1M) is not recorded, so every input token is priced at the full rate.
+  - kind: llm_tokens
+    unit_detail: "gpt-4o-mini:input"
+    usd_per_unit: 0.00000015
+    source: https://developers.openai.com/api/docs/models/gpt-4o-mini
+  - kind: llm_tokens
+    unit_detail: "gpt-4o-mini:output"
+    usd_per_unit: 0.0000006
+    source: https://developers.openai.com/api/docs/models/gpt-4o-mini
+  # Deepgram nova-3 streaming, monolingual (D35: STT runs in the session language).
+  # List price $0.0077 / min. The page shows a limited-time $0.0048 / min; we keep the list
+  # price so the estimate stays conservative when the promotion ends.
+  - kind: stt_seconds
+    unit_detail: nova-3
+    usd_per_unit: 0.000128333
+    source: https://deepgram.com/pricing
+  # ElevenLabs Flash / Turbo, pay as you go: $0.04 / 1,000 characters.
+  - kind: tts_characters
+    unit_detail: eleven_flash_v2_5
+    usd_per_unit: 0.00004
+    source: https://elevenlabs.io/pricing/api
+  # Daily, audio-only participant minute, first paid tier: $0.00099. The 10,000 free minutes
+  # a month are not applied: this is the marginal cost of one more call.
+  - kind: media_participant_minutes
+    unit_detail: daily
+    usd_per_unit: 0.00099
+    source: https://www.daily.co/pricing/video-sdk/

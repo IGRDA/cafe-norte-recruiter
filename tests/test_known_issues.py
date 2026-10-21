@@ -59,15 +59,15 @@ async def test_ki04_after_a_failed_turn_the_silence_prompt_is_said_once() -> Non
     s = session(runtime, recorder, prompt=0.02)
     await s.transcript("Está todo bien.")
     await s.wait()
-    await asyncio.sleep(0.03)  # first prompt, while the summary is still playing
+    await asyncio.sleep(0.03)  # the summary is still playing: no silence to prompt about
     await s.played_one()
     await s.played_one()  # the summary's two sentences finish playing
+    await s.played_one()  # and then the apology
     await asyncio.sleep(0.04)
     assert recorder.spoken.count("¿Sigues ahí?") == 1
     await s.close()
 
 
-@pytest.mark.xfail(strict=True, reason="KI-05: system sentences jump the audio queue")
 async def test_ki05_the_apology_waits_for_the_sentences_still_playing() -> None:
     """Live: the third summary was still playing until 16:09:23 while the apology (16:09:04)
     and '¿Sigues ahí?' (16:09:12) were journaled and queued behind it."""

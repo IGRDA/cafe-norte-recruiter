@@ -10,15 +10,28 @@ from pipecat.frames.frames import (  # noqa: E402
     InterimTranscriptionFrame,
     InterruptionFrame,
     LLMContextFrame,
+    MetricsFrame,
     TranscriptionFrame,
     TTSSpeakFrame,
     TTSStoppedFrame,
+)
+from pipecat.metrics.metrics import (  # noqa: E402
+    STTUsage,
+    STTUsageMetricsData,
+    TTFBMetricsData,
+    TTSUsageMetricsData,
 )
 from pipecat.pipeline.pipeline import Pipeline  # noqa: E402
 from pipecat.processors.aggregators.llm_context import LLMContext  # noqa: E402
 from pipecat.tests.utils import run_test  # noqa: E402
 
-from cafe_norte.voice.bridge import InboundBridge, PlaybackTap, SpeechTap  # noqa: E402
+from cafe_norte.voice.bridge import (  # noqa: E402
+    InboundBridge,
+    PlaybackTap,
+    SpeechTap,
+    UsageObserver,
+)
+from cafe_norte.voice.metering import SpeechMeter  # noqa: E402
 from cafe_norte.voice.pipeline import user_side  # noqa: E402
 
 
@@ -125,3 +138,23 @@ async def test_transcripts_reach_the_session_through_the_real_user_aggregator() 
     await run_test(Pipeline(user_side(spy, None)), frames_to_send=frames)
     assert spy.calls.count("heard") == 2
     assert "interrupted" in spy.calls  # the aggregator's turn start still reaches the session
+
+
+async def test_speech_usage_is_counted_once_however_many_processors_pass_it_on() -> None:
+    """Deepgram reports audio seconds and ElevenLabs characters as ``MetricsFrame``s, which
+    every later processor pushes again; only the first push is the provider's report (D44)."""
+    spy = SessionSpy()
+    meter = SpeechMeter()
+    usage = MetricsFrame(
+        data=[
+            STTUsageMetricsData(processor="deepgram", value=STTUsage(audio_seconds=1.5)),
+            TTSUsageMetricsData(processor="elevenlabs", value=42),
+            TTFBMetricsData(processor="elevenlabs", value=0.2),
+        ]
+    )
+    await run_test(
+        Pipeline([SpeechTap(spy), PlaybackTap(spy)]),
+        frames_to_send=[usage],
+        observers=[UsageObserver(meter)],
+    )
+    assert (meter.stt_seconds, meter.tts_characters) == (1.5, 42)

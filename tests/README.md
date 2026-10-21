@@ -8,11 +8,11 @@ runs both. `live`-marked tests are paid and manual.
 | --- | --- | --- |
 | Architecture | Import rules of `src/cafe_norte/README.md`, read from the source | nothing |
 | Domain | Field algebra laws (property-based), patch validation, confirmation gating, booking conditions, lifecycle transitions | nothing |
-| Conversation | Tool loop bounds, repair budget, persistence before announcement, cancellation, duplicate input ids, explicit controls | `FakeModel`, `MemoryStore`, `FakeRetriever` |
+| Conversation | Tool loop bounds, idle rounds and withheld tools (D44), repair budget, persistence before announcement, cancellation, duplicate input ids, explicit controls, usage measured, estimated and recorded outside a turn (D44), tool arguments journaled redacted | `FakeModel`, `MemoryStore`, `FakeRetriever` |
 | Knowledge | Front matter, chunking, store filtering before ranking, fusion, abstention fixtures | local index of the fixture KB |
 | Persistence | The store contract (transactions, conditional save, input ids, the event stream and sequence, the slot race, idempotent reservation, the snapshot, leases and fenced writes, admission, resume tokens, export snapshots, expiry and cascading delete, the maintenance lock) on both stores through the `store` fixture; the retention purge (`tests/test_retention.py`); the pure row codecs (property-based); migrations from scratch; database timeouts as error codes; S01 end to end on Postgres with a restart; S12 (restart, zombie lease, resume) on Postgres; S13 through the API with fakes | memory in `make check`; Postgres in `make test-db` |
 | API | Validation without echo, ownership on every endpoint, SSE replay, cookie and resume token rules, security headers | fakes |
-| Voice | Delivery ledger (pure), `VoiceSession` with a fake runtime and fast timers, the two processors with Pipecat frames in memory, Daily REST with a scripted transport, the voice routes with fakes | Pipecat installed (dev extra), no provider |
+| Voice | Delivery ledger and speech meter (pure), `VoiceSession` with a fake runtime and fast timers (a cut answer joined to the next, D44), the processors and the usage observer with Pipecat frames in memory, Daily REST with a scripted transport, the voice routes with fakes | Pipecat installed (dev extra), no provider |
 
 Scenario fixtures `S01`–`S18` from `evals/cases/scenarios/` run here against the fake model as
 the deterministic release gate; their live counterparts run from `evals/`.

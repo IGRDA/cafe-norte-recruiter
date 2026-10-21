@@ -9,7 +9,8 @@ import pytest
 
 from cafe_norte.domain.contracts import SessionId, TurnId
 from cafe_norte.observability.contracts import EventName, Severity, StructuredEvent
-from cafe_norte.observability.events import emit, redact
+from cafe_norte.observability.events import emit
+from cafe_norte.observability.redaction import redact
 
 NOW = datetime(2026, 10, 21, 12, 30, tzinfo=UTC)
 T1 = TurnId("t1")
@@ -103,6 +104,8 @@ def test_emit_writes_to_stdout_by_default(capsys: pytest.CaptureFixture[str]) ->
         ("NIE X1234567L", "NIE [id]"),
         ("IBAN ES91 2100 0418 4502 0005 1332", "IBAN [iban]"),
         ("tarjeta 4111 1111 1111 1111", "tarjeta [card]"),
+        ("tarjeta 4111-1111-1111-1111.", "tarjeta [card]."),
+        ("4111111111111111", "[card]"),
         ("clave pk-lf-1234567890abcdef", "clave [secret]"),
         ("Authorization: Bearer abc.def-123", "Authorization: [secret]"),
         ("api_key=hunter2hunter2", "[secret]"),
@@ -114,6 +117,17 @@ def test_redact_masks_personal_data_and_secrets(raw: str, expected: str) -> None
 
 def test_redact_leaves_ordinary_text_and_small_numbers_alone() -> None:
     text = "Abrimos de 8 a 15 h, 3 días, calle Mayor 12"
+    assert redact(text) == text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"slot_id": "chamberi_barista_v1-2026-10-21-1030"}',  # KI-06: the id must stay legible
+        "el 2026-10-21 a las 10:30",
+    ],
+)
+def test_redact_leaves_slot_ids_and_dates_alone(text: str) -> None:
     assert redact(text) == text
 
 

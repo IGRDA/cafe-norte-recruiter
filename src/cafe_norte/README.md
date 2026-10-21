@@ -11,7 +11,7 @@ and keeps adapters private. `tests/test_architecture.py` enforces the import rul
 | `knowledge/` | Documents, chunks, versioned index, `Retriever` port; hybrid and fake adapters | `domain.contracts` |
 | `observability/` | Structured events, usage, prices, cost estimates, version stamps, tracing | `domain.contracts` |
 | `persistence/` | Repository ports, Postgres adapter, SQL migrations, JSON export, in-memory fakes | `domain`, `observability.contracts` |
-| `conversation/` | `ConversationRuntime`: turn loop, prompt assembly, tool registry, bounded rounds | `domain`, contracts of `model`, `knowledge`, `persistence`, `observability` |
+| `conversation/` | `ConversationRuntime`: turn loop, prompt assembly, tool registry, bounded rounds | `domain`, contracts of `model`, `knowledge`, `persistence`, `observability`, and `observability.redaction` |
 | `voice/` | Pipecat bridge processor, Daily rooms, STT/TTS wiring, voice timings | `domain.contracts`, contracts of `conversation`, `observability` |
 | `api/` | FastAPI routes, access and resume cookies, SSE events, health | `domain`, contracts of `conversation`, `persistence`, `voice`, `observability` |
 | `main.py` | Reads the environment, selects adapters, builds the app | everything |

@@ -208,6 +208,7 @@ async def test_resending_a_known_value_changes_nothing_and_points_at_the_pending
     again = await w.update(context("t2"), first)
     assert again.ok and again.spoken == "" and again.summary == "unchanged"
     assert "confirm_field" in again.model_text
+    assert again.idle and "do not call update_candidate again" in again.model_text.lower()
     state = await w.current()
     assert state.candidate.revision == 1
     assert state.pending_confirmation is not None
@@ -360,6 +361,7 @@ async def test_the_model_cannot_answer_a_read_back_in_the_turn_it_was_presented(
     same_turn = await w.confirm_brief(context("t1"), args("confirm_brief", answer="affirm"))
     assert not same_turn.ok and same_turn.summary == "confirmation_refused:same_turn"
     assert "wait" in same_turn.model_text.lower()
+    assert same_turn.idle and "end your turn now" in same_turn.model_text.lower()
     assert (await w.current()).pending_confirmation.status == "pending"  # type: ignore[union-attr]
 
 
@@ -599,6 +601,7 @@ async def test_reserve_needs_that_slot_read_back_and_the_candidates_own_answer()
     assert not other.ok and other.summary == "confirmation_mismatch"
     same_turn = await w.reserve(context("t4"), args("reserve_interview", slot_id=SLOT))
     assert not same_turn.ok and same_turn.summary == "confirmation_refused:same_turn"
+    assert same_turn.idle and not nothing.idle and not other.idle
     assert (await w.current()).booking is None
 
 
@@ -792,3 +795,21 @@ async def test_a_save_beside_a_cut_read_back_points_at_the_review() -> None:
     )
     assert saved.ok and "review_readback" in saved.model_text
     assert "confirm_field" not in saved.model_text
+
+
+async def test_only_a_call_that_changed_nothing_is_idle() -> None:
+    """A save, a refusal the model can act on and a first read-back each move the turn on;
+    only a repeat of a done save and an answer the candidate has not given yet are idle."""
+    w = await World().open()
+    saved = await w.update(
+        context(), args("update_candidate", patch={"name": "Lucía"}, evidence_text="Lucía")
+    )
+    refused = await w.update(
+        context(),
+        args("update_candidate", patch={"hours_per_week": 30}, evidence_text="por la mañana"),
+    )
+    again = await w.update(
+        context(), args("update_candidate", patch={"name": "Lucía"}, evidence_text="Lucía")
+    )
+    nothing = await w.confirm_field(context(), args("confirm_field", answer="affirm"))
+    assert [o.idle for o in (saved, refused, again, nothing)] == [False, False, True, False]

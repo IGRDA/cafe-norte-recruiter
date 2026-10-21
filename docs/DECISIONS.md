@@ -1230,3 +1230,78 @@ not a pattern, so this is safe because the data is fictional, not because the fi
 Langfuse keeps what it received under its own retention, not our seven days (D34). With real
 applicants it is `off`, and `docs/production.md` §10 lists what must exist first. Spans exported
 before the switch is turned off stay in Langfuse until deleted there.
+
+---
+
+## D44 · Fewer wasted rounds, a joined hesitation, the whole cost, tool arguments in the journal
+
+_Added 21 October 2026, for KI-07, KI-08, D36's "not yet recorded" and KI-06's observability
+half. Options were chosen by the owner before building._
+
+**Context.** In the second hosted call the model re-sent saves that changed nothing
+(`unchanged`, seq 39, 47, 49, 60) and answered a read-back in the turn that said it
+(`same_turn`, 62). Each round costs 0.6–0.9 s, and those turns took 2.1–3.4 s to the first
+sentence. The repeats came before Ana spoke, so ending the loop alone would have left her
+silent. A pause split "El lunes, … dos de noviembre" into two turns, and the second cancelled
+the first before anything was said (KI-07). The export's cost left out the classifier's tokens
+and every cancelled generation, and it derived a call's speech usage from the snapshot, so
+every voice cost was partial. The journal did not record tool arguments, so KI-06's slot id
+could not be read without Langfuse.
+
+**Decisions.**
+- **An idle call is a type.** `ToolOutcome.idle` is set where the outcome is built: on a save
+  that only repeats known values, and on the `same_turn` refusals of `confirm_field`,
+  `confirm_brief` and `reserve_interview`. The runtime never reads summaries.
+- **Stop.** Once the turn's question has been said, a round whose every call was idle ends the
+  loop. Nothing more can be voiced (`_say_once`), so another round is only latency.
+- **Withhold.** A tool whose call changed nothing is left out of the schemas for the rest of the
+  turn, so the next round has to answer in words. The next turn offers it again. The texts say
+  the same: "Do not call update_candidate again this turn", and for `same_turn`, "End your
+  turn now, with no text and no tool call".
+- **Join a cut answer (KI-07).** When new speech cuts a running voice turn none of whose answer
+  was heard (the filler aside), its words go in front of the next transcript if that comes
+  within 5 s. Both user turns stay in the journal (the first one interrupted, D37); the model
+  reads the whole answer once. Rejected: a longer speech timeout after a question about a date
+  or a number. It would make every such answer 0.8 s slower, guess what the model asked, and
+  change Pipecat's stop strategy mid-call.
+- **Tool arguments in the journal.** `ToolStarted.arguments` is the call's JSON, redacted then
+  cut at 2 000 characters like trace content, for the model's calls and the runtime's own. The
+  export carries it, and the reviewer panel prints it. `redact` moved to
+  `observability/redaction.py`, which `conversation` may import. The card pattern no longer
+  matches digits glued to a word or a dash: it had masked every slot id as `[card]`, in the
+  hosted traces too (D42).
+- **The classifier's tokens.** `SignalAnalyzer.analyze` returns a `SignalAnalysis`: the signal,
+  or none, plus the usage the call reported (a malformed verdict still costs). The runtime
+  records it under the turn it classified. `token_usage` builds the two token records for
+  every caller.
+- **Cancelled generations.** An attempt that ends without a usage report (a barge-in, the
+  answer limit, a silent first attempt, a failed stream) adds an estimate at 4 characters per
+  token: the messages and tool schemas sent, and the text streamed. It is marked `estimated`.
+- **Measured speech.** Pipecat's usage metrics are on. `UsageObserver` counts Deepgram's audio
+  seconds and ElevenLabs' characters on their first push only, and the room's joins and leaves
+  give each participant's minutes. The pure `SpeechMeter` turns them into `UsageRecord`s. The
+  controller records them through `record_usage` once the pipeline has ended and the providers
+  have flushed. A session already ended stores its export again (D34 is idempotent).
+- **Partial means missing.** The snapshot derives a speech kind only when the call measured
+  none. `cost_is_partial` is true when a usage has no price, no estimator is bound, or a speech
+  kind was derived. A token estimate is flagged on its record and no longer makes the total
+  partial. This replaces D36's "any estimate is partial".
+
+**Measured** (the KI-08 patterns, one model round modelled at 0.75 s, `main` → this branch):
+
+| Turn | Rounds | To the first sentence |
+|---|---|---|
+| A save repeated twice (seq 39–49) | 4 → 3 | 3.0 s → 2.3 s |
+| A save repeated three times | 5 → 3 | 3.8 s → 2.3 s |
+| A same-turn confirm (seq 60–62) | 3 → 2 | 0.75 s (total 2.3 s → 1.5 s) |
+| A well-behaved save, then the question | 2 → 2 | 1.5 s → 1.5 s |
+
+The scenario replays S01–S20 keep their scripts: none had an idle round, so no round count
+changed.
+
+**Consequences we accept.** A second, different fact for a tool whose call changed nothing waits
+for the next turn. A join puts a cut part in front of words that may start a new thought within
+5 s. The classifier's tokens can arrive after the export was stored at close; only speech usage
+stores it again. A crash before the pipeline ends loses the measurement, and the export then
+derives that call's speech and says it is partial. Pipecat's latency metrics are not stored.
+Real latency is checked on the next hosted call (Langfuse `rounds`, time to first token).

@@ -20,7 +20,13 @@ from cafe_norte.domain.contracts import (
     SessionState,
     TurnId,
 )
-from cafe_norte.observability.contracts import Price, PriceTable, UsageRecord, VersionStamp
+from cafe_norte.observability.contracts import (
+    Price,
+    PriceTable,
+    UsageKind,
+    UsageRecord,
+    VersionStamp,
+)
 from cafe_norte.observability.cost import estimate
 from cafe_norte.persistence.contracts import EventRecord, SessionSnapshot, TurnRecord
 from cafe_norte.persistence.export import (
@@ -358,3 +364,49 @@ def test_a_voice_session_derives_its_voice_usage_as_estimated() -> None:
 def test_a_text_session_derives_no_voice_usage() -> None:
     document = build_export(with_usage(snapshot(), ("m:input", 1000)), estimate=PRICED)
     assert all(not r.estimated for r in document.metrics.usage)
+
+
+def record(kind: UsageKind, detail: str, quantity: float, *, estimated: bool) -> UsageRecord:
+    return UsageRecord(
+        session_id=SID,
+        turn_id=None,
+        kind=kind,
+        quantity=quantity,
+        unit_detail=detail,
+        estimated=estimated,
+    )
+
+
+MEASURED_SPEECH = (
+    record("stt_seconds", "nova-3", 95.5, estimated=False),
+    record("tts_characters", "eleven_flash_v2_5", 13, estimated=False),
+    record("media_participant_minutes", "daily", 3.5, estimated=False),
+)
+
+
+def test_a_voice_session_with_measured_speech_usage_has_a_complete_cost() -> None:
+    taken = voice_snapshot().model_copy(update={"usage": MEASURED_SPEECH})
+    metrics = build_export(taken, estimate=PRICED).metrics
+    assert metrics.usage == MEASURED_SPEECH  # nothing derived on top
+    assert metrics.estimated_marginal_cost_eur == pytest.approx(
+        95.5 * 0.001 + 13 * 0.0001 + 3.5 * 0.01
+    )
+    assert metrics.cost_is_partial is False
+
+
+def test_only_the_speech_kinds_nothing_measured_are_derived() -> None:
+    taken = voice_snapshot().model_copy(update={"usage": MEASURED_SPEECH[:1]})
+    metrics = build_export(taken, estimate=PRICED).metrics
+    derived = {r.kind for r in metrics.usage if r.estimated}
+    assert derived == {"tts_characters", "media_participant_minutes"}
+    assert metrics.cost_is_partial is True  # something was not measured
+
+
+def test_estimated_tokens_of_a_cut_generation_do_not_make_the_cost_partial() -> None:
+    """Inferred from characters, flagged on the record, but nothing is missing (D44)."""
+    taken = snapshot().model_copy(
+        update={"usage": (record("llm_tokens", "m:input", 1000, estimated=True),)}
+    )
+    metrics = build_export(taken, estimate=PRICED).metrics
+    assert metrics.estimated_marginal_cost_eur == pytest.approx(0.001)
+    assert metrics.cost_is_partial is False

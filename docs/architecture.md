@@ -35,9 +35,13 @@ the snapshot stored when the session closed (D34), or one built on demand by `bu
 from one `Store.snapshot` while it is open. The confirmation history and the
 session's end time are read from the journaled `state_updated` events; the brief is the text
 the candidate confirmed. The cost is priced from `observability/prices/v1.yaml`:
-`cost_is_partial` is true when any usage has no price or is estimated (a voice call's speech,
-listening and room minutes are derived from the snapshot, not measured), and the cost is `None`
-when no estimator is bound. The schema is `examples/session_export.schema.json`, the fictional example
+`cost_is_partial` is true when something is missing: a usage with no price, no estimator bound
+(the cost is then `None`), or a voice call's speech, listening or room minutes that were not
+measured and had to be derived from the snapshot. A call measures them (Deepgram's seconds,
+ElevenLabs' characters, each participant's minutes in the room) and records them when it ends;
+the snapshot derives only a kind with no measurement. Tokens of a generation cut before its
+usage report are estimated and flagged on their own record; they do not make the total
+partial (D44). The schema is `examples/session_export.schema.json`, the fictional example
 `examples/session_export.example.json`.
 
 ## Limits
@@ -61,9 +65,11 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Voice: filler while a tool runs | after 1.5 s in which the candidate heard nothing (D40) |
 | Voice: bot join timeout | 15 s |
 | Voice: user speech timeout before a turn ends | 1.0 s; a transcript can start a turn when VAD misses it (D35) |
+| Voice: a cut answer joined to the next words | when none of the cut turn's answer was heard (the filler aside) and the next transcript comes within 5 s of it (D44) |
 | Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
+| A generation with no usage report (barge-in, answer cut, silent or failed attempt) | estimated at 4 characters per token, from the messages and tools sent and the text streamed; marked `estimated` (D44) |
 | Recent turns in the prompt | 20 |
 | Knowledge chunk | one `## ` section, at most 90 words |
 | Chunks per `search_knowledge` call | 3; RRF k = 60; 1–3 phrasings per call |
@@ -95,7 +101,7 @@ when no estimator is bound. The schema is `examples/session_export.schema.json`,
 | Database connection checkout wait | 5 s, then `busy` |
 | Trace flush at shutdown | 5 s, in a thread (D36) |
 | Trace export | queue of 2 048 spans, a batch every 2 s, one request at most 5 s; spans beyond the queue are dropped |
-| Free text in a log line or a trace | redacted, then cut at 2 000 characters per value |
+| Free text in a log line, a trace or a tool's arguments in the journal | redacted, then cut at 2 000 characters per value (D36, D44) |
 | A generation's input in a trace | the newest messages within 1 800 characters, the newest always kept; only with content on |
 | Price table | one price per kind and model, with its source page; re-verified before each release, version recorded in every cost |
 | Event stream poll interval | 200 ms (Postgres; the memory store wakes on commit) |

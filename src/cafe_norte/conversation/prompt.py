@@ -10,8 +10,11 @@ from cafe_norte.conversation import prompts
 from cafe_norte.conversation.brief import slot_time
 from cafe_norte.conversation.signals import Control
 from cafe_norte.domain.candidate import VALUE_FIELDS, unfinished_fields
+from cafe_norte.domain.confirmation import ready_to_confirm
 from cafe_norte.domain.contracts import (
     CandidateRecord,
+    Review,
+    ReviewInParts,
     Sentiment,
     SessionState,
     StoreConfiguration,
@@ -103,12 +106,24 @@ def pending_facts(state: SessionState) -> dict[str, object] | None:
     pending = state.pending_confirmation
     if pending is None:
         return None
-    facts: dict[str, object] = {"kind": pending.target.kind, "status": pending.status}
+    facts: dict[str, object] = {
+        "kind": pending.target.kind,
+        "status": pending.status,
+        "heard": ready_to_confirm(pending),
+        "review": review_label(pending.review),
+    }
     if pending.target.kind == "field":
         facts["field"] = pending.target.field
     elif pending.target.kind == "slot":
         facts["slot_id"] = pending.target.slot_id
     return facts
+
+
+def review_label(review: Review | None) -> str | None:
+    """Where the review of a cut read-back stands, for the model (D39)."""
+    if isinstance(review, ReviewInParts):
+        return f"part {review.part + 1} of {review.parts}"
+    return review.stage if review is not None else None
 
 
 def booking_facts(state: SessionState, configuration: StoreConfiguration) -> dict[str, str] | None:

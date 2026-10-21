@@ -1798,3 +1798,23 @@ async def test_going_over_it_each_part_is_said_and_heard_by_its_own_playback() -
     pending = await pending_now(h)
     assert pending.status == "confirmed"
     assert confirmation.assurance(pending) == "reviewed"
+
+
+def pending_seen(h: Harness) -> dict[str, object]:
+    """The pending read-back as the model saw it in its last call."""
+    content = h.model.calls[-1][0].content
+    facts = json.loads(content.split("## Datos de esta sesión (JSON)\n", 1)[1].split("\n\n")[0])
+    pending = facts["pending_confirmation"]
+    assert isinstance(pending, dict)
+    return pending
+
+
+async def test_the_model_sees_whether_the_read_back_was_heard_and_where_its_review_is() -> None:
+    h = await cut_summary(says(OFFER), says(""), says(""))
+    await voice_run(h, "Sí.", "v-2")
+    assert pending_seen(h) | {"heard": False, "review": "offered"} == pending_seen(h)
+    await voice_run(h, "Sí.", "v-3")
+    review = pending_seen(h)["review"]
+    assert isinstance(review, str) and review.startswith("part 1 of ")
+    await voice_run(h, "Sigue.", "v-4")
+    assert pending_seen(h)["review"] == "waived" and pending_seen(h)["status"] == "confirmed"

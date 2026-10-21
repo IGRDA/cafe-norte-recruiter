@@ -954,16 +954,23 @@ class Runtime:
         configuration = self._configurations[state.config_id]
         zone = ZoneInfo(configuration.timezone)
         ids = [slot.slot_id for slot in offer.slots]
+        words = read_slot_words(run.input.text)
         choice = choose_slot(
-            read_slot_words(run.input.text),
+            words,
             [slot.starts_at_utc.astimezone(zone).replace(tzinfo=None) for slot in offer.slots],
             today=self._clock().astimezone(zone).date(),
             shortlist=tuple(i for i, slot_id in enumerate(ids) if slot_id in offer.shortlist),
         )
         match choice:
             case Chosen(index=index):
-                chosen = {"target": "slot", "slot_id": str(ids[index])}
-                async for event in self._runtime_call(run, "present_confirmation", chosen):
+                slot_id = {"slot_id": str(ids[index])}
+                if _yes_to_this_slot(run, ids[index], words.rest):
+                    calls = self._runtime_call(run, "reserve_interview", slot_id)
+                else:
+                    calls = self._runtime_call(
+                        run, "present_confirmation", {"target": "slot", **slot_id}
+                    )
+                async for event in calls:
                     yield event
                 run.slot_choice = run.outcome.model_text
             case Ambiguous(indices=indices):
@@ -1085,6 +1092,21 @@ class Runtime:
                 ),
             )
         return event
+
+
+def _yes_to_this_slot(run: _Turn, slot_id: SlotId, rest: str) -> bool:
+    """ "Sí, el viernes a las diez y media" to the heard read-back of that very slot: the
+    words besides the slot are a plain yes, as ``_plain_answer`` would take them alone."""
+    pending = run.state.pending_confirmation
+    return (
+        pending is not None
+        and pending.status == "pending"
+        and isinstance(pending.target, SlotTarget)
+        and pending.target.slot_id == slot_id
+        and pending.fully_delivered
+        and pending.presented_turn_id != run.turn_id
+        and answer_to_readback(rest) == "affirm"
+    )
 
 
 def _opening(state: SessionState) -> list[str]:

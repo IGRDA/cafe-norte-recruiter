@@ -1676,3 +1676,38 @@ async def test_a_time_not_offered_offers_the_same_slots_again() -> None:
     events = await h.run("A las ocho.", "in-2")
     assert tools_started(events) == ["list_interview_slots"]
     assert await offered_ids(h) == before
+
+
+async def booking_of(h: Harness) -> SlotId | None:
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None
+    return None if state.booking is None else state.booking.slot_id
+
+
+async def test_a_yes_with_the_slot_restated_reserves_it() -> None:
+    """ "Exacto, sí, el martes a las cinco" to "¿Te la reservo?": more than a plain yes, but
+    the slot it names is the one read back."""
+    h = with_slots_offered(says(""), says("Reservado."))
+    await slots_offered(h)
+    await h.run("El primero.", "in-2")
+    events = await h.run("Exacto, sí, el martes a las cinco.", "in-3")
+    assert tools_started(events) == ["reserve_interview"]
+    assert await booking_of(h) == TUE_17
+
+
+async def test_the_slot_restated_without_a_yes_is_not_a_booking() -> None:
+    h = with_slots_offered(says(""), says("¿Te la reservo, entonces?"))
+    await slots_offered(h)
+    await h.run("El primero.", "in-2")
+    events = await h.run("El martes a las cinco.", "in-3")
+    assert tools_started(events) == ["present_confirmation"]  # already pending: said once
+    assert await booking_of(h) is None and await pending_slot(h) == TUE_17
+
+
+async def test_a_yes_with_another_slot_reads_that_one_back_instead() -> None:
+    h = with_slots_offered(says(""), says(""))
+    await slots_offered(h)
+    await h.run("El primero.", "in-2")
+    events = await h.run("Sí, mejor el segundo.", "in-3")
+    assert tools_started(events) == ["present_confirmation"]
+    assert await booking_of(h) is None and await pending_slot(h) == WED_1030

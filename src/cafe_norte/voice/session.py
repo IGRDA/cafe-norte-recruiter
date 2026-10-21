@@ -76,6 +76,8 @@ class VoiceSession:
         self._on_language = on_language
         self._closed = False
         self.status: VoiceStatus = "connecting"
+        self._quiet = asyncio.Event()  # nothing sent to TTS is still to play
+        self._voiced = 0  # sentences ever sent, so a silence can tell it was broken
         self._ledger = Ledger()
         self._turn_task: asyncio.Task[None] | None = None
         self._turn_id: TurnId | None = None
@@ -208,7 +210,7 @@ class VoiceSession:
         await self._drained()
 
     async def _filler(self) -> None:
-        await asyncio.sleep(self.filler_after_seconds)
+        await self._after_silence(self.filler_after_seconds)
         await self._voice(self._texts.filler)
         if self._turn_id is not None:
             await self._runtime.aside(self._turn_id, self._texts.filler)
@@ -236,6 +238,19 @@ class VoiceSession:
             self._start_idle()
 
     @property
+    def _ledger(self) -> Ledger:
+        return self.__ledger
+
+    @_ledger.setter
+    def _ledger(self, ledger: Ledger) -> None:
+        """Every change to the ledger goes through here, so ``_quiet`` never disagrees."""
+        self.__ledger = ledger
+        if heard(ledger)[1]:
+            self._quiet.set()
+        else:
+            self._quiet.clear()
+
+    @property
     def _texts(self) -> VoiceTexts:
         return self._texts_by_language[self._language]
 
@@ -253,7 +268,7 @@ class VoiceSession:
 
     async def _idle(self) -> None:
         """One "¿Sigues ahí?" after the silence; a live call is never paused for silence."""
-        await asyncio.sleep(self._idle_prompt_seconds)
+        await self._after_silence(self._idle_prompt_seconds)
         self._prompted = True
         await self._say(self._texts.idle_prompt)
 
@@ -266,9 +281,20 @@ class VoiceSession:
 
     async def _voice(self, text: str) -> None:
         """The one way a sentence reaches the candidate's ears: counted in the ledger, so
-        ``heard`` and ``_drained`` know what is still to play."""
+        ``heard``, ``_drained`` and ``_after_silence`` know what is still to play."""
         self._ledger = sent(self._ledger, text)
+        self._voiced += 1
         await self._speak(text)
+
+    async def _after_silence(self, seconds: float) -> None:
+        """Returns once the candidate has heard nothing from Ana for ``seconds``: the queued
+        audio has played and nothing new was said meanwhile (D40)."""
+        while True:
+            await self._quiet.wait()
+            voiced = self._voiced
+            await asyncio.sleep(seconds)
+            if self._quiet.is_set() and self._voiced == voiced:
+                return
 
     def _cancel_idle(self) -> None:
         if self._idle_task is not None:

@@ -214,6 +214,30 @@ async def test_a_filler_is_spoken_only_while_a_tool_runs_long() -> None:
     assert runtime.asides == [(TurnId("t1"), "Un momento.")]  # journaled, so it is on screen
 
 
+async def test_the_filler_waits_while_a_sentence_is_still_playing() -> None:
+    """The filler fills silence; while "Vale, lo miro." is still playing there is none, so it
+    is not queued behind it (D40)."""
+    runtime = FakeRuntime(
+        [
+            [
+                say("Vale, lo miro."),
+                ToolStarted(name="search_knowledge"),
+                ToolFinished(name="search_knowledge", ok=True, summary="x"),
+                say("Está en el centro."),
+                finished(),
+            ]
+        ],
+        slow=True,
+    )
+    recorder = Recorder()
+    s = session(runtime, recorder)
+    s.filler_after_seconds = 0.0
+    await s.transcript("¿Dónde está el local?")
+    await s.wait()
+    assert "Un momento." not in recorder.spoken
+    assert runtime.asides == []
+
+
 async def test_the_opening_is_spoken_in_the_session_language() -> None:
     recorder = Recorder()
     s = session(FakeRuntime([]), recorder, language="en")

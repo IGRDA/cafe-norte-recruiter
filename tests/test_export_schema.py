@@ -21,13 +21,15 @@ def test_example_export_is_a_complete_s01_session() -> None:
         (ROOT / "examples" / "session_export.example.json").read_text()
     )
     assert document.schema_version == "1"
-    assert (document.session.lifecycle, document.session.outcome) == ("completed", "brief_only")
+    assert (document.session.lifecycle, document.session.outcome) == ("completed", "reserved")
     assert document.session.ended_at is not None
-    assert any(c.status == "confirmed" and c.target.kind == "brief" for c in document.confirmations)
+    confirmed = {c.target.kind for c in document.confirmations if c.status == "confirmed"}
+    assert confirmed == {"field", "brief", "slot"}
     assert document.summary.brief and document.summary.brief in {
         c.presentation_text for c in document.confirmations
     }
-    assert document.metrics.turns == 7 and document.versions.commit_sha == "local"
+    assert document.booking is not None and document.booking.simulated
+    assert document.metrics.turns == 9 and document.versions.commit_sha == "local"
 
 
 def test_export_schema_names_every_required_section() -> None:

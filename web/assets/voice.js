@@ -43,6 +43,25 @@ function createDailyVoice({ onStatus, onError, startVoice, postTiming }) {
       postTiming("first_audio", ms());
       onStatus("Ana está hablando…");
     });
+    // The local microphone track state is the one diagnostic the server cannot see: a
+    // "blocked" or "off" track means no audio ever reaches Ana.
+    call.on("participant-updated", (event) => {
+      if (!event.participant?.local) return;
+      const track = event.participant.tracks?.audio;
+      if (!track) return;
+      if (track.state === "playable" || track.state === "sendable") {
+        onStatus("Conectada. Micrófono activo. Escuchando…");
+      } else {
+        const reason = track.blocked ? Object.keys(track.blocked).join(", ") : track.off ? Object.keys(track.off).join(", ") : "";
+        onError(`Micrófono ${track.state}${reason ? ` (${reason})` : ""}: Ana no te oye. Revisa el permiso del micrófono o la VPN.`);
+      }
+    });
+    call.on("camera-error", (event) => {
+      onError(`Error de micrófono: ${event.errorMsg?.errorMsg ?? event.error?.type ?? "desconocido"}.`);
+    });
+    call.on("nonfatal-error", (event) => {
+      if (event.type) onStatus(`Aviso de la llamada: ${event.type}`);
+    });
     call.on("participant-left", (event) => {
       if (!event.participant?.local) onStatus("Ana ha salido de la sala.");
     });

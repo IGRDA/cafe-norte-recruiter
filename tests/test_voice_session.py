@@ -2,7 +2,7 @@
 events; a recorder stands in for TTS; a controllable clock drives the idle timers."""
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -61,7 +61,7 @@ class FakeRuntime:
         self.closed = 0
         self.slow = slow
 
-    async def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]:
+    async def run_turn(self, turn: TurnInput) -> AsyncGenerator[RuntimeEvent, None]:
         self.turns.append(turn)
         events = self.scripts.pop(0)
         try:
@@ -156,6 +156,29 @@ async def test_an_interruption_cancels_the_turn_and_reports_what_was_heard() -> 
     # A late playback event from the cancelled turn changes nothing.
     await s.played_one()
     assert len(runtime.acks) == 1
+
+
+async def test_an_interruption_while_a_sentence_is_being_spoken_closes_the_runtime_turn() -> None:
+    runtime = FakeRuntime([[say("Te resumo lo que tengo."), say("¿Es todo correcto?"), finished()]])
+    recorder = Recorder()
+    gate = asyncio.Event()
+
+    async def blocked(text: str) -> None:  # TTS still busy with the first sentence
+        recorder.spoken.append(text)
+        await gate.wait()
+
+    s = VoiceSession(
+        runtime,
+        SID,
+        speak=blocked,
+        on_status=recorder.status.append,
+        texts=TEXTS,
+        language="es",
+    )
+    await s.transcript("ya está")
+    await asyncio.sleep(0.01)
+    await s.interrupted()
+    assert runtime.closed == 1  # closed now, not whenever the generator is collected
 
 
 async def test_the_opening_is_spoken_once_on_join_and_a_second_join_is_silent() -> None:

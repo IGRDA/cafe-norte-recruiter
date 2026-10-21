@@ -322,6 +322,64 @@ async def test_a_turn_under_the_cap_leaves_the_session_active() -> None:
     assert state is not None and state.lifecycle == "active"
 
 
+class Watched(FakeModel):
+    """A fake model that notes when its stream was closed."""
+
+    closed = False
+
+    async def stream(
+        self, messages: tuple[ModelMessage, ...], tools: tuple[Any, ...], *, deadline: datetime
+    ) -> AsyncGenerator[ModelEvent, None]:
+        try:
+            async for event in super().stream(messages, tools, deadline=deadline):
+                yield event
+        finally:
+            self.closed = True
+
+
+async def assert_interrupted_and_released(h: Harness) -> None:
+    kinds = [e.kind for e in h.store.events.all(SESSION)]
+    last = h.store.events.all(SESSION)[-1]
+    assert kinds[-1] == "turn_finished" and '"interrupted":true' in last.payload_json
+    stored = await h.store.turns.recent(SESSION, 5)
+    assert stored[-1].role == "assistant" and stored[-1].interrupted
+    assert await h.store.leases.claim(SESSION, "intruder", ttl_seconds=60) is not None
+
+
+async def test_closing_a_turn_mid_stream_journals_it_as_interrupted() -> None:
+    h = Harness([])
+    watched = Watched([says("Hola. ", "Te cuento algo. ", "¿Y tú?")])
+    h.runtime._model = watched
+    await h.open_session()
+    stream = h.runtime.run_turn(turn("Hola"))
+    first = ""
+    async for event in stream:
+        if isinstance(event, AssistantText):
+            first = event.text
+            break
+    await stream.aclose()
+    assert watched.closed
+    await assert_interrupted_and_released(h)
+    stored = await h.store.turns.recent(SESSION, 5)
+    assert stored[-1].text == first  # what was generated before the close, nothing more
+
+
+async def test_cancelling_a_turn_inside_a_model_call_journals_it_as_interrupted() -> None:
+    h = Harness([says("Hola.")], slow_calls=1)
+    await h.open_session()
+
+    async def consume() -> None:
+        async for _ in h.runtime.run_turn(turn("Hola")):
+            pass
+
+    task = asyncio.create_task(consume())
+    await asyncio.sleep(0.1)  # the model has said nothing yet
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await assert_interrupted_and_released(h)
+
+
 def malformed_call(call_id: str = "bad") -> ToolCall:
     return ToolCall(call_id=call_id, name="update_candidate", arguments_json='{"patch": {}}')
 

@@ -6,6 +6,7 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
+from contextlib import aclosing
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
@@ -128,6 +129,7 @@ class _Turn:
     asked: bool = False  # a question has been spoken; the turn says nothing more
     repairs: int = 0  # malformed tool calls this turn; the budget is ``Limits.max_repairs``
     previous_end: datetime | None = None  # when Ana last finished, for the gap before this turn
+    recorded: bool = False  # the user turn is stored, so an interruption has a turn to close
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
     outcome: ToolOutcome = field(
         default_factory=lambda: ToolOutcome(ok=True, model_text="", summary="")
@@ -199,7 +201,8 @@ class Runtime:
 
     Explicit stop and human requests are matched before the model runs; the signal analyzer,
     when configured, classifies each user turn after it finished and its verdict shapes only
-    the next turn. A second malformed tool call in one turn ends it with ``invalid_response``."""
+    the next turn. A second malformed tool call in one turn ends it with ``invalid_response``;
+    closing or cancelling ``run_turn`` mid-stream stores what was said as an interrupted turn."""
 
     def __init__(
         self,
@@ -229,7 +232,7 @@ class Runtime:
         self._latest_signal: dict[SessionId, Signal] = {}
         self._analyses: set[asyncio.Task[None]] = set()
 
-    async def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]:
+    async def run_turn(self, turn: TurnInput) -> AsyncGenerator[RuntimeEvent, None]:
         lock = self._locks.setdefault(turn.session_id, asyncio.Lock())
         async with lock:
             state = await self._store.sessions.get(turn.session_id)
@@ -245,8 +248,12 @@ class Runtime:
                 yield await self._emit(run, run.failed("conflict"))
                 return
             try:
-                async for event in self._turn(run):
-                    yield event
+                async with aclosing(self._turn(run)) as events:  # closing us closes the model call
+                    async for event in events:
+                        yield event
+            except (asyncio.CancelledError, GeneratorExit):
+                await self._interrupted(run)
+                raise
             except ServiceError as error:
                 log.warning(
                     "turn failed session=%s turn=%s code=%s detail=%s",
@@ -427,7 +434,7 @@ class Runtime:
 
     # ---- the turn, step by step ------------------------------------------------------------------
 
-    async def _turn(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+    async def _turn(self, run: _Turn) -> AsyncGenerator[RuntimeEvent, None]:
         # An explicit language request applies to this very turn: saved with the user turn,
         # before the model is called, so the record, the prompt and the reply all agree.
         previous = run.state
@@ -452,6 +459,7 @@ class Runtime:
                     expected_revision=previous.candidate.revision,
                     lease_generation=run.generation,
                 )
+        run.recorded = True
         yield await self._emit(
             run,
             TurnStarted(turn_id=run.turn_id, language=run.state.language, text=run.input.text),
@@ -483,8 +491,9 @@ class Runtime:
         )
 
         for round_index in range(self._limits.max_tool_rounds + 1):
-            async for event in self._model_round(run):
-                yield event
+            async with aclosing(self._model_round(run)) as round_events:  # the provider stream
+                async for event in round_events:
+                    yield event
             if not run.calls:
                 break
             if round_index == self._limits.max_tool_rounds:
@@ -550,6 +559,29 @@ class Runtime:
                 )
         return None if ended is None else (ended, goodbye)
 
+    async def _interrupted(self, run: _Turn) -> None:
+        """The channel closed the turn or cancelled it (barge-in, hang-up): what was generated
+        so far is stored as an interrupted assistant turn and the journal says so. The closing
+        itself is never refused; a failure to write is logged and the cancellation goes on."""
+        if not run.recorded:
+            return
+        try:
+            run.time("llm_total", run.started)
+            capped = await self._close_turn(run, interrupted=True)
+            finished = TurnFinished(
+                turn_id=run.turn_id,
+                interrupted=True,
+                usage=tuple(run.usage),
+                timings=tuple(run.timings),
+            )
+            if capped is not None:  # nobody is listening to a goodbye, but the session is over
+                await self._emit(run, StateUpdated.of(capped[0]))
+            await self._emit(run, finished)
+        except ServiceError as error:
+            log.warning(
+                "interrupted turn not closed session=%s code=%s", run.session_id, error.code
+            )
+
     async def _human_request(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """An explicit request for a person: the follow-up flag is saved, then the fixed reply
         is said in full. The model still runs (the same sentence may carry a fact) but says
@@ -581,11 +613,11 @@ class Runtime:
         self._analyses.add(task)
         task.add_done_callback(self._analyses.discard)
 
-    async def _model_round(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+    async def _model_round(self, run: _Turn) -> AsyncGenerator[RuntimeEvent, None]:
         """One model call: sentences out as they complete; tool calls collected in ``run.calls``;
         the assistant message appended to ``run.messages`` when tools were requested."""
         run.calls = []
-        said: list[str] = []
+        start = len(run.spoken)  # what this round says is what run.spoken gains from here
         buffer = ""
         first = True
         events = self._round_events(run)
@@ -598,8 +630,9 @@ class Runtime:
                     buffer += event.text
                     sentences, buffer = split_sentences(buffer)
                     for sentence in sentences:
-                        if self._say_once(run, said, sentence):
+                        if self._say_once(run, sentence):
                             yield await self._emit(run, _say(sentence))
+                    said = run.spoken[start:]
                     if sum(map(len, said)) + len(buffer) > self._limits.max_answer_characters:
                         # A runaway generation: stop reading, keep what was said, drop the rest.
                         log.warning(
@@ -614,24 +647,27 @@ class Runtime:
         finally:
             await events.aclose()
         tail = clean_sentence(buffer)
-        if tail and self._say_once(run, said, tail):
+        if tail and self._say_once(run, tail):
             yield await self._emit(run, _say(tail))
-        run.spoken.extend(said)
         if run.calls:
             run.messages.append(
-                ModelMessage(role="assistant", content=" ".join(said), tool_calls=tuple(run.calls))
+                ModelMessage(
+                    role="assistant",
+                    content=" ".join(run.spoken[start:]),
+                    tool_calls=tuple(run.calls),
+                )
             )
 
     @staticmethod
-    def _say_once(run: _Turn, said: list[str], sentence: str) -> bool:
+    def _say_once(run: _Turn, sentence: str) -> bool:
         """One main question per turn, and never the same sentence twice.
 
         Once a question has been spoken in this turn nothing else is voiced; the model's
         extra questions and rephrasings are read (tool calls and usage still count) but
         dropped. The prompt asks for this; the runtime guarantees it."""
-        if run.asked or sentence in said or sentence in run.spoken:
+        if run.asked or sentence in run.spoken:
             return False
-        said.append(sentence)
+        run.spoken.append(sentence)
         run.asked = "?" in sentence
         return True
 
@@ -759,7 +795,7 @@ class Runtime:
         already asked something this turn; nothing else is voiced after it."""
         run.asked = False
         for sentence in _sentences(text):
-            if self._say_once(run, run.spoken, sentence):
+            if self._say_once(run, sentence):
                 yield await self._emit(run, _say(sentence))
         run.asked = True
 

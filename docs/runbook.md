@@ -10,24 +10,32 @@
   downtime per deploy.
 - **Rotate a secret** (keys, access code, cookie secret): export the new value, run
   `uv run python scripts/set_secrets.py --project cafe-norte-orbio`, then reset the
-  instance (the startup script reads `latest` on every boot).
+  instance (the startup script reads `latest` on every boot). The database password is
+  Terraform's: bump `db_password_version` in `infra/app` and deploy; the user and the secret
+  version change together.
+- **Database** (Cloud SQL `cafe-norte-db`, D33): the app reaches it through the Auth Proxy on
+  the VM (`docker logs cloud-sql-proxy`). To look inside by hand:
+  `gcloud sql connect cafe-norte-db --user=cafe_norte --database=cafe_norte --project cafe-norte-orbio`
+  with the password from `gcloud secrets versions access latest --secret CAFE_NORTE_DB_PASSWORD`.
+  Migrations run at every app start (`schema_migrations` says what is applied). Backups: daily,
+  three kept, restore with `gcloud sql backups restore`.
 - **Read logs**: `gcloud logging read 'resource.type="gce_instance" AND
   jsonPayload.container.name="/app"' --project cafe-norte-orbio --freshness=1h`, or on the
   box `gcloud compute ssh cafe-norte --zone europe-west1-b -- docker logs app`. The startup
   script's own lines are in the serial console (`get-serial-port-output`).
   Failed turns log `turn failed … code=… detail=…`.
-- **Restart or new image**: on Postgres (`CAFE_NORTE_DATABASE_URL` set) sessions, bookings and
-  the event sequence survive; an open page reconnects and a candidate reopens the conversation
-  with the private link shown when it started (valid 7 days). The hosted VM still runs the
-  memory store until Cloud SQL lands (D24): there an active conversation is lost and the page
-  says so on its next request.
+- **Restart or new image**: sessions, bookings and the event sequence are in Cloud SQL, so
+  they survive; an open page reconnects and a candidate reopens the conversation with the
+  private link shown when it started (valid 7 days). A turn in flight during the reset is lost
+  and the page says so.
 - **Overload**: at most two voice sessions per instance (`CAFE_NORTE_MAX_VOICE_SESSIONS`);
   a third gets `busy`. Lower it to one in `infra/app/main.tf` (`plain_env`) and redeploy.
-- **Costs**: one `e2-small` plus a static address is the standing cost (≈ 15 EUR/month); budget alerts at 15/24/30 EUR;
+- **Costs**: one `e2-small` plus a static address (≈ 15 EUR/month) and Cloud SQL `db-f1-micro` with a 10 GB HDD (≈ 8 EUR/month) are the standing cost; budget alerts at 15/24/30 EUR;
   providers are pay-per-use behind the access code and the voice cap.
 - **Teardown**: `PROJECT_ID=cafe-norte-orbio BUCKET=cafe-norte-orbio-tfstate
   scripts/teardown.sh` before `demo_end_date`; the bootstrap stack stays unless the project is
-  retired.
+  retired. `terraform destroy` removes the Cloud SQL instance too (no deletion protection); its
+  backups go with it.
 
 Later stages add: failed-call triage with Langfuse traces, the retention job and manual delete,
 backup retention.

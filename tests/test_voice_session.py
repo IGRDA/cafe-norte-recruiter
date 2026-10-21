@@ -268,6 +268,36 @@ async def test_any_heard_speech_resets_the_silence_clock() -> None:
     await s.close()
 
 
+async def test_speech_that_comes_to_nothing_still_earns_one_prompt_later() -> None:
+    """A cough starts the aggregator's turn and no transcript follows: the clock restarts."""
+    runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
+    recorder = Recorder()
+    s = session(runtime, recorder, prompt=0.03)
+    await s.transcript("hola")
+    await s.wait()
+    await s.played_one()
+    await s.interrupted()
+    await asyncio.sleep(0.06)
+    assert recorder.spoken.count("¿Sigues ahí?") == 1
+    await s.close()
+
+
+async def test_speech_after_the_prompt_does_not_earn_a_second_one() -> None:
+    """One prompt per listening period; only a new turn starts a new period."""
+    runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
+    recorder = Recorder()
+    s = session(runtime, recorder, prompt=0.02)
+    await s.transcript("hola")
+    await s.wait()
+    await s.played_one()
+    await asyncio.sleep(0.03)  # the prompt is said
+    await s.heard_speech()
+    await s.interrupted()
+    await asyncio.sleep(0.05)
+    assert recorder.spoken.count("¿Sigues ahí?") == 1
+    await s.close()
+
+
 async def test_the_call_ending_pauses_the_session_once() -> None:
     runtime = FakeRuntime([])
     s = session(runtime, Recorder())

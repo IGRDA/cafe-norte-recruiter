@@ -81,6 +81,7 @@ class VoiceSession:
         self._opened = False
         self._filler_task: asyncio.Task[None] | None = None
         self._idle_task: asyncio.Task[None] | None = None
+        self._prompted = False  # the one silence prompt of this listening period was said
 
     # ---- inputs from the audio side --------------------------------------------------------------
 
@@ -124,18 +125,24 @@ class VoiceSession:
         """The candidate started speaking over Ana: stop generating, record what was heard."""
         self._cancel_filler()
         task, self._turn_task = self._turn_task, None
-        if task is not None and not task.done():
+        cut = task is not None and not task.done()
+        if cut:
+            assert task is not None
             task.cancel()
             try:
                 await task
             except asyncio.CancelledError:
                 pass
         if self._turn_id is not None and not self._acknowledged:
+            cut = True
             text, _ = heard(self._ledger)
             self._acknowledged = True
             await self._runtime.delivered(self._turn_id, text=text, complete=False)
         self._ledger = Ledger()
         self._set("listening")
+        if cut:
+            self._prompted = False  # Ana was cut off: a new listening period starts
+        self._restart_idle()
 
     async def wait(self) -> None:
         if self._turn_task is not None:
@@ -144,8 +151,7 @@ class VoiceSession:
     async def heard_speech(self) -> None:
         """Any raw transcript, interim or final: the candidate is talking, so it is not
         silence, even when VAD missed it and no turn has started yet (D35)."""
-        if self.status == "listening":
-            self._start_idle()
+        self._restart_idle()
 
     async def close(self) -> None:
         """The call is over (hang-up, disconnect, expiry, stop): the session pauses here, and
@@ -214,6 +220,7 @@ class VoiceSession:
         if self._turn_id is not None:
             await self._runtime.delivered(self._turn_id, text=text, complete=True)
         self._set("listening")
+        self._prompted = False
         self._start_idle()
 
     @property
@@ -222,6 +229,12 @@ class VoiceSession:
 
     # ---- silence ---------------------------------------------------------------------------------
 
+    def _restart_idle(self) -> None:
+        """Speech while listening restarts the countdown; once the prompt was said, it does
+        not earn another."""
+        if self.status == "listening" and not self._prompted:
+            self._start_idle()
+
     def _start_idle(self) -> None:
         self._cancel_idle()
         self._idle_task = asyncio.create_task(self._idle())
@@ -229,6 +242,7 @@ class VoiceSession:
     async def _idle(self) -> None:
         """One "¿Sigues ahí?" after the silence; a live call is never paused for silence."""
         await asyncio.sleep(self._idle_prompt_seconds)
+        self._prompted = True
         await self._say(self._texts.idle_prompt)
 
     async def _say(self, text: str) -> None:

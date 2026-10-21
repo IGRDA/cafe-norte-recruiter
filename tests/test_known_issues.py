@@ -33,22 +33,18 @@ def test_ki01_everyday_ways_of_saying_it_is_all_correct_are_a_plain_yes(text: st
     assert answer_to_readback(text) == "affirm"
 
 
-@pytest.mark.xfail(
-    strict=True, reason="KI-03: the candidate speaking does not stop the silence clock"
-)
-async def test_ki03_the_candidate_starting_to_speak_cancels_the_silence_prompt() -> None:
+async def test_ki03_the_candidate_starting_to_speak_restarts_the_silence_clock() -> None:
     """Live: Aggregator 'User started speaking' at 16:06:46.7, '¿Sigues ahí?' at 16:06:50.1.
-    In the pipeline the start of speech reaches the session as an interruption; raw transcripts
-    never do (Pipecat's aggregator consumes them)."""
+    In the pipeline the start of speech reaches the session as an interruption."""
     runtime = FakeRuntime([[say("¿Tienes permiso de trabajo?"), finished()]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.03)
+    s = session(runtime, recorder, prompt=0.05)
     await s.transcript("Sí, me interesa.")
     await s.wait()
     await s.played_one()  # the question has played: the silence clock starts
-    await asyncio.sleep(0.01)
+    await asyncio.sleep(0.03)
     await s.interrupted()  # the candidate starts answering
-    await asyncio.sleep(0.05)
+    await asyncio.sleep(0.03)  # 0.06 since the question, 0.03 since the speech
     assert "¿Sigues ahí?" not in recorder.spoken
     await s.close()
 

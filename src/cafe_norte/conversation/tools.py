@@ -106,7 +106,9 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "confirm_field": "Resolve the pending field read-back with the candidate's answer.",
     "confirm_brief": "Resolve the pending brief read-back with the candidate's answer.",
     "reserve_interview": "Reserve the slot the candidate just confirmed.",
-    "request_human_followup": "Save a request for a person to follow up, with the reason.",
+    "request_human_followup": "Save a request for a person to follow up, with the reason: "
+    "the candidate's unanswered question, or their wish to talk to a person. Call it once the "
+    "candidate accepts the offer; nobody real is notified in this demo.",
     "end_session": "Close the conversation for an allowed reason.",
 }
 

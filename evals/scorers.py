@@ -128,6 +128,12 @@ def _no_cross_store_sources(result: SessionResult, check: Check) -> tuple[bool, 
     return not foreign, f"sources outside the configuration: {foreign or 'none'}"
 
 
+def _review_flag_present(result: SessionResult, check: Check) -> tuple[bool, str]:
+    kinds = [f.kind for f in result.state.review_flags]
+    wanted = check.args["kind"]
+    return wanted in kinds, f"review flags: {kinds or 'none'} (wanted {wanted})"
+
+
 def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
     def scorer(result: SessionResult, check: Check) -> tuple[bool, str]:
         raise NotImplementedError(f"check {check.name!r} arrives with the {stage} stage")
@@ -145,7 +151,7 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "max_repeated_questions": _max_repeated_questions,
     "booking_present": _later("booking"),
     "booking_absent": _later("booking"),
-    "review_flag_present": _later("export"),
+    "review_flag_present": _review_flag_present,
     "language_of_last_assistant_turn": _later("language"),
     "sources_shown_for_policy_answer": _sources_shown,
     "no_cross_store_sources": _no_cross_store_sources,

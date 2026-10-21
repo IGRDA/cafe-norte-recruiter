@@ -149,6 +149,7 @@ async def test_the_model_sees_history_state_and_only_registered_tools() -> None:
         "present_confirmation",
         "confirm_field",
         "confirm_brief",
+        "request_human_followup",
         "end_session",
     ]
 

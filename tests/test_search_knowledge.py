@@ -108,3 +108,21 @@ async def test_an_unknown_session_is_refused() -> None:
 
 def test_full_record_fixture_is_reused_from_the_handler_tests() -> None:
     assert full_record().name.status == "captured"
+
+
+async def test_a_follow_up_request_becomes_one_review_flag_and_the_conversation_goes_on() -> None:
+    from cafe_norte.conversation.handlers import RequestHumanFollowupHandler
+
+    handler, _ = await world({})
+    store = handler._store  # noqa: SLF001 - same store as the search handler
+    followup = RequestHumanFollowupHandler(store=store)
+    outcome = await followup(
+        context("t4"), args("request_human_followup", reason="¿Hay parking para empleados?")
+    )
+    assert outcome.ok and outcome.summary == "human_followup_saved"
+    assert "notifies nobody real" in outcome.model_text and "Then:" in outcome.model_text
+    state = await store.sessions.get(SID)
+    assert state is not None
+    assert [(f.kind, f.note, f.turn_id) for f in state.review_flags] == [
+        ("human_followup", "¿Hay parking para empleados?", "t4")
+    ]

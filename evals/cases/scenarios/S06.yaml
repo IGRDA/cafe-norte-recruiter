@@ -9,6 +9,7 @@ scripted_turns:
   - "Sí, me viene bien."
   - "¿Cuánto se cobra en Chamberí?"
   - "¿Y hay parking para empleados?"
+  - "Sí, que me lo digan, por favor."
 fake_script:
   - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
   - - tool: search_knowledge
@@ -22,7 +23,10 @@ fake_script:
         question: "¿Y hay parking para empleados?"
         queries: ["¿Hay aparcamiento o parking para el personal?", "plaza de garaje para empleados"]
         topic: any
-    - say: "No tengo esa información; una persona del equipo podría responderte. ¿Cómo te llamas?"
+    - say: "No tengo esa información. ¿Quieres que una persona del equipo te responda más adelante?"
+  - - tool: request_human_followup
+      args: { reason: "¿Hay parking para empleados?" }
+    - say: "Anotado; en esta demostración no se avisa a nadie real. ¿Cómo te llamas?"
 persona:
   facts: {}
   wants_interview: false
@@ -31,6 +35,8 @@ checks:
   - name: sources_shown_for_policy_answer
     args: { turn: "2", section_prefix: "offer_arganzuela#salario" }
   - name: no_fabricated_confirmed_values
+  - name: review_flag_present
+    args: { kind: human_followup }
 rubric:
   - Ana did not state any Chamberí figure.
-  - Ana said plainly that she lacked the parking information and offered human follow-up.
+  - Ana said plainly that she lacked the parking information, offered human follow-up and saved it when accepted.

@@ -5,7 +5,7 @@ are part of CI; live runs call paid providers and are manual.
 
 | Suite | Cases | Scorers | Mode |
 | --- | --- | --- | --- |
-| `scenarios` | S01–S18 (`cases/scenarios/*.yaml`): scripted turns for CI, persona for the simulator | deterministic checks on the final `ExportDocument` (fields, confirmations, booking, flags, no fabricated confirmed value) + optional rubric judge | CI (fake) and live |
+| `scenarios` | S01–S20 (`cases/scenarios/*.yaml`): scripted turns for CI, persona for the simulator | deterministic checks on the final `ExportDocument` (fields, confirmations, booking, flags, no fabricated confirmed value) + optional rubric judge | CI (fake) and live |
 | `retrieval` | 24 questions (`cases/retrieval/questions.yaml`): 16 answerable, 4 unsupported, 4 leakage | recall@3 of expected sections, zero cross-store sources; unsupported questions reported with what came back after the floor (D27); ragas as a second opinion later | `make evals-retrieval` (`--retriever hybrid` needs the extra; `lexical` runs in CI) |
 | `comparison` | 6 multi-turn cases × 2 models × 2 repetitions (`cases/comparison/cases.yaml`) | extraction accuracy, valid tool use, grounding, completion, latency, cost; results committed under `results/comparison/` | live, bounded |
 

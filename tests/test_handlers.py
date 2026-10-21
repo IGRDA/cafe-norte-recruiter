@@ -312,6 +312,27 @@ async def test_the_interview_answer_after_the_confirmed_brief_leads_to_the_end()
     assert done.ok and done.summary == "ended:completed:brief_only"
 
 
+async def test_a_read_back_that_was_not_fully_heard_is_read_again() -> None:
+    """The hosted call: "Mhmm" over the brief left it unheard; present_confirmation answered
+    "already pending" and confirm_brief "not delivered" until the turn hit its round limit."""
+    w = await World(full_record()).open()
+    first = await w.present(context("t1"), args("present_confirmation", target="brief"))
+    again = await w.present(context("t2"), args("present_confirmation", target="brief"))
+    assert again.ok and again.summary == "presented:brief"
+    assert again.spoken == first.spoken  # the same words, said again
+    state = await w.current()
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.presented_turn_id == TurnId("t2")
+    assert state.pending_confirmation.fully_delivered is False
+
+
+async def test_not_delivered_tells_the_model_to_present_it_again() -> None:
+    w = await World(full_record()).open()
+    await w.present(context("t1"), args("present_confirmation", target="brief"))
+    refused = await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+    assert not refused.ok and "present_confirmation" in refused.model_text
+
+
 async def test_the_model_cannot_answer_a_read_back_in_the_turn_it_was_presented() -> None:
     w = await World(full_record()).open()
     await w.present(context("t1"), args("present_confirmation", target="brief"))

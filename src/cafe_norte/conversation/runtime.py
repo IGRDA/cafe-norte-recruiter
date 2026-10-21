@@ -50,6 +50,7 @@ from cafe_norte.domain.contracts import (
     SessionState,
     Signal,
     SlotId,
+    SlotOffer,
     SlotTarget,
     StoreConfiguration,
     TurnId,
@@ -936,20 +937,8 @@ class Runtime:
         through the tools the model would call; words that fit nothing offered are offered
         again, for the day they name. Anything that is not a choice is the model's."""
         state = run.state
-        offer = state.slot_offer
-        pending = state.pending_confirmation
-        if (
-            run.input.ui_answer is not None
-            or offer is None
-            or not offer.slots
-            or state.booking is not None
-            or state.lifecycle != "active"
-            or (
-                pending is not None
-                and pending.status == "pending"
-                and not isinstance(pending.target, SlotTarget)
-            )
-        ):
+        offer = _open_offer(run)
+        if offer is None:
             return
         configuration = self._configurations[state.config_id]
         zone = ZoneInfo(configuration.timezone)
@@ -992,6 +981,8 @@ class Runtime:
                 async for event in self._runtime_call(run, "list_interview_slots", again):
                     yield event
                 run.slot_choice = run.outcome.model_text
+            case _:  # NotAChoice: the words are the model's
+                pass
 
     async def _save_shortlist(self, run: _Turn, shortlist: tuple[SlotId, ...]) -> None:
         """The slots an ambiguous answer left in question; the next answer is held to them."""
@@ -1092,6 +1083,30 @@ class Runtime:
                 ),
             )
         return event
+
+
+def _open_offer(run: _Turn) -> SlotOffer | None:
+    """The offer a spoken answer may choose from: there is one, nothing is booked, the session
+    is live, and no field or brief read-back is waiting for its own answer. A button press
+    answers a read-back, never an offer."""
+    state = run.state
+    offer = state.slot_offer
+    pending = state.pending_confirmation
+    waiting = (
+        pending is not None
+        and pending.status == "pending"
+        and not isinstance(pending.target, SlotTarget)
+    )
+    if (
+        run.input.ui_answer is not None
+        or offer is None
+        or not offer.slots
+        or state.booking is not None
+        or state.lifecycle != "active"
+        or waiting
+    ):
+        return None
+    return offer
 
 
 def _yes_to_this_slot(run: _Turn, slot_id: SlotId, rest: str) -> bool:

@@ -30,6 +30,8 @@ const el = {
   candidate: document.getElementById("candidate"),
   confirmation: document.getElementById("confirmation"),
   review: document.getElementById("review"),
+  export: document.getElementById("export"),
+  exportLink: document.getElementById("export-link"),
 };
 
 let voice = { supported: false, start() {}, stop() {}, speak() {}, turnEnded() {}, closing() {} };
@@ -296,6 +298,8 @@ function endConversation() {
   el.talk.disabled = true;
   voice.closing();
   setStatus("Conversación terminada. Gracias.");
+  el.exportLink.href = `/api/sessions/${state.sessionId}/export`;
+  el.export.hidden = false;
 }
 
 function review(line) {

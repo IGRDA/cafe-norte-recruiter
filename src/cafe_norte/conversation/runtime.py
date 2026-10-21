@@ -76,6 +76,7 @@ from cafe_norte.model.contracts import (
     ModelText,
     ModelUsage,
     ToolCall,
+    ToolSchema,
 )
 from cafe_norte.observability.contracts import (
     EventName,
@@ -174,6 +175,7 @@ class _Turn:
     asked: bool = False  # a question has been spoken; the turn says nothing more
     repairs: int = 0  # malformed tool calls this turn; the budget is ``Limits.max_repairs``
     round_idle: bool = False  # every call of the latest model round changed nothing (D44)
+    withheld: set[str] = field(default_factory=set)  # tools not offered again this turn (D44)
     previous_end: datetime | None = None  # when Ana last finished, for the gap before this turn
     recorded: bool = False  # the user turn is stored, so an interruption has a turn to close
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
@@ -792,7 +794,8 @@ class Runtime:
     def _stream_model(self, run: _Turn) -> AsyncGenerator[ModelEvent, None]:
         remaining = max(self._limits.session_seconds - run.state.active_seconds, 1.0)
         deadline = self._clock() + timedelta(seconds=remaining)
-        return self._model.stream(tuple(run.messages), self._tools.schemas(), deadline=deadline)
+        tools = _offered(self._tools.schemas(), run.withheld)
+        return self._model.stream(tuple(run.messages), tools, deadline=deadline)
 
     async def _round_events(
         self, run: _Turn, chat: Span
@@ -846,6 +849,8 @@ class Runtime:
             async for event in self._run_tool(run, call, step):
                 yield event
             run.round_idle = run.round_idle and run.outcome.idle
+            if run.outcome.idle:
+                run.withheld.add(call.name)  # the next round has to speak instead
             if run.outcome.malformed:
                 run.repairs += 1
                 if run.repairs > self._limits.max_repairs:
@@ -1131,6 +1136,12 @@ def _nothing_left_to_do(run: _Turn) -> bool:
     answered for the candidate: nothing more can be voiced, so another round is only latency
     (KI-08, D44)."""
     return run.asked and run.round_idle
+
+
+def _offered(schemas: tuple[ToolSchema, ...], withheld: set[str]) -> tuple[ToolSchema, ...]:
+    """The tools the next round may call: all but those whose call this turn changed nothing,
+    so a model that repeats a done save has to answer in words (KI-08, D44)."""
+    return tuple(schema for schema in schemas if schema.name not in withheld)
 
 
 def _opening(state: SessionState) -> list[str]:

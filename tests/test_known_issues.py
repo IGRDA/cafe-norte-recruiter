@@ -181,7 +181,6 @@ class RepeatsItsSave(FakeModel):
             yield STOP
 
 
-@pytest.mark.xfail(strict=True, reason="KI-08: a save that changed nothing is offered again")
 async def test_ki08_a_save_that_changed_nothing_is_not_repeated_before_ana_speaks() -> None:
     """Live: ``update_candidate`` came back ``unchanged`` two or three times in one turn (seq
     39, 47, 49) before the first sentence; each round cost 0.6 to 0.9 s."""

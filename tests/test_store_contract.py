@@ -2,7 +2,7 @@
 fixture of ``conftest.py``. Only port methods are used; nothing implementation-specific."""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -345,3 +345,54 @@ async def test_a_write_fenced_on_a_stale_lease_generation_is_a_conflict(store: S
     assert current is not None and current.candidate.revision == 1
     async with store.transaction() as tx:  # unfenced writes still work
         await store.sessions.save(tx, state(2), expected_revision=1)
+
+
+# ---- admission -----------------------------------------------------------------------------------
+
+
+async def test_at_most_max_active_voice_sessions_and_release_frees_a_place(store: Store) -> None:
+    a, b, c = SessionId("a"), SessionId("b"), SessionId("c")
+    for session_id in (a, b, c):
+        await store.sessions.create(state(session_id=session_id), access_hash="")
+    admission = store.admission
+    assert await admission.acquire(a, max_active=2, reserve_eur=0.5)
+    assert await admission.acquire(b, max_active=2, reserve_eur=0.5)
+    assert not await admission.acquire(c, max_active=2, reserve_eur=0.5)
+    assert await admission.acquire(a, max_active=2, reserve_eur=0.5)  # already in: idempotent
+    await admission.release(a, actual_eur=0.3)
+    assert await admission.acquire(c, max_active=2, reserve_eur=0.5)
+    await admission.release(SessionId("never"), actual_eur=0.0)  # unknown: no error
+
+
+async def test_concurrent_admissions_never_exceed_the_cap(store: Store) -> None:
+    ids = [SessionId(f"s{i}") for i in range(6)]
+    for session_id in ids:
+        await store.sessions.create(state(session_id=session_id), access_hash="")
+    results = await asyncio.gather(
+        *(store.admission.acquire(s, max_active=2, reserve_eur=0.5) for s in ids)
+    )
+    assert sum(results) == 2
+
+
+# ---- resume tokens -------------------------------------------------------------------------------
+
+
+async def test_a_resume_token_opens_only_its_session_until_it_expires(store: Store) -> None:
+    await created(store)
+    await store.sessions.create(state(session_id=SessionId("s2")), access_hash="")
+    later = NOW + timedelta(days=7)
+    await store.resume_tokens.issue(SID, "hash-1", expires_at=later)
+    await store.resume_tokens.issue(SessionId("s2"), "hash-2", expires_at=later)
+    assert await store.resume_tokens.redeem("hash-1", now=NOW) == SID
+    assert await store.resume_tokens.redeem("hash-1", now=NOW) == SID  # reusable until expiry
+    assert await store.resume_tokens.redeem("hash-2", now=NOW) == SessionId("s2")
+    assert await store.resume_tokens.redeem("hash-1", now=later) is None  # expired
+    assert await store.resume_tokens.redeem("no-such-hash", now=NOW) is None
+
+
+async def test_a_token_hash_is_issued_once(store: Store) -> None:
+    await created(store)
+    await store.resume_tokens.issue(SID, "hash-1", expires_at=NOW + timedelta(days=1))
+    with pytest.raises(ServiceError) as twice:
+        await store.resume_tokens.issue(SID, "hash-1", expires_at=NOW + timedelta(days=1))
+    assert twice.value.code == "conflict"

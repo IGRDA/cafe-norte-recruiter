@@ -33,7 +33,7 @@ from cafe_norte.persistence.contracts import (
     TurnRecord,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-from cafe_norte.persistence.later import ExportsLater, ResumeTokensLater, SummaryJobsLater
+from cafe_norte.persistence.later import ExportsLater, SummaryJobsLater
 
 
 class MemoryTransaction:
@@ -366,6 +366,22 @@ class MemoryAdmission:
         return frozenset(self._active)
 
 
+class MemoryResumeTokens:
+    def __init__(self) -> None:
+        self._tokens: dict[str, tuple[SessionId, datetime]] = {}
+
+    async def issue(self, session_id: SessionId, token_hash: str, expires_at: datetime) -> None:
+        if token_hash in self._tokens:
+            raise ServiceError("token exists", code="conflict")
+        self._tokens[token_hash] = (session_id, expires_at)
+
+    async def redeem(self, token_hash: str, now: datetime) -> SessionId | None:
+        found = self._tokens.get(token_hash)
+        if found is None or found[1] <= now:
+            return None
+        return found[0]
+
+
 class MemoryStore:
     def __init__(self, clock: Callable[[], datetime] = lambda: datetime.now(UTC)) -> None:
         self.sessions = MemorySessions()
@@ -376,7 +392,7 @@ class MemoryStore:
         self.sessions.fence = self.leases.generation_is_live
         self.admission = MemoryAdmission()
         self.summary_jobs = SummaryJobsLater()
-        self.resume_tokens = ResumeTokensLater()
+        self.resume_tokens = MemoryResumeTokens()
         self.exports = ExportsLater()
 
     def transaction(self) -> AbstractAsyncContextManager[Transaction]:

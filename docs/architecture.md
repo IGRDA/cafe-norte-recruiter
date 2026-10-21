@@ -87,7 +87,9 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | Event stream poll interval | 200 ms (Postgres; the memory store wakes on commit) |
 | Events per poll | 500 |
 | Migrations | forward-only SQL files, applied at startup under one advisory lock |
-| Resume link validity | 7 days |
+| Resume link validity | 7 days, reusable until then |
+| Session lease per turn | 60 s; a stale generation cannot write |
+| Voice admission row counts for | 600 s after acquire unless released |
 | Retention | 7 days |
 
 ## Who sees what

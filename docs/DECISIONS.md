@@ -701,3 +701,38 @@ retention.
 and rejects `\u0000`; a poller can read event N+1 before N commits when two writers journal at
 once (the lease serialises them in PR2); the hosted demo stays on the memory store until the
 infrastructure stage.
+
+## D32 · One lease per turn fences every write; the resume link is the credential
+
+_Added 21 October 2026, the second persistence pull request (leases, admission rows, resume)._
+
+**Decisions.**
+- A lease is one row per session (`owner`, `generation`, `expires_at`). The runtime claims it
+  after the per-session lock for every turn, the opening and the resume, with a 60 s TTL, hands
+  the generation to every `save` and `next_seq` of that turn (the tool context carries it to
+  the handlers) and releases it at the end. `release` expires the row instead of deleting it, so
+  generations only grow and a writer fenced on an old one can never pass again. Another owner's
+  live lease fails the turn with `conflict` before anything is written. No renewal loop: a turn
+  is bounded well under the TTL, and a crashed container blocks its session for at most a
+  minute. `delivered()` and `end()` stay unfenced: both are idempotent. A per-session lease was
+  rejected because it needs the renewal loop on day one and blocks a session for the whole cap
+  after a crash.
+- Voice admission is a row per admitted session, counted under a table lock, and a row older
+  than 600 s (the session cap plus a margin) no longer counts, so a container that dies without
+  releasing frees its place by itself. Euros are recorded for the cost report and not enforced:
+  a spend ceiling waits for the price table and stays a documented control, as the spec allows.
+- The resume link: a 256-bit token issued at session creation, only its hash stored, the token
+  in the URL fragment, exchanged by `POST /api/resume` for the session cookie, reusable until it
+  expires seven days later (spec §8). The page shows it once and in the reviewer panel; nothing
+  is mailed. A single-use token was rejected: a bookmarked first link would confuse, for little
+  gain against a leaked link that expires anyway.
+- `resume_session` is a system turn like the opening: `paused` becomes `active` through the
+  lifecycle table, Ana says `prompts/resume.<lang>.md` and repeats a pending read-back so a yes or
+  no still has a target; no model call; a reservation is restated, never rebooked. The page
+  rebuilds the transcript from the replayed journal, so no snapshot endpoint was added.
+- S12 and S13 are not scripted conversations: they are an end-to-end test on Postgres (restart,
+  zombie lease, resume) and API tests with fakes (wrong, expired, guessed).
+
+**Consequences we accept.** A resumed voice call gets a new room on the next **Hablar**; the
+hosted demo keeps the memory store until Cloud SQL (next pull request), so resume links there
+survive only while the process does.

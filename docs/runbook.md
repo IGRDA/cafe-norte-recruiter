@@ -16,9 +16,11 @@
   box `gcloud compute ssh cafe-norte --zone europe-west1-b -- docker logs app`. The startup
   script's own lines are in the serial console (`get-serial-port-output`).
   Failed turns log `turn failed … code=… detail=…`.
-- **Restart or new image**: sessions live in memory until the Postgres stage; an active
-  conversation is lost and the page says so on its next request. Resume links arrive with
-  Postgres.
+- **Restart or new image**: on Postgres (`CAFE_NORTE_DATABASE_URL` set) sessions, bookings and
+  the event sequence survive; an open page reconnects and a candidate reopens the conversation
+  with the private link shown when it started (valid 7 days). The hosted VM still runs the
+  memory store until Cloud SQL lands (D24): there an active conversation is lost and the page
+  says so on its next request.
 - **Overload**: at most two voice sessions per instance (`CAFE_NORTE_MAX_VOICE_SESSIONS`);
   a third gets `busy`. Lower it to one in `infra/app/main.tf` (`plain_env`) and redeploy.
 - **Costs**: one `e2-small` plus a static address is the standing cost (≈ 15 EUR/month); budget alerts at 15/24/30 EUR;

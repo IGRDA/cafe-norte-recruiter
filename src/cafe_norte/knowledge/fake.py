@@ -16,7 +16,7 @@ EMPTY_MANIFEST = IndexManifest(
 
 
 class FakeRetriever:
-    """Answers by exact query text; anything else retrieves nothing."""
+    """Answers by the exact first phrasing; anything else retrieves nothing."""
 
     def __init__(
         self,
@@ -33,7 +33,7 @@ class FakeRetriever:
 
     async def retrieve(self, query: RetrievalQuery) -> tuple[RetrievedChunk, ...]:
         self.queries.append(query)
-        return self._answers.get(query.text, ())
+        return self._answers.get(query.queries[0], ())
 
 
 class FakeEmbedder:

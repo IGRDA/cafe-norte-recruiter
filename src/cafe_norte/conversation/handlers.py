@@ -260,7 +260,7 @@ class SearchKnowledgeHandler(_Handler):
             allowed = allowed & TOPIC_DOCS[arguments.topic]
         found = await self._retriever.retrieve(
             RetrievalQuery(
-                text=arguments.query,
+                queries=arguments.queries,
                 config_id=state.config_id,
                 kb_version=configuration.kb_version,
                 doc_ids=allowed,

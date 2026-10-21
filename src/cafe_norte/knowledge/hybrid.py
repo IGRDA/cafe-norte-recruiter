@@ -63,15 +63,24 @@ class HybridRetriever:
         ]
         if not allowed:
             return ()
-        bm25_scores = self._bm25.scores(tokenize(query.text))
-        rankings: list[dict[int, int]] = [_ranks(allowed, bm25_scores)]
+        # One BM25 ranking per phrasing, one dense ranking per phrasing (one batched embed
+        # call), all fused by reciprocal rank. The raw scores kept per chunk are its best.
+        lexical = [self._bm25.scores(tokenize(text)) for text in query.queries]
+        rankings = [_ranks(allowed, scores) for scores in lexical]
+        bm25_scores = [max(scores[i] for scores in lexical) for i in range(len(self._index.chunks))]
         dense_scores: list[float] | None = None
+        dense_rankings: list[dict[int, int]] = []
         if self._embedder is not None and self._index.vectors is not None:
-            (vector,) = await self._embedder.embed([query.text])
-            dense_scores = [_cosine(vector, v) for v in self._index.vectors]
-            rankings.append(_ranks(allowed, dense_scores))
+            vectors = await self._embedder.embed(list(query.queries))
+            per_query = [[_cosine(q, v) for v in self._index.vectors] for q in vectors]
+            dense_rankings = [_ranks(allowed, scores) for scores in per_query]
+            dense_scores = [max(scores[i] for scores in per_query) for i in range(len(bm25_scores))]
         fused = {
-            i: sum(1.0 / (self._k + ranking[i]) for ranking in rankings if i in ranking)
+            i: sum(
+                1.0 / (self._k + ranking[i])
+                for ranking in (*rankings, *dense_rankings)
+                if i in ranking
+            )
             for i in allowed
         }
         best = sorted(allowed, key=lambda i: (-fused[i], i))[: query.limit]
@@ -79,8 +88,8 @@ class HybridRetriever:
             RetrievedChunk(
                 chunk=self._index.chunks[i],
                 fused_score=fused[i],
-                bm25_rank=rankings[0].get(i),
-                dense_rank=rankings[1].get(i) if len(rankings) > 1 else None,
+                bm25_rank=_best_rank(rankings, i),
+                dense_rank=_best_rank(dense_rankings, i) if dense_rankings else None,
                 bm25_score=bm25_scores[i],
                 dense_score=dense_scores[i] if dense_scores is not None else None,
             )
@@ -93,6 +102,11 @@ class HybridRetriever:
         if bm25_score > 0 or dense_scores is None:
             return True
         return dense_scores[i] >= self._floor
+
+
+def _best_rank(rankings: list[dict[int, int]], i: int) -> int | None:
+    ranks = [r[i] for r in rankings if i in r]
+    return min(ranks) if ranks else None
 
 
 def _ranks(allowed: list[int], scores: list[float] | tuple[float, ...]) -> dict[int, int]:

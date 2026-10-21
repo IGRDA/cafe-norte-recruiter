@@ -37,7 +37,9 @@ async def run_retrieval(
         started = time.monotonic()
         found = await retriever.retrieve(
             RetrievalQuery(
-                text=case.question, config_id=case.config_id, kb_version=configuration.kb_version
+                queries=(case.question,),
+                config_id=case.config_id,
+                kb_version=configuration.kb_version,
             )
         )
         elapsed = int((time.monotonic() - started) * 1000)

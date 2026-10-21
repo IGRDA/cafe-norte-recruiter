@@ -77,7 +77,9 @@ TOPIC_DOCS: dict[Topic, frozenset[str]] = {
 
 
 class RetrievalQuery(Frozen):
-    text: str
+    """One to three phrasings of the same question; rankings of every phrasing are fused."""
+
+    queries: tuple[str, ...] = Field(min_length=1, max_length=3)
     config_id: ConfigId
     kb_version: str
     doc_ids: frozenset[str] | None = None  # structured filter; None means every allowed doc

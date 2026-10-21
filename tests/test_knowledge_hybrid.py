@@ -22,14 +22,16 @@ def index() -> Index:
     )
 
 
-def query(text: str, config: ConfigId = CHAMBERI, **extra: object) -> RetrievalQuery:
-    return RetrievalQuery(**{"text": text, "config_id": config, "kb_version": "1", **extra})
+def query(*texts: str, config: ConfigId = CHAMBERI, **extra: object) -> RetrievalQuery:
+    return RetrievalQuery(**{"queries": texts, "config_id": config, "kb_version": "1", **extra})
 
 
 async def test_a_store_question_never_returns_the_other_stores_chunk(index: Index) -> None:
     retriever = HybridRetriever(index, FakeEmbedder())
     for config, other in ((CHAMBERI, "arganzuela"), (ARGANZUELA, "chamberi")):
-        found = await retriever.retrieve(query(f"salario en {other} 800 euros 1.380 euros", config))
+        found = await retriever.retrieve(
+            query(f"salario en {other} 800 euros 1.380 euros", config=config)
+        )
         assert found and all(other not in r.chunk.doc_id for r in found)
 
 
@@ -73,3 +75,15 @@ async def test_nothing_matches_means_nothing_returned(index: Index) -> None:
     retriever = HybridRetriever(index, None)
     assert await retriever.retrieve(query("xyzzy")) == ()
     assert await retriever.retrieve(query("horas", kb_version="2")) == ()
+
+
+async def test_a_second_phrasing_adds_its_evidence_and_the_best_rank_is_kept(index: Index) -> None:
+    # The floor above 1 removes every chunk the first phrasing reaches by cosine alone; the
+    # second phrasing brings lexical evidence, which survives any floor.
+    retriever = HybridRetriever(index, FakeEmbedder(), dense_floor=1.01)
+    one = await retriever.retrieve(query("zzqx"))
+    two = await retriever.retrieve(query("zzqx", "uniforme delantal gorra"))
+    assert one == () and two and two[0].chunk.doc_id == "uniform"
+    assert two[0].bm25_rank == 1 and two[0].bm25_score > 0
+    with pytest.raises(ValueError):
+        query("a", "b", "c", "d")

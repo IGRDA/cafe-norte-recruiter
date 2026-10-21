@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-21T10:50:57+00:00",
+  "generated_at": "2026-10-21T10:52:12+00:00",
   "kb_version": "1",
   "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
   "embedding_revision": "fastembed-0.9.0",
@@ -29,7 +29,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 7
+      "milliseconds": 5
     },
     {
       "case_id": "R02",
@@ -52,7 +52,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 4
+      "milliseconds": 6
     },
     {
       "case_id": "R03",
@@ -79,7 +79,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 7
+      "milliseconds": 6
     },
     {
       "case_id": "R04",
@@ -106,7 +106,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 6
     },
     {
       "case_id": "R05",
@@ -133,7 +133,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 6
     },
     {
       "case_id": "R06",
@@ -160,7 +160,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 5
     },
     {
       "case_id": "R07",
@@ -241,7 +241,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 5
     },
     {
       "case_id": "R10",
@@ -268,7 +268,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 6
     },
     {
       "case_id": "R11",
@@ -295,7 +295,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R12",
@@ -403,7 +403,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 6
     },
     {
       "case_id": "R16",
@@ -453,7 +453,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 6
     },
     {
       "case_id": "R18",
@@ -464,7 +464,7 @@
       "dense_scores": [],
       "hit": null,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R19",
@@ -491,7 +491,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 4
+      "milliseconds": 6
     },
     {
       "case_id": "R20",
@@ -502,7 +502,7 @@
       "dense_scores": [],
       "hit": null,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 6
     },
     {
       "case_id": "R21",
@@ -525,7 +525,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 4
+      "milliseconds": 5
     },
     {
       "case_id": "R22",
@@ -552,7 +552,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 5
     },
     {
       "case_id": "R23",
@@ -579,7 +579,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 5
     },
     {
       "case_id": "R24",

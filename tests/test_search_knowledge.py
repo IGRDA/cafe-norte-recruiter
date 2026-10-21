@@ -55,7 +55,7 @@ async def test_snippets_come_back_as_data_with_the_sources_and_the_pending_field
         args(
             "search_knowledge",
             question="how many hours?",
-            query="cuántas horas a la semana",
+            queries=["cuántas horas a la semana", "horas semanales"],
             topic="pay",
         ),
     )
@@ -74,6 +74,7 @@ async def test_snippets_come_back_as_data_with_the_sources_and_the_pending_field
     assert shown.sections == ("Horas",) and len(shown.excerpts[0]) <= 160
     assert shown.excerpts[0].endswith("…")
     (query,) = retriever.queries
+    assert query.queries == ("cuántas horas a la semana", "horas semanales")
     assert query.config_id == CONFIG.config_id and query.kb_version == CONFIG.kb_version
     assert query.doc_ids == CONFIG.kb_doc_ids & TOPIC_DOCS["pay"]
     assert query.doc_ids is not None and "offer_arganzuela" not in query.doc_ids
@@ -81,7 +82,7 @@ async def test_snippets_come_back_as_data_with_the_sources_and_the_pending_field
 
 async def test_topic_any_allows_every_document_of_the_configuration() -> None:
     handler, retriever = await world({})
-    outcome = await handler(context(), args("search_knowledge", question="q", query="q"))
+    outcome = await handler(context(), args("search_knowledge", question="q", queries=["q"]))
     assert outcome.ok and outcome.summary == "found:0:any"
     assert (
         "No knowledge base snippet matched" in outcome.model_text
@@ -100,7 +101,7 @@ async def test_an_unknown_session_is_refused() -> None:
     handler, _ = await world({})
     outcome = await handler(
         context().model_copy(update={"session_id": SessionId("other")}),
-        args("search_knowledge", question="q", query="q"),
+        args("search_knowledge", question="q", queries=["q"]),
     )
     assert not outcome.ok and outcome.summary == "not_found"
 

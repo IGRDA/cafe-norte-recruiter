@@ -17,6 +17,7 @@ from cafe_norte.conversation.brief import slot_time
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
+    SignalAnalysis,
     SignalAnalyzer,
     SignalRecorded,
     StateUpdated,
@@ -89,6 +90,7 @@ from cafe_norte.observability.contracts import (
     StructuredEvent,
     Telemetry,
     UsageRecord,
+    token_usage,
 )
 from cafe_norte.observability.redaction import redact
 from cafe_norte.persistence.contracts import EventRecord, Lease, Store, TurnRecord
@@ -214,19 +216,16 @@ class _Turn:
         )
 
     def count(self, usage: ModelUsage, model_id: str) -> None:
-        """Priced by the configured model: a provider echoes a dated snapshot id instead."""
-        for direction, quantity in (("input", usage.input_tokens), ("output", usage.output_tokens)):
-            detail = f"{model_id}:{direction}"
-            self.usage.append(
-                UsageRecord(
-                    session_id=self.session_id,
-                    turn_id=self.turn_id,
-                    kind="llm_tokens",
-                    quantity=quantity,
-                    unit_detail=detail,
-                    estimated=False,
-                )
+        self.usage.extend(
+            token_usage(
+                self.session_id,
+                self.turn_id,
+                model_id,
+                usage.input_tokens,
+                usage.output_tokens,
+                estimated=False,
             )
+        )
 
     def record(
         self,
@@ -707,7 +706,10 @@ class Runtime:
 
         async def analyze() -> None:
             try:
-                signal = await analyzer.analyze(run.turn_id, run.input.text, run.state.language)
+                analysis = await analyzer.analyze(run.turn_id, run.input.text, run.state.language)
+                if analysis.usage is not None:
+                    await self._record(_analysis_usage(run, analysis))
+                signal = analysis.signal
                 if signal is None:
                     return
                 if self._last_user_turn.get(run.session_id) == run.turn_id:
@@ -719,6 +721,12 @@ class Runtime:
         task = asyncio.create_task(analyze())
         self._analyses.add(task)
         task.add_done_callback(self._analyses.discard)
+
+    async def _record(self, usage: Sequence[UsageRecord]) -> None:
+        """Usage that arrives outside a turn's own closing transaction."""
+        async with self._store.transaction() as tx:
+            for record in usage:
+                await self._store.events.record_usage(tx, record)
 
     async def _model_round(self, run: _Turn, step: Span) -> AsyncGenerator[RuntimeEvent, None]:
         """One model call: sentences out as they complete; tool calls collected in ``run.calls``;
@@ -1131,6 +1139,20 @@ def _heard_read_back_of(run: _Turn, slot_id: SlotId) -> bool:
         and pending.target.slot_id == slot_id
         and pending.fully_delivered
         and pending.presented_turn_id != run.turn_id
+    )
+
+
+def _analysis_usage(run: _Turn, analysis: SignalAnalysis) -> tuple[UsageRecord, ...]:
+    """The classifier's tokens, under the turn it classified."""
+    usage = analysis.usage
+    assert usage is not None
+    return token_usage(
+        run.session_id,
+        run.turn_id,
+        analysis.model_id,
+        usage.input_tokens,
+        usage.output_tokens,
+        estimated=False,
     )
 
 

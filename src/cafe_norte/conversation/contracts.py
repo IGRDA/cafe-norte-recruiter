@@ -21,6 +21,7 @@ from cafe_norte.domain.contracts import (
     TurnId,
 )
 from cafe_norte.errors import ErrorCode, Language
+from cafe_norte.model.contracts import ModelUsage
 from cafe_norte.observability.contracts import StageTiming, UsageRecord
 
 
@@ -222,9 +223,17 @@ class ToolHandler(Protocol):
     async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome: ...
 
 
+class SignalAnalysis(Frozen):
+    """What one classification produced: the verdict, when there is one, and what it cost."""
+
+    signal: Signal | None
+    usage: ModelUsage | None  # reported even when no signal came of it; None when it never came
+    model_id: str  # the configured classifier model, which prices the tokens (D36)
+
+
 class SignalAnalyzer(Protocol):
     """Asynchronous sentiment/intent classification of finalized text; results are advisory and
     attached to their turn. ``None`` when there is no evidence-backed verdict. Explicit stop and
     human requests have a synchronous path in ``signals.py`` and never wait for this."""
 
-    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal | None: ...
+    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis: ...

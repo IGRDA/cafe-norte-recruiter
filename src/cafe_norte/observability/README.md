@@ -20,7 +20,7 @@ journal (`docs/runbook.md`).
 
 | File | Contents |
 | --- | --- |
-| `contracts.py` | `VersionStamp`, `StageTiming`, `UsageRecord`, `PriceTable`, `CostEstimate`, `StructuredEvent`, and the `Telemetry` and `Span` ports |
+| `contracts.py` | `VersionStamp`, `StageTiming`, `UsageRecord` (and `token_usage`, a model call's tokens as the two records every caller writes, D44), `PriceTable`, `CostEstimate`, `StructuredEvent`, and the `Telemetry` and `Span` ports |
 | `redaction.py` | `redact(text, limit=2000)`: masks emails, phones, DNI/NIE, IBANs, cards and secrets, then truncates. Pure; `conversation` may import it for the tool arguments it journals (D44) |
 | `events.py` | `emit(event)`: one JSON line on stdout keyed by session and turn (the envelope wins over the payload); every string in the payload goes through `redact`. A payload key named `text`, `transcript`, `content` or `message` is refused. `StdoutTelemetry` is the port with events and no traces |
 | `fakes.py` | `NullTelemetry` (traces nothing) and `RecordingTelemetry` (keeps events and spans; `outline()` prints the trace as a tree) beside the `Telemetry` and `Span` ports in `contracts.py`. Spans take their parent explicitly (`span.child(...)`): a turn is an async generator, and ambient context does not survive its `yield` |

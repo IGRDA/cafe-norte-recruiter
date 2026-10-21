@@ -12,6 +12,7 @@ from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
+    SignalAnalysis,
     SignalAnalyzer,
     SignalRecorded,
     StateUpdated,
@@ -914,9 +915,9 @@ async def test_a_verdict_is_journaled_against_its_source_turn() -> None:
 
 async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() -> None:
     class Slow:
-        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal:
+        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis:
             await asyncio.sleep(0.05)
-            return Signal(
+            signal = Signal(
                 turn_id=turn_id,
                 sentiment="frustrated",
                 explicit_human_request=False,
@@ -924,6 +925,7 @@ async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() 
                 language_switch_to=None,
                 evidence_text="",
             )
+            return SignalAnalysis(signal=signal, usage=None, model_id="slow")
 
     h = Harness([says("Uno."), says("Dos."), says("Tres.")], signals=Slow())
     await h.open_session()
@@ -937,7 +939,7 @@ async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() 
 
 async def test_a_failing_analyzer_never_reaches_the_turn() -> None:
     class Broken:
-        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> Signal:
+        async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis:
             raise RuntimeError("boom")
 
     h = Harness([says("Uno."), says("Dos.")], signals=Broken())
@@ -1800,3 +1802,18 @@ async def test_the_runtimes_own_call_is_journaled_with_its_arguments() -> None:
 
 def test_a_journaled_tool_start_from_before_arguments_still_reads() -> None:
     assert ToolStarted.model_validate_json('{"type": "tool_started", "name": "x"}').arguments == ""
+
+
+async def test_the_classifiers_tokens_are_recorded_under_the_turn_it_classified() -> None:
+    usage = ModelUsage(input_tokens=210, output_tokens=12, model_id="fake-2024-07-18")
+    verdict = ModelText(text='{"sentiment": "neutral", "evidence_text": ""}')
+    analyzer = ModelSignalAnalyzer(FakeModel([[verdict, usage, STOP]]))
+    h = Harness([says("Hola.")], signals=analyzer)
+    await h.open_session()
+    events = await h.run("Hola.")
+    await h.runtime.settle()
+    source = events[0].turn_id  # type: ignore[union-attr]
+    assert {(u.turn_id, u.unit_detail, u.quantity, u.estimated) for u in h.store.events.usage} == {
+        (source, "fake:input", 210, False),
+        (source, "fake:output", 12, False),
+    }

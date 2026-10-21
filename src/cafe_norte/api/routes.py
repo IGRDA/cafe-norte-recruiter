@@ -29,7 +29,7 @@ from cafe_norte.api.contracts import (
 from cafe_norte.conversation.contracts import ConversationRuntime, TurnInput, UiAnswer
 from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, StoreConfiguration
 from cafe_norte.errors import ServiceError
-from cafe_norte.observability.contracts import ProcessVersions, stamp
+from cafe_norte.observability.contracts import Estimator, ProcessVersions, stamp
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import build_export
 from cafe_norte.voice.contracts import (
@@ -75,6 +75,7 @@ def build_router(
     voice_mode: VoiceMode = "off",
     max_voice_sessions: int = 2,
     session_seconds: float = 480.0,
+    estimate: Estimator | None = None,
 ) -> APIRouter:
     """Voice endpoints return ``provider_unavailable`` when ``rooms``/``voice`` are None."""
     router = APIRouter()
@@ -321,7 +322,7 @@ def build_router(
         if snapshot is None:
             raise ServiceError("session not found", code="not_found")
         return Response(
-            build_export(snapshot).model_dump_json(indent=2),
+            build_export(snapshot, estimate=estimate).model_dump_json(indent=2),
             media_type="application/json",
             headers=headers,
         )

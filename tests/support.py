@@ -12,7 +12,8 @@ from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.main import close_hook, create_app
 from cafe_norte.model.contracts import Model
-from cafe_norte.observability.contracts import ProcessVersions
+from cafe_norte.observability.contracts import Estimator, ProcessVersions
+from cafe_norte.observability.fakes import NullTelemetry
 from cafe_norte.persistence.export import SCHEMA_VERSION
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.voice.contracts import RoomProvisioner, VoiceMode, VoiceSessionController
@@ -32,6 +33,7 @@ def build_test_app(
     voice: VoiceSessionController | None = None,
     access_code: str | None = None,
     store: MemoryStore | None = None,
+    estimate: Estimator | None = None,
 ) -> FastAPI:
     store = store if store is not None else MemoryStore()
     configurations = load_configurations(CONFIG_DIR)
@@ -45,8 +47,9 @@ def build_test_app(
         configurations=configurations,
         signals=None,
         limits=Limits(),
+        telemetry=NullTelemetry(),
         owner="test",
-        on_closed=close_hook(store, configurations, VERSIONS),
+        on_closed=close_hook(store, configurations, VERSIONS, estimate),
     )
     return create_app(
         runtime=runtime,
@@ -58,4 +61,5 @@ def build_test_app(
         voice_mode=voice_mode,
         rooms=rooms,
         voice=voice,
+        estimate=estimate,
     )

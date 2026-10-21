@@ -37,7 +37,14 @@ from cafe_norte.domain.contracts import SessionId
 from cafe_norte.errors import Language, ServiceError
 from cafe_norte.observability.contracts import StageTiming
 from cafe_norte.voice.bridge import InboundBridge, PlaybackTap
-from cafe_norte.voice.contracts import Room, VoiceStatus, VoiceTexts, VoiceTiming
+from cafe_norte.voice.contracts import (
+    STT_MODEL,
+    TTS_MODEL,
+    Room,
+    VoiceStatus,
+    VoiceTexts,
+    VoiceTiming,
+)
 from cafe_norte.voice.session import VoiceRuntime, VoiceSession
 
 JOIN_TIMEOUT_SECONDS = 15.0
@@ -51,7 +58,7 @@ STT_LANGUAGES: dict[Language, PipecatLanguage] = {
 def stt_settings(language: Language) -> DeepgramSTTSettings:
     """Deepgram in the session's language: ``multi`` heard a Spanish "sí" as "C" (D35)."""
     return DeepgramSTTSettings(
-        model="nova-3", language=STT_LANGUAGES[language], interim_results=True
+        model=STT_MODEL, language=STT_LANGUAGES[language], interim_results=True
     )
 
 
@@ -158,7 +165,7 @@ class PipecatVoiceController:
         stt = DeepgramSTTService(api_key=self._deepgram_api_key, settings=stt_settings(language))
         tts = ElevenLabsTTSService(
             api_key=self._elevenlabs_api_key,
-            settings=ElevenLabsTTSSettings(model="eleven_flash_v2_5", voice=self._voice_id),
+            settings=ElevenLabsTTSSettings(model=TTS_MODEL, voice=self._voice_id),
         )
         turns = LLMUserAggregator(
             LLMContext(),

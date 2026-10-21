@@ -9,6 +9,7 @@ import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import get_args
 
@@ -38,7 +39,10 @@ from cafe_norte.knowledge.loader import load_documents
 from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
-from cafe_norte.observability.contracts import ProcessVersions, stamp
+from cafe_norte.observability.contracts import Estimator, ProcessVersions, stamp
+from cafe_norte.observability.cost import estimate as price_usage
+from cafe_norte.observability.cost import load_prices
+from cafe_norte.observability.telemetry import configure
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, persist_export
 from cafe_norte.persistence.memory import MemoryStore
@@ -46,6 +50,8 @@ from cafe_norte.persistence.postgres import PostgresStore
 from cafe_norte.persistence.retention import purge_periodically
 from cafe_norte.persistence.seed import seed_calendar
 from cafe_norte.voice.contracts import (
+    STT_MODEL,
+    TTS_MODEL,
     RoomProvisioner,
     VoiceMode,
     VoiceSessionController,
@@ -85,6 +91,8 @@ def create_app(
     seed: bool = False,
     retention_days: int | None = None,
     retention_interval_seconds: float = 3600.0,
+    estimate: Estimator | None = None,
+    flush: Callable[[], None] | None = None,
 ) -> FastAPI:
     """Build from typed collaborators. Lifespan: open the store (migrations), seed the
     simulated calendar when ``seed`` is set, ``warm_up`` (the embedding model) before the first
@@ -111,6 +119,8 @@ def create_app(
             purge.cancel()
         await tasks.shutdown()
         await store.close()
+        if flush is not None:
+            await asyncio.to_thread(flush)  # bounded: a slow Langfuse never holds shutdown
 
     app = FastAPI(title="Café Norte · Ana", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.include_router(
@@ -126,6 +136,7 @@ def create_app(
             voice_mode=voice_mode,
             max_voice_sessions=max_voice_sessions,
             session_seconds=session_seconds,
+            estimate=estimate,
         )
     )
 
@@ -173,13 +184,9 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         all_handlers(store=store, configurations=configurations, retriever=retriever)
     )
     model = _model(env)
-    process = ProcessVersions(
-        model_id=model.model_id,
-        prompt_version=prompts.PROMPT_VERSION,
-        schema_version=SCHEMA_VERSION,
-        commit_sha=env.get("CAFE_NORTE_COMMIT_SHA", "local"),
-        voice_id=env.get("ELEVENLABS_VOICE_ID", "") if voice_mode == "pipecat" else "",
-    )
+    process = _process_versions(env, model.model_id, voice_mode)
+    telemetry, flush = configure(env, process)
+    estimate = partial(price_usage, prices=load_prices())
     runtime = Runtime(
         model=model,
         tools=registry,
@@ -192,8 +199,9 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
             session_seconds=float(env.get("CAFE_NORTE_SESSION_SECONDS", "480")),
             max_answer_characters=int(env.get("CAFE_NORTE_MAX_ANSWER_CHARACTERS", "600")),
         ),
+        telemetry=telemetry,
         owner=env.get("K_REVISION", "local"),
-        on_closed=close_hook(store, configurations, process),
+        on_closed=close_hook(store, configurations, process, estimate),
     )
     rooms: RoomProvisioner | None = None
     voice: VoiceSessionController | None = None
@@ -214,6 +222,25 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
         warm_up=warm_up,
         seed=True,
         retention_days=int(env.get("CAFE_NORTE_RETENTION_DAYS", "7")),
+        estimate=estimate,
+        flush=flush,
+    )
+
+
+def _process_versions(
+    env: Mapping[str, str], model_id: str, voice_mode: VoiceMode
+) -> ProcessVersions:
+    """The part of the version stamp fixed for this process. Hosted voice also names its
+    providers' models; the browser's own speech is not one of ours."""
+    hosted = voice_mode == "pipecat"
+    return ProcessVersions(
+        model_id=model_id,
+        prompt_version=prompts.PROMPT_VERSION,
+        schema_version=SCHEMA_VERSION,
+        commit_sha=env.get("CAFE_NORTE_COMMIT_SHA", "local"),
+        stt_model=STT_MODEL if hosted else "",
+        tts_model=TTS_MODEL if hosted else "",
+        voice_id=env.get("ELEVENLABS_VOICE_ID", "") if hosted else "",
     )
 
 
@@ -221,6 +248,7 @@ def close_hook(
     store: Store,
     configurations: Mapping[ConfigId, StoreConfiguration],
     process: ProcessVersions,
+    estimate: Estimator | None = None,
 ) -> Callable[[SessionId], Awaitable[None]]:
     """What the runtime runs when a session reaches a terminal state: the stored export."""
 
@@ -230,6 +258,7 @@ def close_hook(
             session_id,
             versions_for=lambda config_id: stamp(configurations[config_id], process),
             now=datetime.now(UTC),
+            estimate=estimate,
         )
 
     return closed

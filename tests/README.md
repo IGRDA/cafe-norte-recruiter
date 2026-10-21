@@ -10,7 +10,7 @@ runs both. `live`-marked tests are paid and manual.
 | Domain | Field algebra laws (property-based), patch validation, confirmation gating, booking conditions, lifecycle transitions | nothing |
 | Conversation | Tool loop bounds, repair budget, persistence before announcement, cancellation, duplicate input ids, explicit controls | `FakeModel`, `MemoryStore`, `FakeRetriever` |
 | Knowledge | Front matter, chunking, store filtering before ranking, fusion, abstention fixtures | local index of the fixture KB |
-| Persistence | Lease claim/renew/supersede, admission, slot race, idempotent reservation, export snapshot consistency, cleanup lock | Postgres |
+| Persistence | The store contract (transactions, conditional save, input ids, the event stream and sequence, the slot race, idempotent reservation, the snapshot) on both stores through the `store` fixture; the pure row codecs (property-based); migrations from scratch; database timeouts as error codes; S01 end to end on Postgres with a restart | memory in `make check`; Postgres in `make test-db` |
 | API | Validation without echo, ownership on every endpoint, SSE replay, cookie and resume token rules, security headers | fakes |
 | Voice | Delivery ledger (pure), `VoiceSession` with a fake runtime and fast timers, the two processors with Pipecat frames in memory, Daily REST with a scripted transport, the voice routes with fakes | Pipecat installed (dev extra), no provider |
 
@@ -18,9 +18,9 @@ Scenario fixtures `S01`–`S18` from `evals/cases/scenarios/` run here against t
 the deterministic release gate; their live counterparts run from `evals/`.
 
 Today (D18) the suite has: the import-rule check, field algebra properties, patch validation
-and application, configuration loading, the memory store's transactions, the registry, the
+and application, configuration loading, the store contract on both stores, the registry, the
 runtime's turn behaviour, SSE encoding and heartbeat, cookie ownership, the Groq adapter
-against a scripted transport, the handlers (including the interview offer, slot read-back and reservation), the confirmation rules, the brief, the explicit controls and the signal classifier (`tests/test_signals.py`, with property tests), follow-up flags, the booking conditions and the calendar rule (`tests/test_booking.py`), the memory calendar's races and idempotency (`tests/test_calendar_memory.py`), `tests/test_scenarios.py` (every `evals/cases/scenarios/S*.yaml` replayed through `evals.runner.run_fake`) and `tests/test_scorers.py` and `tests/test_api_tracer.py`, the outside-in acceptance test of
+against a scripted transport, the handlers (including the interview offer, slot read-back and reservation), the confirmation rules, the brief, the explicit controls and the signal classifier (`tests/test_signals.py`, with property tests), follow-up flags, the booking conditions and the calendar rule (`tests/test_booking.py`), the calendar contract (`tests/test_calendar_contract.py`), `tests/test_scenarios.py` (every `evals/cases/scenarios/S*.yaml` replayed through `evals.runner.run_fake`) and `tests/test_scorers.py` and `tests/test_api_tracer.py`, the outside-in acceptance test of
 the whole tracer bullet through the HTTP boundary. `tests/support.py` builds the app with fakes.
 
 Fakes live next to the port they implement (`model/fake.py`, `persistence/memory.py`,

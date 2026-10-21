@@ -26,3 +26,4 @@ infra/**/.terraform/
 !*.backend.hcl.example
 .DS_Store
 # The original, unsanitised specification stays private; docs/SPEC.md is the public copy.
+.trees/

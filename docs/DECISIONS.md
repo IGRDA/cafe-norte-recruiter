@@ -646,3 +646,58 @@ frustration lexicon without a model.
 - The default judge and simulator model is configured per run; using the answering model as
   judge is labelled as a bias in reports.
 - One initial commit for the scaffold.
+
+## D31 · Postgres adapter: a polling stream, migrations at startup, the store owns the sequence
+
+_Added 21 October 2026, the first of four persistence pull requests._
+
+**Context.** The demo ran on the memory store (D23, D24). The definition of done needs restart
+survival, private resume and booking races decided by the database. The owner split the stage
+into four pull requests: this adapter for what the app uses today; leases, admission rows and
+resume tokens; Cloud SQL in Terraform with the Auth Proxy on the VM; export snapshots and
+retention.
+
+**Decisions.**
+- One JSONB document per session (`sessions.state_json`, the `SessionState` as Pydantic writes
+  it) with the columns the database must see generated from it (`revision`, `lifecycle`,
+  `outcome`, `language`, `config_id`, `config_version`), so a column can never disagree with the
+  document and a new field needs no migration. Normalised candidate tables were rejected: the
+  field sum type (D10) would become a status column plus a nullable value, two codecs to keep in
+  sync and a migration per field.
+- A slot is taken exactly when a `bookings` row names it; `interview_slots` has no status column.
+  `bookings.slot_id UNIQUE` and `bookings.session_id PRIMARY KEY` are the invariants; `reserve()`
+  locks the slot row `FOR UPDATE`, returns the original booking for a known idempotency key,
+  refuses a taken slot, and lets the primary key refuse a second booking for the session. A
+  concurrent reserver waits on the lock and sees the winner. Bookings do not cascade from a
+  deleted session on purpose: it must fail loudly until the retention stage decides.
+- Confirmations keep no table: the history is derived from the journaled `state_updated` events
+  with the pure function D25 introduced. The spec's `confirmations` table is amended out.
+- Event payloads are JSONB, usage and timings typed tables; every child table cascades from
+  `sessions`; ids are `text`, times `timestamptz`, read back as aware UTC.
+- The store owns the event sequence: `Sessions.next_seq` is `UPDATE … SET next_seq = next_seq + 1
+  … RETURNING`, called inside the journaling transaction. The runtime's per-process counter is
+  gone, so a restarted container continues where the store stopped; PR2 adds the lease
+  generation as a second condition on the same statement. A session that does not exist is no
+  longer journaled against: there is no row to sequence and nobody can stream it.
+- `Events.since` polls every 200 ms (500 events per poll). LISTEN/NOTIFY was weighed: a
+  dedicated listening connection per container competes with a pool of five, needs reconnect
+  logic, and still needs a poll for missed notifications; at two voice sessions the poll costs
+  one indexed primary-key range read. It is the documented upgrade when streams per container
+  grow past a few dozen.
+- Migrations are applied by `PostgresStore.open()` under one advisory lock, with `make migrate`
+  as the by-hand path. One path for compose, the VM and tests; a bad migration stops the app at
+  boot, which is the intended failure. The spec's "CI runs it before switching traffic" is
+  amended; the runtime role needs DDL until Cloud SQL splits roles.
+- `make run` keeps the memory store unless `CAFE_NORTE_DATABASE_URL` is set, so the fake-mode run
+  needs no Docker. Hosted voice on Postgres is refused at startup until the admission rows exist
+  (PR2): a per-process cap a restart forgets is worse than no cap.
+- Tests: the memory store's tests became one contract suite over both stores through a
+  parametrized `store` fixture (memory in `make check`, Postgres in `make test-db`, each test on
+  truncated tables); the record/row codecs are pure and property-tested offline; database
+  timeouts surface as `timeout` and pool exhaustion as `busy`; one end-to-end test replays S01 on
+  Postgres and lets a second process continue the session.
+
+**Consequences we accept.** JSONB normalises payload text (nothing compares it byte for byte)
+and rejects `\u0000`; a poller can read event N+1 before N commits when two writers journal at
+once (the lease serialises them in PR2); the hosted demo stays on the memory store until the
+infrastructure stage.

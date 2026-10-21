@@ -39,6 +39,9 @@ h2 { font-size: 0.95rem; margin: 16px 0 8px; color: var(--muted); text-transform
 .confirmation { margin: 0; padding: 8px; border: 1px dashed var(--line); border-radius: 6px; font-size: 0.9rem; }
 .confirmation[data-status="pending"] { border-color: var(--accent); }
 .confirmation[data-status="confirmed"] { border-style: solid; }
+.booking { margin-top: 12px; padding: 8px; border: 1px solid var(--accent); border-radius: 6px; font-size: 0.9rem; }
+.booking h2 { margin-top: 0; }
+.booking .notice { margin: 4px 0 0; color: var(--muted); }
 .confirmation[data-status="invalidated"], .confirmation[data-status="rejected"] { color: var(--muted); text-decoration: line-through; }
 .error { color: var(--error); font-weight: 600; margin: 8px 0 0; }
 dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }

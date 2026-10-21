@@ -294,6 +294,7 @@ class StoreConfiguration(Frozen):
     timezone: Literal["Europe/Madrid"] = "Europe/Madrid"
     hours_per_week: int
     shifts: tuple[ShiftDefinition, ...]
+    interview_times: tuple[str, ...]  # "HH:MM" local; one 30-minute slot each, on shift days
     kb_version: str
     kb_doc_ids: frozenset[str]
 
@@ -314,6 +315,8 @@ class SessionState(Frozen):
     outcome: Outcome | None = None
     candidate: CandidateRecord = CandidateRecord()
     pending_confirmation: Confirmation | None = None
+    brief_confirmed_revision: int | None = None  # the revision the candidate last confirmed
+    schedule_intent: Evidence | None = None  # the candidate's words asking for an interview
     booking: Booking | None = None
     review_flags: tuple[ReviewFlag, ...] = ()
     active_seconds: float = 0.0

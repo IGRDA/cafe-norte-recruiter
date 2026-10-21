@@ -3,15 +3,17 @@
 Sentences live in ``prompts/brief.md``; this module only fills them. What it returns is the
 text the runtime speaks and the text a confirmation stores, so it is never paraphrased."""
 
-from collections.abc import Callable
-from datetime import date
+from collections.abc import Callable, Sequence
+from datetime import date, datetime
 from functools import cache
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from cafe_norte.conversation import prompts
 from cafe_norte.domain.contracts import (
     CandidateFieldName,
     CandidateRecord,
+    InterviewSlot,
     StoreConfiguration,
     Weekday,
 )
@@ -50,6 +52,31 @@ def render_brief_es(record: CandidateRecord, configuration: StoreConfiguration) 
 def field_readback(field: ReadbackField, value: object, configuration: StoreConfiguration) -> str:
     shown = _phone(str(value)) if field == "contact_phone" else _date(value)
     return _texts()[f"readback.{field}"].format(value=shown)
+
+
+def render_slot_offer(slots: Sequence[InterviewSlot], configuration: StoreConfiguration) -> str:
+    """The offer the runtime speaks: store, each slot in local time, the question. Nothing
+    when there is no slot."""
+    t = _texts()
+    if not slots:
+        return t["slots.none"]
+    intro = t["slots.intro"].format(store=configuration.store_name)
+    items = _join(
+        [t["slot"].format(value=slot_time(s.starts_at_utc, configuration)) for s in slots]
+    )
+    return f"{intro} {items}. {t['slots.question']}"
+
+
+def slot_readback(slot: InterviewSlot, configuration: StoreConfiguration) -> str:
+    return _texts()["readback.slot"].format(
+        store=configuration.store_name, value=slot_time(slot.starts_at_utc, configuration)
+    )
+
+
+def slot_time(starts_at_utc: datetime, configuration: StoreConfiguration) -> str:
+    """``jueves 22 de octubre de 2026 a las 10:30`` in the store's timezone."""
+    local = starts_at_utc.astimezone(ZoneInfo(configuration.timezone))
+    return f"{_date(local.date())} a las {local.strftime('%H:%M')}"
 
 
 # ---- pieces ------------------------------------------------------------------------------------

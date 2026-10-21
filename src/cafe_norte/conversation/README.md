@@ -10,8 +10,8 @@ its own.
 | `contracts.py` | `TurnInput`, the `RuntimeEvent` union, `ToolContext`, `ToolOutcome`, ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
-| `handlers.py` | `all_handlers()`: update, search knowledge, present (read-backs and the brief), confirm field/brief, request human follow-up, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
-| `brief.py` | The deterministic brief and the phone/date read-backs, filled from `prompts/brief.md`; spoken verbatim by the runtime (D20) |
+| `handlers.py` | `all_handlers()`: update, search knowledge, list interview slots, present (read-backs, the brief, a slot), confirm field/brief, reserve interview, request human follow-up, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
+| `brief.py` | The deterministic brief, the phone/date read-backs, the slot offer and the slot read-back, filled from `prompts/brief.md`; spoken verbatim by the runtime (D20) |
 | `prompt.py` | System message from the versioned prompt plus session facts as JSON; history window; sentence splitting |
 | `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines. Cancellation and repair counting: later stages |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |
@@ -29,6 +29,20 @@ same turn; the four-round limit bounds it. A chunk with no query word and a cosi
 floor is dropped (D27); beyond that, abstention is the prompt's job. When nothing answers,
 Ana offers human follow-up and `request_human_followup(reason)` saves one review flag. After
 the confirmed brief the next step is to invite questions, then the interview.
+
+## The interview
+
+After the confirmed brief and the questions, Ana asks about an interview. A yes is
+`list_interview_slots(evidence_text)`: the handler saves the candidate's words as the explicit
+intent to schedule, reads up to three future free slots of this store (preferring a stated
+date), and the runtime speaks the offer; the model gets the slot ids in the same order. The
+candidate's choice is `present_confirmation(target=slot, slot_id)`: a read-back bound to the
+current brief revision, spoken by the runtime and marked delivered like the brief. The yes to
+it is `reserve_interview(slot_id)`: the domain resolves the confirmation and checks the five
+conditions, then the calendar row and the session are written in one transaction, and only
+the committed `StateUpdated` carries the booking (D29). A taken slot comes back as a refusal
+that asks for fresh slots; a second call for the same confirmation is refused as already
+answered. After booking the next step is `end_session`, which yields `completed / reserved`.
 
 ## Turn execution
 

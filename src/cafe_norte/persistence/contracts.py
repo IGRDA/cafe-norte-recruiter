@@ -128,6 +128,8 @@ class Calendar(Protocol):
         self, config_id: ConfigId, *, after: datetime, limit: int
     ) -> tuple[InterviewSlot, ...]: ...
 
+    async def get(self, slot_id: SlotId) -> InterviewSlot | None: ...
+
     async def reserve(
         self,
         tx: Transaction,

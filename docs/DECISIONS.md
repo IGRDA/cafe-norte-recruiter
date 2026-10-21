@@ -519,6 +519,44 @@ no lexical match scored ≥ 0.40, and the unsupported questions with no lexical 
 **Not done.** ragas and Langfuse sync (not chosen), and a floor that uses the second-best
 chunk's margin (no evidence it would help on 24 questions).
 
+## D29 · Booking on the memory store: generated slots, intent by tool, the yes is the reservation
+
+_Added 21 October 2026._
+
+**Context.** The first line of the definition of done (bookings need an explicit matching
+confirmation and survive duplicates) on the in-memory store, before Postgres. The five
+conditions of SPEC §9 were already written in `domain/booking.py`'s docstring.
+
+**Decisions.**
+- Slots are a rule, not a fixture: each store configuration names its `interview_times`
+  ("10:30", "17:00"); `domain/calendar.py` yields one 30-minute slot per time on each of the
+  next seven local days that has a shift, with deterministic ids
+  (`<config_id>-<YYYY-MM-DD>-<HHMM>`). Seeding at startup and in the scenario runner is
+  therefore idempotent, and a scenario with a fixed `today` always sees the same ids. A YAML
+  calendar would go stale and need a date-shifting trick in every test.
+- Explicit intent to schedule is a fact with evidence on the session, never a candidate
+  field: a patch bumps the revision and would void the brief confirmation the booking needs.
+  `list_interview_slots(evidence_text)` saves the candidate's words as
+  `SessionState.schedule_intent` in the same write that offers the slots.
+- `brief_confirmed_revision` on the session records the brief the candidate affirmed.
+  Presenting a slot replaces `pending_confirmation`, so "brief confirmed at the current
+  revision" can no longer be read from it; the handlers and the `brief_confirmed` scorer read
+  the field.
+- `reserve_interview(slot_id)` is the candidate's yes to the pending slot read-back and the
+  commit: the domain resolves the confirmation (`respond(affirm)`, so the same-turn and
+  not-delivered refusals apply), `reservation_allowed` checks the five conditions, and the
+  calendar row and the session are saved in one transaction. No `confirm_slot`: the allowlist
+  keeps its nine names and SPEC §4's "slot ID and matching confirmation". Another choice is
+  `present_confirmation` with the other slot, which supersedes the pending one.
+- The runtime speaks the slot offer and the slot read-back verbatim (D20), in Madrid local
+  time; the model only names slot ids, in the order they were offered.
+- The memory calendar enforces one booking per slot and per session and returns the original
+  booking for a known idempotency key, checked at enlist and again at commit.
+
+**Deferred.** Postgres row locks and S14/S15 across containers (persistence stage); automated
+rescheduling (a change request is a `request_human_followup` flag, per SPEC §9); English
+sentences (language stage).
+
 ## Assumptions recorded without a question
 
 - Python 3.12, `uv`, Makefile targets, Ruff and strict mypy, as in the reference repository.

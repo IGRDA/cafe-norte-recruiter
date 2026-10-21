@@ -9,7 +9,7 @@ from datetime import date
 from functools import cache
 
 from cafe_norte.conversation import prompts
-from cafe_norte.domain.contracts import BriefTarget, CandidateFieldName, Captured, Confirmed
+from cafe_norte.domain.contracts import CandidateFieldName, Captured, Confirmed
 from cafe_norte.domain.fields import value_of
 from evals.contracts import Check, CheckResult, SessionResult
 
@@ -59,12 +59,24 @@ def _field_status(result: SessionResult, check: Check) -> tuple[bool, str]:
 
 
 def _brief_confirmed(result: SessionResult, check: Check) -> tuple[bool, str]:
-    pending = result.state.pending_confirmation
-    if pending is None or not isinstance(pending.target, BriefTarget):
-        return False, "no brief confirmation on record"
+    confirmed = result.state.brief_confirmed_revision
     current = result.state.candidate.revision
-    ok = pending.status == "confirmed" and pending.target.revision == current
-    return ok, f"brief {pending.status} at revision {pending.target.revision}, record at {current}"
+    if confirmed is None:
+        return False, "no brief confirmation on record"
+    return confirmed == current, f"brief confirmed at revision {confirmed}, record at {current}"
+
+
+def _booking_present(result: SessionResult, check: Check) -> tuple[bool, str]:
+    booking = result.state.booking
+    if booking is None:
+        return False, "no booking"
+    same_store = booking.config_id == result.state.config_id
+    return same_store and booking.simulated, f"booking {booking.slot_id}, store match {same_store}"
+
+
+def _booking_absent(result: SessionResult, check: Check) -> tuple[bool, str]:
+    booking = result.state.booking
+    return booking is None, "no booking" if booking is None else f"booking {booking.slot_id}"
 
 
 def _outcome_is(result: SessionResult, check: Check) -> tuple[bool, str]:
@@ -149,8 +161,8 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "lifecycle_is": _lifecycle_is,
     "no_fabricated_confirmed_values": _no_fabricated,
     "max_repeated_questions": _max_repeated_questions,
-    "booking_present": _later("booking"),
-    "booking_absent": _later("booking"),
+    "booking_present": _booking_present,
+    "booking_absent": _booking_absent,
     "review_flag_present": _review_flag_present,
     "language_of_last_assistant_turn": _later("language"),
     "sources_shown_for_policy_answer": _sources_shown,

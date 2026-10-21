@@ -49,7 +49,6 @@ async def test_ki03_the_candidate_starting_to_speak_restarts_the_silence_clock()
     await s.close()
 
 
-@pytest.mark.xfail(strict=True, reason="KI-04: playback finishing re-arms the silence prompt")
 async def test_ki04_after_a_failed_turn_the_silence_prompt_is_said_once() -> None:
     """Live: the failed turn's summary was still playing; the apology (16:09:04) started the
     silence clock, '¿Sigues ahí?' came at 16:09:12, and when the summary's last sentence

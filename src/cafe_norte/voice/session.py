@@ -199,10 +199,7 @@ class VoiceSession:
             self._turn_done = True
         if failed:
             await self._say(self._texts.failure)
-            self._set("listening")
-            self._start_idle()
-            return
-        await self._maybe_acknowledge()
+        await self._maybe_acknowledge()  # the only place a listening period starts
 
     async def _filler(self) -> None:
         await asyncio.sleep(self.filler_after_seconds)

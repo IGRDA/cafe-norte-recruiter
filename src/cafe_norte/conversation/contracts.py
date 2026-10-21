@@ -172,6 +172,14 @@ class ConversationRuntime(Protocol):
         """Playback acknowledgement from the voice channel: what was actually heard."""
         ...
 
+    def say(self, session_id: SessionId, text: str) -> AsyncIterator[RuntimeEvent]:
+        """A fixed sentence the system says outside a candidate turn, journaled."""
+        ...
+
+    async def aside(self, turn_id: TurnId, text: str) -> None:
+        """A sentence voice said inside a running turn, journaled under it."""
+        ...
+
     async def end(
         self, session_id: SessionId, reason: Literal["stop", "limit", "shutdown"]
     ) -> None: ...

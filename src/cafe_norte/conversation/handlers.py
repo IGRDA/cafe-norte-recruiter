@@ -189,7 +189,12 @@ class UpdateCandidateHandler(_Handler):
             return self._refuse("not_found", "Session not found.")
         configuration = self._configurations[state.config_id]
 
-        result = validate_patch(arguments.patch, configuration, context.now.date())
+        result = validate_patch(
+            arguments.patch,
+            configuration,
+            context.now.date(),
+            evidence_text=arguments.evidence_text,
+        )
         if isinstance(result, Err):
             error = result.error
             return self._refuse(
@@ -431,8 +436,14 @@ class PresentConfirmationHandler(_Handler):
             )
 
         current = state.pending_confirmation
-        if current is not None and current.status == "pending" and current.target == target:
-            # Already presented and still unanswered: do not say it twice.
+        if (
+            current is not None
+            and current.status == "pending"
+            and current.target == target
+            and (current.fully_delivered or current.presented_turn_id == context.turn_id)
+        ):
+            # Heard, or just said this turn, and still unanswered: do not say it twice. One
+            # from an earlier turn that was not fully heard (interrupted, D22) is read again.
             tool = {"field": "confirm_field", "brief": "confirm_brief", "slot": "reserve_interview"}
             return ToolOutcome(
                 ok=True,
@@ -476,6 +487,8 @@ class _ConfirmHandler(_Handler):
             advice = {
                 "same_turn": "The candidate has not answered yet. Reply with nothing and wait.",
                 "nothing_pending": "Continue.",
+                "not_delivered": "It was not heard to the end: call present_confirmation "
+                f"(target={self.kind}) to read it again, then wait for the answer.",
             }.get(result.error, "Present it again.")
             return self._refuse(
                 f"confirmation_refused:{result.error}",

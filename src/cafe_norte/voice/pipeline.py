@@ -11,6 +11,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.frames.frames import STTUpdateSettingsFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -20,7 +21,11 @@ from pipecat.processors.aggregators.llm_response_universal import (
 )
 from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
+from pipecat.transcriptions.language import Language as PipecatLanguage
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
+from pipecat.turns.user_start.transcription_user_turn_start_strategy import (
+    TranscriptionUserTurnStartStrategy,
+)
 from pipecat.turns.user_start.vad_user_turn_start_strategy import VADUserTurnStartStrategy
 from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import (
     SpeechTimeoutUserTurnStopStrategy,
@@ -36,7 +41,34 @@ from cafe_norte.voice.contracts import Room, VoiceStatus, VoiceTexts, VoiceTimin
 from cafe_norte.voice.session import VoiceRuntime, VoiceSession
 
 JOIN_TIMEOUT_SECONDS = 15.0
-USER_SPEECH_TIMEOUT_SECONDS = 0.6  # Pipecat's default pause before a turn is considered over
+USER_SPEECH_TIMEOUT_SECONDS = 1.0  # a pause inside a sentence does not end the turn (D35)
+STT_LANGUAGES: dict[Language, PipecatLanguage] = {
+    "es": PipecatLanguage.ES,
+    "en": PipecatLanguage.EN,
+}
+
+
+def stt_settings(language: Language) -> DeepgramSTTSettings:
+    """Deepgram in the session's language: ``multi`` heard a Spanish "sí" as "C" (D35)."""
+    return DeepgramSTTSettings(
+        model="nova-3", language=STT_LANGUAGES[language], interim_results=True
+    )
+
+
+def user_turn_strategies() -> UserTurnStrategies:
+    """A turn starts on VAD or, when VAD misses a soft answer, on a transcript (Pipecat's own
+    default pair); it ends after a full second of silence once the transcript is in."""
+    return UserTurnStrategies(
+        start=[
+            VADUserTurnStartStrategy(enable_interruptions=True),
+            TranscriptionUserTurnStartStrategy(),
+        ],
+        stop=[
+            SpeechTimeoutUserTurnStopStrategy(
+                user_speech_timeout=USER_SPEECH_TIMEOUT_SECONDS, wait_for_transcript=True
+            )
+        ],
+    )
 
 
 class PipecatVoiceController:
@@ -123,10 +155,7 @@ class PipecatVoiceController:
             "Ana",
             DailyParams(audio_in_enabled=True, audio_out_enabled=True, video_out_enabled=False),
         )
-        stt = DeepgramSTTService(
-            api_key=self._deepgram_api_key,
-            settings=DeepgramSTTSettings(model="nova-3", language="multi", interim_results=True),
-        )
+        stt = DeepgramSTTService(api_key=self._deepgram_api_key, settings=stt_settings(language))
         tts = ElevenLabsTTSService(
             api_key=self._elevenlabs_api_key,
             settings=ElevenLabsTTSSettings(model="eleven_flash_v2_5", voice=self._voice_id),
@@ -135,18 +164,19 @@ class PipecatVoiceController:
             LLMContext(),
             params=LLMUserAggregatorParams(
                 vad_analyzer=SileroVADAnalyzer(),
-                user_turn_strategies=UserTurnStrategies(
-                    start=[VADUserTurnStartStrategy(enable_interruptions=True)],
-                    stop=[
-                        SpeechTimeoutUserTurnStopStrategy(
-                            user_speech_timeout=USER_SPEECH_TIMEOUT_SECONDS,
-                            wait_for_transcript=True,
-                        )
-                    ],
-                ),
+                user_turn_strategies=user_turn_strategies(),
             ),
         )
         holder: dict[str, InboundBridge] = {}
+        tasks: set[asyncio.Future[None]] = set()
+        task_holder: dict[str, PipelineTask] = {}
+
+        async def recognise_in(new: Language) -> None:
+            """A language switch: Deepgram reconnects with the new language (Pipecat applies
+            the settings delta and reconnects the stream)."""
+            await task_holder["task"].queue_frame(
+                STTUpdateSettingsFrame(delta=DeepgramSTTSettings(language=STT_LANGUAGES[new]))
+            )
 
         async def speak(text: str) -> None:
             await holder["bridge"].speak(text)
@@ -159,6 +189,7 @@ class PipecatVoiceController:
             texts=self._texts,
             language=language,
             clock=self._clock,
+            on_language=lambda new: tasks.add(asyncio.ensure_future(recognise_in(new))),
         )
         bridge = InboundBridge(session)
         holder["bridge"] = bridge
@@ -174,6 +205,7 @@ class PipecatVoiceController:
             ]
         )
         pipeline_task = PipelineTask(pipeline, params=PipelineParams(enable_metrics=False))
+        task_holder["task"] = pipeline_task
         live = _Live(session=session, pipeline_task=pipeline_task)
 
         async def on_joined(_transport: object, _data: object) -> None:
@@ -198,9 +230,14 @@ class PipecatVoiceController:
 
 
 async def _run(live: "_Live") -> None:
+    """The pipeline until it ends for any reason; then the call is over and the session
+    pauses (``VoiceSession.close`` is idempotent, so ``stop`` closing it first is fine)."""
     runner = WorkerRunner(handle_sigint=False)
-    await runner.add_workers(live.pipeline_task)
-    await runner.run()
+    try:
+        await runner.add_workers(live.pipeline_task)
+        await runner.run()
+    finally:
+        await live.session.close()
 
 
 class _Live:

@@ -16,6 +16,7 @@ from cafe_norte.conversation.contracts import (
     RuntimeEvent,
     ToolFinished,
     ToolStarted,
+    TurnFailed,
     TurnFinished,
     TurnInput,
     TurnStarted,
@@ -29,13 +30,15 @@ Speak = Callable[[str], Awaitable[None]]
 
 
 class VoiceRuntime(Protocol):
-    """The three things voice needs from the conversation runtime."""
+    """What voice needs from the conversation runtime."""
 
     def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]: ...
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None: ...
     async def end(
         self, session_id: SessionId, reason: Literal["stop", "limit", "shutdown"]
     ) -> None: ...
+    def say(self, session_id: SessionId, text: str) -> AsyncIterator[RuntimeEvent]: ...
+    async def aside(self, turn_id: TurnId, text: str) -> None: ...
 
 
 def _utcnow() -> datetime:
@@ -56,7 +59,7 @@ class VoiceSession:
         language: Language,
         clock: Callable[[], datetime] | None = None,
         idle_prompt_seconds: float = 8.0,
-        idle_pause_seconds: float = 12.0,
+        on_language: Callable[[Language], None] | None = None,
     ) -> None:
         self._runtime = runtime
         self._session_id = session_id
@@ -66,7 +69,8 @@ class VoiceSession:
         self._language = language  # follows each turn, so a switch changes the next filler
         self._clock = clock or _utcnow
         self._idle_prompt_seconds = idle_prompt_seconds
-        self._idle_pause_seconds = idle_pause_seconds
+        self._on_language = on_language
+        self._closed = False
         self.status: VoiceStatus = "connecting"
         self._ledger = Ledger()
         self._turn_task: asyncio.Task[None] | None = None
@@ -136,21 +140,36 @@ class VoiceSession:
         if self._turn_task is not None:
             await asyncio.gather(self._turn_task, return_exceptions=True)
 
+    async def heard_speech(self) -> None:
+        """Any raw transcript, interim or final: the candidate is talking, so it is not
+        silence, even when VAD missed it and no turn has started yet (D35)."""
+        if self.status == "listening":
+            self._start_idle()
+
     async def close(self) -> None:
+        """The call is over (hang-up, disconnect, expiry, stop): the session pauses here, and
+        only here, so it can be resumed with the private link. Idempotent."""
+        if self._closed:
+            return
+        self._closed = True
         self._cancel_idle()
         self._cancel_filler()
         if self._turn_task is not None:
             self._turn_task.cancel()
             await asyncio.gather(self._turn_task, return_exceptions=True)
+        await self._runtime.end(self._session_id, "shutdown")
         self._set("ended")
 
     # ---- the turn --------------------------------------------------------------------------------
 
     async def _run(self, turn: TurnInput) -> None:
+        failed = False
         try:
             async for event in self._runtime.run_turn(turn):
                 if isinstance(event, TurnStarted):
                     self._turn_id = event.turn_id
+                    if event.language != self._language and self._on_language is not None:
+                        self._on_language(event.language)  # recognition follows the switch
                     self._language = event.language
                 elif isinstance(event, AssistantText):
                     self._cancel_filler()
@@ -163,15 +182,24 @@ class VoiceSession:
                     self._cancel_filler()
                 elif isinstance(event, TurnFinished):
                     self._turn_done = True
+                elif isinstance(event, TurnFailed):
+                    failed = True
         finally:
             self._cancel_filler()
             self._turn_done = True
+        if failed:
+            await self._say(self._texts.failure)
+            self._set("listening")
+            self._start_idle()
+            return
         await self._maybe_acknowledge()
 
     async def _filler(self) -> None:
         await asyncio.sleep(self.filler_after_seconds)
         self._ledger = sent(self._ledger, self._texts.filler)
         await self._speak(self._texts.filler)
+        if self._turn_id is not None:
+            await self._runtime.aside(self._turn_id, self._texts.filler)
 
     async def _maybe_acknowledge(self) -> None:
         """Once the turn has ended and its last sentence has played, tell the runtime."""
@@ -195,11 +223,16 @@ class VoiceSession:
         self._idle_task = asyncio.create_task(self._idle())
 
     async def _idle(self) -> None:
+        """One "¿Sigues ahí?" after the silence; a live call is never paused for silence."""
         await asyncio.sleep(self._idle_prompt_seconds)
-        await self._speak(self._texts.idle_prompt)
-        await asyncio.sleep(self._idle_pause_seconds)
-        await self._runtime.end(self._session_id, "shutdown")
-        self._set("paused")
+        await self._say(self._texts.idle_prompt)
+
+    async def _say(self, text: str) -> None:
+        """A fixed sentence through the runtime's journal, then spoken: nothing is heard that
+        the transcript and the export do not show."""
+        async for event in self._runtime.say(self._session_id, text):
+            if isinstance(event, AssistantText):
+                await self._speak(event.spoken_form)
 
     def _cancel_idle(self) -> None:
         if self._idle_task is not None:

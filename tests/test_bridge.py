@@ -33,6 +33,9 @@ class SessionSpy:
     async def played_one(self) -> None:
         self.calls.append("played_one")
 
+    async def heard_speech(self) -> None:
+        self.calls.append("heard")
+
 
 def user_turn(*messages: tuple[str, str]) -> LLMContextFrame:
     payload: list[Any] = [{"role": role, "content": content} for role, content in messages]
@@ -52,7 +55,20 @@ async def test_inbound_takes_the_aggregated_user_message_as_the_turn() -> None:
         user_turn(("assistant", "¿Y tu nombre?")),  # no user message: not a turn
     ]
     await run_test(bridge, frames_to_send=frames, expected_down_frames=[])
-    assert spy.calls == ["transcript:me llamo Lucía Marín", "transcript:sí me interesa"]
+    assert [c for c in spy.calls if c != "heard"] == [
+        "transcript:me llamo Lucía Marín",
+        "transcript:sí me interesa",
+    ]
+
+
+async def test_any_raw_transcript_tells_the_session_speech_was_heard() -> None:
+    spy = SessionSpy()
+    frames = [
+        InterimTranscriptionFrame(text="s", user_id="u", timestamp="0"),
+        TranscriptionFrame(text="sí", user_id="u", timestamp="1"),
+    ]
+    await run_test(InboundBridge(spy), frames_to_send=frames, expected_down_frames=[])
+    assert spy.calls == ["heard", "heard"]
 
 
 async def test_inbound_relays_an_interruption_and_lets_it_through() -> None:

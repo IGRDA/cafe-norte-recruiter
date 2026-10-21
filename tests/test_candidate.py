@@ -30,23 +30,31 @@ EVIDENCE = Evidence(source_turn_id=TurnId("t1"), text="me llamo Lucía")
 
 def test_a_valid_patch_passes_unchanged() -> None:
     patch = CandidatePatch(name="Lucía", hours_per_week=30)
-    assert validate_patch(patch, CONFIG, TODAY) == Ok(patch)
+    assert validate_patch(patch, CONFIG, TODAY, evidence_text="Lucía, 30 horas") == Ok(patch)
 
 
 def test_phones_are_normalized_to_e164_or_refused() -> None:
-    ok = validate_patch(CandidatePatch(contact_phone="612 34 56 78"), CONFIG, TODAY)
+    ok = validate_patch(
+        CandidatePatch(contact_phone="612 34 56 78"), CONFIG, TODAY, evidence_text=""
+    )
     assert isinstance(ok, Ok) and ok.value.contact_phone == "+34612345678"
-    bad = validate_patch(CandidatePatch(contact_phone="12"), CONFIG, TODAY)
+    bad = validate_patch(CandidatePatch(contact_phone="12"), CONFIG, TODAY, evidence_text="")
     assert isinstance(bad, Err) and bad.error.reason == "invalid_format"
 
 
 def test_unknown_shifts_and_past_dates_are_refused() -> None:
-    shifts = validate_patch(CandidatePatch(availability_shifts=frozenset({"night"})), CONFIG, TODAY)
+    shifts = validate_patch(
+        CandidatePatch(availability_shifts=frozenset({"night"})), CONFIG, TODAY, evidence_text=""
+    )
     assert isinstance(shifts, Err) and shifts.error.reason == "unknown_shift"
     assert shifts.error.detail == "night"
-    past = validate_patch(CandidatePatch(earliest_start_date=date(2026, 1, 1)), CONFIG, TODAY)
+    past = validate_patch(
+        CandidatePatch(earliest_start_date=date(2026, 1, 1)), CONFIG, TODAY, evidence_text=""
+    )
     assert isinstance(past, Err) and past.error.reason == "past_date"
-    today = validate_patch(CandidatePatch(earliest_start_date=TODAY), CONFIG, TODAY)
+    today = validate_patch(
+        CandidatePatch(earliest_start_date=TODAY), CONFIG, TODAY, evidence_text=""
+    )
     assert isinstance(today, Ok)
 
 
@@ -93,3 +101,14 @@ def test_changed_and_unfinished_fields() -> None:
     assert not ready_for_brief(record)
     everything = CandidatePatch(unknown=frozenset(unfinished_fields(record)))
     assert ready_for_brief(apply_patch(record, everything, EVIDENCE))
+
+
+def test_hours_need_their_number_in_the_candidates_words() -> None:
+    """The hosted call of 21 October: "Por la mañana" was saved with 35 hours, the store's
+    contract, which the candidate never said."""
+    invented = CandidatePatch(availability_shifts=frozenset({"morning"}), hours_per_week=35)
+    refused = validate_patch(invented, CONFIG, TODAY, evidence_text="Por la mañana.")
+    assert isinstance(refused, Err) and refused.error.field == "hours_per_week"
+    assert refused.error.reason == "not_in_evidence"
+    said = validate_patch(invented, CONFIG, TODAY, evidence_text="Por la mañana, unas 35 horas")
+    assert isinstance(said, Ok)

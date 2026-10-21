@@ -214,6 +214,7 @@ function handle(event) {
       if (TERMINAL.has(payload.lifecycle)) endConversation();
       break;
     case "turn_finished": {
+      hideError(); // a later turn went through: an old error no longer applies
       const ms = Object.fromEntries(payload.timings.map((t) => [t.stage, t.milliseconds]));
       const tokens = payload.usage.map((u) => `${u.unit_detail} ${u.quantity}`).join(", ");
       review(`turno terminado · primer token ${ms.llm_first_output ?? "–"} ms · total ${ms.llm_total ?? "–"} ms · tokens ${tokens || "–"}`);

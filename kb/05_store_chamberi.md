@@ -1,18 +1,21 @@
 ---
 doc_id: store_chamberi
-version: "1"
+version: "2"
 config_ids: [chamberi_barista_v1]
 language: es
 title: Turnos y tienda, Chamberí / Chamberí shifts and store
-keywords: [turnos, shifts, horario, opening hours, dirección, address, metro, cómo llegar, directions, equipo, team, tienda, store]
+keywords: [turnos, shifts, horario, opening hours, dirección, address, ubicación, location, dónde está, where, metro, cómo llegar, directions, equipo, team, tienda, store]
 ---
 
 # Turnos y tienda, Chamberí
 
 ## Dirección
 
-Café Norte Chamberí está en Calle Ficticia 12, 28010 Madrid, en el barrio de Chamberí. La
-dirección es ficticia. El metro más cercano es Iglesia, línea 1, a tres minutos andando;
+Dónde está la tienda: el local de Café Norte Chamberí queda en Calle Ficticia 12, 28010 Madrid,
+en el barrio de Chamberí. La dirección es ficticia. Es la ubicación del establecimiento donde
+trabajarías y donde se hace la entrevista.
+
+Cómo llego a la cafetería: para llegar, el metro más cercano es Iglesia, línea 1, a tres minutos andando;
 también paran cerca los autobuses 3 y 37.
 
 ## Horario

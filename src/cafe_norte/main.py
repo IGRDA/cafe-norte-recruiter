@@ -281,6 +281,7 @@ def voice_texts() -> dict[Language, VoiceTexts]:
             opening=prompts.load("opening", language).strip(),
             filler=table["filler"],
             idle_prompt=table["idle_prompt"],
+            failure=table["failure"],
         )
 
     return {language: texts(language) for language in get_args(Language)}

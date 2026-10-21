@@ -1,6 +1,7 @@
 """The runtime implementation behind the ``ConversationRuntime`` port."""
 
 import asyncio
+import json
 import logging
 import time
 import uuid
@@ -19,6 +20,7 @@ from cafe_norte.conversation.contracts import (
     StateUpdated,
     ToolContext,
     ToolFinished,
+    ToolOutcome,
     ToolStarted,
     TurnFailed,
     TurnFinished,
@@ -34,6 +36,7 @@ from cafe_norte.conversation.prompt import (
 )
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.signals import (
+    answer_to_readback,
     explicit_controls,
     fresh_sentiment,
     requested_language,
@@ -44,6 +47,7 @@ from cafe_norte.domain.contracts import (
     SessionId,
     SessionState,
     Signal,
+    SlotTarget,
     StoreConfiguration,
     TurnId,
 )
@@ -119,6 +123,10 @@ class _Turn:
     timings: list[StageTiming] = field(default_factory=list)
     asked: bool = False  # a question has been spoken; the turn says nothing more
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
+    outcome: ToolOutcome = field(
+        default_factory=lambda: ToolOutcome(ok=True, model_text="", summary="")
+    )
+    answered: str | None = None  # what the runtime's own read-back answer told the model
 
     @property
     def session_id(self) -> SessionId:
@@ -251,6 +259,21 @@ class Runtime:
         input_id = InputId(f"resume-{uuid.uuid4().hex[:8]}")
         async for event in self._system_turn(session_id, input_id, _resume, reactivate=True):
             yield event
+
+    async def say(self, session_id: SessionId, text: str) -> AsyncIterator[RuntimeEvent]:
+        """A fixed sentence the system says outside a candidate turn (the silence prompt, the
+        apology after a failed turn), journaled as its own turn so the page and the export
+        show everything Ana said (D35)."""
+        input_id = InputId(f"system-{uuid.uuid4().hex[:8]}")
+        async for event in self._system_turn(session_id, input_id, lambda _: [text]):
+            yield event
+
+    async def aside(self, turn_id: TurnId, text: str) -> None:
+        """A sentence voice said inside a running turn (the filler while a tool works),
+        journaled under that turn. Unknown turns are ignored."""
+        session_id = self._turn_sessions.get(turn_id)
+        if session_id is not None:
+            await self._journal(session_id, turn_id, _say(text))
 
     async def _system_turn(
         self,
@@ -399,11 +422,18 @@ class Runtime:
         controls = explicit_controls(run.input.text)
         language = requested_language(controls, previous.language)
         run.state = previous.model_copy(update={"language": language})
+        if previous.lifecycle == "paused":  # the candidate is back: the session is live again
+            resumed = transition(run.state, "resume")
+            if not isinstance(resumed, Err):
+                lifecycle, outcome = resumed.value
+                run.state = run.state.model_copy(
+                    update={"lifecycle": lifecycle, "outcome": outcome}
+                )
         async with self._store.transaction() as tx:  # duplicate input_id raises conflict here
             await self._store.turns.append(
                 tx, run.record("user", run.input.text, run.input.received_at)
             )
-            if language != previous.language:
+            if run.state != previous:
                 await self._store.sessions.save(
                     tx,
                     run.state,
@@ -426,6 +456,10 @@ class Runtime:
         if "human" in controls:
             async for event in self._human_request(run):
                 yield event
+        async for event in self._plain_answer(run):
+            yield event
+        if run.answered is not None:
+            hints = hints.model_copy(update={"readback_answered": run.answered})
 
         history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
         configuration = self._configurations[run.state.config_id]
@@ -503,9 +537,9 @@ class Runtime:
         said: list[str] = []
         buffer = ""
         first = True
-        stream = self._stream_model(run)
+        events = self._round_events(run)
         try:
-            async for event in self._stream_model_events(stream):
+            async for event in events:
                 if first:
                     first = False
                     run.time("llm_first_output", run.started)
@@ -527,7 +561,7 @@ class Runtime:
                 elif isinstance(event, ModelUsage):
                     run.count(event)
         finally:
-            await stream.aclose()
+            await events.aclose()
         tail = clean_sentence(buffer)
         if tail and self._say_once(run, said, tail):
             yield await self._emit(run, _say(tail))
@@ -555,59 +589,115 @@ class Runtime:
         deadline = self._clock() + timedelta(seconds=remaining)
         return self._model.stream(tuple(run.messages), self._tools.schemas(), deadline=deadline)
 
-    async def _stream_model_events(
-        self, stream: AsyncIterator[ModelEvent]
-    ) -> AsyncIterator[ModelText | ToolCall | ModelUsage]:
-        """The model stream with the first-output bound applied around the first event."""
+    async def _round_events(
+        self, run: _Turn
+    ) -> AsyncGenerator[ModelText | ToolCall | ModelUsage, None]:
+        """One model round with the first-output bound. A round that says nothing in time is
+        abandoned and asked once more (spec §12: one bounded retry for safe generation;
+        nothing of it was spoken); a second miss fails the turn with ``timeout``."""
+        bound = self._limits.llm_first_output_seconds
+        for attempt in (1, 2):
+            stream = self._stream_model(run)
+            started = time.monotonic()
+            try:
+                async with asyncio.timeout(bound):
+                    first = await anext(stream, None)
+            except TimeoutError as error:
+                await stream.aclose()
+                if attempt == 1:
+                    log.warning("model round: no output in %.1f s, asking once more", bound)
+                    continue
+                raise ServiceError("no model output in time", code="timeout") from error
+            break
+        log.info(
+            "model round: first output after %d ms (attempt %d)",
+            (time.monotonic() - started) * 1000,
+            attempt,
+        )
         try:
-            async with asyncio.timeout(self._limits.llm_first_output_seconds):
-                first = await anext(stream, None)
-        except TimeoutError as error:
-            raise ServiceError("no model output in time", code="timeout") from error
-        if first is None:
-            raise ServiceError("empty model stream", code="invalid_response")
-        if not isinstance(first, ModelFinished):
-            yield first
-        async for event in stream:
-            if not isinstance(event, ModelFinished):
-                yield event
+            if first is None:
+                raise ServiceError("empty model stream", code="invalid_response")
+            if not isinstance(first, ModelFinished):
+                yield first
+            async for event in stream:
+                if not isinstance(event, ModelFinished):
+                    yield event
+        finally:
+            await stream.aclose()
+            log.info("model round: done after %d ms", (time.monotonic() - started) * 1000)
 
     async def _tool_calls(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """Dispatch every call of the round in order; each result becomes a tool message."""
         for call in run.calls:
-            yield await self._emit(run, ToolStarted(name=call.name))
-            started = time.monotonic()
-            context = ToolContext(
-                session_id=run.session_id,
-                turn_id=run.turn_id,
-                now=self._clock(),
-                language=run.state.language,
-                lease_generation=run.generation,
-            )
-            try:
-                async with asyncio.timeout(self._limits.tool_seconds):
-                    outcome = await self._tools.dispatch(call, context)
-            except TimeoutError as error:
-                raise ServiceError(f"tool {call.name} timed out", code="timeout") from error
-            run.time("tool", started, tool_name=call.name)
-            for extra in outcome.events:
-                yield await self._emit(run, extra)
-            if outcome.spoken:
-                # A read-back is said in full, then recorded as delivered (text channel).
-                async for event in self._verbatim(run, outcome.spoken):
-                    yield event
-                if run.input.channel == "text":
-                    await self._mark_delivered(run)
-            yield await self._emit(
-                run, ToolFinished(name=call.name, ok=outcome.ok, summary=outcome.summary)
-            )
+            async for event in self._run_tool(run, call):
+                yield event
             run.messages.append(
                 ModelMessage(
                     role="tool",
-                    content=_tool_message(outcome.model_text, run.spoken),
+                    content=_tool_message(run.outcome.model_text, run.spoken),
                     tool_call_id=call.call_id,
                 )
             )
+
+    async def _run_tool(self, run: _Turn, call: ToolCall) -> AsyncIterator[RuntimeEvent]:
+        """One tool call through the registry: started, its events, anything it says, finished.
+        The outcome is left on ``run.outcome`` for the caller."""
+        yield await self._emit(run, ToolStarted(name=call.name))
+        started = time.monotonic()
+        context = ToolContext(
+            session_id=run.session_id,
+            turn_id=run.turn_id,
+            now=self._clock(),
+            language=run.state.language,
+            lease_generation=run.generation,
+        )
+        try:
+            async with asyncio.timeout(self._limits.tool_seconds):
+                outcome = await self._tools.dispatch(call, context)
+        except TimeoutError as error:
+            raise ServiceError(f"tool {call.name} timed out", code="timeout") from error
+        run.time("tool", started, tool_name=call.name)
+        for extra in outcome.events:
+            yield await self._emit(run, extra)
+        if outcome.spoken:
+            # A read-back is said in full, then recorded as delivered (text channel).
+            async for event in self._verbatim(run, outcome.spoken):
+                yield event
+            if run.input.channel == "text":
+                await self._mark_delivered(run)
+        yield await self._emit(
+            run, ToolFinished(name=call.name, ok=outcome.ok, summary=outcome.summary)
+        )
+        run.outcome = outcome
+
+    async def _plain_answer(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        """A plain yes or no to a read-back the candidate has fully heard is resolved here,
+        through the same tool and domain rules as the model's call, so a model that forgets
+        ``confirm_field`` can no longer leave it pending (D35). Anything else is the model's."""
+        answer = answer_to_readback(run.input.text)
+        pending = run.state.pending_confirmation
+        if (
+            answer is None
+            or pending is None
+            or pending.status != "pending"
+            or not pending.fully_delivered
+            or pending.presented_turn_id == run.turn_id
+        ):
+            return
+        arguments: dict[str, str]
+        if isinstance(pending.target, SlotTarget):
+            if answer != "affirm":
+                return  # another slot or none: the model offers alternatives
+            name, arguments = "reserve_interview", {"slot_id": str(pending.target.slot_id)}
+        else:
+            name, arguments = f"confirm_{pending.target.kind}", {"answer": answer}
+        call = ToolCall(call_id="runtime-answer", name=name, arguments_json=json.dumps(arguments))
+        async for event in self._run_tool(run, call):
+            yield event
+        run.answered = run.outcome.model_text
+        refreshed = await self._store.sessions.get(run.session_id)
+        if refreshed is not None:
+            run.state = refreshed
 
     async def _verbatim(self, run: _Turn, text: str) -> AsyncIterator[RuntimeEvent]:
         """Authoritative text (a read-back, a control reply): said in full even if the model

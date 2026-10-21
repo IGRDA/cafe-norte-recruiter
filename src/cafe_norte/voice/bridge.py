@@ -24,6 +24,7 @@ class SessionPort(Protocol):
     async def transcript(self, text: str) -> None: ...
     async def interrupted(self) -> None: ...
     async def played_one(self) -> None: ...
+    async def heard_speech(self) -> None: ...
 
 
 class InboundBridge(FrameProcessor):
@@ -34,6 +35,7 @@ class InboundBridge(FrameProcessor):
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
         if isinstance(frame, InterimTranscriptionFrame | TranscriptionFrame):
+            await self._session.heard_speech()  # not silence, even if VAD missed it
             return  # raw words: provisional or already aggregated; never spoken back
         if isinstance(frame, LLMContextFrame):
             text = _last_user_message(frame)

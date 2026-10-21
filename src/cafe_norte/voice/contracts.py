@@ -38,12 +38,13 @@ VoiceMode = Literal[
 
 
 class VoiceTexts(Frozen):
-    """The three fixed sentences voice needs. They live in ``conversation/prompts`` and are
-    handed in by the composition root, because this package may not import prompts."""
+    """The fixed sentences voice needs. They live in ``conversation/prompts`` and are handed
+    in by the composition root, because this package may not import prompts."""
 
     opening: str
     filler: str  # spoken only while a tool is running longer than the filler delay
     idle_prompt: str  # after the first silence window
+    failure: str  # after a turn failed, so the candidate is never left in silence
 
 
 class VoiceTiming(Frozen):

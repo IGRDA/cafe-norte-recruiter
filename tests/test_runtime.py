@@ -4,6 +4,7 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -15,6 +16,7 @@ from cafe_norte.conversation.contracts import (
     SignalRecorded,
     StateUpdated,
     ToolFinished,
+    ToolStarted,
     TurnFailed,
     TurnFinished,
     TurnInput,
@@ -69,6 +71,26 @@ def turn(text: str, input_id: str = "in-1") -> TurnInput:
     )
 
 
+class SlowFirst(FakeModel):
+    """The first ``slow_calls`` model calls say nothing for a second, as a slow provider does;
+    nothing of them is consumed, so the retry replays the same script."""
+
+    def __init__(self, scripts: Sequence[Sequence[ModelEvent]], slow_calls: int) -> None:
+        super().__init__(scripts)
+        self.slow_left = slow_calls
+        self.attempts = 0
+
+    async def stream(
+        self, messages: tuple[ModelMessage, ...], tools: tuple[Any, ...], *, deadline: datetime
+    ) -> AsyncGenerator[ModelEvent, None]:
+        self.attempts += 1
+        if self.slow_left:
+            self.slow_left -= 1
+            await asyncio.sleep(1)
+        async for event in super().stream(messages, tools, deadline=deadline):
+            yield event
+
+
 class Harness:
     def __init__(
         self,
@@ -77,11 +99,12 @@ class Harness:
         limits: Limits | None = None,
         signals: SignalAnalyzer | None = None,
         store: MemoryStore | None = None,
+        slow_calls: int = 0,
         on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
     ):
         self.store = store or MemoryStore()
         configurations = load_configurations(CONFIG_DIR)
-        self.model = FakeModel(scripts)
+        self.model = SlowFirst(scripts, slow_calls) if slow_calls else FakeModel(scripts)
         self.runtime = Runtime(
             model=self.model,
             tools=ToolRegistry(
@@ -250,8 +273,9 @@ async def test_a_model_error_becomes_a_turn_failed_with_public_text_only() -> No
 
 
 async def test_a_slow_first_token_fails_with_timeout() -> None:
+    """Always too slow: the first round and its one retry both miss the bound."""
     h = Harness([], limits=Limits(llm_first_output_seconds=0.05))
-    h.runtime._model = FakeModel([says("tarde")], delay_seconds=0.2)
+    h.runtime._model = FakeModel([], delay_seconds=0.2, fallback=says("tarde"))
     await h.open_session()
     events = await h.run("Hola")
     assert isinstance(events[-1], TurnFailed) and events[-1].code == "timeout"
@@ -796,6 +820,121 @@ async def test_resume_of_an_ended_or_unknown_session_fails_without_speaking() ->
     await h.runtime.end(SESSION, "stop")
     events = [e async for e in h.runtime.resume_session(SESSION)]
     assert isinstance(events[0], TurnFailed) and events[0].code == "session_ended"
+
+
+# ---- plain answers to a read-back, resolved by the runtime ---------------------------------------
+
+
+DATE_CALL = ToolCall(
+    call_id="d1",
+    name="update_candidate",
+    arguments_json=json.dumps(
+        {"patch": {"earliest_start_date": "2026-11-02"}, "evidence_text": "El 2 de noviembre"}
+    ),
+)
+
+
+def with_date_read_back(*then: list[ModelEvent]) -> Harness:
+    """Turn in-1 captures the date and the runtime reads it back, as in the hosted call; the
+    scripts after it are the model's next turns."""
+    return Harness([[DATE_CALL, WANTS_TOOLS], says(""), *then])
+
+
+async def readback_pending(h: Harness) -> None:
+    await h.run("El 2 de noviembre", "in-1")
+
+
+async def test_a_plain_yes_confirms_the_heard_read_back_even_if_the_model_forgets() -> None:
+    """The hosted call: "Sí, es correcto" answered with no confirm_field; the runtime now
+    resolves it before the model, which then simply goes on."""
+    h = with_date_read_back(says("Perfecto. ¿Qué experiencia tienes?"))
+    await h.open_session()
+    await readback_pending(h)
+    events = await h.run("Sí, es correcto.", "in-2")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.candidate.earliest_start_date.status == "confirmed"
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "confirmed"
+    names = [e.name for e in events if isinstance(e, ToolStarted)]
+    assert names == ["confirm_field"]
+    facts = h.model.calls[-1][0].content
+    assert "readback_answered" in facts
+
+
+async def test_a_plain_no_rejects_it_and_the_model_asks_what_is_wrong() -> None:
+    h = with_date_read_back(says("¿Qué fecha es?"))
+    await h.open_session()
+    await readback_pending(h)
+    await h.run("No, no es correcto.", "in-2")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "rejected"
+
+
+async def test_a_yes_with_more_words_is_left_to_the_model() -> None:
+    h = with_date_read_back(says("Vale."))
+    await h.open_session()
+    await readback_pending(h)
+    await h.run("Sí, pero el teléfono es otro", "in-2")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.pending_confirmation is not None
+    assert state.pending_confirmation.status == "pending"
+
+
+async def test_a_turn_on_a_paused_session_makes_it_active_again() -> None:
+    h = Harness([says("Aquí sigo.")])
+    await h.open_session()
+    await h.runtime.end(SESSION, "shutdown")
+    paused = await h.store.sessions.get(SESSION)
+    assert paused is not None and paused.lifecycle == "paused"
+    await h.run("Hola, sigo aquí", "in-1")
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None and state.lifecycle == "active"
+
+
+# ---- a slow model --------------------------------------------------------------------------------
+
+FAST_DEADLINE = Limits(llm_first_output_seconds=0.05)
+
+
+async def test_a_round_with_no_output_in_time_is_retried_once() -> None:
+    """The hosted call: one follow-up round took over six seconds and the turn failed."""
+    h = Harness([says("Vale, apuntado.")], limits=FAST_DEADLINE, slow_calls=1)
+    await h.open_session()
+    events = await h.run("De lunes a viernes")
+    assert isinstance(events[-1], TurnFinished)
+    assert [e.text for e in events if isinstance(e, AssistantText)] == ["Vale, apuntado."]
+    assert isinstance(h.model, SlowFirst) and h.model.attempts == 2
+
+
+async def test_two_slow_rounds_fail_the_turn_with_timeout() -> None:
+    h = Harness([says("Vale.")], limits=FAST_DEADLINE, slow_calls=2)
+    await h.open_session()
+    events = await h.run("De lunes a viernes")
+    assert isinstance(events[-1], TurnFailed) and events[-1].code == "timeout"
+
+
+# ---- sentences the system says ------------------------------------------------------------------
+
+
+async def test_say_journals_a_fixed_sentence_as_its_own_turn() -> None:
+    h = Harness([])
+    await h.open_session()
+    events = [e async for e in h.runtime.say(SESSION, "¿Sigues ahí?")]
+    assert [type(e).__name__ for e in events] == ["TurnStarted", "AssistantText", "TurnFinished"]
+    last = (await h.store.turns.recent(SESSION, 1))[0]
+    assert (last.role, last.text) == ("assistant", "¿Sigues ahí?")
+
+
+async def test_an_aside_is_journaled_under_the_running_turn() -> None:
+    h = Harness([says("Hola.")])
+    await h.open_session()
+    events = await h.run("Hola")
+    turn_id = next(e.turn_id for e in events if isinstance(e, TurnStarted))
+    await h.runtime.aside(turn_id, "Un momento.")
+    last = h.store.events.all(SESSION)[-1]
+    assert last.kind == "assistant_text" and last.turn_id == turn_id
+    assert "Un momento." in last.payload_json
 
 
 # ---- closing -------------------------------------------------------------------------------------

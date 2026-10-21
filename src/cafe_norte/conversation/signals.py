@@ -130,6 +130,82 @@ def _negated(before: str) -> bool:
     return not _NEGATIONS.isdisjoint(before.split()[-_NEGATION_WINDOW:])
 
 
+# ---- plain answers to a read-back ----------------------------------------------------------------
+
+ReadbackAnswer = Literal["affirm", "deny"]
+
+# Whole phrases, longest first, so "no es correcto" is a denial and never "no" + "es correcto".
+_DENY = (
+    "no es correcto",
+    "no esta bien",
+    "no es asi",
+    "no lo es",
+    "incorrecto",
+    "no no",
+    "no",
+    "thats wrong",
+    "thats not right",
+    "not correct",
+    "incorrect",
+    "nope",
+    "wrong",
+)
+_AFFIRM = (
+    "si es todo correcto",
+    "es todo correcto",
+    "todo correcto",
+    "si es correcto",
+    "es correcto",
+    "si lo es",
+    "eso es",
+    "asi es",
+    "esta bien",
+    "de acuerdo",
+    "efectivamente",
+    "exacto",
+    "correcto",
+    "perfecto",
+    "vale",
+    "claro",
+    "si",
+    "thats right",
+    "that is right",
+    "thats correct",
+    "that is correct",
+    "yes correct",
+    "correct",
+    "exactly",
+    "right",
+    "yeah",
+    "yep",
+    "yes",
+    "sure",
+)
+_FILLERS = frozenset(
+    {"mhmm", "mhm", "mmm", "mm", "hmm", "eh", "ah", "uh", "um", "pues", "bueno", "ok", "okay"}
+)
+
+
+def answer_to_readback(text: str) -> ReadbackAnswer | None:
+    """``affirm`` or ``deny`` when the whole utterance is a plain yes or no (with fillers such
+    as "mhmm"); ``None`` when anything else is said, which stays the model's to interpret
+    ("sí, pero el teléfono es otro"). Pure; both languages."""
+    words = " ".join(" ".join(_clauses(text)).split())
+    for answer, phrases in (("deny", _DENY), ("affirm", _AFFIRM)):
+        rest, found = words, False
+        for phrase in phrases:
+            pattern = re.compile(rf"\b{re.escape(phrase)}\b")
+            if pattern.search(rest):
+                found = True
+                rest = pattern.sub(" ", rest)
+        leftover = [w for w in rest.split() if w not in _FILLERS]
+        if found and not leftover:
+            return answer  # type: ignore[return-value]
+        if found:
+            return None  # a plain word plus something else: the model decides
+    return None
+
+
 # ---- asynchronous classifier ---------------------------------------------------------------------
 
 

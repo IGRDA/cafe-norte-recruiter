@@ -16,6 +16,7 @@ from cafe_norte.domain.contracts import (
     Unknown,
 )
 from cafe_norte.domain.fields import capture, decline, mark_unknown
+from cafe_norte.domain.numbers import mentions_number
 from cafe_norte.domain.result import Err, Ok, Result
 
 VALUE_FIELDS: tuple[CandidateFieldName, ...] = (
@@ -32,13 +33,25 @@ VALUE_FIELDS: tuple[CandidateFieldName, ...] = (
 
 
 def validate_patch(
-    patch: CandidatePatch, configuration: StoreConfiguration, today: date
+    patch: CandidatePatch, configuration: StoreConfiguration, today: date, *, evidence_text: str
 ) -> Result[CandidatePatch, FieldError]:
-    """Normalize and check a proposed patch against the fixed configuration.
+    """Normalize and check a proposed patch against the fixed configuration and the words it
+    is saved with.
 
     Phones become E.164 or fail with ``invalid_format``; shift names must exist in the store;
-    start dates in the past fail with ``past_date``. Returns the normalized patch. Never
-    touches fields the server owns."""
+    start dates in the past fail with ``past_date``; hours must appear in ``evidence_text``
+    (``not_in_evidence``), so a number the candidate never said is never saved. Returns the
+    normalized patch. Never touches fields the server owns."""
+    if patch.hours_per_week is not None and not mentions_number(
+        evidence_text, patch.hours_per_week
+    ):
+        return Err(
+            FieldError(
+                field="hours_per_week",
+                reason="not_in_evidence",
+                detail="the candidate's words do not say this number",
+            )
+        )
     updates: dict[str, object] = {}
     if patch.contact_phone is not None:
         try:

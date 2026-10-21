@@ -800,3 +800,47 @@ _Added 21 October 2026, the fourth and last persistence pull request._
 **Consequences we accept.** Deleted rows remain in Cloud SQL backups for up to three days (D33);
 provider-side retention stays the providers'. A session whose close hook fails keeps serving
 its export on demand, and the failure is logged.
+
+## D35 · The hosted voice call of 21 October: the flow stops depending on the model's obedience
+
+_Added 21 October 2026, after a hosted voice interview on gpt-4o-mini (session `f5f84f57…`)._
+
+**What the journal and the logs showed.** Soft "sí" answers produced no VAD event for 30 s
+while Deepgram transcribed them, so five of them waited for a louder phrase; Deepgram `multi`
+heard "sí" as "C" and "Sì"; a 0.6 s pause split one question into three turns; the silence
+timer paused the session mid-call; the model answered "Sí, es correcto" without
+`confirm_field`, and a later patch left the date confirmation unanswerable (stale revision);
+it saved 35 hours, the store's contract, from "por la mañana"; an interrupted summary looped
+`present → already pending → not delivered` into the round limit twice; one model round took
+over six seconds and the turn failed in silence; "¿dónde está el establecimiento?" was never
+searched; the silence prompt was heard but never shown.
+
+**Decisions.**
+- A plain yes or no to a read-back the candidate fully heard is resolved by the runtime before
+  the model (`signals.answer_to_readback`, whole utterance, fillers allowed, both languages),
+  through the same registry and domain rules as the model's tool call; the model is told in
+  `readback_answered`. Anything more than a plain answer stays the model's.
+- A pending field confirmation survives another field's patch at the new revision.
+- Hours are saved only when the candidate's words contain the number, as digits or spoken
+  (`domain/numbers.py`); the prompt says `store.hours_per_week` is the offer.
+- A read-back from an earlier turn that was not fully heard is read again by
+  `present_confirmation`; one just said in the same turn is not.
+- A silent model round is retried once (spec §12); a second miss fails with `timeout`, and the
+  voice channel says a fixed apology instead of going quiet. Round latencies are logged.
+- Silence prompts once and never pauses a live call; any raw transcript resets the clock; the
+  session pauses when the call ends; a turn on a paused session makes it active.
+- Turn start is VAD or a transcript (Pipecat's own default pair); turn end after 1.0 s of
+  silence; Deepgram runs in the session language and follows a switch. Smart-turn was not
+  added: a new model in the image for a problem the timeout already fixes.
+- Everything Ana says goes through the journal: `Runtime.say` for the silence prompt and the
+  apology, `Runtime.aside` for the filler.
+- The address sections of both stores use the words people ask with (knowledge base version
+  2); the prompt sends place questions to `search_knowledge` and forbids "no tengo
+  información" without a search.
+- The hosted model stays gpt-4o-mini: with the above, its tool slips no longer leave the
+  session stuck. Re-tested live after deploy before reconsidering gpt-4o.
+
+**Consequences we accept.** 0.4 s more latency per spoken turn. A Spanish session hears an
+English request to switch through the Spanish recogniser until it switches. `S19` replays the
+call on the fake model; the voice behaviour is covered by unit tests with Pipecat frames and a
+manual `make voice-smoke`.

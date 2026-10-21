@@ -164,7 +164,13 @@ class FieldError(Frozen):
 
     field: CandidateFieldName | None
     reason: Literal[
-        "invalid_format", "out_of_range", "past_date", "unknown_shift", "not_captured", "protected"
+        "invalid_format",
+        "out_of_range",
+        "past_date",
+        "unknown_shift",
+        "not_captured",
+        "protected",
+        "not_in_evidence",
     ]
     detail: str = ""
 

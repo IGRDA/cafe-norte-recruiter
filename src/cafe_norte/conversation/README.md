@@ -7,13 +7,13 @@ its own.
 
 | File | Contents |
 | --- | --- |
-| `contracts.py` | `TurnInput`, the `RuntimeEvent` union (`SignalRecorded` included), `ToolContext`, `ToolOutcome`, ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
+| `contracts.py` | `TurnInput`, the `RuntimeEvent` union (`SignalRecorded` included), `ToolContext`, `ToolOutcome` (`malformed` spends the repair budget), ports `ConversationRuntime`, `ToolHandler`, `SignalAnalyzer` |
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
 | `handlers.py` | `all_handlers()`: update, search knowledge, list interview slots, present (read-backs, the brief, a slot), confirm field/brief, reserve interview, request human follow-up, end session. Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
 | `brief.py` | The deterministic brief, the phone/date read-backs, the slot offer and the slot read-back, filled from `prompts/brief.<lang>.md` in the session language; spoken verbatim by the runtime (D20). A requested follow-up adds one sentence |
 | `prompt.py` | System message from the versioned prompt plus session facts as JSON (`PromptHints`: this turn's explicit requests and the previous turn's fresh sentiment); history window; sentence splitting |
-| `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines, the explicit-request fast path (language switch, D28; human request, D30; a plain yes or no to a heard read-back, D35), one retry of a silent model round, a paused session made active by its next turn, `say` and `aside` for sentences the system speaks (D35), signal analysis after the turn (`settle` waits for it). Cancellation and repair counting: later stages |
+| `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds), first-output and tool deadlines, the explicit-request fast path (language switch, D28; human request, D30; a plain yes or no to a heard read-back, D35), one retry of a silent model round, a paused session made active by its next turn, `say` and `aside` for sentences the system speaks (D35), signal analysis after the turn (`settle` waits for it), one malformed-call repair per turn, active seconds accumulated per turn with the 480 s cap, and a cancelled or closed turn journaled as interrupted (D37) |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |
 | `signals.py` | `explicit_controls` (pure patterns for stop, human and language requests, es/en), `requested_language`, `answer_to_readback` (a whole-utterance yes or no), `ModelSignalAnalyzer` (the asynchronous classifier adapter) and `fresh_sentiment` |
 
@@ -56,7 +56,14 @@ answered. After booking the next step is `end_session`, which yields `completed 
 5. Persist mutations and tool results, then emit `StateUpdated`; only then does Ana announce.
 6. Stream `AssistantText` sentence by sentence. Record what was generated and, later, what was
    delivered.
-7. Persist timings and usage. Hand nonessential analysis to `SignalAnalyzer` asynchronously.
+7. In one transaction persist the assistant turn, timings, usage and the turn's active seconds
+   (the gap since Ana last finished, at most 30 s, plus the turn itself). Past the cap the same
+   transaction abandons the session: `StateUpdated`, then the fixed `time_cap` goodbye (D37).
+   Hand nonessential analysis to `SignalAnalyzer` asynchronously.
+
+A turn closed or cancelled mid-stream (barge-in, hang-up) takes the same exit: the model
+stream is closed, what was said is stored as an interrupted assistant turn, `TurnFinished` is
+journaled with `interrupted=True` and the lease is released.
 
 ## Explicit requests and signals (D28)
 
@@ -72,5 +79,6 @@ as `SignalRecorded` (SSE, reviewer panel, export) and kept in memory. The next t
 gets `candidate_sentiment` only when the verdict is `frustrated` or `uncertain` and comes from
 the immediately previous user turn; a late or older verdict never reaches a prompt.
 
-Bounds: four tool rounds per turn, one malformed-call repair, six seconds to first model output,
-ten seconds per tool, the session's remaining active seconds as the hard deadline.
+Bounds: four tool rounds per turn, one malformed-call repair (a second ends the turn with
+`invalid_response`), six seconds to first model output, ten seconds per tool, 480 active seconds
+per session across resumes (the remaining seconds are the model's hard deadline).

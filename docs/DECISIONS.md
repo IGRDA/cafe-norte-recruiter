@@ -844,3 +844,58 @@ searched; the silence prompt was heard but never shown.
 English request to switch through the Spanish recogniser until it switches. `S19` replays the
 call on the fake model; the voice behaviour is covered by unit tests with Pipecat frames and a
 manual `make voice-smoke`.
+
+
+## D37 · Runtime robustness: a repair budget, an active-time cap, cancellation that leaves a trace
+
+_Added 21 October 2026, after D35 left several rows of the spec's failure contract (§12) without
+code or without a test and the scenario table (§13) without S08, S10, S11, S16, S17 and S18._
+
+**Decisions.**
+- **Repair budget.** A tool call is malformed when the tool is unknown or its arguments do not
+  validate (`ToolOutcome.malformed`, set by the registry). The first one goes back to the model
+  with the validation error and the turn gets one more round; the second ends the turn with
+  `invalid_response` (`Limits.max_repairs = 1`). A domain refusal (a past date, a taken slot, a
+  confirmation not heard) is not malformed: the model is told and the four-round limit bounds
+  it. The fixed sentence loses its jargon: "Perdona, no te he entendido bien. ¿Me lo repites?".
+- **Session cap.** `SessionState.active_seconds` grows by what a turn adds: the gap since Ana
+  last finished, at most 30 s, plus the turn's own duration (`domain/session_time.py`, pure; time
+  is an argument). The gap is capped so a pause, a lost connection or a resume link opened days
+  later does not eat the 480 s; the candidate's own speaking and thinking do count, which a
+  server-time-only measure would leave out. The sum is written in the transaction that stores
+  the assistant turn, so the cap costs no extra round trip. The turn that crosses the cap is
+  finished normally and saved; in the same transaction the session becomes `abandoned`, then
+  `StateUpdated` is announced and Ana says `controls.<lang>.md` `time_cap`, which is part of the
+  stored turn. Refusing the next turn instead was rejected: the candidate's last answer would
+  never be processed and they would hear the goodbye only after speaking again. The session's
+  remaining seconds were already the model deadline; now they are real.
+- **Cancellation.** Closing `run_turn` mid-stream or cancelling the task that reads it closes the
+  provider stream, stores what was generated as an interrupted assistant turn (sentences go
+  straight into the turn's spoken list, so a partial round is not lost), journals
+  `TurnFinished(interrupted=True)`, counts the active time and releases the lease. A failure to
+  write while cancelling is logged and the cancellation goes on. `VoiceSession` reads the turn
+  under `aclosing`: a barge-in while a sentence is being spoken closes it at once, not whenever
+  the generator is collected. Only the model round is closed explicitly; tool handlers hold no
+  external stream and are bounded by their own deadline.
+- **Scenarios.** A scenario may name `faults` (the candidate speaks over Ana after N sentences,
+  the model provider is down for a turn, the store refuses the next save) and
+  `seconds_per_turn` (the runtime's clock). The faults live in the fakes (`FakeModel.fail_next`,
+  `MemorySessions.fail_next_save`), one-shot, raised where a real failure would be. A turn a
+  scenario asserts failed (`turn_failed`) is not a surprise. New scorers: `tool_ok` (every call
+  of a tool on a turn answered as asked), `turn_failed`, `brief_unconfirmed`. S18 is the time
+  cap; its silence and overload halves stay in `test_silence_prompts_once_and_never_pauses_a_live_call`
+  and `test_a_third_concurrent_voice_session_is_busy`, as S12 and S13 stay in their own tests (D32).
+- **Bypass attempts (S17).** The fake model plays a model that obeys every instruction in the
+  line; the scenario asserts what the runtime and the domain refuse regardless: a booking
+  without a heard read-back, a session or configuration argument, a confirmation with nothing
+  pending. What a real model says after reading an injected knowledge-base passage is not
+  tested offline; the guarantee is that no text can widen the allowlist, the arguments or the
+  domain rules.
+
+**Consequences we accept.** A turn that crosses the cap speaks its normal answer first, so the
+candidate can hear a question and then the goodbye in the same turn. Turns that fail (timeouts,
+a refused save) add no active time, so a session that only fails is not capped by this rule; the
+admission row (600 s) and the voice room expiry still bound it. An interruption that arrives
+before the user turn is stored leaves no assistant record. The scenarios were each checked by
+breaking the rule they guard; S16's first version could not tell a refused save from a swallowed
+one (the script ran out and failed the turn either way) and was strengthened.

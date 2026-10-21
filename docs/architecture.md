@@ -42,7 +42,7 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 
 | Limit | Default |
 | --- | --- |
-| Active conversation per session | 480 s, across resumes |
+| Active conversation per session | 480 s, across resumes; a turn adds the gap since Ana last finished (at most 30 s) plus its own duration; the turn that crosses it ends the session `abandoned` (D37) |
 | Tool rounds per turn | 4 |
 | Characters spoken per model round | 600, then the stream is closed |
 | Questions spoken per turn | 1; later sentences are read, not voiced |
@@ -70,7 +70,7 @@ are recorded. The schema is `examples/session_export.schema.json`, the fictional
 | SSE heartbeat while idle | 15 s |
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
 | Browser speech final accepted (D18 path) | confidence ≥ 0.4, ≥ 2 characters |
-| Malformed-call repairs per turn | 1 |
+| Malformed-call repairs per turn | 1; a second malformed call ends the turn with `invalid_response` (D37) |
 | Signal classifier | opt-in (`CAFE_NORTE_SIGNAL_MODEL`), one call per user turn, after the turn, 5 s deadline |
 | Signal freshness | the previous user turn only; `frustrated`/`uncertain` reach the prompt, others never |
 | Negation window for explicit requests | 3 words before the match, within one clause |

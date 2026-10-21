@@ -19,7 +19,7 @@ uv run python -m evals.run --list
 
 ## What runs today
 
-Scenarios in fake mode. `S01`–`S03`, `S05`, `S06` and `S09` replay against the real runtime, handlers,
+Scenarios in fake mode. `S01`–`S11`, `S16`–`S19` replay against the real runtime, handlers,
 domain, memory store and the real `HybridRetriever` over `kb/` with `FakeEmbedder`, driven by
 the scripted `FakeModel`; `tests/test_scenarios.py` parametrizes over the
 files, so `make check` and CI fail on a broken scenario with the check named. `make evals
@@ -44,8 +44,16 @@ One file `evals/cases/scenarios/Snn.yaml`:
   `no_fabricated_confirmed_values`, `max_repeated_questions`, `review_flag_present`,
   `sources_shown_for_policy_answer`, `no_cross_store_sources`,
   `language_of_last_assistant_turn`, `brief_language`, `signal_recorded`,
-  `said_control_reply`; the rest raise until their stage).
+  `said_control_reply`, `tool_ok`, `turn_failed`, `brief_unconfirmed`; the rest raise until
+  their stage).
 - `today`: the fake clock's date, so relative dates in the script stay fixed.
+- `seconds_per_turn` (optional): how long each turn lasts on the runtime's clock; the active-time
+  cap needs it (`S18`).
+- `faults` (optional): `{turn, kind}` with `kind` one of `interrupt` (the candidate speaks over
+  Ana after `after_sentences`; the turn is closed and the heard text acknowledged), `model` (the
+  provider is down for that turn) or `storage` (the store refuses the next save). A turn cut
+  short or failed never reaches its closing `say`, so its script stops where the turn does
+  (`S08`, `S16`). A turn a `turn_failed` check names is not counted as a provider failure.
 
 Checks run over `SessionResult` (final state, transcript, what Ana said per turn); the export
 is built as well, and the checks move to it when the remaining checks land (D21).

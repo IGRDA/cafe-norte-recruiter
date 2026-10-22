@@ -54,6 +54,11 @@ _PATTERNS: dict[Language, dict[Control, re.Pattern[str]]] = {
         "human": re.compile(
             rf"\b(?:(?:hablar|hable|habla|pasame|pasarme|me pasas|ponme|ponerme|comunicame"
             rf"|comunicarme) con|quiero|prefiero|que me atienda) {_PERSON_ES}\b"
+            # "Anótalo para que me contacten": a request for a person, said as a request to
+            # be contacted (D58).
+            r"|\bque (?:me|nos) (?:contacten|contacte|llamen|llame|escriban|escriba)\b"
+            r"|\bque (?:alguien|una persona)(?: del equipo)? (?:me|nos) "
+            r"(?:contacte|llame|escriba)\b"
         ),
         "stop": re.compile(
             r"\b(?:quiero|prefiero|vamos a|podemos) (?:parar|terminar|acabar|dejarlo|colgar)\b"
@@ -67,6 +72,7 @@ _PATTERNS: dict[Language, dict[Control, re.Pattern[str]]] = {
         "human": re.compile(
             rf"\b(?:(?:talk|speak) (?:to|with)|i want|id like|i need|get me|put me through to)"
             rf" {_PERSON_EN}\b"
+            r"|\b(?:contact|call|email) me(?: back)?\b|\bsomeone to (?:contact|call) me\b"
         ),
         "stop": re.compile(
             r"\b(?:i want to|id like to|lets|can we|i wanna) (?:stop|end|quit|finish|hang up)\b"

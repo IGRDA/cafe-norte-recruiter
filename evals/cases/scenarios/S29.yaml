@@ -21,6 +21,7 @@ scripted_turns:
   - "El martes de noviembre."
   - "El viernes, veintitrés, a las diez y media."
   - "Sí."
+  - "Sí, gracias."
 fake_script:
   - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
   - - tool: update_candidate
@@ -59,9 +60,13 @@ fake_script:
     - tool: present_confirmation
       args: { target: slot, choice: 1, evidence_text: "Sí, quiero entrevista." }
     - say: ""
+  # Line 10's yes books it through the runtime; the model only confirms in words. Live, the
+  # calendar is shared with the scenarios run before, so the slot may already be taken and
+  # Ana offers another time: line 11's yes then books that one.
+  - - say: "Reservada la entrevista; es una reserva simulada, sin cita real."
   - - tool: end_session
       args: { reason: candidate_done }
-    - say: "Reservada la entrevista el viernes 23 a las 10:30; es una reserva simulada, sin cita real. Hasta pronto, Lucía."
+    - say: "Hasta pronto, Lucía."
 persona:
   facts:
     name: Lucía Marín
@@ -82,6 +87,8 @@ checks:
     args: { turn: "9", tool: present_confirmation, ok: "true" }
   - name: tool_ok
     args: { turn: "10", tool: reserve_interview, ok: "true" }
+  - name: tool_ok
+    args: { turn: "11", tool: end_session, ok: "true" }
   - name: booking_present
   - name: outcome_is
     args: { outcome: reserved }

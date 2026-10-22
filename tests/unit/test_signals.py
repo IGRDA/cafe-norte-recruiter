@@ -347,3 +347,16 @@ def test_a_question_is_recognised_in_either_language(text: str) -> None:
 @pytest.mark.parametrize("text", ["Sí.", "Es todo correcto.", "Que sí, que vale.", "Yes, fine."])
 def test_an_answer_is_not_a_question(text: str) -> None:
     assert not asks_question(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sí, anótalo para que me contacten.",
+        "que alguien del equipo me llame",
+        "Please contact me about this.",
+        "can someone call me back?",
+    ],
+)
+def test_asking_to_be_contacted_is_a_request_for_a_person(text: str) -> None:
+    assert "human" in explicit_controls(text)

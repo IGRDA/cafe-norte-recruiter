@@ -2101,3 +2101,9 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   "viernes 1 de enero", a day never said. The scorers compare a `YYYY-MM` reference at month
   precision. A date-plus-precision flag was rejected: a stored 1 January that is not true leaks
   wherever the flag is forgotten.
+- **"Que me contacten" is a request for a person.** The D30 patterns gain "que me contacten /
+  llamen / escriban", "que alguien me contacte" and "contact / call me (back)": the runtime
+  saves the follow-up and says the fixed reply, as for "hablar con una persona". Live on
+  gpt-4.1, "Sí, anótalo para que me contacten" with no offer before it became a second note
+  even after the note's result named the tool; a stated request is the runtime's, like the
+  other explicit ones.

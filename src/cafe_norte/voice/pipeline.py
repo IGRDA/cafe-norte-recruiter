@@ -17,7 +17,7 @@ import aiohttp
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.audio.vad.vad_analyzer import VADAnalyzer
+from pipecat.audio.vad.vad_analyzer import VADAnalyzer, VADParams
 from pipecat.frames.frames import STTUpdateSettingsFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -30,10 +30,9 @@ from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSetting
 from pipecat.services.elevenlabs.tts import ElevenLabsHttpTTSService, ElevenLabsHttpTTSSettings
 from pipecat.transcriptions.language import Language as PipecatLanguage
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
-from pipecat.turns.user_start.transcription_user_turn_start_strategy import (
-    TranscriptionUserTurnStartStrategy,
+from pipecat.turns.user_start.min_words_user_turn_start_strategy import (
+    MinWordsUserTurnStartStrategy,
 )
-from pipecat.turns.user_start.vad_user_turn_start_strategy import VADUserTurnStartStrategy
 from pipecat.turns.user_stop.turn_analyzer_user_turn_stop_strategy import (
     TurnAnalyzerUserTurnStopStrategy,
 )
@@ -68,9 +67,12 @@ JOIN_TIMEOUT_SECONDS = 15.0
 # connected (a closed tab, a blocked page). Ending the call frees its voice place instead of
 # holding it until Pipecat's five-minute idle timeout (D55).
 CANDIDATE_JOIN_SECONDS = 30.0
-# A turn that sounds unfinished waits this long for more words; one that sounds finished ends
-# on the final transcript (smart turn, D49). The fixed 1.0 s of D35 is gone.
+# A turn that sounds unfinished waits this long for more words (smart turn, D49); one that
+# sounds finished ends after FINISHED_TURN_SILENCE_SECONDS, up from Pipecat's 0.2 s, which cut
+# a candidate taking a breath mid-sentence (D57). While Ana speaks, BARGE_IN_WORDS words cut her.
 UNFINISHED_TURN_SILENCE_SECONDS = 2.0
+FINISHED_TURN_SILENCE_SECONDS = 0.5
+BARGE_IN_WORDS = 2
 STT_LANGUAGES: dict[Language, PipecatLanguage] = {
     "es": PipecatLanguage.ES,
     "en": PipecatLanguage.EN,
@@ -93,16 +95,20 @@ def tts_settings(voice_id: str) -> ElevenLabsHttpTTSSettings:
     )
 
 
+def vad_params() -> VADParams:
+    """Silero's defaults but the silence that ends speech: what the smart-turn model then judges
+    as finished or not (D57)."""
+    return VADParams(stop_secs=FINISHED_TURN_SILENCE_SECONDS)
+
+
 def user_turn_strategies() -> UserTurnStrategies:
-    """A turn starts on VAD or, when VAD misses a soft answer, on a transcript (Pipecat's own
-    default pair). It ends when the bundled smart-turn model hears a finished sentence and the
-    final transcript is in, or after ``UNFINISHED_TURN_SILENCE_SECONDS`` of silence (D49). One
+    """A turn starts on words, so a soft "sí" VAD misses still counts (D35) and a cough or an
+    "mhm" over Ana does not cut her: while she speaks it takes ``BARGE_IN_WORDS`` words (D57).
+    It ends when the bundled smart-turn model hears a finished sentence and the final
+    transcript is in, or after ``UNFINISHED_TURN_SILENCE_SECONDS`` of silence (D49). One
     analyzer per call: it keeps the call's audio."""
     return UserTurnStrategies(
-        start=[
-            VADUserTurnStartStrategy(enable_interruptions=True),
-            TranscriptionUserTurnStartStrategy(),
-        ],
+        start=[MinWordsUserTurnStartStrategy(min_words=BARGE_IN_WORDS, enable_interruptions=True)],
         stop=[
             TurnAnalyzerUserTurnStopStrategy(
                 turn_analyzer=LocalSmartTurnAnalyzerV3(
@@ -313,7 +319,7 @@ class PipecatVoiceController:
             on_language=lambda new: tasks.add(asyncio.ensure_future(recognise_in(new))),
             on_hang_up=hang_up,
         )
-        user = user_side(session, SileroVADAnalyzer())
+        user = user_side(session, SileroVADAnalyzer(params=vad_params()))
         holder["bridge"] = user[-1]
         pipeline = Pipeline(
             [

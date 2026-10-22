@@ -512,13 +512,35 @@ async def test_a_pause_longer_than_the_join_window_starts_a_new_answer() -> None
     time = FakeTime()
     runtime, s = cut_answer(time)
     await s.transcript("El lunes,")
-    await s.interrupted()
+    await settle()
 
-    await time.advance(VoiceSession.join_window_seconds + 0.1)
+    await time.advance(VoiceSession.join_window_seconds + 0.1)  # silent, then speaking again
+    await s.interrupted()
     await s.transcript("uno, de, dos de noviembre.")
     await answered(s, time)
 
     assert runtime.turns[-1].text == "uno, de, dos de noviembre."
+    await s.close()
+
+
+async def test_a_long_continuation_is_joined_when_it_started_inside_the_window() -> None:
+    """Ignacio's call: "Sí, soy español, pero lo que quiero saber es" was cut, and the rest
+    took longer than the window to finish. The window counts the pause, not the words after
+    it (it ran to the continuation's final transcript)."""
+    time = FakeTime()
+    runtime, s = cut_answer(time)
+    await s.transcript("Sí, soy español, pero lo que quiero saber es")
+    await settle()
+
+    await s.interrupted()  # they start speaking again at once
+    await time.advance(VoiceSession.join_window_seconds + 2)  # and talk for seven seconds
+    await s.transcript("cuánto dinero voy a ganar en el bar este al año.")
+    await answered(s, time)
+
+    assert runtime.turns[-1].text == (
+        "Sí, soy español, pero lo que quiero saber es "
+        "cuánto dinero voy a ganar en el bar este al año."
+    )
     await s.close()
 
 

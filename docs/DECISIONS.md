@@ -2107,3 +2107,21 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   gpt-4.1, "Sí, anótalo para que me contacten" with no offer before it became a second note
   even after the note's result named the tool; a stated request is the runtime's, like the
   other explicit ones.
+
+## D59 · Closing, latency and repetition: what Iñaki's calls of 22 October left
+
+_Added 22 October 2026, from two hosted voice calls (14:23 and 14:33 UTC, gpt-4.1) made after
+D56–D58 and the feedback on them. One entry per fix, in the order they landed._
+
+**Decisions.**
+- **A goodbye is the whole utterance.** `is_farewell` (D46) now needs every clause to be a
+  farewell or glue around one ("vale", "nada más", "Ana"); a clause that says anything else
+  leaves the words to the model. Live, "Sí, no me lo expliques, he vivido por ahí, muchas
+  gracias" closed the call on "gracias" with no model round, and the next four things said
+  failed on an ended session (KI-19). The long simulated thanks of D46's tests
+  ("I appreciate your help and I'm looking forward…") are now the model's, which closes
+  through `end_session` as before D46; the shortcut keeps the plain goodbyes.
+- **A question is answered before the call ends.** `end_session` with `candidate_done` or
+  `not_interested` is refused (`answer_first`) while the turn's own message asks something
+  (`asks_question`, D58); `candidate_stop` still closes. Live, "No, muchas gracias. ¿Tienes
+  alguna otra oferta?" got the goodbye (KI-20). S32 replays it.

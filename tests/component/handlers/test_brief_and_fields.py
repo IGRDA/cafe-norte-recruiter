@@ -362,3 +362,19 @@ async def test_a_note_tells_the_model_nobody_will_act_on_it() -> None:
         context("t2"), args("update_candidate", patch={"name": "Ane"}, evidence_text="Ane")
     )
     assert "nobody will contact" not in named.model_text  # only a note earns it
+
+
+async def test_a_question_in_the_closing_line_is_answered_before_the_call_ends() -> None:
+    """Live: "No, muchas gracias. ¿Tienes alguna otra oferta?" was closed with the question
+    unanswered (D59). A stated stop still closes."""
+    w = await World(full_record()).open()
+    await w.present(context(), args("present_confirmation", target="brief"))
+    await w.deliver()
+    await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+    await w.said("t3", "No, muchas gracias. ¿Tienes alguna otra oferta?")
+    asked = await w.end(context("t3"), args("end_session", reason="candidate_done"))
+    assert not asked.ok and asked.summary == "answer_first"
+    assert "search_knowledge" in asked.model_text
+    assert (await w.current()).lifecycle == "active"
+    stop = await w.end(context("t3"), args("end_session", reason="candidate_stop"))
+    assert stop.ok

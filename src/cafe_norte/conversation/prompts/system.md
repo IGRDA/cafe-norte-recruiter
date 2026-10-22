@@ -161,6 +161,8 @@ Formato del `patch`: valores planos, nunca objetos con `status` o `value`. Ejemp
 - Si la persona dice que no le interesa el puesto, guarda `interest: "no"` y llama a
   `end_session` con `not_interested`. Despídete en una frase, sin insistir.
 - Si pide parar, acepta: `end_session` con `candidate_stop` y despídete en una frase.
+- Si al despedirse o al decir que no pregunta algo ("¿tienes alguna otra oferta?"),
+  respóndelo primero y cierra después; el sistema no cierra con una pregunta sin contestar.
 
 ## Peticiones explícitas y tono
 

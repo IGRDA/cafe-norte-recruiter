@@ -1,6 +1,7 @@
 """``POST /api/sessions/{id}/voice`` with fake rooms and a fake controller: admission, no
 orphan on failure, timings, and what the page learns from ``GET /api/runtime``."""
 
+import asyncio
 from collections.abc import Iterator
 from datetime import UTC, datetime
 
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 from cafe_norte.domain.contracts import SessionId
 from cafe_norte.model.contracts import ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
+from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.voice.fake import FakeRooms, FakeVoiceController
 from tests.support.app import build_test_app
 from tests.support.http import create_session
@@ -139,3 +141,21 @@ def cookie_for(client: TestClient, session_id: str) -> str:
     from cafe_norte.domain.contracts import SessionId
 
     return AccessGate(code=None, secret=b"test-secret").issue_session_cookie(SessionId(session_id))
+
+
+def test_startup_releases_the_places_a_previous_process_left_held(
+    voice: FakeVoiceController, rooms: FakeRooms
+) -> None:
+    store = MemoryStore()
+    model = FakeModel([], fallback=[ModelText(text="Vale."), ModelFinished(reason="stop")])
+    app = build_test_app(model=model, voice_mode="pipecat", rooms=rooms, voice=voice, store=store)
+    with TestClient(app) as client:
+        first, second = create_session(client), create_session(client)
+    for session_id in (first, second):  # two calls cut by a reset: never released
+        assert asyncio.run(
+            store.admission.acquire(SessionId(session_id), max_active=2, reserve_eur=0.5)
+        )
+
+    with TestClient(app) as client:  # the restart
+        third = create_session(client)
+        assert client.post(f"/api/sessions/{third}/voice").status_code == 200

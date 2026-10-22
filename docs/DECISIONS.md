@@ -1902,3 +1902,40 @@ question names the barista; the model always searches in Spanish.
 **Consequences we accept.** The topic's precision is gone: a question can now bring back a
 chunk of any document of the store. Thirty-two recorded questions are a small sample; the next
 live scorecard is the check.
+
+---
+
+## D55 · A restart releases its voice places; a call nobody joins ends after 30 s
+
+_Added 22 October 2026, after "Ahora mismo no hay plazas libres" on the hosted demo._
+
+**What happened (logs and the `admission` table).** Two different holds, the same refusal:
+- 12:33–12:35: six `POST /voice` got 503 `busy`. The two calls started at 12:27:32 and
+  12:29:40 were cut by the two container starts of the #41 deploy (12:29:28 the previous
+  release, 12:30:50 the new image; a reset restarts the old release first, D31). Neither ever
+  reached `release`: their rows stayed held, so both places counted until the 600 s ttl, 12:37
+  and 12:39.
+- 08:20–08:21: two 503s while two calls held the places normally. Neither had a single voice
+  turn: the page never joined (the CSP block fixed in #33). Each bot sat in an empty room until
+  Pipecat's idle timeout, about five minutes, and only then released its place. The same
+  happened at 10:18 without a refusal.
+
+**Decisions.**
+- **An admission row names its instance** (`owner`, migration `0004`). At startup the app
+  releases every place its instance still holds (`Admission.release_left_over`), and logs how
+  many. With one container per VM those are always the calls the restart ended; with several,
+  each instance releases only its own, so the cross-container cap of D32 holds. The instance is
+  the hostname: the app runs with host networking, so it is the VM's and survives a reset. The
+  600 s ttl stays for a VM that never comes back.
+- **A call nobody joins ends.** The page joins as soon as `POST /voice` returns; if the
+  candidate is not in the room 30 s after the bot (`CANDIDATE_JOIN_SECONDS`), the pipeline is
+  cancelled and the place released. Timed with an injected `sleep`, tested on virtual time.
+
+**Rejected.** A heartbeat with a short ttl: a renewal loop per call for what one statement at
+startup does (D32 declined the same loop for leases). Releasing every unreleased row at
+startup: wrong as soon as there are two containers.
+
+**Consequences we accept.** A deploy still ends the calls in progress; it no longer blocks the
+next ones. A candidate whose page takes more than 30 s to join loses the call and starts it
+again. Rows written before the migration have no owner and age out as before.
+

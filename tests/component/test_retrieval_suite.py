@@ -1,10 +1,12 @@
 """The retrieval suite scores a retriever against the fixture; BM25 alone already finds the
 Spanish answerable questions and never leaks."""
 
+import asyncio
 from pathlib import Path
 
+import pytest
 from evals.retrieval import load_cases, recorded_queries, replay, run_retrieval, write_report
-from evals.runner import load_scenarios, run_fake
+from evals.runner import load_scenarios, main, run_fake
 
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.knowledge.hybrid import HybridRetriever
@@ -49,3 +51,22 @@ async def test_the_models_recorded_queries_replay_through_todays_retriever(
     retriever = HybridRetriever(lexical_index(load_documents(ROOT / "kb"), kb_version="2"), None)
     hits, searched, misses = await replay(load_cases(), recorded, retriever, configurations)
     assert (hits, searched, misses) == (1, 1, [])
+
+
+async def test_the_cli_replays_a_recorded_scorecards_queries(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (scenario,) = load_scenarios(only=["S05"])
+    record = await run_fake(scenario)
+    assert record.export is not None
+    (tmp_path / "probe-exports").mkdir()
+    (tmp_path / "probe-exports" / "R01.json").write_text(record.export.model_dump_json())
+
+    code = await asyncio.to_thread(
+        main, ["--suite", "retrieval", "--retriever", "lexical", "--replay", str(tmp_path)]
+    )
+
+    assert code == 0
+    assert "the model's own queries: 1/1 answerable questions found an expected section" in (
+        capsys.readouterr().out
+    )

@@ -8,13 +8,21 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from evals.contracts import CheckResult, Extraction, Report, RunRecord
-from evals.langfuse_sync import FakeSink, SdkSink, dataset_items, experiment_runs, sync
+from evals.contracts import CheckResult, Extraction, ProbeRecord, Report, RunRecord
+from evals.langfuse_sync import (
+    FakeSink,
+    SdkSink,
+    dataset_items,
+    experiment_runs,
+    probe_run,
+    sync,
+)
 from evals.langfuse_sync import main as langfuse_main
 from evals.report import render_json
 from evals.runner import comparison_plan, main
 
 from cafe_norte.observability.contracts import VersionStamp
+from tests.support.evals import EXPORT
 
 VERSIONS = VersionStamp(
     config_id="chamberi_barista_v1",
@@ -167,3 +175,39 @@ def test_a_live_run_with_langfuse_and_no_keys_says_it_skipped(
     args += ["--simulator", "fake", "--max-turns", "1", "--out", str(tmp_path), "--langfuse"]
     main([*args, "--yes"])
     assert "Langfuse: skipped" in capsys.readouterr().out
+
+
+def probe(case: str, kind: str, answer: str, **extra: Any) -> ProbeRecord:
+    record = run(case, "openai/gpt-4.1", 1).model_copy(
+        update={"export": EXPORT, "session_id": f"sess-{case}"}
+    )
+    return ProbeRecord.model_validate(
+        {"case_id": case, "kind": kind, "run": record, "answer": answer, **extra}
+    )
+
+
+def test_probes_become_one_experiment_run_with_facts_abstention_and_ragas_scores() -> None:
+    answered = probe(
+        "R02",
+        "answerable",
+        "Son 1.380 euros al mes.",
+        expected_facts=("1.380", "14 pagas"),
+        scores={"faithfulness": 0.9, "answer_accuracy": None},
+        sources=("offer_chamberi#salario",),
+        tools=("search_knowledge",),
+    )
+    abstained = probe("R17", "unsupported", "Eso no lo sé, lo pregunto al equipo.")
+    broken = probe("R03", "answerable", "", expected_facts=("07:00",)).model_copy(
+        update={"run": run("R03", "openai/gpt-4.1", 1).model_copy(update={"failure": "x"})}
+    )
+
+    experiment = probe_run([answered, abstained, broken], "openai/gpt-4.1")
+
+    assert experiment.run_name == "ana_v15 · openai/gpt-4.1 · probes"
+    assert experiment.metadata["kb_version"] == VERSIONS.kb_version
+    first, second, third = experiment.rows
+    assert first.item_id == "cafe-norte-rag-R02" and first.session_id == "sess-R02"
+    assert first.scores == {"faithfulness": 0.9, "fact_presence": 0.5}  # unscored dropped
+    assert first.output["sources"] == ["offer_chamberi#salario"]
+    assert second.scores == {"abstention": True}
+    assert third.scores == {} and third.output["failure"] == "x"

@@ -195,6 +195,12 @@ def _brief_confirmed(state: SessionState) -> bool:
     return state.brief_confirmed_revision == state.candidate.revision
 
 
+def _brief_on_the_table(state: SessionState) -> bool:
+    """The brief was read and its answer is still awaited."""
+    pending = state.pending_confirmation
+    return pending is not None and pending.status == "pending" and pending.target.kind == "brief"
+
+
 def _offer(slots: tuple[InterviewSlot, ...]) -> SlotOffer:
     return SlotOffer(
         slots=tuple(OfferedSlot(slot_id=s.slot_id, starts_at_utc=s.starts_at_utc) for s in slots)
@@ -909,8 +915,10 @@ def _local_date(slot: InterviewSlot, configuration: StoreConfiguration) -> date:
 
 class EndSessionHandler(_Handler):
     """``end_session``: the lifecycle table decides; the outcome follows from the state.
-    ``candidate_done`` with an unconfirmed brief does not refuse and hang: it reads the brief
-    again, so the candidate's next "sí" closes it properly."""
+    ``candidate_done`` with an unconfirmed brief reads the brief once, so a "sí" can still
+    close it properly; a goodbye with the brief already on the table, or one that cannot be
+    read yet, ends the session as an early stop (``incomplete``, D64). Live, a refusal per
+    goodbye kept the candidate in the call for minutes (22 October)."""
 
     EVENTS: dict[str, LifecycleEvent] = {
         "candidate_done": "complete",
@@ -935,19 +943,21 @@ class EndSessionHandler(_Handler):
                 "They asked something: answer it first (search_knowledge for facts), then "
                 "close in a later turn if they still want to.",
             )
+        event = self.EVENTS[arguments.reason]
         if arguments.reason == "candidate_done" and not _brief_confirmed(state):
-            presented = await self._present(context, PresentConfirmationArgs(target="brief"))
-            if not presented.ok:
-                return presented  # fields still missing, or a read-back awaiting its answer
-            return ToolOutcome(
-                ok=False,
-                model_text="Not ended: the brief was not confirmed, so it was read back again. "
-                "Reply with nothing and wait for the answer.",
-                summary="brief_re_presented",
-                events=presented.events,
-                spoken=presented.spoken,
-            )
-        result = transition(state, self.EVENTS[arguments.reason])
+            if not _brief_on_the_table(state):
+                presented = await self._present(context, PresentConfirmationArgs(target="brief"))
+                if presented.ok:
+                    return ToolOutcome(
+                        ok=False,
+                        model_text="Not ended: the brief was not confirmed, so it was read back "
+                        "once more. Reply with nothing and wait for the answer.",
+                        summary="brief_re_presented",
+                        events=presented.events,
+                        spoken=presented.spoken,
+                    )
+            event = "stop"  # D64: the goodbye ends it; the brief stays unconfirmed
+        result = transition(state, event)
         if isinstance(result, Err):
             return self._refuse(
                 f"lifecycle_refused:{result.error}",

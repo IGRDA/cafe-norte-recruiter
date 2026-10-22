@@ -10,6 +10,7 @@ the defaults in `.env.example`; decisions are cited by number from `DECISIONS.md
 | Port (module) | Contract |
 | --- | --- |
 | `Model.stream(messages, tools, *, deadline)` (`model`) | Async stream of `ModelText`, fully assembled `ToolCall`s, optional `ModelUsage`, one `ModelFinished`; malformed or late output raises `ModelError` with a stable code; provider-side tools never enabled |
+| `DecisionModel.decide(state, questions, *, deadline)` (`model`) | One `Decision`: a choice and a probability per option for every `ChoiceQuestion`, the tokens it cost; an answer outside the criteria or a failed call raises `ModelError` with a stable code (D52) |
 | `ConversationRuntime.run_turn(TurnInput)` (`conversation`) | Async generator of `RuntimeEvent`; serialized per session; requires the current lease generation; persists before `StateUpdated`; closing it cancels work and marks the turn interrupted; duplicate `input_id` → `TurnFailed(conflict)` |
 | `ToolRegistry.dispatch(ToolCall, ToolContext)` | Allowlist of ten names; arguments validated against the Pydantic model; one repair per turn; context injected by the server |
 | `Retriever.retrieve(RetrievalQuery)` (`knowledge`) | Filters by `config_id`, `kb_version` and optional `doc_ids` before ranking; BM25 + dense fused by RRF among allowed chunks; at most three; may return none |
@@ -88,14 +89,16 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
 | Malformed-call repairs per turn | 1; a second malformed call ends the turn with `invalid_response` (D37) |
 | Signal classifier | opt-in (`CAFE_NORTE_SIGNAL_MODEL`), one call per user turn, after the turn, 5 s deadline |
+| Decision-model analyzer (Jev) | a soft sentiment at p ≥ 0.5, a language switch at p ≥ 0.7, applied at the next turn's start; one retry after 2 s on a 429 or 5xx, inside the 5 s deadline (D52) |
 | Signal freshness | the previous user turn only; `frustrated`/`uncertain` reach the prompt, others never |
 | Live eval: candidate lines per run | 24 (`MAX_LIVE_TURNS`); a run stops earlier when the session leaves `active` (D43) |
 | Live eval: wait for one turn's end | 90 s, then the turn is reported `no_turn_end` (D43) |
 | Live eval: loopback server start | 30 s to bind and finish its lifespan (D43) |
 | Live eval: simulator reply | 30 s per line; an empty reply stops the run (`SimulatorError`) (D43) |
 | Live eval: rubric judge | 60 s per run; the newest 12 000 characters of the transcript (`JUDGE_TRANSCRIPT_CHARS`), the cut start marked (D43) |
+| Signals eval (offline experiment) | one call per case and system, 10 s each (`CALL_SECONDS`), 4 in flight per system, 2 repetitions by default; Jev retried once after 2 s on a 429 or 5xx |
 | Live eval: spend estimate assumptions | 14 candidate turns a run; per turn 12 000 input + 200 output tokens for the answering model and 1 200 + 60 for the simulator; 8 000 + 300 per run for the judge; deliberately high, priced with `prices/v1.yaml` (D43) |
-| Negation window for explicit requests | 3 words before the match, within one clause |
+| Negation window for explicit requests | 3 words before the match, within one clause; 6 for a language request turned down (D52) |
 | Follow-up flags | at most one per turn |
 | LLM first output | 6 s per round, one retry of a silent round, then `timeout` (D35) |
 | External tool | 10 s |
@@ -126,6 +129,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Destination | Data |
 | --- | --- |
 | Browser | Own session only: transcript, brief, confirmations, sources (title › section › excerpt), reviewer panel, the JSON export |
+| OpenRouter / TypeSafe (only with `CAFE_NORTE_SIGNAL_MODEL=openrouter/…`) | Each candidate message, Ana's sentence before it and the session language (US-hosted; on in the hosted demo, whose data is fictional; off for real applicants) |
 | Model provider (OpenAI in the hosted demo, Groq or OpenAI locally) | System prompt, configuration facts, candidate state, recent turns, tool calls and results (US-hosted) |
 | Deepgram / ElevenLabs / Daily | Audio and text of the voice session; no raw audio stored by us |
 | Postgres | Everything the export contains; access codes and tokens only as hashes |

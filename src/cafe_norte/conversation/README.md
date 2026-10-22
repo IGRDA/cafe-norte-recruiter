@@ -17,7 +17,7 @@ its own.
 | `slot_answer.py` | The candidate's answer to the slot offer (D41), pure: `slot_answer` returns the tool to run (read the slot back, reserve the one read back and heard on a yes, offer again for a named day), a `Shortlist` to ask about, or nothing; `open_offer`, `heard_read_back_of` |
 | `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds; a round whose calls changed nothing ends it once the question was said, and a tool whose call changed nothing is not offered again that turn, D44), first-output and tool deadlines, the explicit-request fast path (language switch, D28; human request, D30; a plain yes, no or carry-on to the pending read-back, D35, routed by `readback.answer_call`: one heard to the end is answered, one the candidate cut goes to `review_readback`, D39; a button answer is routed the same way and no longer counts as hearing it; the candidate's choice of slot, decided by `slot_answer`, D41; a goodbye or thanks once the interview is booked ends the session with the fixed goodbye and no model round, D46), one retry of a silent model round, a generation that ends with no usage report estimated at 4 characters per token (D44), a paused session made active by its next turn, `say` and `aside` for sentences the system speaks (D35), `record_usage` for usage measured outside a turn (a call's speech providers; an ended session's export is stored again, D44), signal analysis after the turn (`settle` waits for it), one malformed-call repair per turn, active seconds accumulated per turn with the 480 s cap, a cancelled or closed turn journaled as interrupted (D37), structured events through the `Telemetry` port (`turn_failed`, `model_round`, `model_round_silent`, `answer_cut`: metadata only), and one trace per turn: `handle-candidate-turn`, then `write-user-turn`, `invoke-agent`, `step` (one per model round), `chat` (the generation, with tokens), one span per tool call (`retriever` for `search_knowledge`) and `write-assistant-turn`. Parents are passed explicitly. |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |
-| `signals.py` | `explicit_controls` (pure patterns for stop, human and language requests, es/en), `requested_language`, `answer_to_readback` (a whole-utterance yes or no), `is_farewell` (a goodbye or thanks with nothing left to do, D46), `ModelSignalAnalyzer` (the asynchronous classifier adapter; its tokens are recorded under the turn it classified, D44) and `fresh_sentiment` |
+| `signals.py` | `explicit_controls` (pure patterns for stop, human and language requests, es/en), `requested_language`, `answer_to_readback` (a whole-utterance yes or no), `is_farewell` (a goodbye or thanks with nothing left to do, D46), `ModelSignalAnalyzer` (the asynchronous classifier adapter; its tokens are recorded under the turn it classified, D44), `DecisionSignalAnalyzer` (the same port over a `DecisionModel`, Jev: the two questions of `prompts/signal_questions.yaml`, a soft sentiment at p ≥ 0.5, a language switch at p ≥ 0.7, D52), `fresh_sentiment` and `fresh_switch` |
 
 ## Questions and the knowledge base
 
@@ -70,7 +70,7 @@ A turn closed or cancelled mid-stream (barge-in, hang-up) takes the same exit: t
 stream is closed, what was said is stored as an interrupted assistant turn, `TurnFinished` is
 journaled with `interrupted=True` and the lease is released.
 
-## Explicit requests and signals (D28)
+## Explicit requests and signals (D28, D30, D52)
 
 Step 2 is `explicit_controls(text)`: anchored phrases per clause, a negation in the
 three words before a match cancels it. A human request saves a `human_followup` flag
@@ -83,6 +83,14 @@ task. A verdict needs the candidate's own words as evidence or it is dropped; it
 as `SignalRecorded` (SSE, reviewer panel, export) and kept in memory. The next turn's prompt
 gets `candidate_sentiment` only when the verdict is `frustrated` or `uncertain` and comes from
 the immediately previous user turn; a late or older verdict never reaches a prompt.
+
+With `CAFE_NORTE_SIGNAL_MODEL=openrouter/typesafe/jev-1.14` the analyzer is a decision model
+(D52): one call reads the session language, what Ana said last and the message, and answers
+the sentiment and whether to keep or switch the language, with probabilities. A switch it
+reads (p ≥ 0.7, "my Spanish is not very good") applies at the start of the next turn the way
+an explicit request does: saved with the user turn, before the model; an explicit request in
+that turn wins, and a verdict from an older turn switches nothing. The analyzer runs beside
+the turn: it adds no latency, and one candidate turn passes in the old language.
 
 Bounds: four tool rounds per turn, one malformed-call repair (a second ends the turn with
 `invalid_response`), six seconds to first model output, ten seconds per tool, 480 active seconds

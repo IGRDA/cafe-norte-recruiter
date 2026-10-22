@@ -52,6 +52,7 @@ from evals.observation import fold, session_result
 from evals.ragas_bridge import score_with_ragas, to_ragas_samples
 from evals.retrieval import load_cases, run_retrieval, write_report
 from evals.scorers import run_check
+from evals.signals import CASE_SETS, DEFAULT_SIGNAL_MODEL, SYSTEMS, signals_main
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIOS_DIR = ROOT / "evals" / "cases" / "scenarios"
@@ -245,17 +246,26 @@ def _arm(fault: Fault | None, model: FakeModel, store: Store) -> None:
 def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS) -> int:
     parser = argparse.ArgumentParser(prog="evals")
     parser.add_argument(
-        "--suite", choices=["scenarios", "retrieval", "comparison"], default="scenarios"
+        "--suite", choices=["scenarios", "retrieval", "comparison", "signals"], default="scenarios"
     )
     parser.add_argument("--mode", choices=["fake", "live"], default="fake")
     parser.add_argument("--only", nargs="*", default=[])
-    parser.add_argument("--repeat", type=int, default=None, help="scenarios 1, comparison 2")
+    parser.add_argument(
+        "--repeat", type=int, default=None, help="scenarios 1, comparison and signals 2"
+    )
     parser.add_argument("--models", nargs="*", default=[])
     parser.add_argument("--judge", default="off", help="provider/model for the rubric judge")
     parser.add_argument("--retriever", choices=["hybrid", "lexical"], default="hybrid")
     parser.add_argument("--out", default=None, help="results directory (per suite default)")
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--ragas", action="store_true", help="retrieval: add ragas' ID metrics")
+    parser.add_argument("--systems", nargs="*", choices=SYSTEMS, default=list(SYSTEMS))
+    parser.add_argument("--cases", choices=list(CASE_SETS), default="dev", help="signals")
+    parser.add_argument(
+        "--signal-model",
+        default=os.environ.get("CAFE_NORTE_SIGNAL_MODEL") or DEFAULT_SIGNAL_MODEL,
+        help="signals: the production and llm systems' model",
+    )
     live = parser.add_argument_group("live runs (paid; the estimate is printed first)")
     live.add_argument("--model", default=os.environ.get("CAFE_NORTE_MODEL") or DEFAULT_MODEL)
     live.add_argument("--simulator", default=DEFAULT_SIMULATOR)
@@ -278,6 +288,8 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
         return live_main(args)
     if args.suite == "comparison":
         return comparison_main(args, committed=committed)
+    if args.suite == "signals":
+        return signals_main(args)
     if args.suite != "scenarios" or args.mode != "fake":
         print(f"{args.suite} in {args.mode} mode is not available yet (later stage).")
         return 2

@@ -1621,3 +1621,68 @@ bug: `plain()` was not idempotent for compatibility letters.
 
 **Consequences we accept.** One large move of test files. A `Sleep` argument on the few
 classes that wait. The mutation score is not a gate.
+
+## D52 · Jev reads sentiment and the language switch beside the turn; the regex stops switching on mentions
+
+_Added 22 October 2026, after the signals experiment (`evals/signals.py`)._
+
+**Context.** Two soft signals ran on two mechanisms: the language switch on the D28 patterns,
+and the sentiment on an opt-in chat classifier (D30, off in the hosted demo). A decision model,
+TypeSafe's Jev on OpenRouter, answers typed questions with calibrated probabilities and no
+text, in about 0.3 s. The question was whether one such call beside the turn beats both, with
+no latency added to the turn.
+
+**What was measured.** Four systems on two synthetic sets: 122 hand-written turns (`dev`, the
+questions were tuned on it) and 83 written by gpt-4.1 from a fixed grid, each line checked
+against its cell (`heldout`, scored once). Two repetitions. Held-out, before the regex fix:
+
+| | regex | gpt-4o-mini classifier (D30) | gpt-4o-mini, Jev's questions | Jev |
+| --- | --- | --- | --- | --- |
+| Frustrated/uncertain precision / recall | – | 80% / 85% | 89% / 77% | 98% / 88% |
+| False language switches | 0/118 | – | 7/118 | 0/118 |
+| Missed language requests | 16/36 | – | 0/36 | 0/36 |
+| Stable across repetitions | 100% | 95% | 92% | 99% |
+| Latency p50 / p95 | 0 ms | 796 / 1117 ms | 774 / 1075 ms | 279 / 461 ms |
+| € per 1000 turns | 0 | 0.046 | 0.050 | 0.023 |
+
+On `dev` the regex also made 6/190 false switches ("Do I need to speak Spanish?", "No need to
+switch to Spanish", "No hace falta que me hables en inglés"): KI-09. Asking Jev "es or en" missed
+8/38 indirect requests; asking "keep or switch", relative to the session, missed none, on both
+sets. Without Ana's previous sentence in its state Jev made one false switch and missed one
+request on `heldout`, so the analyzer port now passes it.
+
+**Decisions.**
+- `DecisionModel` is a port in `model/` (`decide(state, questions, *, deadline) -> Decision`);
+  `model/decisions.py` is its OpenRouter adapter, `FakeDecisionModel` its fake. Failures are
+  `ModelError` with the usual codes.
+- `DecisionSignalAnalyzer` implements `SignalAnalyzer` with the two questions of
+  `prompts/signal_questions.yaml`. It is chosen by `CAFE_NORTE_SIGNAL_MODEL=openrouter/<model>`
+  with `OPENROUTER_API_KEY`; unset, nothing changes. A soft sentiment counts at p ≥ 0.5 and a
+  language switch at p ≥ 0.7: the thresholds with no false alarm on either set.
+- The analyzer still runs after the turn. A switch it reads applies at the start of the next
+  turn, exactly like an explicit request: saved with the user turn, before the model, only from
+  the immediately previous user turn, and an explicit request in that turn wins (`fresh_switch`).
+- With the analyzer on, a whole message in the other language also switches (12/12 held-out
+  `written_other`), which D28 deliberately left alone; the patterns still never do. A candidate
+  who answers in the other language is answered in it from the next turn.
+- Jev quotes nothing, so its evidence is the whole message it read. D30's rule ("a verdict needs
+  the candidate's own words") still holds for the chat classifier.
+- KI-09: "speak"/"hablar" before a language count only after a request word, and a negation up
+  to six words before a language request, in its clause, turns it down. The regex stays the
+  fast path for explicit requests; the indirect ones are the analyzer's.
+- `SignalAnalyzer.analyze` takes `ana_said`, what Ana said before the message.
+
+**Rejected.**
+- Calling Jev before the model, in the turn: 0.3–0.5 s on every turn for a switch that is rare.
+- Cutting Ana's reply mid-turn when a switch arrives: Jev's p95 (about 0.5 s) would allow it, but it
+  changes what has been said and journaled. It is the next step if the one-turn lag matters.
+- A chat model with Jev's questions: it catches every request but switches falsely on mentions
+  (7/118 held-out) and is three times slower.
+
+**Consequences we accept.** One candidate turn passes in the old language before the switch,
+and in voice that turn is also transcribed in the old language. The candidate's message, Ana's
+sentence and the session language go to OpenRouter and TypeSafe (US-hosted, an alpha endpoint
+with no published retention period). It is on in the hosted demo, whose data is fictional
+(as for trace content, D42), so the behaviour can be tried from the public URL; it stays off
+for real applicants until retention is settled. The labels are synthetic: a held-out set written by another model, but no real
+transcripts. Sentiment is still advisory and never a hiring input.

@@ -1645,7 +1645,7 @@
     "config_id": "chamberi_barista_v1",
     "config_version": "1",
     "kb_version": "2",
-    "prompt_version": "ana_v17",
+    "prompt_version": "ana_v18",
     "schema_version": "1",
     "model_id": "fake",
     "stt_model": "",

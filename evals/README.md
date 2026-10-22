@@ -1,6 +1,6 @@
 # Evaluations
 
-Three suites, one typed runner, two execution modes. Deterministic runs use the fake model and
+Four suites, one typed runner, two execution modes. Deterministic runs use the fake model and
 are part of CI; live runs call paid providers and are manual.
 
 | Suite | Cases | Scorers | Mode |
@@ -8,6 +8,7 @@ are part of CI; live runs call paid providers and are manual.
 | `scenarios` | S01–S22 (`cases/scenarios/*.yaml`): scripted turns for CI, persona for the simulator | deterministic checks on the final `ExportDocument` (fields, confirmations, booking, flags, no fabricated confirmed value) + optional rubric judge | CI (fake) and live |
 | `retrieval` | 24 questions (`cases/retrieval/questions.yaml`): 16 answerable, 4 unsupported, 4 leakage | recall@3 of expected sections, zero cross-store sources; unsupported questions reported with what came back after the floor (D27); ragas ID-based context precision and recall with `--ragas` | `make evals-retrieval` (`--retriever hybrid` needs the extra; `lexical` runs in CI) |
 | `comparison` | 6 multi-turn cases × 2 models × 2 repetitions (`cases/comparison/cases.yaml`), 24 runs on one loopback server per model, same prompt, tools, KB and configuration | each case's scenario `live_checks`, extraction accuracy, tool calls ok, grounding checks, runs passed, latency, cost; summary and runs (no exports) committed under `results/comparison/` | live, bounded, `--yes` |
+| `signals` | 122 synthetic candidate turns (`cases/signals/turns.yaml`), es and en sessions, labelled by construction | sentiment accuracy, macro-F1, frustrated/uncertain precision and recall; reply-language accuracy, false switches, missed requests, accuracy per kind; stability across repetitions, p50/p95 latency, € per 1000 turns; Brier score and threshold sweeps for a system with probabilities | offline experiment, `make evals-signals` (regex free; the rest with `--yes`) |
 
 ```bash
 make evals ARGS="--suite scenarios --mode fake"          # what CI runs
@@ -19,6 +20,10 @@ make evals-retrieval ARGS="--retriever lexical --ragas"   # adds ragas' ID-based
 make compare                                   # 6 cases x 2 models x 2 runs: prints the estimate only
 make compare ARGS="--yes"                      # spends; default models openai/gpt-4.1 openai/gpt-4o-mini
 make compare ARGS="--models fake --repeat 1 --simulator fake --max-turns 2 --yes"  # free dry run
+make evals-signals                             # regex only, free; prints the estimate for the rest
+make evals-signals ARGS="--yes"                # regex, production, llm and jev, 2 repetitions
+make evals-signals ARGS="--cases heldout --yes" # the same on the held-out set
+make evals-signals ARGS="--systems regex jev --only es-49 en-35 --repeat 1 --yes"
 uv run python -m evals.run --list
 ```
 
@@ -102,6 +107,39 @@ is built as well, and the checks move to it when the remaining checks land (D21)
 Raw live reports contain conversations and stay out of git (`results/` is ignored); the
 comparison's aggregated structured results and the retrieval scores are committed under
 `results/` by name exception in `.gitignore` once they exist.
+
+## Signals: sentiment and reply language (Jev experiment)
+
+An offline experiment, not a gate: does a decision model with calibrated probabilities beat
+what runs today, so that one call beside the turn could carry both the sentiment and the
+language switch? Four systems answer the same synthetic turns (`evals/signals.py`):
+
+| System | What it is | Answers |
+| --- | --- | --- |
+| `regex` | `explicit_controls` + `requested_language`, the runtime's switch today (D28) | language |
+| `production` | `ModelSignalAnalyzer` with the shipped `classifier.md`, evidence rule included (D30) | sentiment |
+| `llm` | the same two questions Jev gets, as JSON, from the chat model (`--signal-model`, default `openai/gpt-4o-mini`) | both |
+| `jev` | TypeSafe's `typesafe/jev-1.14` through the shipped `DecisionsModel` adapter (`model/decisions.py`), the two `choice` questions of `prompts/signal_questions.yaml` in one call | both, with probabilities |
+
+The questions live once, in `prompts/signal_questions.yaml` (`signals.QUESTIONS`); the `llm`
+prompt is written from them. Language is asked as `keep` or `switch` relative to the session,
+not as `es`/`en`: on the dev set that took Jev from 8/38 missed requests to 0/38, and the
+held-out set confirmed it (0/36, no false switch). The shipped analyzer is D52. Each system reads
+`session_language`, what Ana said last and what the candidate said. A failed call scores as the
+runtime's fallback (neutral, session language) and is counted under errors. `written_other` (a
+whole message in the other language, no request) is labelled a switch but kept out of the false
+switch and missed request rates, because D28 deliberately keeps the session language there.
+Two case sets (`--cases`): `dev`, the hand-written `turns.yaml` the questions may be tuned on,
+and `heldout`, 83 turns written by gpt-4.1 from a fixed grid (`evals/signals_generate.py`: one call
+writes each cell's lines, a second checks each line against the cell and drops what does not
+fit; labels come from the cell, nothing is relabelled). The held-out set is only scored.
+Committed results go to `results/signals/<UTC time>-<set>-<systems>.{md,json}`: synthetic text
+only.
+
+Keys: `OPENAI_API_KEY` for `production` and `llm`; `OPENROUTER_API_KEY` for `jev` (openrouter.ai →
+Settings → Credits, a few dollars; Settings → API Keys → Create Key with a credit limit; add the
+line to `.env`, never to a command line). `JEV_MODEL` overrides the model id
+(`~typesafe/jev-latest`).
 
 ## Release gate
 

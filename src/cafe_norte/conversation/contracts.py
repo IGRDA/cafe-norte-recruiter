@@ -245,6 +245,9 @@ class SignalAnalysis(Frozen):
 class SignalAnalyzer(Protocol):
     """Asynchronous sentiment/intent classification of finalized text; results are advisory and
     attached to their turn. ``None`` when there is no evidence-backed verdict. Explicit stop and
-    human requests have a synchronous path in ``signals.py`` and never wait for this."""
+    human requests have a synchronous path in ``signals.py`` and never wait for this.
+    ``ana_said`` is what Ana said just before the message, for an analyzer that reads it (D52)."""
 
-    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis: ...
+    async def analyze(
+        self, turn_id: TurnId, text: str, language: Language, *, ana_said: str = ""
+    ) -> SignalAnalysis: ...

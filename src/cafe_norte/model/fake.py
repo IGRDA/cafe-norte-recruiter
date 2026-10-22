@@ -5,7 +5,14 @@ from collections.abc import AsyncGenerator, Callable, Sequence
 from datetime import datetime
 
 from cafe_norte.errors import ErrorCode
-from cafe_norte.model.contracts import ModelError, ModelEvent, ModelMessage, ToolSchema
+from cafe_norte.model.contracts import (
+    ChoiceQuestion,
+    Decision,
+    ModelError,
+    ModelEvent,
+    ModelMessage,
+    ToolSchema,
+)
 
 # A model that decides from what it is sent: the messages and the tools offered this round.
 Policy = Callable[[tuple[ModelMessage, ...], tuple[ToolSchema, ...]], Sequence[ModelEvent]]
@@ -73,3 +80,32 @@ class FakeModel:
     @property
     def advertised_tools(self) -> tuple[tuple[ToolSchema, ...], ...]:
         return tuple(self._tools)
+
+
+class FakeDecisionModel:
+    """Replays scripted decisions in order; a ``ModelError`` in the script is raised instead.
+    Records every state it was asked about."""
+
+    model_id = "fake-decision"
+
+    def __init__(self, replies: Sequence[Decision | ModelError], *, delay_seconds: float = 0):
+        self._replies = list(replies)
+        self._delay = delay_seconds
+        self.states: list[dict[str, str]] = []
+
+    async def decide(
+        self,
+        state: dict[str, str],
+        questions: dict[str, ChoiceQuestion],
+        *,
+        deadline: datetime,
+    ) -> Decision:
+        self.states.append(state)
+        if self._delay:
+            await asyncio.sleep(self._delay)
+        if not self._replies:
+            raise ModelError("fake decision script exhausted", code="provider_unavailable")
+        reply = self._replies.pop(0)
+        if isinstance(reply, ModelError):
+            raise reply
+        return reply

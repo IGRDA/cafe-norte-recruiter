@@ -6,6 +6,7 @@
   --card: #ffffff;
   --line: #d9d2c7;
   --accent: #6b3e26;
+  --brand-navy: #1d3354; /* the logo's headset */
   --user: #e8f0fe;
   --error: #9b1c1c;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -16,7 +17,8 @@
 [hidden] { display: none !important; } /* flex rules below must not undo the attribute */
 body { margin: 0; }
 #app { max-width: 1100px; margin: 0 auto; padding: 16px; }
-h1 { font-size: 1.25rem; margin: 0 0 4px; color: var(--accent); }
+h1 { font-size: 1.25rem; margin: 0 0 4px; color: var(--brand-navy); }
+.brand { display: flex; align-items: center; gap: 8px; }
 h2 { font-size: 0.95rem; margin: 16px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .notice { font-size: 0.85rem; color: var(--muted); margin: 0 0 4px; }
 .chooser { font-size: 0.85rem; margin: 0 0 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

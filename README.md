@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/logo.svg" alt="Café Norte" width="240"></p>
+
 # Café Norte recruiting agent
 
 **Ana** is a bilingual (Spanish/English) voice and text assistant for a fictional coffee chain.

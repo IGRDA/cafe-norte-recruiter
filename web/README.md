@@ -10,6 +10,7 @@ voice status; one POST per text turn.
 | `assets/app.js` | State store, SSE client with `Last-Event-ID`, turn submission with `input_id`, confirmation answers at the revision on screen, the chooser, renderers |
 | `assets/voice.js` | Hosted voice, offered when `GET /api/runtime` says `pipecat`: joins the session's Daily room with the vendored `daily-js` (audio only, mic only after **Hablar**), plays Ana's track, posts `connected` and `first_audio` timings. Three calls for `app.js`: `start`, `stop`, `closing` (the session ended: wait for Ana to leave after her goodbye, at most 20 s, then leave, D48). With voice `off` the **Hablar** button is hidden. The browser's own speech mode was removed (D45) |
 | `assets/app.css` | Compact responsive layout, readable contrast, visible errors |
+| `assets/logo-mark.svg` | The Café Norte mark (headset and bean) for the header and the favicon; the full logo with the wordmark is `docs/assets/logo.svg`, used by the README |
 | `vendor/` | Pinned third-party scripts with their version and hash recorded in `vendor/README.md` |
 
 Rendered as text, never HTML. The reviewer

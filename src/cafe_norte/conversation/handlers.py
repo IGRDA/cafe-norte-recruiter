@@ -331,6 +331,12 @@ class UpdateCandidateHandler(_Handler):
             step = NEXT_STEP["end"]
         else:
             step = _next_question(new_state)
+        if patch.note is not None and not has_followup(new_state):
+            # A note is read by no one: "Sí, anótalo" to a follow-up offer went here (D58).
+            step = (
+                "The note is kept in the record; nobody will contact the candidate from it. If "
+                f"they accepted that a person follows up, call request_human_followup. {step}"
+            )
         return ToolOutcome(
             ok=True,
             model_text=f"Saved: {saved}. {step}",

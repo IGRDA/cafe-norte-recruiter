@@ -2054,3 +2054,8 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   `update_candidate` (D46) before they save the intent. Live, "Sí, quiero tener una entrevista."
   was saved when the candidate had said only "Sí.". An intent already saved is reused, not
   checked again.
+- **An accepted follow-up is a follow-up.** A note is read by no one, and its result now says so:
+  "nobody will contact the candidate from it; if they accepted that a person follows up, call
+  request_human_followup". The prompt and the tool description say the same, and a follow-up
+  offer waits for the answer. Live, "Sí, anótalo" to "¿Quieres que lo deje anotado para que te
+  contacten?" became a note. S30 replays it.

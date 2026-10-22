@@ -38,6 +38,8 @@ the session never paused during the call; no model round timed out.
 | KI-19 | "Muchas gracias" inside a longer sentence ends the call at once | High | `test_thanks_beside_other_words_…` | **fixed (D59)** |
 | KI-20 | A question in the closing line is answered with the goodbye | High | S32, `test_a_question_in_the_closing_line_…` | **fixed (D59)** |
 | KI-21 | A correction after the summary has the whole summary read again | Medium | `test_a_correction_after_the_brief_reads_back_only_what_changed` | **fixed (D59)** |
+| KI-22 | Ana leaves the instant her goodbye has played, or at once when talked over | Medium | `test_ana_hangs_up_two_seconds_…`, `test_talking_over_the_goodbye_waits_…` | **fixed (D59)**, to confirm by voice |
+| KI-23 | Micro-cuts between sentences: each sentence's request waits for the previous audio | Medium | `test_the_second_sentence_is_requested_before_…` | **fixed (D59)**, to confirm by ear |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -268,3 +270,11 @@ reproductions named in the table are the tests that went red first.
 - **KI-21.** "Sí, pero mi nombre es Princesa Rosmugalda" after the summary: the name was
   saved and the whole summary read again from "Te resumo lo que tengo", then cut, then the
   review offer. Fixed in D59: only the changed sentence and the closing question.
+- **KI-22.** After "Sí, no me lo expliques, he vivido por ahí, muchas gracias" (KI-19) Ana's
+  goodbye played and the call closed at once; "Ya está", "Pero no lo entiendo muy bien" and
+  "Cuelga" went to an ended session. Fixed in D59: 2 s of grace, and words over the goodbye are
+  let finish.
+- **KI-23.** Iñaki heard micro-cuts between words and sentences. Each sentence was one
+  ElevenLabs HTTP request sent only after the previous audio had finished downloading, with no
+  context between them. Fixed in D59 by requesting the next sentence while this one plays, with
+  the sentences before as context; to be confirmed by ear.

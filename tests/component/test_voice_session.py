@@ -293,8 +293,8 @@ def ended(lifecycle: Lifecycle = "completed") -> StateUpdated:
     )
 
 
-def hanging(runtime: FakeRuntime) -> tuple[VoiceSession, list[str]]:
-    """A session whose hang-ups are counted."""
+def hanging(runtime: FakeRuntime, time: FakeTime) -> tuple[VoiceSession, list[str]]:
+    """A session whose hang-ups are counted, on virtual time."""
     hung_up: list[str] = []
 
     async def hang_up() -> None:
@@ -308,39 +308,67 @@ def hanging(runtime: FakeRuntime) -> tuple[VoiceSession, list[str]]:
         texts=TEXTS,
         language="es",
         on_hang_up=hang_up,
+        sleep=time.sleep,
     )
     return s, hung_up
 
 
-async def test_ana_hangs_up_once_her_goodbye_has_played() -> None:
-    """The hosted call: the page left the room before "¡Hasta pronto!" was heard."""
+async def test_ana_hangs_up_two_seconds_after_her_goodbye_has_played() -> None:
+    """The hosted call: the page left the room before "¡Hasta pronto!" was heard. And after
+    D48 she left the instant it had played, which felt like a slam (D59)."""
+    time = FakeTime()
     runtime = FakeRuntime([[say("Gracias, Lucía."), say("¡Hasta pronto!"), ended(), finished()]])
-    s, hung_up = hanging(runtime)
+    s, hung_up = hanging(runtime, time)
     await s.transcript("nada más, gracias")
     await s.wait()
     await s.played_one()
     assert hung_up == []  # the goodbye is still playing
     await s.played_one()
-    assert hung_up == ["bye"]
     assert runtime.acks == [(TurnId("t1"), "Gracias, Lucía. ¡Hasta pronto!", True)]
+    await time.advance(VoiceSession.hang_up_grace_seconds - 0.5)
+    assert hung_up == []  # the grace is running
+    await time.advance(0.6)
+    assert hung_up == ["bye"]
     await s.played_one()  # a late playback report hangs up nothing twice
+    await time.advance(5)
     assert hung_up == ["bye"]
     await s.close()
 
 
-async def test_talking_over_the_goodbye_still_hangs_up() -> None:
+async def test_talking_over_the_goodbye_waits_for_the_words_then_leaves() -> None:
+    """Live: "Ya está… pero no lo entiendo muy bien… cuelga" after the goodbye all failed on
+    an ended session; before that, talking over the goodbye hung up at once (D48). Now Ana
+    waits for the candidate to finish, runs no turn on the ended session, and leaves."""
+    time = FakeTime()
     runtime = FakeRuntime([[say("¡Hasta pronto!"), ended(), finished()]])
-    s, hung_up = hanging(runtime)
+    s, hung_up = hanging(runtime, time)
     await s.transcript("adiós")
     await s.wait()
     await s.interrupted()
+    await time.advance(VoiceSession.hang_up_grace_seconds + 1)
+    assert hung_up == []  # they are speaking: no hang-up yet
+    await s.transcript("pero no lo entiendo muy bien")
+    assert len(runtime.turns) == 1  # nothing runs on the ended session
+    await time.advance(VoiceSession.hang_up_grace_seconds + 0.1)
+    assert hung_up == ["bye"]
+    await s.close()
+
+
+async def test_a_sound_over_the_goodbye_with_no_words_still_ends_the_call() -> None:
+    time = FakeTime()
+    runtime = FakeRuntime([[say("¡Hasta pronto!"), ended(), finished()]])
+    s, hung_up = hanging(runtime, time)
+    await s.transcript("adiós")
+    await s.wait()
+    await s.interrupted()  # a cough: no transcript ever comes
+    await time.advance(VoiceSession.hang_up_fallback_seconds + 0.1)
     assert hung_up == ["bye"]
     await s.close()
 
 
 async def test_a_session_still_open_keeps_listening() -> None:
     runtime = FakeRuntime([[say("¿Qué días puedes?"), ended("active"), finished()]])
-    s, hung_up = hanging(runtime)
+    s, hung_up = hanging(runtime, FakeTime())
     await s.transcript("hola")
     await s.wait()
     await s.played_one()

@@ -27,7 +27,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregatorParams,
 )
 from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
-from pipecat.services.elevenlabs.tts import ElevenLabsHttpTTSService, ElevenLabsHttpTTSSettings
+from pipecat.services.elevenlabs.tts import ElevenLabsHttpTTSSettings
 from pipecat.transcriptions.language import Language as PipecatLanguage
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.turns.user_start.min_words_user_turn_start_strategy import (
@@ -59,6 +59,7 @@ from cafe_norte.voice.contracts import (
 )
 from cafe_norte.voice.metering import SpeechMeter
 from cafe_norte.voice.session import VoiceRuntime, VoiceSession
+from cafe_norte.voice.tts import PrefetchingElevenLabsHttpTTSService
 
 log = logging.getLogger(__name__)
 
@@ -285,7 +286,7 @@ class PipecatVoiceController:
         )
         stt = DeepgramSTTService(api_key=self._deepgram_api_key, settings=stt_settings(language))
         http = aiohttp.ClientSession()  # one per call, so sentences reuse its connection
-        tts = ElevenLabsHttpTTSService(
+        tts = PrefetchingElevenLabsHttpTTSService(
             api_key=self._elevenlabs_api_key,
             aiohttp_session=http,
             settings=tts_settings(self._voice_id),

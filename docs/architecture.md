@@ -74,7 +74,8 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Voice: speech synthesis | ElevenLabs `eleven_v4_turbo` over HTTP, one request per sentence; stability 0.4, similarity 0.8, style 0.2 (D48) |
-| Voice: hang-up after the session ends | Ana leaves once everything sent has played, or at once if the candidate talks over the goodbye; the page leaves on its own after 20 s (D48) |
+| Voice: hang-up after the session ends | 2 s of silence after the goodbye has played (D59); words over or after it are let finish and arm the 2 s again, a sound with no words a 10 s fallback; the page leaves on its own after 20 s (D48) |
+| Voice: TTS requests ahead | 1 sentence requested while the current one plays, with the newest 300 characters before it as context (D59) |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | A generation with no usage report (barge-in, answer cut, silent or failed attempt) | estimated at 4 characters per token, from the messages and tools sent and the text streamed; marked `estimated` (D44) |
 | Recent turns in the prompt | 20 |

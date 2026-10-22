@@ -2154,3 +2154,19 @@ D56–D58 and the feedback on them. One entry per fix, in the order they landed.
   left it for measurement; Langfuse's `first_output_ms` and turn latency before and after this
   deploy are the check, and the numbers go here once read.
 - Prompt `ana_v22`.
+- **Two seconds before Ana leaves.** Once the goodbye has played, the voice session waits
+  2.0 s of silence (`hang_up_grace_seconds`, through `_after_silence`) before hanging up.
+  Words over or after the goodbye run no turn on the ended session (live, four of them failed
+  as `session_ended`): the candidate is let finish, their transcript arms the wait again, and
+  Ana leaves. A sound that brings no words (a cough) arms a 10 s fallback
+  (`hang_up_fallback_seconds`). This supersedes D48's "a candidate who talks over the goodbye
+  ends the call". KI-22.
+- **The next sentence is requested while this one plays.** `PrefetchingElevenLabsHttpTTSService`
+  (`voice/tts.py`) sends the request for a sentence the moment its `TTSSpeakFrame` arrives,
+  one ahead (`PREFETCH_DEPTH`), and hands the response to Pipecat's own `run_tts` through the
+  session it posts with; a barge-in drops what was queued. The sentences before go as
+  `previous_text` (the newest 300 characters), which Pipecat reset at every sentence end, so
+  the voice carries over. v4 Turbo over HTTP stays (D48). Pipecat's parser, timestamps and
+  frames are untouched. Live, short sentences gapped: the next request only started once the
+  previous audio had finished downloading (KI-23). Whether the gaps are gone is heard on the
+  hosted demo; if not, the next place is the output transport's buffer reset per sentence.

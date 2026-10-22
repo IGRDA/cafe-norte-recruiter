@@ -112,3 +112,7 @@ live_checks:
   - name: booking_present
   - name: no_fabricated_confirmed_values
   - name: no_cross_store_sources
+# What a good run achieves, and the tool trajectory every good run shows (D51).
+goal: "The candidate's details are captured and confirmed, the brief is confirmed and an interview is booked in Chamberí."
+reference_tools:
+  in_order: [update_candidate, present_confirmation, confirm_brief, list_interview_slots, reserve_interview, end_session]

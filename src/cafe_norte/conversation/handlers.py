@@ -81,7 +81,7 @@ from cafe_norte.domain.lifecycle import LifecycleEvent, transition
 from cafe_norte.domain.result import Err, Ok
 from cafe_norte.domain.review import add_followup, has_followup
 from cafe_norte.errors import Language, ServiceError
-from cafe_norte.knowledge.contracts import TOPIC_DOCS, RetrievalQuery, RetrievedChunk, Retriever
+from cafe_norte.knowledge.contracts import RetrievalQuery, RetrievedChunk, Retriever
 from cafe_norte.persistence.contracts import Store
 
 READBACK_FIELDS: tuple[ReadbackField, ...] = ("contact_phone", "earliest_start_date")
@@ -315,8 +315,8 @@ EXCERPT_CHARS = 160
 
 
 class SearchKnowledgeHandler(_Handler):
-    """``search_knowledge``: the structured half of the query (configuration, KB version,
-    topic) is applied here before ranking; the semantic half is the model's Spanish ``query``.
+    """``search_knowledge``: the structured half of the query (configuration and KB version)
+    is applied here before ranking; the semantic half is the model's Spanish ``queries``.
     Snippets go back as reference material with the next step, never as instructions."""
 
     def __init__(
@@ -336,21 +336,18 @@ class SearchKnowledgeHandler(_Handler):
         if state is None:
             return self._refuse("not_found", "Session not found.")
         configuration = self._configurations[state.config_id]
-        allowed = configuration.kb_doc_ids
-        if arguments.topic != "any":
-            allowed = allowed & TOPIC_DOCS[arguments.topic]
         found = await self._retriever.retrieve(
             RetrievalQuery(
                 queries=arguments.queries,
                 config_id=state.config_id,
                 kb_version=configuration.kb_version,
-                doc_ids=allowed,
+                doc_ids=configuration.kb_doc_ids,
             )
         )
         return ToolOutcome(
             ok=True,
             model_text=snippets_message(found, _next_question(state)),
-            summary=f"found:{len(found)}:{arguments.topic}",
+            summary=f"found:{len(found)}",
             events=(
                 SourcesShown(
                     question=arguments.question,

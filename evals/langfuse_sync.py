@@ -17,9 +17,11 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
-from evals.contracts import Report, RunRecord
+from evals.contracts import ProbeRecord, Report, RetrievalCase, RunRecord
+from evals.scorers import abstained, facts_missing
 
 PREFIX = "cafe-norte"
+RAG_DATASET = f"{PREFIX}-rag"  # the knowledge-base questions, probed one session each (D51)
 
 
 class Frozen(BaseModel):
@@ -94,6 +96,71 @@ def dataset_items(plan: Sequence[PlannedCase], suite: str) -> list[DatasetItem]:
             metadata={"case_id": planned.case_id, "emphasis": planned.emphasis},
         )
     return list(seen.values())
+
+
+def rag_items(cases: Sequence[RetrievalCase]) -> list[DatasetItem]:
+    """The knowledge-base questions: the question and its store in, the reference answer,
+    sections and facts out. Ids are the case ids, so a re-sync updates in place."""
+    return [
+        DatasetItem(
+            item_id=f"{RAG_DATASET}-{case.id}",
+            input={
+                "question": case.question,
+                "config_id": case.config_id,
+                "language": case.language,
+            },
+            expected_output={
+                "kind": case.kind,
+                "reference": case.reference,
+                "expected_sections": list(case.expected_sections),
+                "expected_facts": list(case.expected_facts),
+            },
+            metadata={"case_id": case.id, "origin": case.origin},
+        )
+        for case in cases
+    ]
+
+
+def sync_rag_dataset(cases: Sequence[RetrievalCase], sink: ExperimentSink) -> None:
+    sink.upsert_dataset(RAG_DATASET, "Café Norte knowledge-base questions (evals/cases/retrieval)")
+    sink.upsert_items(RAG_DATASET, rag_items(cases))
+
+
+def probe_run(probes: Sequence[ProbeRecord], model: str) -> ExperimentRun:
+    """The probes of one scorecard as one experiment run on ``cafe-norte-rag``: the answer as
+    output, the deterministic reads and ragas' scores as scores (D51)."""
+    stamp = next((p.run.versions for p in probes if p.run.versions is not None), None)
+    prompt = stamp.prompt_version if stamp else "unknown"
+    rows: list[ExperimentRow] = []
+    for probe in probes:
+        scores: dict[str, bool | float] = {k: v for k, v in probe.scores.items() if v is not None}
+        if probe.run.export is not None and probe.kind == "answerable":
+            missing = facts_missing(probe.answer, probe.expected_facts)
+            scores["fact_presence"] = 1 - len(missing) / max(len(probe.expected_facts), 1)
+        if probe.run.export is not None and probe.kind == "unsupported":
+            scores["abstention"] = abstained(probe.answer, probe.tools)
+        rows.append(
+            ExperimentRow(
+                item_id=f"{RAG_DATASET}-{probe.case_id}",
+                session_id=probe.run.session_id,
+                output={
+                    "answer": probe.answer,
+                    "sources": list(probe.sources),
+                    "tools": list(probe.tools),
+                    "failure": probe.run.failure,
+                },
+                scores=scores,
+            )
+        )
+    return ExperimentRun(
+        run_name=f"{prompt} · {model} · probes",
+        metadata={
+            "model": model,
+            "prompt_version": prompt,
+            "kb_version": stamp.kb_version if stamp else "",
+        },
+        rows=tuple(rows),
+    )
 
 
 def experiment_runs(report: Report) -> list[ExperimentRun]:
@@ -222,8 +289,7 @@ def _row(suite: str, record: RunRecord) -> ExperimentRow:
         scores["extraction"] = record.extraction.correct / record.extraction.supplied
     if record.estimated_cost_eur is not None:
         scores["cost_eur"] = record.estimated_cost_eur
-    if record.judge is not None:
-        scores |= {f"judge.{n}": held for n, (_, held) in enumerate(record.judge.answers.items())}
+    scores |= {f"judge.{k}": v for k, v in record.scores.items() if v is not None}
     return ExperimentRow(
         item_id=f"{dataset_name(suite)}-{record.case_id}",
         session_id=record.session_id,
@@ -241,17 +307,25 @@ def _row(suite: str, record: RunRecord) -> ExperimentRow:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """``python -m evals.langfuse_sync <report.json>``: sync a written report afterwards."""
+    """``python -m evals.langfuse_sync <report.json>``: sync a written report afterwards;
+    ``--rag``: the knowledge-base questions as their own dataset."""
     from evals.report import ReportFile
     from evals.runner import comparison_plan, load_scenarios
 
     args = list(argv if argv is not None else sys.argv[1:])
     if len(args) != 1:
-        print("usage: python -m evals.langfuse_sync <report.json>")
+        print("usage: python -m evals.langfuse_sync <report.json> | --rag")
         return 2
     if not keys_present():
         print("LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are not set: nothing sent.")
         return 2
+    if args[0] == "--rag":
+        from evals.retrieval import load_cases
+
+        cases = load_cases()
+        sync_rag_dataset(cases, SdkSink.from_env())
+        print(f"synced {len(cases)} questions to dataset {RAG_DATASET}")
+        return 0
     written = ReportFile.model_validate_json(Path(args[0]).read_text(encoding="utf-8"))
     report = Report(suite=written.suite, runs=written.runs, denominators=written.denominators)
     if report.suite == "comparison":

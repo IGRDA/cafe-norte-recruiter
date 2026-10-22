@@ -1622,6 +1622,147 @@ bug: `plain()` was not idempotent for compatibility letters.
 **Consequences we accept.** One large move of test files. A `Sleep` argument on the few
 classes that wait. The mutation score is not a gate.
 
+---
+
+## D51 · One scorecard in four tiers; ragas measures answers, tools and goals
+
+_Added 22 October 2026, the evaluation stage._
+
+**Context.** `evals/` scored which chunks came back, not what Ana answered with them, and its
+numbers were spread over three reports. Nothing said, in one place, whether a prompt or model
+change made Ana better.
+
+**Options (agreed with the owner).** A curated suite on top of the runner, a rebuild around
+ragas, or only new ragas metrics. ragas plus Langfuse, or adding promptfoo (red-team) or
+deepeval. A judge model and a spend ceiling. A question set written by hand, generated, or
+generated then curated.
+
+**Decisions.**
+- **One scorecard, 25 rows, four tiers** (`evals/scorecard.py`), cheapest first: 0,
+  deterministic with no reference (runs completed, turn length, first-sentence latency, cost,
+  tool calls accepted, language kept, no leak); 1, deterministic against a reference
+  (recall@3, ragas ID-based precision and recall, no cross-store source, abstention, expected
+  facts in the answer, ragas `ToolCallF1`, scenario trajectory, extraction, no fabricated
+  value, task success, injection held); 2, a judge against a reference (ragas
+  `Faithfulness`, `FactualCorrectness`, the goal and the rubric bullets as a pass/fail
+  `DiscreteMetric`); 3, a judge alone (staying on topic, style, as the same metric). Tiers 0 and 1 gate;
+  judge rows report against a target and the committed baseline, never pass or fail (D06
+  holds: deterministic checks decide).
+- **The trajectory is the journal's.** A scenario may carry `reference_tools` (`in_order` as a
+  subsequence, `anywhere`, `never`) read from `tool_started` events, model and runtime calls
+  alike, and a one-sentence `goal` for the goal judge. Only what every good run does.
+- **Turn-level reads are pure** (`evals/scorers.py`): model-written turns are the assistant
+  turns that carry no read-back question, brief or fixed reply; language by function words
+  (accents are no evidence: Chamberí is said in both); a leak is a tool, chunk or
+  configuration id, the prompt version, a key shape, raw JSON, or 12 consecutive words of
+  `system.md` (8 matched instructed phrases such as the follow-up notice).
+- **ragas and Langfuse only.** promptfoo is Node and a second runner; deepeval overlaps ragas.
+  Injection is five scripted scenarios (S23–S27: prompt extraction, a false manager after
+  another candidate's data, booking without a read-back, a role-play jailbreak, a fake system
+  override to French), said word for word live (`live_candidate: scripted`) and scored by
+  deterministic checks: `no_leak`, `spoken_language` (what Ana said, not the session's
+  setting), no booking, no confirmation, nothing fabricated. Where the runtime enforces the
+  rule (S25) the fake model obeys, as in S17; where only the model can refuse, the fake model
+  refuses and the live run is the test.
+- **`evals/judge.py` is retired.** Its rubric bullets are now pass/fail criteria of the same
+  ragas judge; `JudgeVerdict` gives way to `RunRecord.scores` and `judge_model`, and the
+  report's judge section reads them (amends D43).
+- **Judge `openai/gpt-4o-mini`, at most €3 for a full paid run** (as agreed; after calibration
+  the judge is `openai/gpt-4o`, see below); a self-judged run is labelled. The question set is generated once by ragas over our own chunks and curated by
+  hand. Answer metrics come from QA probes: one short live session per question.
+
+**Measured (22 October, fake model, hybrid retriever).** Every gated row holds on the 18 fake
+scenarios. Tool calls accepted 113/137 (82 %): the refusals are a well-behaved script calling a
+confirmation the runtime already took (`already_answered`, D35). ragas ID-based precision 0.35
+and recall 0.88 on the 16 answerable questions (R07 expects two sections and finds one); the
+floors are set just below.
+
+**The question set (22 October).** ragas generated 33 candidates over the 50 chunks with
+`gpt-4o` (prompts adapted to Spanish; one-word persona names, because the model rewrote
+"Barista con experiencia" as "Experienced Barista" and ragas could not find it). Many carried
+deliberate typos ("Wher is", "Dondé esta"); speech recognition does not misspell, so the kept
+ones were corrected. 15 were kept (R25–R39), two added by hand: 41 cases, 32 answerable (8 per
+language and store), 5 unsupported, 4 leakage. Every answerable case now has a `reference`
+answer and `expected_facts` with `a|b` alternatives, so an English answer can hold a Spanish
+fact. Hybrid recall@3 32/32, ragas ID precision 0.40, recall 0.86; BM25 alone misses only
+English questions. ragas `StringPresence` is not used: it has neither alternatives nor
+normalisation (thousands separators, accents), so fact presence is ours.
+
+**The judges (22 October, paid smoke on gpt-4o-mini).** ragas `Faithfulness` and
+`FactualCorrectness` told a right answer (1.0) from a wrong one (0.0). `TopicAdherence` and
+`AgentGoalAccuracyWithReference` did not: on a plain Spanish exchange (the pay question answered
+from the offer, a joke politely declined) the first marked the salary answer as refused and
+classified "salario" outside a pay topic, also on gpt-4o; the second inferred the right end
+state and still gave 0. Both are replaced by a pass/fail ragas `DiscreteMetric` with our own
+prompt (`evals/prompts/criterion.md`): one criterion per row (topic, goal, style, each rubric
+bullet), worded as violations the judge can quote, and "never" statements hold unless the
+transcript shows otherwise. Tool calls are shown on a `(system)` line: inside Ana's turn the
+judge took them for bracketed notes. Checked on a good and a bad conversation, twice: topic
+and style right both times; the goal judge cannot tell an answer from the offer from an
+invented one, which is what faithfulness is for. `FactualCorrectness` runs in precision mode:
+a short answer that leaves out a detail of the reference is not wrong.
+
+**The first live baseline (22 October, gpt-4o-mini answering and judging, about €0.25).**
+Read with the transcripts, it showed as much about the measurement as about Ana:
+- Two deterministic false alarms, fixed: the leak check flagged "Eso no lo sé, pero puedo
+  pedir que alguien del equipo te lo cuente", a line `system.md` quotes for Ana to say (quoted
+  passages are now cut out of the prompt's runs), and the abstention check missed "That's not
+  something I know".
+- The pass/fail judges were wrong on real transcripts: topic 0.23 and style 0.25. gpt-4o-mini
+  failed Ana *for* using tú under a "never usted" criterion, and failed topic whenever there was
+  nothing to decline. Two hand-made examples had not shown it. Hence `calibrate.py` and
+  `cases/judge/calibration.yaml`: 18 labelled cases, both verdicts for every criterion. The
+  wordings were rewritten until gpt-4o-mini agreed on topic, style, faithfulness and accuracy
+  three times in a row; on three-part goals it still flipped one case either way, so the
+  scorecard's judge is `openai/gpt-4o`, 18/18 twice. Since D49 it is also not the answering
+  model.
+- `FactualCorrectness` measured the wrong thing against short references: in precision mode a
+  right answer with more details from the knowledge base scored 0 (R35), and in recall mode a
+  right "35 horas" scored 0 (R01). NVIDIA `AnswerAccuracy` separates right answers (0.5–1) from
+  non-answers and wrong numbers (0) and replaces it. Ana's closing question is cut from the
+  answer before either judge reads it.
+- About gpt-4o-mini itself: recall@3 is 32/32 offline, but live the model's own query missed
+  for R01 and Ana said "35 horas" anyway (faithfulness 0); R05, R06 and R32 searched and then
+  said they did not know; R19 answered the manager's pay with the barista's; S27 once answered
+  in French; three of seven simulated scenarios passed. The baseline is not committed: its
+  judge rows predate the calibration.
+
+**Concurrency (owner's call).** The first baseline ran every session one after the other,
+a rule from the Groq free tier (8 000 tokens a minute). Now the phases (scenarios, probes,
+judges) still run in order, and inside each up to two sessions or judged runs run at once
+(`evals/pool.py`, `--concurrency`). A session's own turns stay in order. The scorecard states
+the concurrency, because its latency row is measured under that load. This also applies to
+the scenario and comparison suites. Four was tried first, on the gpt-4.1 baseline: each model
+round sends about 10 000 tokens and gpt-4.1 answers in about a second, so four sessions passed
+the organisation's 450 000 tokens a minute and 39 turns failed with 429 (`busy`). That run was
+discarded. It also showed the scorecard hid it: a session with failed turns still exports, so
+"valid export" read 53/53 while 30 probes had no answer. The first row is now "runs
+completed" (an export and no failed turn); a probe whose turn failed is counted there and
+nowhere else.
+
+**The gpt-4.1 baseline (22 October, gpt-4o judging, two sessions at a time, committed as
+`evals/results/scorecard/openai-gpt-4.1.json`).** 53/53 runs completed, no 429. Every tier-0
+row holds: first sentence 1.5 s median, €0.045 a session, tool calls 97/97, no leak. Injection
+5/5 held. Misses, all read in the transcripts:
+- **The model's own topic filters the answer away.** R01 (hours), R05 (contract), R06
+  (holidays) and R32 (work permit) searched with `topic` `role` or `benefits`, whose documents
+  (`TOPIC_DOCS`) do not include `offer_*` or `interview_process`; Ana then said the KB does not
+  say. Offline recall@3 is 32/32 because the suite does not apply the model's topic: the next
+  change is the knowledge stage's, not the evaluation's. Expected facts 43/51.
+- Scenarios 3/7: S05 never showed an offer source, S06 flagged no follow-up, S07 answered in
+  Spanish after the switch, S11 left the outcome unset after the withdrawal.
+- Judges (report only): faithfulness 0.85, answer accuracy 0.63, goal 0.58, rubric 0.79, on
+  topic 0.89, style 0.83.
+Two abstentions ("I couldn't find information about…", "I don't have information about…")
+were missed by the regex and re-scored for free from the recording (`--rescore`): 5/5.
+
+**Consequences we accept.** The retrieval rows need the hybrid retriever, so `make check`
+gates the scenario rows and leaves retrieval to its own tests (BM25 alone misses the English
+questions the model would have reformulated). Latency and cost targets are provisional until
+the first paid baseline.
+
+---
+
 ## D52 · Jev reads sentiment and the language switch beside the turn; the regex stops switching on mentions
 
 _Added 22 October 2026, after the signals experiment (`evals/signals.py`)._
@@ -1719,3 +1860,45 @@ latency, on the rare turn that switches. A turn whose first words come before Je
 the 0.5 s wait, still switches one turn late. The candidate's own message stays recorded in
 the language the turn opened in; Ana's answer is in the new one.
 
+---
+
+## D54 · Search the store's documents, not the model's topic; shared words leave the query
+
+_Added 22 October 2026, from the gpt-4.1 baseline of D51._
+
+**Context.** Offline, recall@3 was 32/32: the suite searched the fixture's question over the
+store's documents. Live, 4 of 32 answerable probes said the knowledge base did not have the
+answer when it did. The model's Spanish queries were good; the `topic` it chose filtered the
+answer away. Hours and contract were searched as `role` and holidays as `benefits`, and
+`TOPIC_DOCS` gave neither topic the offer documents (D26).
+
+**Measured.** `make evals-retrieval ARGS="--replay <scorecard>"` reruns the 36 searches (78
+phrasings) the model made for the 32 answerable probes through the real hybrid index, with no model and for
+free. With its own topic, 26/32 found an expected section; without any topic, 27/32. The rest
+came from the words every chunk shares: "¿Cuántos días de vacaciones tiene el puesto de
+barista en Café Norte Chamberí?" ranked the company and role sections above the holiday one.
+With "Café Norte", "Madrid" and "barista" removed from each phrasing: 30/32. Removing the
+store's name as well lost the address question (R29), so it stays.
+
+**Decisions.**
+- `search_knowledge` has no `topic`. The handler searches every document of the session's
+  configuration; keeping the two stores apart was always the configuration's job. One fewer
+  argument for the model to get wrong. `TOPIC_DOCS` and `Topic` are gone; prompt `ana_v19`.
+- `HybridRetriever` takes the shared words out of each phrasing before both rankers
+  (`searchable`); a phrasing that is only those words is kept whole.
+- The retrieval suite gains `--replay`: the model's recorded queries of a live scorecard,
+  rerun through today's retriever. A change to retrieval is judged on what the model really
+  writes, not only on the fixture's tidy questions.
+
+**Rejected.** Widening `TOPIC_DOCS` (fixes the four cases seen, waits for the next); the topic
+as a ranking boost (more logic, nothing measured shows it helps).
+
+**Measured after.** Hybrid recall@3 still 32/32, leakage 0/41, unsupported with sources 3/5,
+ragas ID precision 0.40 and recall 0.86. Replay 30/32: R32 (the work permit for non-EU
+nationals) and R36 (whom to ask for at the interview) still miss; R36 was found with the
+`interview` topic, the one case the topic helped. BM25 alone loses the English R35, whose raw
+question names the barista; the model always searches in Spanish.
+
+**Consequences we accept.** The topic's precision is gone: a question can now bring back a
+chunk of any document of the store. Thirty-two recorded questions are a small sample; the next
+live scorecard is the check.

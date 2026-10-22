@@ -1,7 +1,7 @@
 """Knowledge types and ports."""
 
 from collections.abc import Sequence
-from typing import Literal, Protocol
+from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -54,26 +54,6 @@ class Index(Frozen):
     manifest: IndexManifest
     chunks: tuple[Chunk, ...]
     vectors: tuple[Vector, ...] | None
-
-
-Topic = Literal[
-    "pay", "shifts", "training", "uniform", "benefits", "interview", "company", "role", "any"
-]
-
-# The structured half of a query: which documents a topic may answer from. ``faq`` is always
-# allowed so the filter never hides a frequent question; configuration narrows further.
-TOPIC_DOCS: dict[Topic, frozenset[str]] = {
-    "pay": frozenset({"offer_chamberi", "offer_arganzuela", "faq"}),
-    "shifts": frozenset(
-        {"store_chamberi", "store_arganzuela", "offer_chamberi", "offer_arganzuela", "faq"}
-    ),
-    "training": frozenset({"training", "faq"}),
-    "uniform": frozenset({"uniform", "faq"}),
-    "benefits": frozenset({"benefits", "faq"}),
-    "interview": frozenset({"interview_process", "store_chamberi", "store_arganzuela", "faq"}),
-    "company": frozenset({"company", "store_chamberi", "store_arganzuela", "faq"}),
-    "role": frozenset({"barista_role", "faq"}),
-}
 
 
 class RetrievalQuery(Frozen):

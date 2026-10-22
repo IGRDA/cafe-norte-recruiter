@@ -21,11 +21,10 @@ its own.
 
 ## Questions and the knowledge base
 
-`search_knowledge(question, queries, topic)`: the model keeps the candidate's words in
-`question`, writes one to three self-contained Spanish `queries` (an English question is
-reformulated here; a second phrasing for vague questions) and names a `topic`. The handler
-applies the structured half (configuration, KB version, topic → documents, `faq` always
-allowed) before ranking, returns at most three snippets as numbered reference material with
+`search_knowledge(question, queries)`: the model keeps the candidate's words in
+`question` and writes one to three self-contained Spanish `queries` (an English question is
+reformulated here; a second phrasing for vague questions). The handler applies the structured
+half (the configuration's documents and KB version; no topic, D54) before ranking, returns at most three snippets as numbered reference material with
 the rules and the next step, and emits `SourcesShown`. The model may search once more in the
 same turn; the four-round limit bounds it. A chunk with no query word and a cosine below the
 floor is dropped (D27); beyond that, abstention is the prompt's job. When nothing answers,

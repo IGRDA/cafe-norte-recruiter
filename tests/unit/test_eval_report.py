@@ -3,12 +3,10 @@
 import json
 from datetime import UTC, datetime
 
-from evals.contracts import CheckResult, Extraction, JudgeVerdict, Report, RunRecord
-from evals.judge import JUDGE_TRANSCRIPT_CHARS, render_transcript
+from evals.contracts import CheckResult, Extraction, Report, RunRecord
 from evals.report import render_json, render_markdown, summarize
 
 from cafe_norte.observability.contracts import VersionStamp
-from tests.support.evals import record
 
 VERSIONS = VersionStamp(
     config_id="chamberi_barista_v1",
@@ -44,7 +42,6 @@ def run(
         versions=None if failure else VERSIONS.model_copy(update={"model_id": model}),
         export=None,
         checks=() if failure else tuple(checks),
-        judge=None,
         provider_failed=False,
         estimated_cost_eur=None if failure else 0.01,
         failure=failure,
@@ -119,27 +116,26 @@ def test_json_carries_the_summary_and_no_conversation() -> None:
     assert "export" not in json.dumps(payload["summary"])
 
 
-# ---- the judge in the report ---------------------------------------------------------------------
-
-
-def test_a_long_transcript_keeps_its_end() -> None:
-    lines = tuple(("user", f"línea {n} " + "x" * 200) for n in range(200))
-    text = render_transcript(lines)
-    assert len(text) <= JUDGE_TRANSCRIPT_CHARS
-    assert "línea 199" in text and text.startswith("[…]")
-
-
-def test_the_report_shows_the_judge_apart_and_labelled() -> None:
-    held = JudgeVerdict(judge_model="gpt-4o", answers={"a": True, "b": False}, same_model=False)
-    broken = JudgeVerdict(judge_model="gpt-4o", unparsable="x", same_model=False)
-    report = Report(suite="scenarios", runs=(record(held), record(broken)), denominators={})
-    (model,) = summarize(report.runs).models
-    assert (model.judge_held.k, model.judge_held.n, model.judge_unparsable) == (1, 2, 1)
-    text = render_markdown(report, generated_at=datetime(2026, 10, 21, tzinfo=UTC))
-    assert "secondary signal" in text and "1/2 (50%)" in text
+def test_the_report_shows_the_judges_apart_and_labels_self_judging() -> None:
+    judged = run("C1").model_copy(
+        update={"scores": {"goal_accuracy": 1.0, "rubric": 0.5}, "judge_model": "openai/gpt-4o"}
+    )
+    unscored = run("C2").model_copy(
+        update={"scores": {"goal_accuracy": None}, "judge_model": "openai/gpt-4o"}
+    )
+    (model,) = summarize([judged, unscored]).models
+    assert str(model.judged["goal_accuracy"]) == "1.00 (n=1, 1 unscored)"
+    assert model.judged["style"].mean is None and not model.judge_same_model
+    text = render_markdown(
+        Report(suite="scenarios", runs=(judged, unscored), denominators={}), generated_at=NOW
+    )
+    assert "## Judges" in text and "secondary signal" in text and "| no |" in text
+    itself = judged.model_copy(update={"judge_model": "openai/gpt-4o-mini"})
+    assert summarize([itself]).models[0].judge_same_model
 
 
 def test_a_report_without_a_judge_has_no_judge_section() -> None:
-    report = Report(suite="scenarios", runs=(record(),), denominators={})
-    text = render_markdown(report, generated_at=datetime(2026, 10, 21, tzinfo=UTC))
+    text = render_markdown(
+        Report(suite="scenarios", runs=(run("C1"),), denominators={}), generated_at=NOW
+    )
     assert "judge" not in text.lower()

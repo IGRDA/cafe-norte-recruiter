@@ -11,10 +11,10 @@ runs both. `live`-marked tests are paid and manual (`evals/`).
 
 | Folder | Holds | Rule | `make` |
 | --- | --- | --- | --- |
-| `unit/` | Pure code: domain, signals, slot choice and the answer to an offer (`slot_answer`), brief, read-backs, prompt helpers, the export document, codecs, delivery, cost, the eval report, scorers and the simulated candidate's cues; static checks of the repository (import rules, settings, schema, eval cases) | Imports no store, runtime, handler, app, composition root, adapter or the support built on them (`test_unit_tests_import_only_pure_code`) | `test-unit` |
+| `unit/` | Pure code: domain, signals, slot choice and the answer to an offer (`slot_answer`), brief, read-backs, prompt helpers, the export document, codecs, delivery, cost, the eval report, scorers, the simulated candidate's cues and the eval pool; static checks of the repository (import rules, settings, schema, eval cases) | Imports no store, runtime, handler, app, composition root, adapter or the support built on them (`test_unit_tests_import_only_pure_code`) | `test-unit` |
 | `component/` | One module behind fakes: the runtime (`runtime/`, one file per behaviour), the handlers (`handlers/`), the store contract on both stores, the voice session, adapters against scripted transports, the composition root, the eval tooling | Fakes for every port; Postgres only under `@pytest.mark.postgres` | `test-component` |
 | `http/` | The app through `build_test_app` and `TestClient`: validation, ownership, SSE, cookies, export, voice routes, the eval HTTP drivers | Fakes behind the app | `test-http` |
-| `e2e/` | Whole sessions: `S01`–`S20` replayed through `evals.runner.run_fake` (the deterministic release gate), the tracer-bullet acceptance test, S01 and S12 on Postgres | The real runtime and handlers | `test-e2e` |
+| `e2e/` | Whole sessions: `S01`–`S27` replayed through `evals.runner.run_fake` (the deterministic release gate), the tracer-bullet acceptance test, S01 and S12 on Postgres | The real runtime and handlers | `test-e2e` |
 
 `tests/support/` holds the shared builders, the runtime harness, the HTTP, handler and voice
 helpers and the Hypothesis strategies (its README lists them). A test module never imports

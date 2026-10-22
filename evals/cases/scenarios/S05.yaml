@@ -15,7 +15,6 @@ fake_script:
       args:
         question: "Antes de nada, ¿cuántas horas a la semana son?"
         queries: ["¿Cuántas horas a la semana tiene la jornada?", "horas semanales del puesto"]
-        topic: pay
     - say: "Según la oferta, la jornada es de 35 horas a la semana. ¿Cómo te llamas?"
   - - tool: update_candidate
       args:
@@ -56,3 +55,7 @@ live_checks:
     args: { lifecycle: completed }
   - name: no_fabricated_confirmed_values
   - name: no_cross_store_sources
+# What a good run achieves, and the tool trajectory every good run shows (D51).
+goal: "The hours question is answered from the Chamberí offer and the interview carries on collecting details."
+reference_tools:
+  anywhere: [search_knowledge, update_candidate]

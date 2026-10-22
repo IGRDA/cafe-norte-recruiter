@@ -50,6 +50,19 @@ class Median(Frozen):
         return f"{self.ms / 1000:.1f} s (n={self.n} turns)" if self.ms is not None else "– (n=0)"
 
 
+class Score(Frozen):
+    mean: float | None
+    n: int  # runs scored
+    missing: int  # runs the judge was asked about and gave no score
+
+    def __str__(self) -> str:
+        shown = "–" if self.mean is None else f"{self.mean:.2f}"
+        return f"{shown} (n={self.n}{f', {self.missing} unscored' if self.missing else ''})"
+
+
+JUDGED = ("goal_accuracy", "rubric", "style", "topic_adherence")  # D51, report only
+
+
 class ModelSummary(Frozen):
     model: str
     runs: int
@@ -63,8 +76,7 @@ class ModelSummary(Frozen):
     cost_eur: float  # the answering model, priced runs only
     unpriced_runs: int  # runs with no cost or a partial one
     turn_cap_runs: int
-    judge_held: Ratio  # rubric bullets the judge said held, over bullets it answered
-    judge_unparsable: int  # judged runs with no usable answer
+    judged: dict[str, Score]  # scorecard row id -> the judge's mean over the runs it scored
     judge_same_model: bool  # some run was judged by its own answering model
 
 
@@ -185,8 +197,6 @@ def _model(model: str, runs: Sequence[RunRecord]) -> ModelSummary:
     grounding = [c for r in runs for c in r.checks if c.name in GROUNDING_CHECKS]
     tools = [ok for r in runs for _, ok in r.tool_calls]
     priced = [r for r in runs if r.estimated_cost_eur is not None and not r.cost_is_partial]
-    verdicts = [r.judge for r in runs if r.judge is not None]
-    answers = [held for v in verdicts for held in v.answers.values()]
     return ModelSummary(
         model=model,
         runs=len(runs),
@@ -202,29 +212,39 @@ def _model(model: str, runs: Sequence[RunRecord]) -> ModelSummary:
         cost_eur=round(sum(r.estimated_cost_eur or 0.0 for r in priced), 6),
         unpriced_runs=len(runs) - len(priced),
         turn_cap_runs=sum(r.hit_turn_cap for r in runs),
-        judge_held=Ratio(k=sum(answers), n=len(answers)),
-        judge_unparsable=sum(1 for v in verdicts if v.unparsable),
-        judge_same_model=any(v.same_model for v in verdicts),
+        judged={key: _score(runs, key) for key in JUDGED},
+        judge_same_model=any(r.judge_model == r.model for r in runs if r.judge_model),
+    )
+
+
+def _score(runs: Sequence[RunRecord], key: str) -> Score:
+    asked = [r.scores[key] for r in runs if key in r.scores]
+    given = [v for v in asked if v is not None]
+    return Score(
+        mean=statistics.fmean(given) if given else None,
+        n=len(given),
+        missing=len(asked) - len(given),
     )
 
 
 def _judge_section(runs: Sequence[RunRecord], summary: Summary) -> list[str]:
-    if not any(r.judge is not None for r in runs):
+    judges = sorted({r.judge_model for r in runs if r.judge_model})
+    if not judges:
         return []
-    judges = sorted({r.judge.judge_model for r in runs if r.judge is not None})
     rows = [
-        f"| `{m.model}` | {m.judge_held} | {m.judge_unparsable} | "
+        f"| `{m.model}` | {' | '.join(str(m.judged[k]) for k in JUDGED)} | "
         f"{'yes: biased' if m.judge_same_model else 'no'} |"
         for m in summary.models
     ]
     return [
-        "## Rubric judge",
+        "## Judges",
         "",
-        f"A secondary signal, never pass/fail (D06); judged by `{', '.join(judges)}`. Bullets "
-        "held over bullets answered.",
+        f"A secondary signal, never pass/fail (D06, D51); ragas over `{', '.join(judges)}`. "
+        "Each a mean of pass (1) or fail (0) per run; the rubric, the share of its bullets held.",
         "",
-        "| Model | Bullets held | Unparsable runs | Judge is the answering model |",
-        "| --- | --- | --- | --- |",
+        "| Model | Goal achieved | Rubric bullets | Style | On topic "
+        "| Judge is the answering model |",
+        "| --- | --- | --- | --- | --- | --- |",
         *rows,
         "",
     ]

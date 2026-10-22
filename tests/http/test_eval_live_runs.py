@@ -8,7 +8,7 @@ import httpx
 import pytest
 from evals.contracts import Check
 from evals.live import HttpConversation, ScriptedCandidate, serve
-from evals.live_runs import loopback_env, run_live
+from evals.live_runs import Planned, loopback_env, run_live, run_plan
 from evals.runner import load_scenarios, main, script_events
 
 from cafe_norte.domain.contracts import ConfigId
@@ -143,3 +143,13 @@ async def test_a_run_cut_by_the_turn_cap_says_so() -> None:
         )
     assert record.lines == 1
     assert record.hit_turn_cap  # the session was still active when the cap stopped it
+
+
+async def test_a_live_plan_is_judged_by_ragas_when_asked() -> None:
+    (scenario,) = load_scenarios(only=["S23"])
+    plan = [Planned(case_id="S23", scenario=scenario, model="fake", repetition=1)]
+    (record,) = await run_plan(
+        plan, simulator="fake", base_url=None, access_code=None, judge="fake", env={}
+    )
+    assert record.judge_model == "fake"
+    assert set(record.scores) >= {"topic_adherence", "goal_accuracy"}

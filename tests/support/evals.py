@@ -2,7 +2,6 @@
 record of the committed example export."""
 
 from evals.contracts import (
-    JudgeVerdict,
     Persona,
     RunRecord,
     SignalCase,
@@ -32,7 +31,7 @@ EXPORT = ExportDocument.model_validate_json(
 )
 
 
-def record(judged: JudgeVerdict | None = None) -> RunRecord:
+def record() -> RunRecord:
     return RunRecord(
         case_id="S01",
         mode="live",
@@ -40,7 +39,6 @@ def record(judged: JudgeVerdict | None = None) -> RunRecord:
         versions=EXPORT.versions,
         export=EXPORT,
         checks=(),
-        judge=judged,
         provider_failed=False,
         estimated_cost_eur=0.0,
     )

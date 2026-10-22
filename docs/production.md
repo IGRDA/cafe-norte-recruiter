@@ -170,7 +170,7 @@ moves when the corpus or the embedding model does (D27 says so). Filtering is by
 tenant.
 
 **Next step.** A retrieval service with a tenant filter applied before ranking, as store is
-today, and an index built per knowledge-base version outside the image. Re-run the 24-question
+today, and an index built per knowledge-base version outside the image. Re-run the 41-question
 suite and re-measure the floor at every corpus change. Add a reranker only if it improves the
 suite's numbers, not because it is standard.
 

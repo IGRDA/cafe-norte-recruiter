@@ -1,5 +1,5 @@
-"""``search_knowledge``: the handler filters by configuration and topic, hands snippets back
-as data with the next step, and shows the sources."""
+"""``search_knowledge``: the handler searches every document of the session's configuration,
+hands snippets back as data with the next step, and shows the sources."""
 
 from cafe_norte.conversation.contracts import SourcesShown
 from cafe_norte.conversation.handlers import (
@@ -8,8 +8,9 @@ from cafe_norte.conversation.handlers import (
     SearchKnowledgeHandler,
     snippets_message,
 )
+from cafe_norte.conversation.tools import SearchKnowledgeArgs
 from cafe_norte.domain.contracts import SessionId
-from cafe_norte.knowledge.contracts import TOPIC_DOCS, Chunk, RetrievedChunk
+from cafe_norte.knowledge.contracts import Chunk, RetrievedChunk
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.persistence.memory import MemoryStore
 from tests.support.builders import CONFIG, CONFIGS, SID, session_state
@@ -49,10 +50,9 @@ async def test_snippets_come_back_as_data_with_the_sources_and_the_pending_field
             "search_knowledge",
             question="how many hours?",
             queries=["cuántas horas a la semana", "horas semanales"],
-            topic="pay",
         ),
     )
-    assert outcome.ok and outcome.summary == "found:1:pay"
+    assert outcome.ok and outcome.summary == "found:1"
     assert (
         "[1] Oferta y retribución, Chamberí › Horas: La jornada es de 35 horas"
         in outcome.model_text
@@ -69,14 +69,20 @@ async def test_snippets_come_back_as_data_with_the_sources_and_the_pending_field
     (query,) = retriever.queries
     assert query.queries == ("cuántas horas a la semana", "horas semanales")
     assert query.config_id == CONFIG.config_id and query.kb_version == CONFIG.kb_version
-    assert query.doc_ids == CONFIG.kb_doc_ids & TOPIC_DOCS["pay"]
+    assert query.doc_ids == CONFIG.kb_doc_ids
     assert query.doc_ids is not None and "offer_arganzuela" not in query.doc_ids
 
 
-async def test_topic_any_allows_every_document_of_the_configuration() -> None:
+def test_the_model_names_no_topic_to_filter_by() -> None:
+    """A topic the model chose hid the answer: hours searched as `role` never reached the offer
+    (D54). The configuration is the only filter."""
+    assert set(SearchKnowledgeArgs.model_fields) == {"question", "queries"}
+
+
+async def test_nothing_found_tells_the_model_not_to_guess() -> None:
     handler, retriever = await world({})
     outcome = await handler(context(), args("search_knowledge", question="q", queries=["q"]))
-    assert outcome.ok and outcome.summary == "found:0:any"
+    assert outcome.ok and outcome.summary == "found:0"
     assert (
         "No knowledge base snippet matched" in outcome.model_text
         and "do not guess" in outcome.model_text

@@ -1,5 +1,6 @@
 """Evaluation types and ports."""
 
+from collections.abc import Sequence
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -78,8 +79,18 @@ class Fault(Frozen):
     after_sentences: int = 1
 
 
+class ReferenceTools(Frozen):
+    """The tool trajectory a scenario expects, read from the journal (model and runtime calls
+    alike): ``in_order`` appears as a subsequence, ``anywhere`` at least once, ``never`` not at
+    all. Only what every good run must do; a run may call more (D51)."""
+
+    in_order: tuple[ToolName, ...] = ()
+    anywhere: tuple[ToolName, ...] = ()
+    never: tuple[ToolName, ...] = ()
+
+
 class Scenario(Frozen):
-    id: str  # S01..S18
+    id: str  # S01..S27
     title: str
     config_id: ConfigId
     language: Language
@@ -93,6 +104,11 @@ class Scenario(Frozen):
     checks: tuple[Check, ...]
     live_checks: tuple[Check, ...] = ()  # live mode: no turn numbers; empty = not run live
     rubric: tuple[str, ...] = ()
+    goal: str = ""  # one sentence: what a good run achieves, for the goal judge (D51)
+    reference_tools: ReferenceTools | None = None
+    injection: bool = False  # the lines attack the rules; scored apart from task success
+    # live: who speaks for the candidate; ``scripted`` says ``scripted_turns`` whatever Ana says
+    live_candidate: Literal["simulated", "scripted"] = "simulated"
 
     @model_validator(mode="after")
     def _script_matches_lines(self) -> "Scenario":
@@ -149,6 +165,20 @@ class RetrievalCase(Frozen):
     kind: Literal["answerable", "unsupported", "leakage"]
     expected_sections: tuple[str, ...] = ()
     expected_facts: tuple[str, ...] = ()
+    reference: str = ""  # answerable: the answer a good probe gives, from the sections (D51)
+    origin: Literal["hand", "ragas"] = "hand"  # ragas: generated, then kept by a person
+
+
+class TestsetCandidate(Frozen):
+    """One question ragas generated, before a person keeps, edits or drops it (D51)."""
+
+    __test__ = False  # not a pytest class
+
+    question: str
+    reference: str
+    chunk_ids: tuple[str, ...]  # "?" for a reference context that is no chunk
+    synthesizer: str
+    persona: str
 
 
 class RagasSample(Frozen):
@@ -222,16 +252,6 @@ class Extraction(Frozen):
     misses: tuple[str, ...] = ()
 
 
-class JudgeVerdict(Frozen):
-    """A rubric judge's opinion: one boolean per bullet, or why there is none. A secondary
-    signal next to the checks, never a pass or a fail (D06)."""
-
-    judge_model: str
-    answers: dict[str, bool] = {}  # rubric bullet -> held
-    unparsable: str = ""  # why the output was not one JSON boolean per bullet
-    same_model: bool  # the judge is the answering model: a known bias, labelled
-
-
 class CheckResult(Frozen):
     name: str
     ok: bool
@@ -247,7 +267,6 @@ class RunRecord(Frozen):
     versions: VersionStamp | None  # None only when the session was never created
     export: ExportDocument | None
     checks: tuple[CheckResult, ...]
-    judge: JudgeVerdict | None
     provider_failed: bool  # a turn failed that the case did not expect to
     estimated_cost_eur: float | None  # the answering model's, from the export
     scenario_id: str = ""
@@ -263,6 +282,8 @@ class RunRecord(Frozen):
     lines: int = 0  # candidate lines said
     hit_turn_cap: bool = False
     cost_is_partial: bool = True
+    scores: dict[str, float | None] = {}  # scorecard row id -> ragas score; None: none came (D51)
+    judge_model: str = ""  # who gave ``scores``; the answering model judging itself is labelled
 
     @property
     def passed(self) -> bool:
@@ -316,6 +337,111 @@ class CandidateSimulator(Protocol):
     def model_id(self) -> str: ...
 
     async def reply(self, persona: Persona, cue: Cue, transcript: Transcript) -> str: ...
+
+
+Tier = Literal[0, 1, 2, 3]
+Unit = Literal["ratio", "ms", "eur", "score"]
+
+
+class MetricSpec(Frozen):
+    """One scorecard row (D51). Tier 0: deterministic, no reference; 1: deterministic against a
+    reference; 2: a judge against a reference; 3: a judge alone. A ``gate`` row with a value
+    that misses its target fails the run; the others report."""
+
+    id: str  # stable: the baseline and Langfuse key on it
+    tier: Tier
+    name: str
+    unit: Unit
+    target: float
+    higher_is_better: bool = True
+    gate: bool
+
+
+class Metric(Frozen):
+    spec: MetricSpec
+    value: float | None  # None: nothing this run could measure it with
+    k: int | None = None  # a ratio's numerator
+    n: int = 0  # what the value was measured over
+    detail: str = ""  # the misses, named
+    baseline: float | None = None  # the committed scorecard's value, for the delta
+
+    @property
+    def ok(self) -> bool | None:
+        if self.value is None:
+            return None
+        if self.spec.higher_is_better:
+            return self.value >= self.spec.target
+        return self.value <= self.spec.target
+
+
+class Scorecard(Frozen):
+    model: str
+    prompt_version: str
+    kb_version: str
+    concurrency: int = 1  # live sessions at a time: latency is measured under this much load
+    metrics: tuple[Metric, ...]
+
+    @property
+    def gate_failures(self) -> tuple[Metric, ...]:
+        return tuple(m for m in self.metrics if m.spec.gate and m.ok is False)
+
+
+Kind = Literal["answerable", "unsupported", "leakage"]
+
+
+class ProbeRecord(Frozen):
+    """One knowledge-base question asked live as the first line of its own session (D51): what
+    Ana answered, the chunks shown for it and the tools the turn called. ``run`` is the session
+    as any live run records it, so the tier-0 rows read probes and scenarios alike."""
+
+    case_id: str
+    kind: Kind
+    run: RunRecord
+    expected_facts: tuple[str, ...] = ()  # the case's, so the record scores on its own
+    answer: str = ""  # what Ana said in the question's turn
+    sources: tuple[str, ...] = ()  # chunk ids shown in that turn
+    foreign_sources: tuple[str, ...] = ()  # of those, the ones outside the store's documents
+    contexts: tuple[str, ...] = ()  # their text, for faithfulness
+    tools: tuple[str, ...] = ()  # the turn's tool calls, journal order
+    scores: dict[str, float | None] = {}  # scorecard row id -> ragas score; None: none came
+
+    @property
+    def answered(self) -> bool:
+        """The question's turn completed: no broken session, no failed turn. Only these are
+        read for quality; the others are the completion row's misses."""
+        return self.run.export is not None and not self.run.provider_failed
+
+
+Exchange = tuple[Literal["human", "ai"], str, tuple[str, ...]]  # speaker, text, tools it called
+
+
+class AnswerJudge(Protocol):
+    """The tier 2 and 3 judges (D51): ragas over an LLM, or a fake. A judge that cannot answer
+    raises; the caller records no score, never a guessed one."""
+
+    @property
+    def model_id(self) -> str: ...
+
+    async def faithfulness(self, question: str, answer: str, contexts: Sequence[str]) -> float: ...
+
+    async def answer_accuracy(self, question: str, answer: str, reference: str) -> float: ...
+
+    async def holds(self, exchanges: Sequence[Exchange], criterion: str) -> bool: ...
+
+
+class CalibrationCase(Frozen):
+    """A labelled conversation for a pass/fail judge (``cases/judge/calibration.yaml``, D51):
+    what a correct judge answers for one of the fixed criteria."""
+
+    id: str
+    criterion: Literal["topic", "style", "goal", "faithfulness", "accuracy"]
+    expected: Literal["pass", "fail"]  # numeric metrics: pass is a score of 0.5 or more
+    goal: str = ""  # goal: the scenario's goal
+    conversation: tuple[Exchange, ...] = ()  # topic, style, goal
+    question: str = ""  # faithfulness, accuracy
+    answer: str = ""
+    contexts: tuple[str, ...] = ()  # faithfulness: the chunks shown
+    reference: str = ""  # accuracy
 
 
 # ---- signals suite: sentiment and reply language, offline ----------------------------------------

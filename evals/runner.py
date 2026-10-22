@@ -3,7 +3,7 @@ and the CLI for every suite.
 
 Fake mode is the CI gate: no network, no credentials, under a second per scenario. Live mode
 and the comparison drive the public API with a simulated candidate (``evals/live_runs.py``,
-D43) and spend only with ``--yes``; the retrieval suite runs the 24 questions."""
+D43) and spend only with ``--yes``; the retrieval suite runs the 41 questions."""
 
 import argparse
 import asyncio
@@ -37,10 +37,12 @@ from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import SCHEMA_VERSION, build_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
+from evals import scorecard_live
 from evals.contracts import (
     ComparisonCase,
     FakeSignal,
     Fault,
+    RetrievalReport,
     RunRecord,
     Scenario,
     Step,
@@ -49,8 +51,11 @@ from evals.contracts import (
 from evals.live import MAX_LIVE_TURNS
 from evals.live_runs import DEFAULT_SIMULATOR, Planned, execute
 from evals.observation import fold, session_result
+from evals.pool import CONCURRENCY
 from evals.ragas_bridge import score_with_ragas, to_ragas_samples
-from evals.retrieval import load_cases, run_retrieval, write_report
+from evals.retrieval import load_cases, recorded_queries, replay, run_retrieval, write_report
+from evals.scorecard import render_markdown as render_scorecard
+from evals.scorecard import scorecard
 from evals.scorers import run_check
 from evals.signals import CASE_SETS, DEFAULT_SIGNAL_MODEL, SYSTEMS, signals_main
 
@@ -65,6 +70,7 @@ COMPARISON_CASES = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
 COMPARISON_RESULTS = ROOT / "evals" / "results" / "comparison"  # committed (.gitignore)
 COMPARISON_MODELS = ("openai/gpt-4.1", "openai/gpt-4o-mini")  # hosted and previous (D49)
 COMPARISON_REPEAT = 2
+SCORECARD_JUDGE = "openai/gpt-4o"  # D51: 18/18 on the calibration set; gpt-4o-mini wobbled on goals
 
 _FAKE_INDEX: dict[str, Index] = {}
 
@@ -220,7 +226,6 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         versions=versions,
         export=export,
         checks=checks,
-        judge=None,
         provider_failed=bool(surprises),
         estimated_cost_eur=0.0,
         scenario_id=scenario.id,
@@ -246,7 +251,9 @@ def _arm(fault: Fault | None, model: FakeModel, store: Store) -> None:
 def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS) -> int:
     parser = argparse.ArgumentParser(prog="evals")
     parser.add_argument(
-        "--suite", choices=["scenarios", "retrieval", "comparison", "signals"], default="scenarios"
+        "--suite",
+        choices=["scenarios", "retrieval", "comparison", "scorecard", "signals"],
+        default="scenarios",
     )
     parser.add_argument("--mode", choices=["fake", "live"], default="fake")
     parser.add_argument("--only", nargs="*", default=[])
@@ -254,11 +261,24 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
         "--repeat", type=int, default=None, help="scenarios 1, comparison and signals 2"
     )
     parser.add_argument("--models", nargs="*", default=[])
-    parser.add_argument("--judge", default="off", help="provider/model for the rubric judge")
+    parser.add_argument(
+        "--judge",
+        default=None,
+        help=f"provider/model, fake or off; default off, the scorecard's {SCORECARD_JUDGE}",
+    )
     parser.add_argument("--retriever", choices=["hybrid", "lexical"], default="hybrid")
     parser.add_argument("--out", default=None, help="results directory (per suite default)")
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--ragas", action="store_true", help="retrieval: add ragas' ID metrics")
+    parser.add_argument(
+        "--save-baseline", action="store_true", help="scorecard: commit this run as the baseline"
+    )
+    parser.add_argument(
+        "--rescore", default=None, help="scorecard: a recorded live results folder, scored again"
+    )
+    parser.add_argument(
+        "--replay", default=None, help="retrieval: a recorded scorecard's probe queries, rerun"
+    )
     parser.add_argument("--systems", nargs="*", choices=SYSTEMS, default=list(SYSTEMS))
     parser.add_argument("--cases", choices=list(CASE_SETS), default="dev", help="signals")
     parser.add_argument(
@@ -273,6 +293,9 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
         "--base-url", default=None, help="an existing server; access code from EVAL_ACCESS_CODE"
     )
     live.add_argument("--max-turns", type=int, default=MAX_LIVE_TURNS)
+    live.add_argument(
+        "--concurrency", type=int, default=CONCURRENCY, help="sessions at a time within a phase"
+    )
     live.add_argument("--langfuse", action="store_true", help="sync cases and runs (needs keys)")
     live.add_argument("--yes", action="store_true", help="spend: without it nothing is called")
     args = parser.parse_args(argv)
@@ -281,9 +304,13 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
         for scenario in load_scenarios():
             print(f"{scenario.id}  {scenario.title}")
         return 0
+    if args.suite == "retrieval" and args.replay:
+        return replay_main(args.retriever, Path(args.replay))
     if args.suite == "retrieval":
         out = Path(args.out or RETRIEVAL_RESULTS)
         return retrieval_main(args.retriever, args.only, out, ragas=args.ragas)
+    if args.suite == "scorecard":
+        return scorecard_main(args)
     if args.suite == "scenarios" and args.mode == "live":
         return live_main(args)
     if args.suite == "comparison":
@@ -338,7 +365,7 @@ def live_main(args: argparse.Namespace) -> int:
         max_turns=args.max_turns,
         out=Path(args.out or LIVE_RESULTS),
         yes=args.yes,
-        judge=None if args.judge == "off" else args.judge,
+        judge=None if args.judge in (None, "off") else args.judge,
         langfuse=args.langfuse,
     )
 
@@ -376,32 +403,61 @@ def comparison_main(args: argparse.Namespace, *, committed: Path = COMPARISON_RE
         max_turns=args.max_turns,
         out=Path(args.out or LIVE_RESULTS),
         yes=args.yes,
-        judge=None if args.judge == "off" else args.judge,
+        judge=None if args.judge in (None, "off") else args.judge,
         langfuse=args.langfuse,
         committed=committed,
     )
 
 
-def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = False) -> int:
-    """The 24 questions through the real retriever: ``hybrid`` needs the knowledge extra and
-    downloads the model once; ``lexical`` is BM25 only and runs anywhere. ``ragas`` adds its
+def retrieval_report(
+    mode: str, only: Sequence[str] = (), *, ragas: bool = False
+) -> RetrievalReport:
+    """The fixture's questions through the real retriever: ``hybrid`` needs the knowledge extra
+    and downloads the model once; ``lexical`` is BM25 only and runs anywhere. ``ragas`` adds its
     ID-based context precision and recall over the answerable questions (offline, free)."""
     configurations = load_configurations(CONFIG_DIR)
+    retriever = _retriever(mode)
+    cases = [c for c in load_cases() if not only or c.id in set(only)]
+    report = asyncio.run(run_retrieval(cases, retriever, configurations))
+    if ragas:
+        scores = asyncio.run(score_with_ragas(to_ragas_samples(report.runs, cases)))
+        report = report.model_copy(update={"ragas": scores})
+    return report
+
+
+def _retriever(mode: str) -> HybridRetriever:
+    """``hybrid`` needs the knowledge extra and downloads the model once; ``lexical`` is BM25
+    only and runs anywhere."""
+    configurations = load_configurations(CONFIG_DIR)
     (kb_version,) = {c.kb_version for c in configurations.values()}
-    documents = load_documents(KB_DIR)
     if mode == "hybrid":
         from cafe_norte.knowledge.embedder import FastEmbedEmbedder
 
         embedder: FastEmbedEmbedder | None = FastEmbedEmbedder()
     else:
         embedder = None
-    index = asyncio.run(index_from_documents(documents, embedder, kb_version=kb_version))
-    retriever = HybridRetriever(index, embedder)
-    cases = [c for c in load_cases() if not only or c.id in set(only)]
-    report = asyncio.run(run_retrieval(cases, retriever, configurations))
-    if ragas:
-        scores = asyncio.run(score_with_ragas(to_ragas_samples(report.runs, cases)))
-        report = report.model_copy(update={"ragas": scores})
+    index = asyncio.run(
+        index_from_documents(load_documents(KB_DIR), embedder, kb_version=kb_version)
+    )
+    return HybridRetriever(index, embedder)
+
+
+def replay_main(mode: str, folder: Path) -> int:
+    """The model's recorded queries of a live scorecard through today's retriever (D54)."""
+    retriever = _retriever(mode)
+    configurations = load_configurations(CONFIG_DIR)
+    recorded = recorded_queries(folder / "probe-exports")
+    hits, searched, misses = asyncio.run(replay(load_cases(), recorded, retriever, configurations))
+    for miss in misses:
+        print(f"MISS {miss}")
+    print(
+        f"the model's own queries: {hits}/{searched} answerable questions found an expected section"
+    )
+    return 0
+
+
+def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = False) -> int:
+    report = retrieval_report(mode, only, ragas=ragas)
     path = write_report(report, out)
     for run in report.runs:
         mark = {True: "hit ", False: "MISS", None: "    "}[run.hit] + (
@@ -410,7 +466,8 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = F
         print(f"{mark} {run.case_id} {run.kind:<11} {run.milliseconds:>4} ms  {list(run.returned)}")
     print(
         f"recall@3 {report.recall_at_3:.0%} (n={report.answerable})  leaked {report.leaked}/"
-        f"{len(report.runs)}  unsupported with sources {report.unsupported_with_sources}/4  "
+        f"{len(report.runs)}  unsupported with sources {report.unsupported_with_sources}/"
+        f"{sum(r.kind == 'unsupported' for r in report.runs)}  "
         f"median {report.median_ms} ms  {report.embedding_model}  -> {path}"
     )
     if report.ragas is not None:
@@ -421,3 +478,47 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = F
             f"{report.ragas.mean_recall:.2f} (n={report.ragas.samples})"
         )
     return 0 if report.leaked == 0 else 1
+
+
+def scorecard_main(args: argparse.Namespace) -> int:
+    """Fake: tiers 0 and 1 over every fake scenario and the retrieval fixture, free and offline,
+    the numbers ``make check`` gates on. Live: the scenarios with ``live_checks`` and every
+    knowledge-base question as a probe against ``--model``, judged by ragas (D51)."""
+    retrieval = retrieval_report(args.retriever, ragas=True)
+    if args.rescore:
+        return scorecard_live.rescore(
+            Path(args.rescore), load_scenarios(), retrieval, save_baseline=args.save_baseline
+        )
+    if args.mode == "live":
+        scenarios = [s for s in load_scenarios(only=args.only) if s.live_checks]
+        return scorecard_live.execute(
+            scenarios,
+            load_cases(),
+            retrieval,
+            model=args.model,
+            simulator=args.simulator,
+            judge=args.judge or SCORECARD_JUDGE,
+            base_url=args.base_url,
+            access_code=os.environ.get("EVAL_ACCESS_CODE") or None,
+            max_turns=args.max_turns,
+            out=Path(args.out or LIVE_RESULTS),
+            yes=args.yes,
+            save_baseline=args.save_baseline,
+            langfuse=args.langfuse,
+            concurrency=args.concurrency,
+        )
+    scenarios = load_scenarios(only=args.only)
+    runs = [asyncio.run(run_fake(s)) for s in scenarios]
+    target = scorecard_live.BASELINES / "offline.json"  # the fake scenarios, not a live model
+    card = scorecard(
+        runs,
+        {s.id: s for s in scenarios},
+        retrieval=retrieval,
+        baseline=scorecard_live.load_baseline(target),
+    )
+    print(render_scorecard(card))
+    if args.save_baseline:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(card.model_dump_json(indent=2) + "\n")
+        print(f"baseline -> {target}")
+    return 1 if card.gate_failures else 0

@@ -11,6 +11,7 @@ from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.domain.contracts import SessionId
+from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.main import close_hook, create_app
 from cafe_norte.model.contracts import Model
@@ -38,12 +39,16 @@ def build_runtime(
     telemetry: Telemetry | None = None,
     clock: Callable[[], datetime] | None = None,
     on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
+    retriever: Retriever | None = None,
 ) -> Runtime:
-    """The real runtime and handlers over ``store``, the real configuration and no knowledge."""
+    """The real runtime and handlers over ``store``, the real configuration and no knowledge
+    unless a ``retriever`` is given."""
     return Runtime(
         model=model,
         tools=ToolRegistry(
-            all_handlers(store=store, configurations=CONFIGS, retriever=FakeRetriever())
+            all_handlers(
+                store=store, configurations=CONFIGS, retriever=retriever or FakeRetriever()
+            )
         ),
         store=store,
         configurations=CONFIGS,
@@ -65,11 +70,15 @@ def build_test_app(
     access_code: str | None = None,
     store: MemoryStore | None = None,
     estimate: Estimator | None = None,
+    retriever: Retriever | None = None,
 ) -> FastAPI:
     store = store if store is not None else MemoryStore()
     return create_app(
         runtime=build_runtime(
-            model=model, store=store, on_closed=close_hook(store, CONFIGS, VERSIONS, estimate)
+            model=model,
+            store=store,
+            on_closed=close_hook(store, CONFIGS, VERSIONS, estimate),
+            retriever=retriever,
         ),
         store=store,
         configurations=CONFIGS,

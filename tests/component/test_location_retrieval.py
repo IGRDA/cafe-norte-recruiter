@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from cafe_norte.knowledge.contracts import TOPIC_DOCS, RetrievalQuery
+from cafe_norte.knowledge.contracts import RetrievalQuery
 from cafe_norte.knowledge.hybrid import HybridRetriever
 from cafe_norte.knowledge.index import lexical_index
 from cafe_norte.knowledge.loader import load_documents
@@ -36,7 +36,7 @@ async def test_a_question_about_the_place_finds_the_stores_address(
             config_id=config.config_id,
             kb_version=config.kb_version,
             queries=(question,),
-            doc_ids=TOPIC_DOCS["company"],  # what search_knowledge passes for topic=company
+            doc_ids=config.kb_doc_ids,  # what search_knowledge passes
         )
     )
     ids = [r.chunk.chunk_id for r in found]

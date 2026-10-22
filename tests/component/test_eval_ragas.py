@@ -70,10 +70,10 @@ async def test_ragas_scores_precision_and_recall_per_question() -> None:
     assert scores.nothing_retrieved == 1
 
 
-def test_the_fixture_gives_sixteen_samples() -> None:
+def test_the_fixture_gives_one_sample_per_answerable_question() -> None:
     cases = load_cases()
     runs = [run(c.id, c.expected_sections, c.kind) for c in cases]
-    assert len(to_ragas_samples(runs, cases)) == 16
+    assert len(to_ragas_samples(runs, cases)) == 32
 
 
 def test_the_retrieval_suite_adds_ragas_when_asked(
@@ -85,5 +85,5 @@ def test_the_retrieval_suite_adds_ragas_when_asked(
     assert code == 0
     (written,) = tmp_path.glob("*.json")
     ragas = json.loads(written.read_text())["ragas"]
-    assert ragas["samples"] == 16
+    assert ragas["samples"] == 32
     assert "ragas" in capsys.readouterr().out

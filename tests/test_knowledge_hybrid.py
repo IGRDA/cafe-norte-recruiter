@@ -1,9 +1,12 @@
 """Filter before rank, fusion of both rankers, the structured filter, lexical-only mode."""
 
+from collections.abc import Sequence
+from math import isclose, sqrt
+
 import pytest
 
 from cafe_norte.domain.contracts import ConfigId
-from cafe_norte.knowledge.contracts import TOPIC_DOCS, Index, RetrievalQuery
+from cafe_norte.knowledge.contracts import TOPIC_DOCS, Index, RetrievalQuery, Vector
 from cafe_norte.knowledge.fake import FakeEmbedder
 from cafe_norte.knowledge.hybrid import HybridRetriever
 from cafe_norte.knowledge.index import index_from_documents
@@ -87,3 +90,30 @@ async def test_a_second_phrasing_adds_its_evidence_and_the_best_rank_is_kept(ind
     assert two[0].bm25_rank == 1 and two[0].bm25_score > 0
     with pytest.raises(ValueError):
         query("a", "b", "c", "d")
+
+
+def cosine(a: Vector, b: Vector) -> float:
+    norm = sqrt(sum(x * x for x in a)) * sqrt(sum(y * y for y in b))
+    return sum(x * y for x, y in zip(a, b, strict=True)) / norm if norm else 0.0
+
+
+async def test_the_dense_score_is_the_cosine_of_query_and_chunk(index: Index) -> None:
+    assert index.vectors is not None
+    retriever = HybridRetriever(index, FakeEmbedder(), dense_floor=-1.0)
+    (q,) = await FakeEmbedder().embed(["cuántas horas a la semana"])
+    found = await retriever.retrieve(query("cuántas horas a la semana"))
+    position = {c.chunk_id: i for i, c in enumerate(index.chunks)}
+    assert found
+    for r in found:
+        assert r.dense_score is not None
+        assert isclose(r.dense_score, cosine(q, index.vectors[position[r.chunk.chunk_id]]))
+
+
+class ZeroEmbedder(FakeEmbedder):
+    async def embed(self, texts: Sequence[str]) -> tuple[Vector, ...]:
+        return tuple((0.0,) * self.DIMENSIONS for _ in texts)
+
+
+async def test_a_zero_vector_has_no_cosine_and_no_dense_rank(index: Index) -> None:
+    found = await HybridRetriever(index, ZeroEmbedder()).retrieve(query("uniforme delantal"))
+    assert found and all(r.dense_score == 0.0 and r.dense_rank is None for r in found)

@@ -1,6 +1,7 @@
 """BM25 + dense cosine, reciprocal rank fusion, filtered by store before ranking."""
 
-from math import sqrt
+import numpy as np
+import numpy.typing as npt
 
 from cafe_norte.knowledge.bm25 import BM25, tokenize
 from cafe_norte.knowledge.contracts import (
@@ -47,6 +48,8 @@ class HybridRetriever:
         self._k = rrf_k
         self._floor = dense_floor
         self._bm25 = BM25(tuple(tokenize(lexical_text(c)) for c in index.chunks))
+        # Unit chunk vectors, one row each: a query's cosines are one matrix product.
+        self._unit = _unit_rows(index.vectors) if index.vectors is not None else None
 
     @property
     def manifest(self) -> IndexManifest:
@@ -70,11 +73,11 @@ class HybridRetriever:
         bm25_scores = [max(scores[i] for scores in lexical) for i in range(len(self._index.chunks))]
         dense_scores: list[float] | None = None
         dense_rankings: list[dict[int, int]] = []
-        if self._embedder is not None and self._index.vectors is not None:
+        if self._embedder is not None and self._unit is not None:
             vectors = await self._embedder.embed(list(query.queries))
-            per_query = [[_cosine(q, v) for v in self._index.vectors] for q in vectors]
-            dense_rankings = [_ranks(allowed, scores) for scores in per_query]
-            dense_scores = [max(scores[i] for scores in per_query) for i in range(len(bm25_scores))]
+            cosines = _unit_rows(vectors) @ self._unit.T
+            dense_rankings = [_ranks(allowed, scores) for scores in cosines.tolist()]
+            dense_scores = cosines.max(axis=0).tolist()
         fused = {
             i: sum(
                 1.0 / (self._k + ranking[i])
@@ -115,7 +118,8 @@ def _ranks(allowed: list[int], scores: list[float] | tuple[float, ...]) -> dict[
     return {i: rank for rank, i in enumerate(scored, start=1)}
 
 
-def _cosine(a: Vector, b: Vector) -> float:
-    dot = sum(x * y for x, y in zip(a, b, strict=True))
-    norm = sqrt(sum(x * x for x in a)) * sqrt(sum(y * y for y in b))
-    return dot / norm if norm else 0.0
+def _unit_rows(vectors: tuple[Vector, ...]) -> npt.NDArray[np.float64]:
+    """Each vector scaled to length one; a zero vector stays zero, so its cosine is 0."""
+    rows = np.asarray(vectors, dtype=np.float64)
+    norms = np.linalg.norm(rows, axis=1, keepdims=True)
+    return np.divide(rows, norms, out=np.zeros_like(rows), where=norms > 0)

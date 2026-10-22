@@ -1,9 +1,13 @@
 """Usage to euros: the pure estimate, and the shipped price table."""
 
+import math
 from datetime import UTC, datetime
 from pathlib import Path
+from random import Random
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from cafe_norte.domain.contracts import SessionId, TurnId
 from cafe_norte.observability.contracts import Price, PriceTable, UsageKind, UsageRecord
@@ -100,3 +104,33 @@ def test_shipped_table_converts_dollars_at_its_recorded_rate(tmp_path: Path) -> 
     table = load_prices(path)
     assert table.prices[0].eur_per_unit == pytest.approx(0.005)
     assert table.verified_on == datetime(2026, 10, 21, tzinfo=UTC)
+
+
+# ---- laws of estimate ----------------------------------------------------------------------------
+
+records = st.builds(
+    usage,
+    st.sampled_from(["llm_tokens", "stt_seconds", "tts_characters"]),
+    st.sampled_from(["m:input", "m:output", "stt", "unpriced"]),
+    st.floats(min_value=0, max_value=1e6, allow_nan=False),
+)
+
+
+@given(st.lists(records, max_size=8), st.lists(records, max_size=8))
+def test_the_estimate_adds_up_over_concatenated_usage(
+    first: list[UsageRecord], second: list[UsageRecord]
+) -> None:
+    whole = estimate(SID, first + second, TABLE).marginal_eur
+    parts = estimate(SID, first, TABLE).marginal_eur + estimate(SID, second, TABLE).marginal_eur
+    assert math.isclose(whole, parts, rel_tol=1e-9, abs_tol=1e-9)
+
+
+@given(st.lists(records, max_size=8), st.randoms())
+def test_the_order_of_usage_changes_neither_the_total_nor_what_is_missing(
+    records: list[UsageRecord], random: Random
+) -> None:
+    shuffled = random.sample(records, len(records))
+    a, b = estimate(SID, records, TABLE), estimate(SID, shuffled, TABLE)
+    assert math.isclose(a.marginal_eur, b.marginal_eur, rel_tol=1e-9, abs_tol=1e-9)
+    assert sorted(a.missing_prices) == sorted(b.missing_prices)
+    assert len(set(a.missing_prices)) == len(a.missing_prices)

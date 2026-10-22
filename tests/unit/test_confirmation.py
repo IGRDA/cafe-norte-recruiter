@@ -1,9 +1,10 @@
 """Presenting a read-back and interpreting the candidate's answer against it."""
 
 from datetime import UTC, datetime
+from typing import get_args
 
 import pytest
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from cafe_norte.domain.confirmation import (
@@ -22,15 +23,20 @@ from cafe_norte.domain.contracts import (
     ConfigId,
     Confirmation,
     ConfirmationId,
+    ConfirmationStatus,
     FieldTarget,
     ReviewInParts,
     ReviewOffered,
     ReviewWaived,
     SessionId,
     SessionState,
+    SlotId,
+    SlotTarget,
     TurnId,
 )
 from cafe_norte.domain.result import Err, Ok
+from tests.support.builders import session_state
+from tests.support.strategies import FIELD_VALUES
 
 OTHER_FIELDS: tuple[CandidateFieldName, ...] = (
     "name",
@@ -318,3 +324,61 @@ def test_nothing_is_confirmed_without_a_full_hearing_a_review_to_the_end_or_an_i
             assert moved.part == was.part + 1  # parts are never skipped
         if moved is not None and moved != was:
             assert moved.turn_id == turn  # one move per turn, stamped with it
+
+
+# ---- laws of invalidated_by_patch ----------------------------------------------------------------
+
+targets = st.one_of(
+    st.builds(FieldTarget, field=st.sampled_from(list(FIELD_VALUES)), revision=st.integers(0, 9)),
+    st.builds(BriefTarget, revision=st.integers(0, 9)),
+    st.builds(SlotTarget, slot_id=st.just(SlotId("x")), brief_revision=st.integers(0, 9)),
+)
+confirmations = st.builds(
+    Confirmation,
+    confirmation_id=st.just(ConfirmationId("c")),
+    target=targets,
+    presentation_text=st.just("¿Es correcto?"),
+    presented_turn_id=st.just(TurnId("t1")),
+    status=st.sampled_from(get_args(ConfirmationStatus)),
+)
+changes = st.none() | st.lists(st.sampled_from(list(FIELD_VALUES)), unique=True).map(tuple)
+
+
+def with_pending(pending: Confirmation) -> SessionState:
+    return session_state().model_copy(update={"pending_confirmation": pending})
+
+
+@given(confirmations, st.integers(0, 10), changes)
+def test_invalidating_twice_is_invalidating_once(
+    pending: Confirmation, revision: int, changed: tuple[CandidateFieldName, ...] | None
+) -> None:
+    once = invalidated_by_patch(with_pending(pending), revision, changed)
+    assert once is not None
+    assert invalidated_by_patch(with_pending(once), revision, changed) == once
+
+
+@given(confirmations, st.integers(0, 10), changes)
+def test_an_answered_confirmation_is_never_touched(
+    pending: Confirmation, revision: int, changed: tuple[CandidateFieldName, ...] | None
+) -> None:
+    assume(pending.status != "pending")
+    assert invalidated_by_patch(with_pending(pending), revision, changed) == pending
+
+
+@given(confirmations, st.integers(0, 10), changes)
+def test_a_pending_read_back_survives_only_if_the_change_cannot_affect_it(
+    pending: Confirmation, revision: int, changed: tuple[CandidateFieldName, ...] | None
+) -> None:
+    pending = pending.model_copy(update={"status": "pending"})
+    after = invalidated_by_patch(with_pending(pending), revision, changed)
+    assert after is not None
+
+    target = pending.target
+    if isinstance(target, FieldTarget):
+        survives = changed is not None and target.field not in changed
+        assert after.status == ("pending" if survives else "invalidated")
+        if survives:
+            assert after.target == target.model_copy(update={"revision": revision})
+    else:
+        stale = target.revision if isinstance(target, BriefTarget) else target.brief_revision
+        assert after.status == ("pending" if stale == revision else "invalidated")

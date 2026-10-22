@@ -1,6 +1,7 @@
 """Lifecycle transitions and the outcome each terminal event implies."""
 
 from datetime import UTC, datetime
+from typing import get_args
 
 import pytest
 from hypothesis import given
@@ -20,8 +21,16 @@ from cafe_norte.domain.contracts import (
     SlotId,
     TurnId,
 )
-from cafe_norte.domain.lifecycle import TRANSITIONS, LifecycleEvent, is_terminal, transition
+from cafe_norte.domain.lifecycle import (
+    NEXT,
+    TERMINAL,
+    TRANSITIONS,
+    LifecycleEvent,
+    is_terminal,
+    transition,
+)
 from cafe_norte.domain.result import Err, Ok
+from tests.support.strategies import session_states
 
 
 def state(lifecycle: Lifecycle = "active", **extra: object) -> SessionState:
@@ -103,3 +112,22 @@ def test_completing_never_yields_human_followup_requested(kinds: list[str], book
     flags = tuple(ReviewFlag.model_validate({"kind": k, "turn_id": "t", "note": ""}) for k in kinds)
     done = state(review_flags=flags, booking=BOOKING if booked else None)
     assert transition(done, "complete") == Ok(("completed", "reserved" if booked else "brief_only"))
+
+
+@given(session_states(), st.sampled_from(get_args(LifecycleEvent)))
+def test_a_transition_follows_the_table_and_ends_with_an_outcome_only_when_terminal(
+    state: SessionState, event: LifecycleEvent
+) -> None:
+    result = transition(state, event)
+
+    if event not in TRANSITIONS[state.lifecycle]:
+        assert result == Err(state.lifecycle)
+        return
+    assert isinstance(result, Ok)
+    lifecycle, outcome = result.value
+    assert lifecycle == NEXT[event]
+    if lifecycle in TERMINAL:
+        assert outcome is not None
+        assert (outcome == "reserved") == (event == "complete" and state.booking is not None)
+    else:
+        assert outcome == state.outcome

@@ -1,6 +1,9 @@
 """Patch validation and application on the whole record."""
 
 from datetime import date
+from typing import get_args
+
+from hypothesis import assume, given
 
 from cafe_norte.domain.candidate import (
     apply_patch,
@@ -11,6 +14,7 @@ from cafe_norte.domain.candidate import (
     validate_patch,
 )
 from cafe_norte.domain.contracts import (
+    CandidateFieldName,
     CandidatePatch,
     CandidateRecord,
     Captured,
@@ -19,8 +23,10 @@ from cafe_norte.domain.contracts import (
     TurnId,
     Unknown,
 )
+from cafe_norte.domain.fields import value_of
 from cafe_norte.domain.result import Err, Ok
 from tests.support.builders import CONFIG
+from tests.support.strategies import candidate_records, patches
 
 TODAY = date(2026, 10, 20)
 EVIDENCE = Evidence(source_turn_id=TurnId("t1"), text="me llamo Lucía")
@@ -148,3 +154,51 @@ def test_words_never_said_are_not_evidence() -> None:
     assert said_in("Me llamo Lucía Marín. No tengo experiencia previa.", SAID) is None
     assert said_in("Marí", SAID) is None  # whole words only
     assert said_in(" ¿? ", SAID) is None
+
+
+# ---- laws of apply_patch -------------------------------------------------------------------------
+
+
+@given(candidate_records(), patches())
+def test_a_patch_bumps_the_revision_exactly_when_it_changes_a_fact(
+    record: CandidateRecord, patch: CandidatePatch
+) -> None:
+    after = apply_patch(record, patch, EVIDENCE)
+
+    assert after.revision == record.revision + (1 if changed_fields(patch) else 0)
+
+
+@given(candidate_records(), patches())
+def test_a_patch_touches_only_the_fields_it_names_and_appends_its_note(
+    record: CandidateRecord, patch: CandidatePatch
+) -> None:
+    after = apply_patch(record, patch, EVIDENCE)
+
+    named = set(changed_fields(patch))
+    for name in set(get_args(CandidateFieldName)) - named:
+        assert getattr(after, name) == getattr(record, name)
+    for name in named:
+        expected = (
+            "declined" if name in patch.declined else "unknown" if name in patch.unknown else None
+        )
+        if expected is None:
+            assert value_of(getattr(after, name)) == getattr(patch, name)
+        else:
+            assert getattr(after, name).status == expected
+    assert after.notes == record.notes + ((patch.note,) if patch.note is not None else ())
+
+
+@given(candidate_records(), patches(), patches())
+def test_patches_on_different_fields_commute(
+    record: CandidateRecord, first: CandidatePatch, second: CandidatePatch
+) -> None:
+    assume(not set(changed_fields(first)) & set(changed_fields(second)))
+    first, second = (
+        first.model_copy(update={"note": None}),
+        second.model_copy(update={"note": None}),
+    )
+
+    one_way = apply_patch(apply_patch(record, first, EVIDENCE), second, EVIDENCE)
+    other_way = apply_patch(apply_patch(record, second, EVIDENCE), first, EVIDENCE)
+
+    assert one_way == other_way

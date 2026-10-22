@@ -19,7 +19,7 @@ from cafe_norte.observability.contracts import StageTiming, UsageRecord
 from cafe_norte.persistence.contracts import EventRecord, TurnRecord
 from cafe_norte.persistence.postgres import codecs
 from tests.support.builders import NOW
-from tests.support.strategies import bookings, events, slots, timings, turns, usage
+from tests.support.strategies import bookings, events, session_states, slots, timings, turns, usage
 
 
 @given(turns)
@@ -78,4 +78,10 @@ def test_session_state_round_trip_through_the_document() -> None:
     )
     params = codecs.session_params(state, access_hash="h")
     assert params["created_at"] == NOW and params["access_hash"] == "h"
+    assert codecs.state_from_row({"state_json": json.loads(params["state_json"])}) == state
+
+
+@given(session_states())
+def test_any_session_state_round_trips_through_its_document(state: SessionState) -> None:
+    params = codecs.session_params(state, access_hash="h")
     assert codecs.state_from_row({"state_json": json.loads(params["state_json"])}) == state

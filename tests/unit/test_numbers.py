@@ -4,8 +4,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from cafe_norte.domain.numbers import mentions_number, spelled
+from cafe_norte.domain.numbers import mentions_number, plain, spelled
 from cafe_norte.errors import Language
+from tests.support.strategies import languages
 
 
 @pytest.mark.parametrize(
@@ -40,7 +41,29 @@ def test_a_number_not_said_is_not_found(text: str, n: int) -> None:
     assert not mentions_number(text, n)
 
 
-@given(st.integers(min_value=1, max_value=99), st.sampled_from(["es", "en"]))
+@given(st.integers(min_value=1, max_value=99), languages)
 def test_every_number_is_found_in_its_own_spelling(n: int, language: Language) -> None:
     assert mentions_number(f"Pues {spelled(n, language)} más o menos", n)
     assert mentions_number(f"unas {n} horas", n)
+
+
+@given(st.integers(min_value=0, max_value=99), languages)
+def test_spelling_covers_zero_to_ninety_nine_in_both_languages(n: int, language: Language) -> None:
+    assert mentions_number(spelled(n, language), n)
+
+
+@given(st.integers(min_value=0, max_value=999), st.integers(min_value=0, max_value=9))
+def test_a_digit_glued_to_a_number_makes_another_number(n: int, digit: int) -> None:
+    assert not mentions_number(f"unas {n}{digit} horas", n)
+    assert not mentions_number(f"unas {digit}{n} horas", n) or str(n).startswith("0")
+
+
+@given(st.integers(min_value=1, max_value=9), languages)
+def test_a_tens_word_never_mentions_the_number_with_its_unit(unit: int, language: Language) -> None:
+    for tens in (20, 30, 40, 50):
+        assert not mentions_number(spelled(tens + unit, language), tens)
+
+
+@given(st.text(max_size=40))
+def test_plain_is_idempotent(text: str) -> None:
+    assert plain(plain(text)) == plain(text)

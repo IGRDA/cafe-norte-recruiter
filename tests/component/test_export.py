@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from functools import partial
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from cafe_norte.domain.contracts import (
     BriefTarget,
@@ -37,6 +39,7 @@ from cafe_norte.persistence.export import (
 )
 from cafe_norte.persistence.memory import MemoryStore
 from tests.support.builders import NOW, STAMP
+from tests.support.strategies import events, instants, session_states, timings, turns, usage
 
 SID = SessionId("s1")
 PHONE = Confirmation(
@@ -399,3 +402,37 @@ def test_estimated_tokens_of_a_cut_generation_do_not_make_the_cost_partial() -> 
     metrics = build_export(taken, estimate=PRICED).metrics
     assert metrics.estimated_marginal_cost_eur == pytest.approx(0.001)
     assert metrics.cost_is_partial is False
+
+
+# ---- laws of build_export ------------------------------------------------------------------------
+
+snapshots = st.builds(
+    SessionSnapshot,
+    state=session_states(),
+    turns=st.lists(turns, max_size=4).map(tuple),
+    confirmations=st.just(()),
+    events=st.lists(events, max_size=4).map(tuple),
+    usage=st.lists(usage, max_size=4).map(tuple),
+    timings=st.lists(timings, max_size=3).map(tuple),
+    versions=st.just(STAMP),
+    taken_at=instants,
+)
+
+
+@given(snapshots)
+def test_any_export_survives_its_own_json(snapshot: SessionSnapshot) -> None:
+    document = build_export(snapshot)
+
+    assert ExportDocument.model_validate_json(document.model_dump_json()) == document
+
+
+@given(snapshots)
+def test_an_export_carries_the_record_and_counts_the_candidates_turns(
+    snapshot: SessionSnapshot,
+) -> None:
+    document = build_export(snapshot)
+
+    assert document.candidate == snapshot.state.candidate
+    assert document.booking == snapshot.state.booking
+    assert document.metrics.turns == sum(1 for t in snapshot.turns if t.role == "user")
+    assert document.metrics.cost_is_partial  # no price table, so never a complete cost

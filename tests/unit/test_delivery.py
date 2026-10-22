@@ -2,10 +2,12 @@
 
 from hypothesis import given
 from hypothesis import strategies as st
+from hypothesis.stateful import RuleBasedStateMachine, invariant, rule
 
 from cafe_norte.voice.delivery import Ledger, finished, heard, readback_heard, sent
 
 BRIEF = "Te resumo lo que tengo. Te llamas Lucía. ¿Es todo correcto?"
+BRIEF_SENTENCES = ["Te resumo lo que tengo.", "Te llamas Lucía.", "¿Es todo correcto?"]
 
 
 def test_nothing_sent_means_nothing_heard_and_complete() -> None:
@@ -46,3 +48,44 @@ def test_heard_is_a_prefix_of_what_was_sent(sentences: list[str], done: int) -> 
     assert ledger.finished == min(done, len(sentences))
     assert complete == (ledger.finished == len(sentences))
     assert text == " ".join(sentences[: ledger.finished])
+
+
+class Playback(RuleBasedStateMachine):
+    """Sentences sent and playback finishing, interleaved in any order, beside a plain model."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.ledger = Ledger()
+        self.sent: list[str] = []
+        self.played = 0
+        self.brief_heard = False
+
+    @rule(
+        sentence=st.sampled_from(
+            ["Te resumo lo que tengo.", "Te llamas Lucía.", "¿Es todo correcto?", "Vale."]
+        )
+    )
+    def a_sentence_goes_to_tts(self, sentence: str) -> None:
+        self.ledger = sent(self.ledger, sentence)
+        self.sent.append(sentence)
+
+    @rule()
+    def a_sentence_finishes_playing(self) -> None:
+        self.ledger = finished(self.ledger)
+        self.played = min(self.played + 1, len(self.sent))
+
+    @invariant()
+    def heard_is_what_played_and_complete_means_all_of_it(self) -> None:
+        assert heard(self.ledger) == (
+            " ".join(self.sent[: self.played]),
+            self.played == len(self.sent),
+        )
+
+    @invariant()
+    def a_read_back_once_heard_stays_heard(self) -> None:
+        now = readback_heard(self.ledger, BRIEF)
+        assert now or not self.brief_heard
+        self.brief_heard = now
+
+
+TestPlayback = Playback.TestCase

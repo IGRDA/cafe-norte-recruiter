@@ -77,8 +77,8 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | A generation with no usage report (barge-in, answer cut, silent or failed attempt) | estimated at 4 characters per token, from the messages and tools sent and the text streamed; marked `estimated` (D44) |
 | Recent turns in the prompt | 20 |
 | Knowledge chunk | one `## ` section, at most 90 words |
-| Chunks per `search_knowledge` call | 3; RRF k = 60; 1–3 phrasings per call; every document of the session's configuration, no topic filter (D53) |
-| Words removed from a query before ranking | "Café Norte", "Madrid", "barista(s)": every document shares them; the store's name stays (D53) |
+| Chunks per `search_knowledge` call | 3; RRF k = 60; 1–3 phrasings per call; every document of the session's configuration, no topic filter (D54) |
+| Words removed from a query before ranking | "Café Norte", "Madrid", "barista(s)": every document shares them; the store's name stays (D54) |
 | Relevance floor | a chunk with BM25 = 0 needs cosine ≥ 0.40 (D27, re-measured when the embedding model changes) |
 | Query embeddings in flight | 2 per process |
 | `search_knowledge` tool time | target ≤ 300 ms after warm-up; measured per call in `timings` (`stage: tool`) |
@@ -91,7 +91,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
 | Malformed-call repairs per turn | 1; a second malformed call ends the turn with `invalid_response` (D37) |
 | Signal classifier | opt-in (`CAFE_NORTE_SIGNAL_MODEL`), one call per user turn, after the turn, 5 s deadline |
-| Decision-model analyzer (Jev) | a soft sentiment at p ≥ 0.5, a language switch at p ≥ 0.7, applied at the next turn's start; one retry after 2 s on a 429 or 5xx, inside the 5 s deadline (D52) |
+| Decision-model analyzer (Jev) | a soft sentiment at p ≥ 0.5, a language switch at p ≥ 0.7; started with the turn, and Ana's first words wait at most 0.5 s for it (`switch_wait_seconds`), then the switch applies in that turn (D53), else at the next turn's start (D52); one retry after 2 s on a 429 or 5xx, inside the 5 s deadline |
 | Signal freshness | the previous user turn only; `frustrated`/`uncertain` reach the prompt, others never |
 | Live eval: candidate lines per run | 24 (`MAX_LIVE_TURNS`); a run stops earlier when the session leaves `active` (D43) |
 | Live eval: wait for one turn's end | 90 s, then the turn is reported `no_turn_end` (D43) |

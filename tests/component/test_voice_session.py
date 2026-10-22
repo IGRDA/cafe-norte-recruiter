@@ -12,7 +12,7 @@ from cafe_norte.conversation.contracts import (
 from cafe_norte.domain.contracts import CandidateRecord, Lifecycle, TurnId
 from cafe_norte.errors import Language
 from cafe_norte.voice.session import VoiceSession
-from tests.support.builders import SID
+from tests.support.builders import SID, session_state
 from tests.support.time import FakeTime, settle
 from tests.support.voice import TEXTS, FakeRuntime, Recorder, finished, say, session
 
@@ -465,6 +465,28 @@ async def test_a_language_switch_is_reported_once_so_recognition_follows_it() ->
     await s.transcript("my name is Lucy")
     await s.wait()
     assert switched == ["en"]
+
+
+async def test_a_switch_announced_inside_the_turn_moves_recognition_before_ana_speaks() -> None:
+    switched_state = session_state(SID).model_copy(update={"language": "en"})
+    runtime = FakeRuntime([[StateUpdated.of(switched_state), say("Sure."), finished()]])
+    switched: list[Language] = []
+    recorder = Recorder()
+    s = VoiceSession(
+        runtime,
+        SID,
+        speak=recorder.speak,
+        on_status=lambda _: None,
+        texts=TEXTS,
+        language="es",
+        on_language=switched.append,
+    )
+
+    await s.transcript("perdona, no hablo bien español")
+    await s.wait()
+
+    assert switched == ["en"]
+    assert recorder.spoken == ["Sure."]
 
 
 # ---- an answer cut by a pause (KI-07, D44) -------------------------------------------------------

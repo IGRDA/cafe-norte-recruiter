@@ -25,7 +25,7 @@ DENSE_FLOOR = 0.40
 # Words nearly every chunk shares: the brand, the city and the role. The configuration already
 # names the store, so in a query they only pull the company and role sections up. The store's
 # own name stays: an address question needs it. Measured on the model's queries of the gpt-4.1
-# baseline: 30/32 answerable questions found, against 26 with its own topic filter (D53).
+# baseline: 30/32 answerable questions found, against 26 with its own topic filter (D54).
 SHARED_WORDS = re.compile(r"\b(?:caf[eé]\s+norte|madrid|baristas?)\b", re.IGNORECASE)
 
 

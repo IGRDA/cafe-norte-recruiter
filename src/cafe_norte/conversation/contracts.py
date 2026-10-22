@@ -96,6 +96,7 @@ class StateUpdated(Frozen):
     booking: Booking | None
     lifecycle: Lifecycle
     outcome: Outcome | None
+    language: Language | None = None  # None only in journals written before D53
 
     @property
     def ended(self) -> bool:
@@ -111,6 +112,7 @@ class StateUpdated(Frozen):
             booking=state.booking,
             lifecycle=state.lifecycle,
             outcome=state.outcome,
+            language=state.language,
         )
 
 
@@ -246,7 +248,11 @@ class SignalAnalyzer(Protocol):
     """Asynchronous sentiment/intent classification of finalized text; results are advisory and
     attached to their turn. ``None`` when there is no evidence-backed verdict. Explicit stop and
     human requests have a synchronous path in ``signals.py`` and never wait for this.
-    ``ana_said`` is what Ana said just before the message, for an analyzer that reads it (D52)."""
+    ``ana_said`` is what Ana said just before the message, for an analyzer that reads it (D52).
+    ``switches_language``: its verdict can ask for the other language, so the runtime starts it
+    with the turn and waits for it, briefly, before Ana's first sentence (D53)."""
+
+    switches_language: bool
 
     async def analyze(
         self, turn_id: TurnId, text: str, language: Language, *, ana_said: str = ""

@@ -24,7 +24,7 @@ its own.
 `search_knowledge(question, queries)`: the model keeps the candidate's words in
 `question` and writes one to three self-contained Spanish `queries` (an English question is
 reformulated here; a second phrasing for vague questions). The handler applies the structured
-half (the configuration's documents and KB version; no topic, D53) before ranking, returns at most three snippets as numbered reference material with
+half (the configuration's documents and KB version; no topic, D54) before ranking, returns at most three snippets as numbered reference material with
 the rules and the next step, and emits `SourcesShown`. The model may search once more in the
 same turn; the four-round limit bounds it. A chunk with no query word and a cosine below the
 floor is dropped (D27); beyond that, abstention is the prompt's job. When nothing answers,
@@ -88,8 +88,17 @@ With `CAFE_NORTE_SIGNAL_MODEL=openrouter/typesafe/jev-1.14` the analyzer is a de
 the sentiment and whether to keep or switch the language, with probabilities. A switch it
 reads (p ≥ 0.7, "my Spanish is not very good") applies at the start of the next turn the way
 an explicit request does: saved with the user turn, before the model; an explicit request in
-that turn wins, and a verdict from an older turn switches nothing. The analyzer runs beside
-the turn: it adds no latency, and one candidate turn passes in the old language.
+that turn wins, and a verdict from an older turn switches nothing.
+
+Since D53 the analyzer starts with the turn, beside the model, and the switch usually lands in
+the same turn. Before Ana's first words (her first sentence, or the first round's tool calls)
+the runtime checks the verdict once, waiting at most `switch_wait_seconds` (0.5 s) if it has not
+come. A switch drops that round unsaid and unrun, saves the language, announces it with
+`StateUpdated` (which carries the session language, so speech recognition follows before Ana
+speaks) and answers again in the new language. A verdict later than the wait, or one that comes
+after something was said (a fixed reply, a read-back), keeps D52's switch at the next turn.
+Only an analyzer with `switches_language` (Jev) is waited for; the chat classifier still runs
+after the turn.
 
 Bounds: four tool rounds per turn, one malformed-call repair (a second ends the turn with
 `invalid_response`), six seconds to first model output, ten seconds per tool, 480 active seconds

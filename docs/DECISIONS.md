@@ -1828,9 +1828,41 @@ with no published retention period). It is on in the hosted demo, whose data is 
 for real applicants until retention is settled. The labels are synthetic: a held-out set written by another model, but no real
 transcripts. Sentiment is still advisory and never a hiring input.
 
+## D53 · A language switch read in time is applied in the same turn
+
+_Added 22 October 2026, after the first hosted test of D52._
+
+**Context.** With D52 on the hosted demo, "Perdona, no hablo bien español, soy de Londres" was
+read as a switch to English, but Ana had already answered in Spanish ("podemos seguir en
+español sencillo") and only the next turn was English. Jev answers in about 0.3 s (p95 0.5 s);
+gpt-4.1's first sentence comes after 0.6–1.0 s. The verdict usually exists before Ana says
+anything.
+
+**Decisions.**
+- An analyzer that can ask for the other language (`switches_language`, Jev) starts with the
+  turn, beside the model, on the same message and Ana's previous sentence. The chat classifier
+  (D30) is not waited for and still runs after the turn.
+- Before Ana's first words of the turn (her first sentence, or the first round's tool calls),
+  the runtime checks the verdict once. If it has not come it waits at most
+  `switch_wait_seconds` (0.5 s); a later verdict keeps D52's switch at the next turn.
+- A switch drops the round: nothing of it was said, journaled or run. The language is saved,
+  then announced with `StateUpdated`, which now carries the session language, so speech
+  recognition follows before Ana speaks; the messages are rebuilt and the round runs again.
+  Once something was said this turn (a fixed reply, a read-back) there is no restart.
+- The verdict computed in the turn is the one journaled after it: one call per turn, as before.
+- `language_switched` is a structured event with the time Ana's first words waited.
+
+**Rejected.** Cutting a sentence already spoken and saying it again: what was heard is in the
+journal and cannot be taken back. Calling Jev before the model: 0.3 s on every turn.
+
+**Consequences we accept.** A switch costs the dropped round's tokens and one more round's
+latency, on the rare turn that switches. A turn whose first words come before Jev, and after
+the 0.5 s wait, still switches one turn late. The candidate's own message stays recorded in
+the language the turn opened in; Ana's answer is in the new one.
+
 ---
 
-## D53 · Search the store's documents, not the model's topic; shared words leave the query
+## D54 · Search the store's documents, not the model's topic; shared words leave the query
 
 _Added 22 October 2026, from the gpt-4.1 baseline of D51._
 

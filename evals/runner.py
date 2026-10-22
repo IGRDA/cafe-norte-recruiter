@@ -443,7 +443,7 @@ def _retriever(mode: str) -> HybridRetriever:
 
 
 def replay_main(mode: str, folder: Path) -> int:
-    """The model's recorded queries of a live scorecard through today's retriever (D53)."""
+    """The model's recorded queries of a live scorecard through today's retriever (D54)."""
     retriever = _retriever(mode)
     configurations = load_configurations(CONFIG_DIR)
     recorded = recorded_queries(folder / "probe-exports")

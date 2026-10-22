@@ -121,7 +121,7 @@ async def test_a_zero_vector_has_no_cosine_and_no_dense_rank(index: Index) -> No
 
 @pytest.mark.parametrize(
     ("question", "section"),
-    [  # the model's own queries from the gpt-4.1 baseline (D53)
+    [  # the model's own queries from the gpt-4.1 baseline (D54)
         (
             "¿Cuántos días de vacaciones tiene el puesto de barista en Café Norte Chamberí?",
             "offer_chamberi#vacaciones",

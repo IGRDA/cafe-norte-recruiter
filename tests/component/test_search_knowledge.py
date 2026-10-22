@@ -75,7 +75,7 @@ async def test_snippets_come_back_as_data_with_the_sources_and_the_pending_field
 
 def test_the_model_names_no_topic_to_filter_by() -> None:
     """A topic the model chose hid the answer: hours searched as `role` never reached the offer
-    (D53). The configuration is the only filter."""
+    (D54). The configuration is the only filter."""
     assert set(SearchKnowledgeArgs.model_fields) == {"question", "queries"}
 
 

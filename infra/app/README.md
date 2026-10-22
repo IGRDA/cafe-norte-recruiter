@@ -10,8 +10,11 @@ before any real applicant). Every key there must exist in `.env.example`
 
 The app runs on one Compute Engine VM because Cloud Run containers have no routable address
 for WebRTC (D24). `startup.sh` is the deploy: metadata → env file (secrets from Secret
-Manager) → open 80/443 in the COS host firewall (inbound is dropped by default) → `docker run`
-of the app and of Caddy, both with host networking, on every boot.
+Manager) → open 80/443 in the COS host firewall (inbound is dropped by default), before the
+pull so a failed pull leaves the previous release reachable → prune images no container uses
+(the 16 GB docker partition holds about nine 1.7 GB releases; a full one stopped a deploy on
+22 October 2026) → pull → `docker run` of the app and of Caddy, both with host networking, on
+every boot.
 A change to `startup.sh` replaces the instance (the address survives); a change to the image
 only updates metadata, and the reset in `deploy.yml` applies it.
 

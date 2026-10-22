@@ -76,7 +76,7 @@ async def test_every_event_is_journaled_with_increasing_seq_before_it_is_yielded
     seen = 0
     async for _ in h.runtime.run_turn(turn("Hola")):
         seen += 1
-        assert h.store.events.last_seq(SESSION) == seen
+        assert (await h.journal())[-1].seq == seen
 
 
 async def test_a_second_runtime_over_the_same_store_continues_the_sequence() -> None:
@@ -84,10 +84,10 @@ async def test_a_second_runtime_over_the_same_store_continues_the_sequence() -> 
     h = Harness([says("Hola."), says("Otra vez.")])
     await h.open_session()
     await h.run("Hola", "in-1")
-    before = h.store.events.last_seq(SESSION)
+    before = (await h.journal())[-1].seq
     second = Harness([says("Otra vez.")], store=h.store)
     await second.run("Sigo aquí", "in-2")
-    seqs = [e.seq for e in h.store.events.all(SESSION)]
+    seqs = [e.seq for e in await h.journal()]
     assert seqs == list(range(1, len(seqs) + 1)) and seqs[-1] > before
 
 
@@ -247,18 +247,17 @@ class Watched(FakeModel):
 
 
 async def assert_interrupted_and_released(h: Harness) -> None:
-    kinds = [e.kind for e in h.store.events.all(SESSION)]
-    last = h.store.events.all(SESSION)[-1]
-    assert kinds[-1] == "turn_finished" and '"interrupted":true' in last.payload_json
+    last = (await h.journal())[-1]
+    assert last.kind == "turn_finished"
+    assert TurnFinished.model_validate_json(last.payload_json).interrupted
     stored = await h.store.turns.recent(SESSION, 5)
     assert stored[-1].role == "assistant" and stored[-1].interrupted
     assert await h.store.leases.claim(SESSION, "intruder", ttl_seconds=60) is not None
 
 
 async def test_closing_a_turn_mid_stream_journals_it_as_interrupted() -> None:
-    h = Harness([])
     watched = Watched([says("Hola. ", "Te cuento algo. ", "¿Y tú?")])
-    h.runtime._model = watched
+    h = Harness([], model=watched)
     await h.open_session()
     stream = h.runtime.run_turn(turn("Hola"))
     first = ""
@@ -348,7 +347,7 @@ async def test_a_duplicate_input_id_fails_once_with_conflict_and_calls_no_model(
     assert len(h.model.calls) == 1
 
 
-class BrokenModel:
+class BrokenModel(FakeModel):
     model_id = "broken"
 
     async def stream(
@@ -363,8 +362,7 @@ class BrokenModel:
 
 
 async def test_a_model_error_becomes_a_turn_failed_with_public_text_only() -> None:
-    h = Harness([])
-    h.runtime._model = BrokenModel()
+    h = Harness([], model=BrokenModel([]))
     await h.open_session()
     events = await h.run("Hola")
     assert isinstance(events[0], TurnStarted)
@@ -376,8 +374,8 @@ async def test_a_model_error_becomes_a_turn_failed_with_public_text_only() -> No
 
 async def test_a_slow_first_token_fails_with_timeout() -> None:
     """Always too slow: the first round and its one retry both miss the bound."""
-    h = Harness([], limits=Limits(llm_first_output_seconds=0.05))
-    h.runtime._model = FakeModel([], delay_seconds=0.2, fallback=says("tarde"))
+    always_late = FakeModel([], delay_seconds=0.2, fallback=says("tarde"))
+    h = Harness([], limits=Limits(llm_first_output_seconds=0.05), model=always_late)
     await h.open_session()
     events = await h.run("Hola")
     assert isinstance(events[-1], TurnFailed) and events[-1].code == "timeout"
@@ -609,7 +607,7 @@ async def test_an_unknown_session_fails_with_not_found_and_journals_nothing() ->
     h = Harness([])
     events = await h.run("Hola")
     assert isinstance(events[0], TurnFailed) and events[0].code == "not_found"
-    assert h.store.events.all(SESSION) == ()
+    assert await h.journal() == ()
 
 
 @pytest.mark.parametrize("text", ["", "   "])

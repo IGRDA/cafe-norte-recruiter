@@ -1,8 +1,6 @@
 """Retention purges only what is older than the window, a batch at a time, under the lock."""
 
 import asyncio
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 
 from cafe_norte.domain.contracts import SessionId
@@ -37,12 +35,10 @@ async def test_purge_deletes_the_oldest_beyond_the_window_up_to_the_limit() -> N
 async def test_purge_does_nothing_while_another_container_holds_the_lock() -> None:
     store = await seeded()
 
-    @asynccontextmanager
-    async def taken() -> AsyncIterator[bool]:
-        yield False
+    async with store.maintenance() as held:  # what another container holding it looks like
+        assert held
+        assert await purge_expired(store, now=NOW, days=7) == ()
 
-    store.maintenance = taken  # type: ignore[method-assign]
-    assert await purge_expired(store, now=NOW, days=7) == ()
     assert await store.sessions.get(SessionId("a")) is not None
 
 

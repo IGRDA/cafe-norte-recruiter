@@ -109,7 +109,7 @@ async def test_a_verdict_is_journaled_against_its_source_turn() -> None:
     source = next(e.turn_id for e in events if isinstance(e, TurnStarted))
     recorded = [
         SignalRecorded.model_validate_json(e.payload_json).signal
-        for e in h.store.events.all(SESSION)
+        for e in await h.journal()
         if e.kind == "signal_recorded"
     ]
     assert [(s.turn_id, s.sentiment, s.evidence_text) for s in recorded] == [
@@ -162,4 +162,4 @@ async def test_a_failing_analyzer_never_reaches_the_turn() -> None:
     await h.runtime.settle()
     second = await h.run("Hola otra vez.", "in-2")
     assert isinstance(first[-1], TurnFinished) and isinstance(second[-1], TurnFinished)
-    assert not any(e.kind == "signal_recorded" for e in h.store.events.all(SESSION))
+    assert not any(e.kind == "signal_recorded" for e in await h.journal())

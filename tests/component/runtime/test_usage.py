@@ -22,8 +22,8 @@ from tests.support.harness import (
 )
 
 
-def estimated(h: Harness) -> list[tuple[str, float]]:
-    return [(u.unit_detail, u.quantity) for u in h.store.events.usage if u.estimated]
+async def estimated(h: Harness) -> list[tuple[str, float]]:
+    return [(u.unit_detail, u.quantity) for u in await h.usage() if u.estimated]
 
 
 async def test_a_generation_closed_by_a_barge_in_is_estimated_from_its_characters() -> None:
@@ -34,7 +34,7 @@ async def test_a_generation_closed_by_a_barge_in_is_estimated_from_its_character
         if isinstance(event, AssistantText):
             break
     await stream.aclose()
-    (input_tokens, output_tokens) = estimated(h)
+    (input_tokens, output_tokens) = await estimated(h)
     assert input_tokens[0] == "fake:input" and input_tokens[1] > 100  # the system prompt
     assert output_tokens == ("fake:output", 2)  # "Hola. ": what was read before the close
 
@@ -47,14 +47,15 @@ async def test_a_cut_runaway_answer_is_estimated() -> None:
     )
     await h.open_session()
     await h.run("Maialen")
-    assert [detail for detail, _ in estimated(h)] == ["fake:input", "fake:output"]
+    assert [detail for detail, _ in await estimated(h)] == ["fake:input", "fake:output"]
 
 
 async def test_a_silent_attempt_and_its_retry_are_each_estimated() -> None:
     h = Harness([says("Vale, apuntado.")], limits=FAST_DEADLINE, slow_calls=1)
     await h.open_session()
     await h.run("De lunes a viernes")
-    silent, retried = estimated(h)[:2], estimated(h)[2:]
+    records = await estimated(h)
+    silent, retried = records[:2], records[2:]
     assert silent[1] == ("fake:output", 0) and retried[1] == ("fake:output", 4)
 
 
@@ -63,7 +64,7 @@ async def test_a_round_the_provider_reported_is_not_estimated() -> None:
     h = Harness([[ModelText(text="Hola."), usage, STOP]])
     await h.open_session()
     await h.run("Hola")
-    assert estimated(h) == [] and len(h.store.events.usage) == 2
+    assert await estimated(h) == [] and len(await h.usage()) == 2
 
 
 def speech_usage() -> UsageRecord:
@@ -89,7 +90,7 @@ async def test_usage_recorded_after_the_session_ended_stores_the_export_again() 
     await h.runtime.settle()
     await h.runtime.record_usage(SESSION, [speech_usage()])
     await h.runtime.settle()
-    assert h.store.events.usage == [speech_usage()]
+    assert await h.usage() == (speech_usage(),)
     assert closed == [SESSION, SESSION]
 
 
@@ -103,4 +104,4 @@ async def test_usage_recorded_while_the_session_is_open_is_only_stored() -> None
     await h.open_session()
     await h.runtime.record_usage(SESSION, [speech_usage()])
     await h.runtime.settle()
-    assert h.store.events.usage == [speech_usage()] and closed == []
+    assert await h.usage() == (speech_usage(),) and closed == []

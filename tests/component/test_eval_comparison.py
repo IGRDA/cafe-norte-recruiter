@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-from evals import runner
 from evals.runner import comparison_plan, main
 
 
@@ -25,12 +24,12 @@ def test_the_comparison_prints_its_price_and_waits_for_yes(
 
 
 def test_a_free_comparison_writes_live_and_committed_results(
-    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     committed = tmp_path / "comparison"
-    monkeypatch.setattr(runner, "COMPARISON_RESULTS", committed)
     args = ["--suite", "comparison", "--models", "fake", "--repeat", "1", "--simulator", "fake"]
-    code = main([*args, "--max-turns", "1", "--out", str(tmp_path / "live"), "--yes"])
+    argv = [*args, "--max-turns", "1", "--out", str(tmp_path / "live"), "--yes"]
+    code = main(argv, committed=committed)
     assert code == 1
     (json_file,) = committed.glob("*.json")
     (md_file,) = committed.glob("*.md")

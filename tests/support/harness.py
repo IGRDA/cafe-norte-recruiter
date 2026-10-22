@@ -12,11 +12,13 @@ from cafe_norte.domain.contracts import InputId, SessionId, SlotId
 from cafe_norte.errors import Language
 from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelMessage, ModelText, ToolCall
 from cafe_norte.model.fake import FakeModel
+from cafe_norte.observability.contracts import UsageRecord
 from cafe_norte.observability.fakes import RecordingTelemetry
+from cafe_norte.persistence.contracts import EventRecord
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
 from tests.support.app import build_runtime
-from tests.support.builders import CONFIGS, NOW, SESSION, full_record, session_state
+from tests.support.builders import CONFIGS, NOW, SESSION, STAMP, full_record, session_state
 
 STOP = ModelFinished(reason="stop")
 WANTS_TOOLS = ModelFinished(reason="tool_calls")
@@ -127,6 +129,16 @@ class Harness:
 
     async def run(self, text: str, input_id: str = "in-1") -> list[RuntimeEvent]:
         return [event async for event in self.runtime.run_turn(turn(text, input_id))]
+
+    async def journal(self) -> tuple[EventRecord, ...]:
+        """The session's journal, read through the store contract."""
+        snapshot = await self.store.snapshot(SESSION, versions=STAMP, taken_at=NOW)
+        return snapshot.events if snapshot is not None else ()
+
+    async def usage(self) -> tuple[UsageRecord, ...]:
+        """What the session used, read through the store contract."""
+        snapshot = await self.store.snapshot(SESSION, versions=STAMP, taken_at=NOW)
+        return snapshot.usage if snapshot is not None else ()
 
 
 async def fill_record(h: Harness) -> None:

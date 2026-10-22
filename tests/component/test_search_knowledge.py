@@ -1,15 +1,18 @@
 """``search_knowledge``: the handler filters by configuration and topic, hands snippets back
 as data with the next step, and shows the sources."""
 
-from datetime import UTC, datetime
-
 from cafe_norte.conversation.contracts import SourcesShown
-from cafe_norte.conversation.handlers import NEXT_STEP, SearchKnowledgeHandler, snippets_message
-from cafe_norte.domain.contracts import SessionId, SessionState
+from cafe_norte.conversation.handlers import (
+    NEXT_STEP,
+    RequestHumanFollowupHandler,
+    SearchKnowledgeHandler,
+    snippets_message,
+)
+from cafe_norte.domain.contracts import SessionId
 from cafe_norte.knowledge.contracts import TOPIC_DOCS, Chunk, RetrievedChunk
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.persistence.memory import MemoryStore
-from tests.support.builders import CONFIG, CONFIGS, SID, full_record
+from tests.support.builders import CONFIG, CONFIGS, SID, session_state
 from tests.support.tools import args, context
 
 HOURS = RetrievedChunk(
@@ -31,17 +34,7 @@ async def world(
     answers: dict[str, tuple[RetrievedChunk, ...]],
 ) -> tuple[SearchKnowledgeHandler, FakeRetriever]:
     store = MemoryStore()
-    await store.sessions.create(
-        SessionState(
-            session_id=SID,
-            config_id=CONFIG.config_id,
-            config_version="1",
-            language="es",
-            channel="text",
-            created_at=datetime(2026, 10, 20, tzinfo=UTC),
-        ),
-        access_hash="",
-    )
+    await store.sessions.create(session_state(SID), access_hash="")
     retriever = FakeRetriever(answers)
     return SearchKnowledgeHandler(
         store=store, configurations=CONFIGS, retriever=retriever
@@ -106,15 +99,9 @@ async def test_an_unknown_session_is_refused() -> None:
     assert not outcome.ok and outcome.summary == "not_found"
 
 
-def test_full_record_fixture_is_reused_from_the_handler_tests() -> None:
-    assert full_record().name.status == "captured"
-
-
 async def test_a_follow_up_request_becomes_one_review_flag_and_the_conversation_goes_on() -> None:
-    from cafe_norte.conversation.handlers import RequestHumanFollowupHandler
-
-    handler, _ = await world({})
-    store = handler._store  # noqa: SLF001 - same store as the search handler
+    store = MemoryStore()
+    await store.sessions.create(session_state(SID), access_hash="")
     followup = RequestHumanFollowupHandler(store=store)
     outcome = await followup(
         context("t4"), args("request_human_followup", reason="¿Hay parking para empleados?")

@@ -1,16 +1,20 @@
 """Deterministic scripted model for tests and CI evaluations. Executes nothing."""
 
 import asyncio
-from collections.abc import AsyncGenerator, Sequence
+from collections.abc import AsyncGenerator, Callable, Sequence
 from datetime import datetime
 
 from cafe_norte.errors import ErrorCode
 from cafe_norte.model.contracts import ModelError, ModelEvent, ModelMessage, ToolSchema
 
+# A model that decides from what it is sent: the messages and the tools offered this round.
+Policy = Callable[[tuple[ModelMessage, ...], tuple[ToolSchema, ...]], Sequence[ModelEvent]]
+
 
 class FakeModel:
     """Replays one scripted event list per call, in order. When the scripts run out it replays
-    ``fallback`` if given, otherwise raises ``ModelError``.
+    ``fallback`` if given, otherwise raises ``ModelError``. With a ``policy`` it answers each
+    call with what the policy decides instead, for tests whose model must react to the prompt.
 
     Scripts are written by tests and by evals/cases/scenarios/*.yaml (``fake_script``)."""
 
@@ -22,10 +26,12 @@ class FakeModel:
         *,
         delay_seconds: float = 0,
         fallback: Sequence[ModelEvent] | None = None,
+        policy: Policy | None = None,
     ) -> None:
         self._scripts = [tuple(script) for script in scripts]
         self._fallback = tuple(fallback) if fallback is not None else None
         self._delay = delay_seconds
+        self._policy = policy
         self._calls: list[tuple[ModelMessage, ...]] = []
         self._tools: list[tuple[ToolSchema, ...]] = []
         self._failures: list[ErrorCode] = []
@@ -46,7 +52,9 @@ class FakeModel:
         self._tools.append(tools)
         if self._failures:
             raise ModelError("scripted provider failure", code=self._failures.pop(0))
-        if self._scripts:
+        if self._policy is not None:
+            script = tuple(self._policy(messages, tools))
+        elif self._scripts:
             script = self._scripts.pop(0)
         elif self._fallback is not None:
             script = self._fallback

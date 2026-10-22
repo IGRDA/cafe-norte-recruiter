@@ -8,8 +8,6 @@ regression guards.
 """
 
 import json
-from collections.abc import AsyncGenerator
-from datetime import datetime
 
 import pytest
 
@@ -178,34 +176,20 @@ async def test_ki07_an_answer_cut_by_a_pause_reaches_the_model_whole() -> None:
     await s.close()
 
 
-class RepeatsItsSave(FakeModel):
+def repeats_its_save(
+    messages: tuple[ModelMessage, ...], tools: tuple[ToolSchema, ...]
+) -> list[ModelEvent]:
     """gpt-4o-mini in the hosted call: it saves the name again while it may, and answers in
     words once ``update_candidate`` is no longer offered."""
-
-    def __init__(self) -> None:
-        super().__init__([])
-
-    async def stream(
-        self,
-        messages: tuple[ModelMessage, ...],
-        tools: tuple[ToolSchema, ...],
-        *,
-        deadline: datetime,
-    ) -> AsyncGenerator[ModelEvent, None]:
-        self._calls.append(messages)
-        self._tools.append(tools)
-        if any(tool.name == "update_candidate" for tool in tools):
-            yield name_call(f"c{len(self._calls)}")
-            yield WANTS_TOOLS
-        else:
-            yield ModelText(text="¿Tienes permiso de trabajo?")
-            yield STOP
+    if any(tool.name == "update_candidate" for tool in tools):
+        return [name_call(f"c{len(messages)}"), WANTS_TOOLS]
+    return [ModelText(text="¿Tienes permiso de trabajo?"), STOP]
 
 
 async def test_ki08_a_save_that_changed_nothing_is_not_repeated_before_ana_speaks() -> None:
     """Live: ``update_candidate`` came back ``unchanged`` two or three times in one turn (seq
     39, 47, 49) before the first sentence; each round cost 0.6 to 0.9 s."""
-    model = RepeatsItsSave()
+    model = FakeModel([], policy=repeats_its_save)
     h = Harness([], model=model)
     await h.open_session()
     events = await h.run("Soy Lucía.")

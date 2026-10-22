@@ -8,8 +8,8 @@ one the row's path predicts, so nothing is confirmed without a full hearing or a
 carry-on; no read-back is said whole more than twice."""
 
 import json
-from collections.abc import AsyncGenerator, Sequence
-from datetime import date, datetime
+from collections.abc import Sequence
+from datetime import date
 from typing import Literal
 
 import pytest
@@ -93,25 +93,19 @@ READ_BACK: dict[Kind, str] = {
 }
 
 
-class PolicyModel(FakeModel):
+class Policy:
     """Follows system.md's read-back rules from the session facts: the setup calls first; then
     the offer when the system asks for it; an update for a correction; an answer and the
     read-back presented again for an unrelated question; nothing otherwise."""
 
     def __init__(self, setup: Sequence[ToolCall | None], correction: ToolCall | None) -> None:
-        super().__init__([])
         self._setup = list(setup)
         self._correction = correction
 
-    async def stream(
-        self,
-        messages: tuple[ModelMessage, ...],
-        tools: tuple[ToolSchema, ...],
-        *,
-        deadline: datetime,
-    ) -> AsyncGenerator[ModelEvent, None]:
-        for event in self._decide(messages):
-            yield event
+    def __call__(
+        self, messages: tuple[ModelMessage, ...], tools: tuple[ToolSchema, ...]
+    ) -> list[ModelEvent]:
+        return self._decide(messages)
 
     def _decide(self, messages: tuple[ModelMessage, ...]) -> list[ModelEvent]:
         last = messages[-1]
@@ -186,7 +180,7 @@ async def say(h: Harness, text: str, number: int, *, cut: int | None = None) -> 
 
 
 async def opened(kind: Kind) -> Harness:
-    model = PolicyModel([call for _, call in SETUP[kind]], CORRECTION[kind][1])
+    model = FakeModel([], policy=Policy([call for _, call in SETUP[kind]], CORRECTION[kind][1]))
     h = Harness([], store=MemoryStore(clock=lambda: NOW), model=model)
     await h.open_session()
     await fill_record(h)

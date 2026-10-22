@@ -25,8 +25,8 @@ def named(h: Harness, name: str) -> list[StructuredEvent]:
 
 
 async def test_a_failed_turn_emits_turn_failed_keyed_by_session_and_turn() -> None:
-    h = Harness([], limits=Limits(llm_first_output_seconds=0.05))
-    h.runtime._model = FakeModel([], delay_seconds=0.2, fallback=says("tarde"))
+    always_late = FakeModel([], delay_seconds=0.2, fallback=says("tarde"))
+    h = Harness([], limits=Limits(llm_first_output_seconds=0.05), model=always_late)
     await h.open_session()
     events = await h.run("Hola")
     failed_turn = events[-1]

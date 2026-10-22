@@ -1,6 +1,7 @@
 """The composition root binds telemetry, prices and the shutdown flush; no network."""
 
-import pytest
+from collections.abc import Callable
+
 from fastapi.testclient import TestClient
 
 from cafe_norte.main import _process_versions, create_default_app
@@ -34,20 +35,17 @@ def test_the_pipeline_runs_the_models_the_stamp_names() -> None:
     assert tts_settings("voice-1").voice == "voice-1"
 
 
-def test_the_default_app_traces_turns_prices_the_export_and_flushes_on_shutdown(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_the_default_app_traces_turns_prices_the_export_and_flushes_on_shutdown() -> None:
     recording = RecordingTelemetry()
     flushed: list[str] = []
     seen: list[ProcessVersions] = []
 
-    def configure(env: object, process: ProcessVersions) -> tuple[Telemetry, object]:
+    def recorded(env: object, process: ProcessVersions) -> tuple[Telemetry, Callable[[], None]]:
         seen.append(process)
         return recording, lambda: flushed.append("flushed")
 
-    monkeypatch.setattr("cafe_norte.main.configure", configure)
     env = {"CAFE_NORTE_CONFIG_DIR": str(CONFIG_DIR), "CAFE_NORTE_WEB_DIR": str(ROOT / "web")}
-    with TestClient(create_default_app(env)) as client:
+    with TestClient(create_default_app(env, telemetry_for=recorded)) as client:
         session_id = create_session(client)
         client.post(f"/api/sessions/{session_id}/turns", json={"input_id": "in-1", "text": "Hola"})
         read_turn(client, session_id, after=OPENING_EVENTS)

@@ -1,6 +1,7 @@
 """Sentences the system says through the runtime, journaled."""
 
 from cafe_norte.conversation.contracts import (
+    AssistantText,
     TurnStarted,
 )
 from tests.support.builders import SESSION
@@ -25,6 +26,6 @@ async def test_an_aside_is_journaled_under_the_running_turn() -> None:
     events = await h.run("Hola")
     turn_id = next(e.turn_id for e in events if isinstance(e, TurnStarted))
     await h.runtime.aside(turn_id, "Un momento.")
-    last = h.store.events.all(SESSION)[-1]
+    last = (await h.journal())[-1]
     assert last.kind == "assistant_text" and last.turn_id == turn_id
-    assert "Un momento." in last.payload_json
+    assert AssistantText.model_validate_json(last.payload_json).text == "Un momento."

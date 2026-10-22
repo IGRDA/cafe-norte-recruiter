@@ -100,8 +100,8 @@ async def test_a_retried_round_is_one_generation_that_says_so() -> None:
 
 
 async def test_a_failed_turn_marks_the_root_and_the_round_and_ends_every_span() -> None:
-    h = Harness([], limits=Limits(llm_first_output_seconds=0.05))
-    h.runtime._model = FakeModel([], delay_seconds=0.2, fallback=says("tarde"))
+    always_late = FakeModel([], delay_seconds=0.2, fallback=says("tarde"))
+    h = Harness([], limits=Limits(llm_first_output_seconds=0.05), model=always_late)
     await h.open_session()
     await h.run("Hola")
     (root,) = roots(h)

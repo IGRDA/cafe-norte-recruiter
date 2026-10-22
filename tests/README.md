@@ -44,7 +44,8 @@ read-back (date, phone, brief, slot) x where its saying is cut x the first reply
 correction, carry on, unrelated) x how the candidate goes on, driven by a small policy model
 that follows the prompt's rules from the session facts. Every row must settle without a failed
 turn, end in the export `assurance` its path predicts, and never say a read-back whole more
-than twice. `Harness(model=…)` takes such a model.
+than twice. The policy is a plain function given to `FakeModel(policy=…)`, which records every
+call like a scripted fake.
 
 `component/test_known_issues.py` holds strict `xfail` reproductions of `docs/known-issues.md`:
 they fail today by design; the commit that fixes an issue removes its marker, and the test

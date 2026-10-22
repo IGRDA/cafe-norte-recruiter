@@ -12,7 +12,6 @@ from cafe_norte.model.contracts import (
     ToolCall,
 )
 from cafe_norte.model.fake import FakeModel
-from tests.support.builders import SESSION
 from tests.support.harness import (
     STOP,
     WANTS_TOOLS,
@@ -34,9 +33,7 @@ async def test_a_tool_call_is_journaled_with_its_arguments_redacted() -> None:
     h = Harness([[call, WANTS_TOOLS], says("")])
     await h.open_session()
     await h.run("Mi móvil es 612 345 678")
-    started = [
-        json.loads(e.payload_json) for e in h.store.events.all(SESSION) if e.kind == "tool_started"
-    ]
+    started = [json.loads(e.payload_json) for e in await h.journal() if e.kind == "tool_started"]
     assert started[0]["name"] == "update_candidate"
     assert "[phone]" in started[0]["arguments"] and "612" not in started[0]["arguments"]
     assert '"patch"' in started[0]["arguments"]
@@ -64,7 +61,7 @@ async def test_the_classifiers_tokens_are_recorded_under_the_turn_it_classified(
     events = await h.run("Hola.")
     await h.runtime.settle()
     source = events[0].turn_id  # type: ignore[union-attr]
-    measured = [u for u in h.store.events.usage if not u.estimated]  # the turn's own is not
+    measured = [u for u in await h.usage() if not u.estimated]  # the turn's own is not
     assert {(u.turn_id, u.unit_detail, u.quantity, u.estimated) for u in measured} == {
         (source, "fake:input", 210, False),
         (source, "fake:output", 12, False),

@@ -161,7 +161,11 @@ def create_app(
         body = ErrorResponse(code="validation_failed", message=MESSAGES["es"]["validation_failed"])
         return JSONResponse(body.model_dump(), status_code=422)
 
-    if web_dir is not None:
+    if web_dir is not None and not web_dir.is_dir():
+        # The page is built (`make web-build`, D61); the API, the evals and the tests run
+        # without it. The image always builds it, and the deploy's smoke check asks for "/".
+        log.warning("no page at %s: run `make web-build`; serving the API only", web_dir)
+    elif web_dir is not None:
         app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
     return app
 

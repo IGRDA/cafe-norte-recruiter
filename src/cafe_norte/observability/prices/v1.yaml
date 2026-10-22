@@ -37,6 +37,12 @@ prices:
     unit_detail: "gpt-4.1:output"
     usd_per_unit: 0.000008
     source: https://developers.openai.com/api/docs/pricing
+  # https://developers.openai.com/api/docs/models/text-embedding-3-small : $0.02 / 1M tokens
+  # (verified 2026-10-22). Evaluation only: ragas' testset generation and judges (D48).
+  - kind: llm_tokens
+    unit_detail: "text-embedding-3-small:input"
+    usd_per_unit: 0.00000002
+    source: https://developers.openai.com/api/docs/models/text-embedding-3-small
   # Deepgram nova-3 streaming, monolingual (D35: STT runs in the session language).
   # List price $0.0077 / min. The page shows a limited-time $0.0048 / min; we keep the list
   # price so the estimate stays conservative when the promotion ends.

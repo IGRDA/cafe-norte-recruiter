@@ -3,7 +3,7 @@ and the CLI for every suite.
 
 Fake mode is the CI gate: no network, no credentials, under a second per scenario. Live mode
 and the comparison drive the public API with a simulated candidate (``evals/live_runs.py``,
-D43) and spend only with ``--yes``; the retrieval suite runs the 24 questions."""
+D43) and spend only with ``--yes``; the retrieval suite runs the 41 questions."""
 
 import argparse
 import asyncio
@@ -416,7 +416,8 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = F
         print(f"{mark} {run.case_id} {run.kind:<11} {run.milliseconds:>4} ms  {list(run.returned)}")
     print(
         f"recall@3 {report.recall_at_3:.0%} (n={report.answerable})  leaked {report.leaked}/"
-        f"{len(report.runs)}  unsupported with sources {report.unsupported_with_sources}/4  "
+        f"{len(report.runs)}  unsupported with sources {report.unsupported_with_sources}/"
+        f"{sum(r.kind == 'unsupported' for r in report.runs)}  "
         f"median {report.median_ms} ms  {report.embedding_model}  -> {path}"
     )
     if report.ragas is not None:

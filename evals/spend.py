@@ -27,12 +27,13 @@ class Spend(BaseModel):
     eur: float
     unpriced: tuple[str, ...]  # model ids with no price: their tokens are not in ``eur``
     price_table_version: str
+    basis: str = f"assumes {EXPECTED_TURNS} turns a run"
 
     def describe(self) -> str:
         unpriced = f"; NO PRICE for {', '.join(self.unpriced)}" if self.unpriced else ""
         return (
             f"estimated spend: €{self.eur:.2f} for {self.runs} runs "
-            f"(assumes {EXPECTED_TURNS} turns a run, prices {self.price_table_version}){unpriced}"
+            f"({self.basis}, prices {self.price_table_version}){unpriced}"
         )
 
 
@@ -52,13 +53,27 @@ def estimate_spend(
             usage += _tokens(simulator, SIMULATOR_TOKENS_PER_TURN, EXPECTED_TURNS)
         if judge is not None:
             usage += _tokens(judge, JUDGE_TOKENS_PER_RUN, 1)
+    return _priced(usage, prices, runs=len(answering))
+
+
+Calls = tuple[str, tuple[int, int], int]  # model selector, (input, output) tokens a call, calls
+
+
+def estimate_calls(calls: Sequence[Calls], prices: PriceTable, *, runs: int, basis: str) -> Spend:
+    """Spend for model calls counted up front (testset generation, probes, judges, D48)."""
+    usage = [u for selector, tokens, count in calls for u in _tokens(selector, tokens, count)]
+    return _priced(usage, prices, runs=runs, basis=basis)
+
+
+def _priced(usage: list[UsageRecord], prices: PriceTable, *, runs: int, basis: str = "") -> Spend:
     cost = estimate(SessionId("estimate"), usage, prices)
     unpriced = tuple(dict.fromkeys(_model_of(label) for label in cost.missing_prices))
     return Spend(
-        runs=len(answering),
+        runs=runs,
         eur=cost.marginal_eur,
         unpriced=unpriced,
         price_table_version=cost.price_table_version,
+        **({"basis": basis} if basis else {}),
     )
 
 
@@ -76,6 +91,7 @@ def _tokens(selector: str, per_turn: tuple[int, int], turns: int) -> list[UsageR
             estimated=True,
         )
         for count, direction in zip(per_turn, ("input", "output"), strict=True)
+        if count  # an embedding has no output to price
     ]
 
 

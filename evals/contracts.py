@@ -164,6 +164,20 @@ class RetrievalCase(Frozen):
     kind: Literal["answerable", "unsupported", "leakage"]
     expected_sections: tuple[str, ...] = ()
     expected_facts: tuple[str, ...] = ()
+    reference: str = ""  # answerable: the answer a good probe gives, from the sections (D48)
+    origin: Literal["hand", "ragas"] = "hand"  # ragas: generated, then kept by a person
+
+
+class TestsetCandidate(Frozen):
+    """One question ragas generated, before a person keeps, edits or drops it (D48)."""
+
+    __test__ = False  # not a pytest class
+
+    question: str
+    reference: str
+    chunk_ids: tuple[str, ...]  # "?" for a reference context that is no chunk
+    synthesizer: str
+    persona: str
 
 
 class RagasSample(Frozen):

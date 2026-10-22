@@ -35,6 +35,8 @@ dev = [
     "types-pyyaml>=6.0.12",
     # Evaluation tooling: never imported by src/.
     "ragas>=0.2",
+    # ragas' testset generation links chunks by string overlap (D48).
+    "rapidfuzz>=3",
     # ragas 0.4 imports langchain_community.chat_models.vertexai, gone in 0.4 (D43).
     "langchain-community>=0.3,<0.4",
     "langfuse>=3",

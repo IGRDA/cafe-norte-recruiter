@@ -18,7 +18,7 @@ loads at startup.
 Two modes from the composition root: `CAFE_NORTE_RETRIEVER=lexical` builds the BM25 index
 from `kb/` at startup (no extra, no artifact, the `make run` default); `hybrid` loads the
 artifact and embeds queries with FastEmbed, warmed up before the first request (the image
-default). `make evals-retrieval` runs the 24 fixture questions through either and commits the
+default). `make evals-retrieval` runs the 41 fixture questions through either and commits the
 numbers under `evals/results/retrieval/`.
 
 Retrieved text is reference material for the model, never instructions. A top-ranked chunk is

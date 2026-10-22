@@ -1618,6 +1618,17 @@ confirmation the runtime already took (`already_answered`, D35). ragas ID-based 
 and recall 0.88 on the 16 answerable questions (R07 expects two sections and finds one); the
 floors are set just below.
 
+**The question set (22 October).** ragas generated 33 candidates over the 50 chunks with
+`gpt-4o` (prompts adapted to Spanish; one-word persona names, because the model rewrote
+"Barista con experiencia" as "Experienced Barista" and ragas could not find it). Many carried
+deliberate typos ("Wher is", "Dondé esta"); speech recognition does not misspell, so the kept
+ones were corrected. 15 were kept (R25–R39), two added by hand: 41 cases, 32 answerable (8 per
+language and store), 5 unsupported, 4 leakage. Every answerable case now has a `reference`
+answer and `expected_facts` with `a|b` alternatives, so an English answer can hold a Spanish
+fact. Hybrid recall@3 32/32, ragas ID precision 0.40, recall 0.86; BM25 alone misses only
+English questions. ragas `StringPresence` is not used: it has neither alternatives nor
+normalisation (thousands separators, accents), so fact presence is ours.
+
 **Consequences we accept.** The retrieval rows need the hybrid retriever, so `make check`
 gates the scenario rows and leaves retrieval to its own tests (BM25 alone misses the English
 questions the model would have reformulated). Latency and cost targets are provisional until

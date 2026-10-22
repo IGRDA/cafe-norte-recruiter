@@ -17,7 +17,7 @@
 | Unit and property tests of the domain | pytest, hypothesis | CI |
 | Scenario integrity (S01–S22) against fakes | own runner, deterministic scorers | CI |
 | Scenario behaviour live, candidate simulated | own runner over the HTTP API + `ModelCandidateSimulator` worded from deterministic cues (D43) | local, paid, `--yes` |
-| Retrieval quality (24 questions) | own scorers (recall@3, abstention, leakage) + ragas ID-based context precision/recall (`--ragas`, offline) | local, free |
+| Retrieval quality (41 questions, D48) | own scorers (recall@3, abstention, leakage) + ragas ID-based context precision/recall (`--ragas`, offline) | local, free |
 | Rubric judge | `evals/judge.py` through the `Model` port (`--judge provider/model`) | local, optional |
 | Model comparison (gpt-4.1 vs gpt-4o-mini by default, 24 runs) | own runner on one loopback server per model, same prompt/tools/KB | local, once, `--yes`; summary committed |
 | Voice latency | browser monotonic timings + server stage timings | hosted, by hand, ≥6 sessions |
@@ -49,7 +49,7 @@ cross-store source; no question repeated for an already captured field.
 
 ## What retrieval checks
 
-Recall@3 of expected sections ≥ 90 % on answerable questions; abstention on all four unsupported
+Recall@3 of expected sections ≥ 90 % on answerable questions; abstention on all five unsupported
 questions; zero sources from the other store on the four leakage questions. ragas metrics are
 reported next to these, not instead of them.
 

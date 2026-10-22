@@ -1,7 +1,6 @@
 """Whole-record operations: apply a patch, find what is still unfinished, render the brief."""
 
 import re
-import unicodedata
 from collections.abc import Sequence
 from datetime import date
 
@@ -20,7 +19,7 @@ from cafe_norte.domain.contracts import (
     Unknown,
 )
 from cafe_norte.domain.fields import capture, decline, mark_unknown
-from cafe_norte.domain.numbers import mentions_number
+from cafe_norte.domain.numbers import mentions_number, plain
 from cafe_norte.domain.result import Err, Ok, Result
 
 VALUE_FIELDS: tuple[CandidateFieldName, ...] = (
@@ -155,6 +154,4 @@ def said_in(
 
 
 def _words(text: str) -> str:
-    decomposed = unicodedata.normalize("NFKD", text.casefold())
-    plain = "".join(c for c in decomposed if not unicodedata.combining(c))
-    return " ".join(_NOT_A_WORD.sub(" ", plain).split())
+    return " ".join(_NOT_A_WORD.sub(" ", plain(text)).split())

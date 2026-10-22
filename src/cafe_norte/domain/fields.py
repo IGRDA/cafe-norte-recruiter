@@ -1,6 +1,6 @@
 """Transitions of one collected field. Total functions over ``FieldState[T]``.
 
-Laws (pinned by tests/test_field_algebra.py):
+Laws (pinned by tests/unit/test_field_algebra.py):
 
 * ``capture`` always yields ``Captured`` with the given value, whatever the previous state, so
   a correction after confirmation drops the stale confirmation.

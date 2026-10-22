@@ -4,7 +4,7 @@ do the same work (spec §8, D34)."""
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
 from cafe_norte.domain.contracts import SessionId
@@ -33,6 +33,7 @@ async def purge_periodically(
     days: int,
     interval_seconds: float,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> None:
     """The lifespan task: a purge now, then one every ``interval_seconds`` until cancelled.
     A failure is logged and the next round still comes."""
@@ -43,4 +44,4 @@ async def purge_periodically(
                 log.info("retention: deleted %d expired sessions", len(deleted))
         except Exception:
             log.exception("retention purge failed")
-        await asyncio.sleep(interval_seconds)
+        await sleep(interval_seconds)

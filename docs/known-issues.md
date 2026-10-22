@@ -2,7 +2,7 @@
 
 Problems seen in real calls, documented and reproduced where possible. A fixed entry stays,
 with the decision or commit that fixed it, so the evidence trail is complete. Each entry says what happened, the evidence, the cause, how to reproduce it and
-the fix proposed. A reproduction in `tests/test_known_issues.py` is a strict `xfail`: it fails
+the fix proposed. A reproduction in `tests/component/test_known_issues.py` is a strict `xfail`: it fails
 today, and the commit that fixes the issue removes the marker.
 
 Source of the entries below: the second hosted voice call of 21 October 2026, after the D35
@@ -66,7 +66,7 @@ the session never paused during the call; no model round timed out.
   "Sigue." (or a plain "no" to the offer) confirms it, recorded in the export as `waived`;
   "sí" goes over it in short parts, each with "¿Está bien?", and the yes to the last one
   confirms it as `reviewed`. A cut read-back is never said whole again. `test_ki02_…` replays
-  the call; S21, S22 and `tests/test_readback_matrix.py` cover every kind and cut.
+  the call; S21, S22 and `tests/component/test_readback_matrix.py` cover every kind and cut.
 
 ## KI-03 · "¿Sigues ahí?" while the candidate is speaking
 

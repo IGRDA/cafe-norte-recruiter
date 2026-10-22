@@ -10,7 +10,6 @@ probabilities, the switch applied at the start of the next turn (``fresh_switch`
 import asyncio
 import logging
 import re
-import unicodedata
 from datetime import UTC, datetime, timedelta
 from typing import Literal, get_args
 
@@ -20,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import SignalAnalysis
 from cafe_norte.domain.contracts import Sentiment, Signal, TurnId
+from cafe_norte.domain.numbers import plain
 from cafe_norte.errors import Language, ServiceError
 from cafe_norte.model.contracts import (
     ChoiceAnswer,
@@ -126,9 +126,9 @@ def explicit_controls(text: str) -> frozenset[Control]:
                 match = pattern.search(clause)
                 if match and not _negated(clause[: match.start()]):
                     found.add(control)
-    plain = _plain(text)
+    folded = plain(text)
     for control, pattern in _SWITCHES:
-        if any(not _refused(plain[: m.start()]) for m in pattern.finditer(plain)):
+        if any(not _refused(folded[: m.start()]) for m in pattern.finditer(folded)):
             found.add(control)
     return frozenset(found)
 
@@ -139,14 +139,9 @@ def requested_language(controls: frozenset[Control], current: Language) -> Langu
     return asked.pop() if len(asked) == 1 else current
 
 
-def _plain(text: str) -> str:
-    decomposed = unicodedata.normalize("NFKD", text.casefold())
-    return "".join(c for c in decomposed if not unicodedata.combining(c))
-
-
 def _clauses(text: str) -> list[str]:
-    plain = _plain(text).replace("'", "").replace("’", "")
-    clauses = (" ".join(_NOT_A_WORD.sub(" ", part).split()) for part in _CLAUSE_BREAK.split(plain))
+    folded = plain(text).replace("'", "").replace("’", "")
+    clauses = (" ".join(_NOT_A_WORD.sub(" ", part).split()) for part in _CLAUSE_BREAK.split(folded))
     return [clause for clause in clauses if clause]
 
 

@@ -31,7 +31,7 @@ uv run python -m evals.run --list
 
 Scenarios in fake mode. `S01`–`S11`, `S16`–`S19` replay against the real runtime, handlers,
 domain, memory store and the real `HybridRetriever` over `kb/` with `FakeEmbedder`, driven by
-the scripted `FakeModel`; `tests/test_scenarios.py` parametrizes over the
+the scripted `FakeModel`; `tests/e2e/test_scenarios.py` parametrizes over the
 files, so `make check` and CI fail on a broken scenario with the check named. `make evals
 ARGS="--suite scenarios --mode fake"` is the same replay printed as a table. Every fake run
 carries its `ExportDocument` in `RunRecord.export`; `make export-example` writes S01's to
@@ -93,7 +93,7 @@ is built as well, and the checks move to it when the remaining checks land (D21)
 
 - `contracts.py`: `Scenario`, `RetrievalCase`, `RetrievalRun`/`RetrievalReport`, `ComparisonCase`, `Check`, `RunRecord`, `Report`, and the `Scorer` and `CandidateSimulator` ports.
 - `observation.py`: folds one turn's runtime events into a `TurnObservation` (said, shown, called, failed, usage, timings); the fake replay and the live SSE stream feed the same reducer, and `session_result` assembles what the checks read.
-- `live.py`: `HttpConversation` drives one session through the public API (access, create, one POST per line, the turn's events from SSE resumed by `Last-Event-ID` until it ends, then end, snapshot and export); a turn with no end after 90 s is reported as `no_turn_end`. `drive` runs Ana's opening and then asks a `Candidate` (scripted lines or the simulator) for each next line until it has none, the session leaves `active`, or 24 lines were said. `serve` runs an app on `127.0.0.1` with a free port, so a comparison builds one app per model; `tests/test_eval_loopback.py` replays S03 that way and gets the fake mode's verdicts.
+- `live.py`: `HttpConversation` drives one session through the public API (access, create, one POST per line, the turn's events from SSE resumed by `Last-Event-ID` until it ends, then end, snapshot and export); a turn with no end after 90 s is reported as `no_turn_end`. `drive` runs Ana's opening and then asks a `Candidate` (scripted lines or the simulator) for each next line until it has none, the session leaves `active`, or 24 lines were said. `serve` runs an app on `127.0.0.1` with a free port, so a comparison builds one app per model; `tests/http/test_eval_loopback.py` replays S03 that way and gets the fake mode's verdicts.
 - `spend.py`: what a paid command will cost before it spends: synthetic usage from the per-turn assumptions in `docs/architecture.md`, priced by `observability.cost.estimate` with the export's own table; a model with no price is named, never counted as free.
 - `retrieval.py`: the retrieval suite: fixture questions through a retriever, recall@3, leakage, timings; one committed JSON per embedding model and KB version.
 - `runner.py`: loads cases, drives a session through the HTTP API (live) or the runtime with fakes (CI), collects the export and timings, applies scorers, writes a report with a `VersionStamp`.

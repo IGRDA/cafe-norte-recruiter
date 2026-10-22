@@ -62,7 +62,7 @@ def system_message(
             "shifts": [
                 {
                     "id": s.shift_id,
-                    "label": s.label[state.language],
+                    "label": s.label_in(state.language),
                     "hours": f"{s.starts}-{s.ends}",
                 }
                 for s in configuration.shifts

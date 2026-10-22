@@ -151,8 +151,13 @@ def stability(predictions: Sequence[SignalPrediction]) -> Ratio | None:
 
 
 def _other(case: SignalCase, prediction: SignalPrediction) -> float:
-    other = "en" if case.session_language == "es" else "es"
-    return prediction.language_probabilities.get(other, 0.0)
+    """The probability of answering in some other language: the top one that is not the
+    session's (D63; with two languages, the other one)."""
+    probabilities = prediction.language_probabilities
+    others = (
+        p for code, p in probabilities.items() if code not in (case.session_language, "other")
+    )
+    return max(others, default=0.0)
 
 
 def _row(threshold: float, outcomes: Sequence[tuple[bool, bool]]) -> ThresholdRow:

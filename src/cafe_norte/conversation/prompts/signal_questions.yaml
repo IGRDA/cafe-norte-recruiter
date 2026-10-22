@@ -11,18 +11,30 @@ sentiment:
     positive: Clear enthusiasm or thanks.
     frustrated: Annoyance, impatience, sarcasm, or feeling misunderstood or made to repeat.
     uncertain: Hesitation, doubt or confusion about what to answer.
-# Relative to the session, not "es"/"en": a decision about the conversation, which Jev reads
-# better (indirect requests went from 8/38 missed to 0/38 on the dev set).
-language:
+# Which language Ana should write her next reply in (D63): one option per language Ana can
+# answer in, plus `other`. The runtime takes the top option at p >= 0.7 when it is not the
+# session language. Keeping session_language is the ordinary answer: a mention of a language
+# (asks if it is needed for the job, says they studied it), a refused switch, or a borrowed
+# word or two never leave it. A switch is asked for, said to be needed (the candidate cannot
+# speak, understand or follow session_language well), or shown by a whole message written
+# in the other language.
+reply_language:
   instructions: >-
-    Whether Ana should keep session_language for her next reply or switch to the other
-    language (es is Spanish, en is English), from candidate_said.
+    The language Ana should write her next reply in, from candidate_said. session_language is
+    the language of the conversation so far: it is the answer unless candidate_said asks to
+    continue in another language, says the candidate cannot speak, understand or follow
+    session_language well, or is written entirely in another language. Naming a language
+    without asking for it, turning down a switch, or a borrowed word or two keep
+    session_language.
   criteria:
-    keep: >-
-      An ordinary reply in session_language; or names a language without asking to leave
-      session_language (asks if it is needed for the job, says they studied it); or turns down
-      a switch; or uses a borrowed word or two from the other language.
-    switch: >-
-      Asks to continue in the other language; or says the candidate cannot speak, understand
-      or follow session_language well, or only speaks the other language; or is written
-      entirely in the other language.
+    es: Spanish (español).
+    en: English.
+    fr: French (français).
+    pt: Portuguese (português).
+    it: Italian (italiano).
+    de: German (Deutsch).
+    ro: Romanian (română).
+    ar: Arabic (العربية).
+    zh: Chinese (中文).
+    uk: Ukrainian (українська).
+    other: A language not listed, or impossible to tell from candidate_said.

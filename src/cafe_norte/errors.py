@@ -6,7 +6,11 @@ never reaches a candidate, a log line or a trace by accident."""
 
 from typing import Literal
 
-Language = Literal["es", "en"]
+# The ten languages Ana answers in (D63). ``TABLED`` are the two with reviewed word-for-word
+# texts and the only ones evaluated; the rest are wired and untested.
+Language = Literal["es", "en", "fr", "pt", "it", "de", "ro", "ar", "zh", "uk"]
+SWITCHABLE: tuple[Language, ...] = ("es", "en", "fr", "pt", "it", "de", "ro", "ar", "zh", "uk")
+TABLED: frozenset[Language] = frozenset({"es", "en"})
 
 ErrorCode = Literal[
     "busy",  # admission or budget limit reached; retry later
@@ -23,6 +27,7 @@ ErrorCode = Literal[
     "internal_error",
 ]
 
+# Public messages exist for the tabled languages; any other language gets the English one.
 MESSAGES: dict[Language, dict[ErrorCode, str]] = {
     "es": {
         "busy": "Ahora mismo no hay plazas libres. Inténtalo de nuevo en unos minutos.",
@@ -63,4 +68,4 @@ class ServiceError(Exception):
         self.code = code
 
     def public_message(self, language: Language) -> str:
-        return MESSAGES[language][self.code]
+        return MESSAGES[language if language in TABLED else "en"][self.code]

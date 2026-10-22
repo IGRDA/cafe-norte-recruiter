@@ -189,7 +189,7 @@ def _shifts(
     shift_ids: frozenset[str], configuration: StoreConfiguration, language: Language
 ) -> str:
     """Store labels in the store's order; an id the store no longer has is shown as is."""
-    labelled = [s.label[language] for s in configuration.shifts if s.shift_id in shift_ids]
+    labelled = [s.label_in(language) for s in configuration.shifts if s.shift_id in shift_ids]
     known = {s.shift_id for s in configuration.shifts}
     return _join(labelled + sorted(shift_ids - known), _texts(language))
 

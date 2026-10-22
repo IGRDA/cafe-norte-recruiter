@@ -658,7 +658,15 @@
           "items": {
             "enum": [
               "es",
-              "en"
+              "en",
+              "fr",
+              "pt",
+              "it",
+              "de",
+              "ro",
+              "ar",
+              "zh",
+              "uk"
             ],
             "type": "string"
           },
@@ -988,7 +996,15 @@
         "language": {
           "enum": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "type": "string"
         },
@@ -1433,7 +1449,15 @@
         "language": {
           "enum": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "type": "string"
         },
@@ -1632,7 +1656,15 @@
             {
               "enum": [
                 "es",
-                "en"
+                "en",
+                "fr",
+                "pt",
+                "it",
+                "de",
+                "ro",
+                "ar",
+                "zh",
+                "uk"
               ],
               "type": "string"
             },
@@ -1689,12 +1721,6 @@
         "language": {
           "additionalProperties": {
             "type": "number"
-          },
-          "propertyNames": {
-            "enum": [
-              "keep",
-              "switch"
-            ]
           },
           "type": "object"
         }
@@ -1940,7 +1966,15 @@
             {
               "enum": [
                 "es",
-                "en"
+                "en",
+                "fr",
+                "pt",
+                "it",
+                "de",
+                "ro",
+                "ar",
+                "zh",
+                "uk"
               ],
               "type": "string"
             },
@@ -2137,7 +2171,15 @@
         "language": {
           "enum": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "type": "string"
         },
@@ -2237,7 +2279,15 @@
         "language": {
           "enum": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "type": "string"
         },

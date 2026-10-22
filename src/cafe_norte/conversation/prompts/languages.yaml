@@ -1,0 +1,14 @@
+# The languages Ana answers in (D63): the native name goes into the system prompt's closing
+# line and the page's chooser; `names` are the words an explicit request may use
+# (`signals.explicit_controls`), in Spanish and English plus the native one when it is
+# written in Latin letters; `rtl` sets the page's text direction.
+es: {native: español, english: Spanish, names: [español, castellano, spanish], rtl: false}
+en: {native: English, english: English, names: [inglés, english], rtl: false}
+fr: {native: français, english: French, names: [francés, french, français], rtl: false}
+pt: {native: português, english: Portuguese, names: [portugués, portuguese, português], rtl: false}
+it: {native: italiano, english: Italian, names: [italiano, italian], rtl: false}
+de: {native: Deutsch, english: German, names: [alemán, german, deutsch], rtl: false}
+ro: {native: română, english: Romanian, names: [rumano, romanian, română], rtl: false}
+ar: {native: العربية, english: Arabic, names: [árabe, arabic], rtl: true}
+zh: {native: 中文, english: Chinese, names: [chino, chinese, mandarín, mandarin], rtl: false}
+uk: {native: українська, english: Ukrainian, names: [ucraniano, ukrainian], rtl: false}

@@ -25,15 +25,14 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from cafe_norte.conversation.prompts import PROMPT_VERSION
 from cafe_norte.conversation.signals import (
     QUESTIONS,
-    LanguageMove,
     ModelSignalAnalyzer,
+    chosen_language,
     decision_state,
     explicit_controls,
-    reply_language,
     requested_language,
 )
 from cafe_norte.domain.contracts import Sentiment, SessionId, TurnId
-from cafe_norte.errors import Language, ServiceError
+from cafe_norte.errors import SWITCHABLE, Language, ServiceError
 from cafe_norte.model.chat_completions import ChatCompletionsModel
 from cafe_norte.model.contracts import DecisionModel, Model, ModelMessage, ModelText, ModelUsage
 from cafe_norte.model.decisions import JEV_MODEL, DecisionsModel
@@ -76,10 +75,6 @@ def load_cases(path: Path = FIXTURE, only: Sequence[str] = ()) -> list[SignalCas
 def state_of(case: SignalCase) -> dict[str, str]:
     """What Jev and the ``llm`` system read: the same three facts."""
     return decision_state(case.session_language, case.ana, case.text)
-
-
-def reply_of(case: SignalCase, move: LanguageMove) -> Language:
-    return reply_language(case.session_language, move)
 
 
 def llm_prompt() -> str:
@@ -151,7 +146,12 @@ class _Answer(BaseModel):
     model_config = ConfigDict(frozen=True, extra="ignore")
 
     sentiment: Sentiment
-    language: LanguageMove
+    reply_language: str
+
+
+def _named(code: str, current: Language) -> Language:
+    """A chat model's answer is a code or noise; only a language Ana answers in counts."""
+    return next((c for c in SWITCHABLE if c == code), current)
 
 
 class LlmClassifier:
@@ -193,7 +193,7 @@ class LlmClassifier:
             system=self.system,
             repetition=repetition,
             sentiment=answer.sentiment if answer else None,
-            reply_language=reply_of(case, answer.language) if answer else None,
+            reply_language=_named(answer.reply_language, case.session_language) if answer else None,
             milliseconds=_since(started),
             cost_eur=_eur(self._prices, self.model, usage),
             error=error,
@@ -222,18 +222,15 @@ class JevClassifier:
                 error=failure.code,
             )
         sentiment = decision.answers["sentiment"]
-        language = decision.answers["language"]  # the adapter checked both against the criteria
+        language = decision.answers["reply_language"]  # the adapter checked it against the criteria
         return SignalPrediction(
             case_id=case.id,
             system=self.system,
             repetition=repetition,
             sentiment=sentiment.choice,
             sentiment_probabilities=sentiment.probabilities,
-            reply_language=reply_of(case, "switch" if language.choice == "switch" else "keep"),
-            language_probabilities={
-                reply_of(case, "keep"): language.probabilities.get("keep", 0.0),
-                reply_of(case, "switch"): language.probabilities.get("switch", 0.0),
-            },
+            reply_language=chosen_language(language.probabilities, case.session_language),
+            language_probabilities=dict(language.probabilities),
             milliseconds=_since(started),
             cost_eur=_eur(
                 self._prices,

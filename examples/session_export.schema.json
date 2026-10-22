@@ -1284,7 +1284,15 @@
             {
               "enum": [
                 "es",
-                "en"
+                "en",
+                "fr",
+                "pt",
+                "it",
+                "de",
+                "ro",
+                "ar",
+                "zh",
+                "uk"
               ],
               "type": "string"
             },
@@ -1343,12 +1351,6 @@
         "language": {
           "additionalProperties": {
             "type": "number"
-          },
-          "propertyNames": {
-            "enum": [
-              "keep",
-              "switch"
-            ]
           },
           "title": "Language",
           "type": "object"
@@ -1512,7 +1514,15 @@
         "language": {
           "enum": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "title": "Language",
           "type": "string"

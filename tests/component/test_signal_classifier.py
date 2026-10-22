@@ -91,16 +91,17 @@ async def test_a_verdict_reports_the_tokens_it_cost_whether_or_not_it_is_a_signa
 # ---- the decision-model analyzer (D52) -----------------------------------------------------------
 
 
-def decision(sentiment: str, p_sentiment: float, p_switch: float) -> Decision:
+def decision(sentiment: str, p_sentiment: float, p_switch: float, *, to: str = "en") -> Decision:
+    """A verdict on a Spanish session: ``p_switch`` goes to ``to``, the rest stays Spanish."""
     rest = {s: 0.0 for s in ("neutral", "positive", "frustrated", "uncertain")}
     return Decision(
         answers={
             "sentiment": ChoiceAnswer(
                 choice=sentiment, probabilities=rest | {sentiment: p_sentiment}
             ),
-            "language": ChoiceAnswer(
-                choice="switch" if p_switch >= 0.5 else "keep",
-                probabilities={"keep": 1 - p_switch, "switch": p_switch},
+            "reply_language": ChoiceAnswer(
+                choice=to if p_switch >= 0.5 else "es",
+                probabilities={"es": 1 - p_switch, to: p_switch},
             ),
         },
         model_id="typesafe/jev-1.14-20261014",
@@ -142,7 +143,7 @@ async def test_the_probabilities_travel_with_the_verdict() -> None:
     assert analysis.signal is not None and analysis.signal.probabilities is not None
     assert analysis.signal.sentiment == "neutral"  # below the threshold, as before
     assert analysis.signal.probabilities.sentiment["frustrated"] == 0.45
-    assert analysis.signal.probabilities.language == {"keep": 0.75, "switch": 0.25}
+    assert analysis.signal.probabilities.language == {"es": 0.75, "en": 0.25}
 
 
 def test_a_signal_journaled_before_the_probabilities_still_loads() -> None:
@@ -162,6 +163,19 @@ async def test_below_the_thresholds_nothing_is_suggested() -> None:
     assert analysis.signal is not None
     assert (analysis.signal.sentiment, analysis.signal.language_switch_to) == ("neutral", None)
     assert analysis.signal.evidence_text == ""
+
+
+async def test_the_top_language_is_any_of_the_ten_and_other_never_switches() -> None:
+    """D63: the question names the language; a session can move to French at 0.7, and an
+    unlisted language keeps the session's."""
+    french, _ = await decide(decision("neutral", 1.0, 0.9, to="fr"), text="Je ne parle pas.")
+    assert french.signal is not None and french.signal.language_switch_to == "fr"
+    unsure, _ = await decide(decision("neutral", 1.0, 0.6, to="fr"), text="Un peu.")
+    assert unsure.signal is not None and unsure.signal.language_switch_to is None
+    other, _ = await decide(decision("neutral", 1.0, 0.95, to="other"), text="नमस्ते")
+    assert other.signal is not None and other.signal.language_switch_to is None
+    assert other.signal.probabilities is not None
+    assert other.signal.probabilities.language == pytest.approx({"es": 0.05, "other": 0.95})
 
 
 async def test_an_explicit_request_wins_over_the_decision() -> None:

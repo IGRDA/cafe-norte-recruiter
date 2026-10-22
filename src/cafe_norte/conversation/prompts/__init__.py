@@ -2,16 +2,38 @@
 
 from pathlib import Path
 
-from cafe_norte.errors import Language
+import yaml
+from pydantic import BaseModel, ConfigDict
 
-PROMPT_VERSION = "ana_v23"
+from cafe_norte.errors import TABLED, Language
+
+PROMPT_VERSION = "ana_v24"
 PROMPTS_DIR = Path(__file__).parent
 
 
 def load(name: str, language: Language | None = None) -> str:
-    """Read ``<name>.<language>.md`` for candidate-facing text, ``<name>.md`` otherwise."""
+    """Read ``<name>.<language>.md`` for candidate-facing text, ``<name>.md`` otherwise. A
+    language without reviewed texts reads the English file: the source the runtime has the
+    model word in the session language (D63)."""
+    if language is not None and language not in TABLED:
+        language = "en"
     stem = name if language is None else f"{name}.{language}"
     return (PROMPTS_DIR / f"{stem}.md").read_text(encoding="utf-8")
+
+
+class LanguageInfo(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    native: str
+    english: str
+    names: tuple[str, ...]
+    rtl: bool
+
+
+def languages() -> dict[Language, LanguageInfo]:
+    """``languages.yaml``: what the prompt, the patterns and the page know about each one."""
+    raw = yaml.safe_load((PROMPTS_DIR / "languages.yaml").read_text("utf-8"))
+    return {code: LanguageInfo.model_validate(info) for code, info in raw.items()}
 
 
 def table(name: str, language: Language) -> dict[str, str]:

@@ -25,7 +25,7 @@ the session never paused during the call; no model round timed out.
 | KI-06 | Choosing an interview slot loops and never books | High | `test_ki06_…`, S20 | **fixed (D41)** |
 | KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | `test_ki07_…` | **fixed (D44)** |
 | KI-08 | Wasted model rounds add latency | Low | `test_ki08_…` (two) | **fixed (D44)** |
-| KI-09 | A mention or a refusal of a language switches it; a frustrated request does not | Medium | `test_ki09_…` (four), the signals suite | open: the D28 pattern list |
+| KI-09 | A mention or a refusal of a language switches it; a frustrated request does not | Medium | `test_ki09_…` (four), the signals suite | **fixed (D52)** |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -174,4 +174,9 @@ the session never paused during the call; no model round timed out.
   speak Spanish" is read as a request for Spanish.
 - **Fix proposed.** Decided by the Jev experiment: more anchored phrases and negations, or a
   classifier beside the turn (`evals/signals.py`).
+- **Fixed (D52).** "speak"/"hablar" before a language count only after a request word ("can we",
+  "rather", "puedes", "prefiero"), and a negation up to six words before a language request, in
+  its clause, turns it down. The regex now makes no false switch on either signals set (0/95
+  dev, 0/59 held-out, one repetition); the indirect requests it still misses (6/19, 9/18) are
+  what the Jev analyzer is for (D52).
 

@@ -3,7 +3,7 @@
 Each test reproduces one problem offline and is marked ``xfail(strict=True)``: it fails today,
 as it should, and the suite stays green. The fix makes it pass, strict xfail then fails the
 suite, and the marker comes off in the same commit as the fix. KI-03, KI-04 and KI-05 are fixed
-(D40), KI-06 (D41), KI-01 and KI-02 (D39), KI-07 and KI-08 (D44); their tests stay as
+(D40), KI-06 (D41), KI-01 and KI-02 (D39), KI-07 and KI-08 (D44), KI-09 (D52); their tests stay as
 regression guards.
 """
 
@@ -227,7 +227,6 @@ async def test_ki08_a_confirm_in_the_turn_of_the_read_back_ends_the_turn() -> No
     assert len(h.model.calls) == 2
 
 
-@pytest.mark.xfail(strict=True, reason="KI-09: open")
 @pytest.mark.parametrize(
     ("text", "session", "expected"),
     [

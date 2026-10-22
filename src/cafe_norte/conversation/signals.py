@@ -72,23 +72,33 @@ _NEGATIONS = frozenset({"no", "nunca", "not", "dont", "never"})
 _NEGATION_WINDOW = 3  # words before a match that can negate it ("no quiero hablar con…")
 
 # An explicit language request names the language with a request word around it; a bare
-# borrowed word ("Starbucks", "I studied English") never matches. Matched on the whole text
-# in lower case without accents, so "English, please" keeps its comma.
+# borrowed word ("Starbucks", "I studied English") never matches, and "speak"/"hablar" count
+# only after a request word ("can we speak English", "puedes hablar español"), so "do I need
+# to speak Spanish" and "I don't speak Spanish" are not requests (KI-09). Matched on the whole
+# text in lower case without accents, so "English, please" keeps its comma.
 _EN = r"english(?![\w-])"
 _ES = r"(?:spanish|espanol|castellano)(?![\w-])"
+_SPEAK = r"(?:(?:can|could) (?:we|you)|rather|prefer to|lets|let us) speak"
+_HABLAR = r"(?:podemos|puedes|podrias|prefiero|quiero) hablar(?: en)?"
 _SWITCHES: tuple[tuple[Control, re.Pattern[str]], ...] = (
     (
         "switch_en",
         re.compile(
-            rf"\b(?:(?:in|into|to|speak) {_EN}|{_EN},? please|en ingles\b"
-            r"|hablar? ingles\b|ingles,? por favor)"
+            rf"\b(?:(?:in|into|to) {_EN}|{_SPEAK} {_EN}|{_EN},? please|en ingles\b"
+            rf"|{_HABLAR} ingles\b|hablame (?:en )?ingles\b|ingles,? por favor)"
         ),
     ),
     (
         "switch_es",
-        re.compile(rf"\b(?:(?:in|into|to|speak|en|hablar?) {_ES}|{_ES},? (?:please|por favor))"),
+        re.compile(
+            rf"\b(?:(?:in|into|to|en) {_ES}|{_SPEAK} {_ES}|{_HABLAR} {_ES}"
+            rf"|hablame {_ES}|{_ES},? (?:please|por favor))"
+        ),
     ),
 )
+# A language request turned down ("no need to switch to Spanish", "no hace falta que me hables
+# en inglés"): a negation up to this many words before the match, within its clause.
+_LANGUAGE_NEGATION_WINDOW = 6
 _SWITCH_TO: dict[Control, Language] = {"switch_es": "es", "switch_en": "en"}
 
 
@@ -97,7 +107,7 @@ def explicit_controls(text: str) -> frozenset[Control]:
 
     Each clause is matched on its own for stop and human requests, so "No, quiero hablar con
     una persona" is a request and "no quiero hablar con una persona" is not. Language requests
-    are matched on the whole text."""
+    are matched on the whole text, and one turned down in its own clause does not count."""
     found: set[Control] = set()
     for clause in _clauses(text):
         for patterns in _PATTERNS.values():
@@ -106,7 +116,9 @@ def explicit_controls(text: str) -> frozenset[Control]:
                 if match and not _negated(clause[: match.start()]):
                     found.add(control)
     plain = _plain(text)
-    found.update(control for control, pattern in _SWITCHES if pattern.search(plain))
+    for control, pattern in _SWITCHES:
+        if any(not _refused(plain[: m.start()]) for m in pattern.finditer(plain)):
+            found.add(control)
     return frozenset(found)
 
 
@@ -129,6 +141,13 @@ def _clauses(text: str) -> list[str]:
 
 def _negated(before: str) -> bool:
     return not _NEGATIONS.isdisjoint(before.split()[-_NEGATION_WINDOW:])
+
+
+def _refused(before: str) -> bool:
+    """A negation in the words just before a language request, in the same clause."""
+    clause = _CLAUSE_BREAK.split(before.replace("'", "").replace("’", ""))[-1]
+    words = _NOT_A_WORD.sub(" ", clause).split()
+    return not _NEGATIONS.isdisjoint(words[-_LANGUAGE_NEGATION_WINDOW:])
 
 
 # ---- a farewell (D46) ----------------------------------------------------------------------------

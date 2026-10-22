@@ -68,8 +68,9 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Voice: filler while a tool runs | after 1.5 s in which the candidate heard nothing (D40) |
 | Voice: bot join timeout | 15 s |
 | Voice: wait for the candidate after the bot joins | 30 s, then the call ends and its place is released (D55) |
-| Voice: end of the candidate's turn | when the smart-turn model hears a finished sentence (0.2 s of VAD silence, then the final transcript); 2.0 s of silence when it sounds unfinished (D49). A transcript can start a turn when VAD misses it (D35) |
-| Voice: a cut answer joined to the next words | when none of the cut turn's answer was heard (the filler aside) and the next transcript comes within 5 s of it (D44) |
+| Voice: end of the candidate's turn | when the smart-turn model hears a finished sentence (0.5 s of VAD silence, then the final transcript, D57); 2.0 s of silence when it sounds unfinished (D49) |
+| Voice: start of the candidate's turn | on a transcript, so a soft "sí" VAD misses counts (D35); while Ana speaks, 2 words to cut her off (D57) |
+| Voice: a cut answer joined to the next words | when none of the cut turn's answer was heard (the filler aside) and the candidate speaks again within 5 s of it, however long they then talk (D44, D57); the cut part then appears once in the model's history |
 | Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
 | Voice: speech synthesis | ElevenLabs `eleven_v4_turbo` over HTTP, one request per sentence; stability 0.4, similarity 0.8, style 0.2 (D48) |

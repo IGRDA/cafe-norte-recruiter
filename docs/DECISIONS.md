@@ -1996,3 +1996,34 @@ slots again.
   The read-back that follows is still exact.
 - An offer made with the brief can go stale during a long questions phase. A past or taken slot
   is refused at the read-back with the remaining options.
+
+## D57 · Ana waits half a second after a finished sentence and needs two words to be cut off
+
+_Added 22 October 2026, after the hosted voice call of 11:30 UTC (KI-12)._
+
+**Context.** With D49, a sentence the smart-turn model judged finished ended after Pipecat's
+default 0.2 s of VAD silence, and any 0.2 s of voice started a turn and cancelled the one
+running. In Ignacio's call 12 of 32 turns were cancelled; he said Ana interrupted him. Three
+cut parts were lost from the join (D44), because the window ran until the continuation's
+final transcript, and the model saw each joined fragment twice.
+
+**Decisions.**
+- `vad_params()`: `stop_secs` 0.5 s (`FINISHED_TURN_SILENCE_SECONDS`). The smart-turn model judges
+  after it; an unfinished sentence still waits up to 2.0 s (D49). Chosen between "now" and a
+  slower 0.8 s: about 0.3 s more per turn. Raise to 0.7 s only if Langfuse still shows cuts.
+- A turn starts on a transcript (`MinWordsUserTurnStartStrategy`): a soft "sí" VAD misses
+  still counts (D35), and while Ana speaks it takes two words (`BARGE_IN_WORDS`) to cut her, so a
+  cough or an "mhm" does not. Pipecat counts one word while she is silent.
+- The join window is the pause: it is checked when the candidate speaks again (the
+  interruption), and the continuation may then last as long as it takes.
+- `history_messages` drops a candidate's words that the next user turn repeats in full, the
+  current one included: the joined fragment appears once.
+
+**Rejected.** Turning barge-in off while Ana speaks (no correction mid-sentence, and D48's
+hang-up on a talked-over goodbye changes); 0.8 s or more (slower on every turn to fix the
+breaths of some); a runtime that rolls back what a cancelled turn already saved (a bigger
+change; rarer now).
+
+**Consequences we accept.** About 0.3 s more after every finished sentence. A one-word answer
+over Ana ("no") waits until she stops. Barge-in now waits for the first interim transcript
+instead of VAD, a few hundred milliseconds later.

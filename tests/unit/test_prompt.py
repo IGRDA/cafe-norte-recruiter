@@ -1,20 +1,25 @@
 """Prompt building and the sentence splitting a streamed answer goes through."""
 
+import uuid
+from typing import Literal
+
 from hypothesis import given
 from hypothesis import strategies as st
 
 from cafe_norte.conversation.prompt import (
     clean_sentence,
     conversation_tail,
+    history_messages,
     offer_facts,
     sentences,
     split_sentences,
     tool_message,
 )
 from cafe_norte.domain.calendar import interview_slots
-from cafe_norte.domain.contracts import OfferedSlot, SlotOffer
+from cafe_norte.domain.contracts import InputId, OfferedSlot, SlotOffer, TurnId
 from cafe_norte.model.contracts import ModelMessage
-from tests.support.builders import CONFIG, NOW, session_state
+from cafe_norte.persistence.contracts import TurnRecord
+from tests.support.builders import CONFIG, NOW, SID, session_state
 
 
 def test_sentences_split_at_an_opening_mark_or_capital_without_a_space() -> None:
@@ -99,3 +104,42 @@ def test_the_offer_is_in_the_facts_by_number_and_time_never_by_id() -> None:
     assert offer_facts(state.model_copy(update={"slot_offer": None}), CONFIG) is None
     unsettled = state.model_copy(update={"brief_confirmed_revision": None})
     assert offer_facts(unsettled, CONFIG) is None  # a correction voids the brief and the offer
+
+
+def turn(role: Literal["user", "assistant"], text: str) -> TurnRecord:
+    return TurnRecord(
+        turn_id=TurnId(uuid.uuid4().hex),
+        session_id=SID,
+        input_id=InputId("i"),
+        role=role,
+        channel="voice",
+        language="es",
+        text=text,
+        started_at=NOW,
+    )
+
+
+def test_a_fragment_joined_into_the_next_turn_is_not_said_twice() -> None:
+    """Ignacio's call: the model saw "user: …mala reputación," and then the same words with the
+    rest. A pause cut the answer, the voice side joined it (D44), and both stayed in history."""
+    turns = (
+        turn("assistant", "¿Tienes permiso de trabajo?"),
+        turn("user", "Sí, anótalo y esto no es lo que había hablado con él,"),
+        turn("assistant", ""),  # the interrupted answer: nothing was said
+        turn("user", "Sí, anótalo y esto no es lo que había hablado con él, estoy mosqueado."),
+        turn("user", "Vale."),
+    )
+    assert [m.content for m in history_messages(turns)] == [
+        "¿Tienes permiso de trabajo?",
+        "Sí, anótalo y esto no es lo que había hablado con él, estoy mosqueado.",
+        "Vale.",
+    ]
+    # Most often the joined words are the turn being answered now, not yet in history.
+    cut = turns[:3]
+    full = turns[3].text
+    assert [m.content for m in history_messages(cut, full)] == ["¿Tienes permiso de trabajo?"]
+    assert len(history_messages(cut, "Otra cosa.")) == 2  # different words are kept
+
+
+def test_an_empty_history_is_empty() -> None:
+    assert history_messages((), "Hola.") == ()

@@ -159,9 +159,18 @@ def field_status(candidate: CandidateRecord) -> dict[str, str]:
     return {name: str(getattr(candidate, name).status) for name in VALUE_FIELDS}
 
 
-def history_messages(turns: tuple[TurnRecord, ...]) -> tuple[ModelMessage, ...]:
+def history_messages(
+    turns: tuple[TurnRecord, ...], user_text: str = ""
+) -> tuple[ModelMessage, ...]:
+    """What was said, in order, before ``user_text``. A candidate's words cut by a pause and
+    said again in full in the next turn (the voice side joins them, D44) appear once, in full
+    (D57)."""
+    said = [(turn.role, turn.text) for turn in turns if turn.text.strip()]
+    following = [*said[1:], ("user", user_text)] if said else []
     return tuple(
-        ModelMessage(role=turn.role, content=turn.text) for turn in turns if turn.text.strip()
+        ModelMessage(role=role, content=text)
+        for (role, text), (next_role, next_text) in zip(said, following, strict=True)
+        if not (role == "user" and next_role == "user" and next_text.startswith(text))
     )
 
 
@@ -175,7 +184,7 @@ def build_messages(
 ) -> tuple[ModelMessage, ...]:
     return (
         system_message(configuration, state, today, hints),
-        *history_messages(history),
+        *history_messages(history, user_text),
         ModelMessage(role="user", content=user_text),
     )
 

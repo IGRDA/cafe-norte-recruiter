@@ -28,6 +28,7 @@ the session never paused during the call; no model round timed out.
 | KI-09 | A mention or a refusal of a language switches it; a frustrated request does not | Medium | `test_ki09_…` (four), the signals suite | **fixed (D52)** |
 | KI-10 | No interview time is ever said: the model promises them and calls no tool | High | S28 | **fixed (D56)** |
 | KI-11 | An invented slot id makes the whole list be said again, up to four times | High | S29, `test_a_wrong_choice_…` | **fixed (D56)** |
+| KI-12 | Ana cuts the candidate off when they take a breath mid-sentence | High | `test_a_finished_sentence_…`, `test_a_long_continuation_…`, `test_a_fragment_joined_…` | **fixed (D57)**, to confirm by voice |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -223,3 +224,18 @@ the session never paused during the call; no model round timed out.
   - A day not on offer offered and its slot read back in the same turn.
 
   S29 replays it with a model that invents an id.
+
+## KI-12 · Ana cuts the candidate off when they take a breath mid-sentence
+
+- **Found in** the hosted voice call of 22 October 2026, 11:30 UTC (session `14648365…`, gpt-4.1,
+  smart turn of D49), and the candidate's own account: "cuando hablaba, Ana me interrumpía".
+- **What happens.** 12 of 32 turns were cancelled with `interrupted`. "Sí, soy español, pero lo
+  que quiero saber es" ended a turn; the rest of the sentence cancelled it. Three of the cut
+  parts were not joined, because the rest took longer than 5 s to finish, and the model saw
+  them twice ("user: …mala reputación," then the whole sentence).
+- **Cause.** A sentence that sounds finished ended after Pipecat's 0.2 s of VAD silence; any
+  0.2 s of voice started a turn and cancelled the running one; the join window ran to the end
+  of the continuation, not to its start; a joined fragment stayed in history.
+- **Fixed (D57).** 0.5 s of silence after a finished-sounding sentence; turns start on words,
+  two while Ana speaks; the window counts the pause; the fragment leaves the history. To be
+  confirmed by voice on the hosted demo.

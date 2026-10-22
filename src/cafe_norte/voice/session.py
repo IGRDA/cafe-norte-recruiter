@@ -128,7 +128,7 @@ class VoiceSession:
         turn = TurnInput(
             session_id=self._session_id,
             input_id=InputId(uuid.uuid4().hex),
-            text=self._joined(text, received_at),
+            text=self._joined(text),
             channel="voice",
             received_at=received_at,
         )
@@ -152,7 +152,13 @@ class VoiceSession:
         self._cancel_filler()
         task, self._turn_task = self._turn_task, None
         if task is not None and not task.done():
-            self._carry = self._turn_input if self._nothing_heard() else None
+            # The window is the pause: from the cut words to the moment the candidate speaks
+            # again, which is now. However long they then talk, the two are one answer (D57).
+            carry = self._turn_input if self._nothing_heard() else None
+            within = carry is not None and (
+                (self._clock() - carry.received_at).total_seconds() <= self.join_window_seconds
+            )
+            self._carry = carry if within else None
             task.cancel()
             try:
                 await task
@@ -239,15 +245,11 @@ class VoiceSession:
         text, _ = heard(self._ledger)
         return text in ("", self._texts.filler)
 
-    def _joined(self, text: str, received_at: datetime) -> str:
-        """The words of a turn cut before its answer was heard, then these, when they come
-        within the join window; the cut part is used once (D44)."""
+    def _joined(self, text: str) -> str:
+        """The words of a turn cut before its answer was heard, then these, when the candidate
+        spoke again within the join window; the cut part is used once (D44, D57)."""
         carry, self._carry = self._carry, None
-        if carry is None:
-            return text
-        if (received_at - carry.received_at).total_seconds() > self.join_window_seconds:
-            return text
-        return f"{carry.text} {text}"
+        return text if carry is None else f"{carry.text} {text}"
 
     async def _hang_up(self) -> None:
         """The goodbye has played: Ana leaves the call herself, once, so it is never cut."""

@@ -8,31 +8,37 @@ pytest.importorskip("pipecat")
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import (  # noqa: E402
     LocalSmartTurnAnalyzerV3,
 )
-from pipecat.turns.user_start.transcription_user_turn_start_strategy import (  # noqa: E402
-    TranscriptionUserTurnStartStrategy,
-)
-from pipecat.turns.user_start.vad_user_turn_start_strategy import (  # noqa: E402
-    VADUserTurnStartStrategy,
+from pipecat.turns.user_start.min_words_user_turn_start_strategy import (  # noqa: E402
+    MinWordsUserTurnStartStrategy,
 )
 from pipecat.turns.user_stop.turn_analyzer_user_turn_stop_strategy import (  # noqa: E402
     TurnAnalyzerUserTurnStopStrategy,
 )
 
 from cafe_norte.voice.pipeline import (  # noqa: E402
+    BARGE_IN_WORDS,
+    FINISHED_TURN_SILENCE_SECONDS,
     UNFINISHED_TURN_SILENCE_SECONDS,
     pipeline_params,
     stt_settings,
     user_turn_strategies,
+    vad_params,
 )
 
 
-def test_a_transcript_can_start_a_turn_when_vad_misses_a_soft_answer() -> None:
-    """The hosted call: VAD never fired on a soft "sí" while Deepgram transcribed it."""
-    start = user_turn_strategies().start or []
-    assert [type(s) for s in start] == [
-        VADUserTurnStartStrategy,
-        TranscriptionUserTurnStartStrategy,
-    ]
+def test_a_turn_starts_on_words_and_two_are_needed_to_cut_ana_off() -> None:
+    """Ignacio (22 October): "Ana me interrumpía". A cough or an "mhm" over Ana cut her, since
+    any 0.2 s of voice started a turn. A transcript starts one, so a soft "sí" VAD misses
+    still counts (D35); while Ana speaks it takes two words."""
+    (start,) = user_turn_strategies().start or []
+    assert isinstance(start, MinWordsUserTurnStartStrategy)
+    assert start._min_words == BARGE_IN_WORDS == 2  # noqa: SLF001
+
+
+def test_a_finished_sentence_waits_half_a_second_of_silence() -> None:
+    """D49 ended a finished-sounding sentence after Pipecat's 0.2 s: a breath after "lo que
+    quiero saber es" ended the turn, and 12 of Ignacio's 32 turns were cut."""
+    assert vad_params().stop_secs == FINISHED_TURN_SILENCE_SECONDS == 0.5
 
 
 def test_a_turn_ends_when_it_sounds_finished_not_after_a_fixed_second() -> None:

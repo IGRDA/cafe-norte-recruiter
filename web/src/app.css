@@ -88,23 +88,3 @@ button, select, .composer input, .access input { min-height: 44px; }
 .signals meter::-webkit-meter-bar { background: var(--line); border: 0; border-radius: 4px; height: 8px; }
 .signals meter::-webkit-meter-optimum-value { background: var(--accent); border-radius: 4px; }
 .signals meter::-moz-meter-bar { background: var(--accent); border-radius: 4px; }
-/* Probability charts (D62): small multiples on one 0–1 scale. Categorical slots validated
-   (dataviz, light, on --card): CVD ΔE ≥ 9.1; slots 3–4 under 3:1, so lines carry end labels. */
-.signals { --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100; }
-.charts { display: grid; gap: 8px 16px; grid-template-columns: 1fr; margin-top: 8px; }
-@media (min-width: 560px) { .charts { grid-template-columns: 1fr 1fr; } }
-.chart { margin: 0; }
-.chart figcaption { font-weight: 600; margin-bottom: 2px; }
-.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
-.chart text { font-size: 9px; fill: var(--muted); paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; } /* a halo: labels stay legible over lines */
-.chart .grid line { stroke: var(--line); stroke-width: 1; }
-.chart .threshold line { stroke: var(--muted); stroke-width: 1; }
-.chart .line polyline { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.chart .line .dot { stroke: var(--card); stroke-width: 1.5; }
-.chart .line .hit { fill: transparent; stroke: none; }
-.chart .leader { stroke-width: 1; opacity: 0.6; }
-.chart .end-label { fill: var(--ink); }
-.chart .series-1 polyline, .chart .series-1 .leader { stroke: var(--series-1); } .chart .series-1 .dot { fill: var(--series-1); }
-.chart .series-2 polyline, .chart .series-2 .leader { stroke: var(--series-2); } .chart .series-2 .dot { fill: var(--series-2); }
-.chart .series-3 polyline, .chart .series-3 .leader { stroke: var(--series-3); } .chart .series-3 .dot { fill: var(--series-3); }
-.chart .series-4 polyline, .chart .series-4 .leader { stroke: var(--series-4); } .chart .series-4 .dot { fill: var(--series-4); }

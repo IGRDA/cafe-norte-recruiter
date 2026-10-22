@@ -15,7 +15,6 @@ import {
   MAX_REVIEW_ENTRIES,
   MAX_SIGNAL_POINTS,
   signalStatus,
-  signalSeries,
   showAccess,
   storeName,
   talkPressed,
@@ -435,18 +434,17 @@ describe("signals (D62)", () => {
     expect(latestSignal(state)?.probabilities?.sentiment.frustrated).toBe(0.9);
   });
 
-  it("keeps a trend of the last twelve messages, oldest first", () => {
+  it("keeps the last twelve verdicts, oldest first", () => {
     const actions = Array.from({ length: MAX_SIGNAL_POINTS + 3 }, (_, i) => signal(`t${i}`, i / 100, 0.5));
     const { state } = run(active(), ...actions);
     expect(state.signals).toHaveLength(MAX_SIGNAL_POINTS);
-    expect(signalSeries(state)[0].sentiment.frustrated).toBe(0.03);
-    expect(signalSeries(state).every((p) => p.language.switch === 0.5)).toBe(true);
+    expect(state.signals[0].turnId).toBe("t3");
   });
 
-  it("a label-only verdict is shown without bars and leaves no trend point", () => {
+  it("a label-only verdict is shown without bars", () => {
     const { state } = run(active(), userTurn("t1"), signal("t1", 0, 0, { probabilities: null }));
     expect(signalStatus(state)).toBe("ready");
-    expect(signalSeries(state)).toEqual([]);
+    expect(latestSignal(state)?.probabilities).toBeNull();
   });
 
   it("says when no classifier runs", () => {

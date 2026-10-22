@@ -1,8 +1,6 @@
 import type { SignalPoint } from "../page/reducer";
-import { ProbabilityChart } from "./ProbabilityChart";
 
-// What the classifier read in the latest message (D62): tone and language probabilities, and
-// how they moved over the conversation. Advisory and about the words, never about the person.
+// What the classifier read in the latest message (D62): tone and language probabilities. Advisory and about the words, never about the person.
 // Not a live region: it changes every message and must not talk over Ana.
 
 const TONES = [
@@ -12,14 +10,9 @@ const TONES = [
   ["uncertain", "dudoso"],
 ] as const;
 
-// Same thresholds as the runtime (conversation/signals.py): what it acts on.
-const SENTIMENT_THRESHOLD = 0.5;
-const SWITCH_THRESHOLD = 0.7;
-
 interface Props {
   status: "off" | "idle" | "waiting" | "ready";
   latest: SignalPoint | null;
-  series: NonNullable<SignalPoint["probabilities"]>[];
 }
 
 function percent(p: number): string {
@@ -36,7 +29,7 @@ function Bar({ label, value, chosen }: { label: string; value: number; chosen: b
   );
 }
 
-export function Signals({ status, latest, series }: Props) {
+export function Signals({ status, latest }: Props) {
   const note =
     status === "off"
       ? "Ningún clasificador lee los mensajes en esta demo."
@@ -65,24 +58,6 @@ export function Signals({ status, latest, series }: Props) {
             <Bar label="mantener" value={probabilities.language.keep ?? 0} chosen={!latest.switchTo} />
             <Bar label="cambiar" value={probabilities.language.switch ?? 0} chosen={latest.switchTo !== null} />
           </div>
-        </div>
-      )}
-      {status !== "off" && series.length > 0 && (
-        <div className="charts">
-          <ProbabilityChart
-            title="Tono"
-            threshold={SENTIMENT_THRESHOLD}
-            series={TONES.map(([key, label], i) => ({
-              key: `series-${i + 1}`,
-              label,
-              values: series.map((p) => p.sentiment[key] ?? 0),
-            }))}
-          />
-          <ProbabilityChart
-            title="Idioma"
-            threshold={SWITCH_THRESHOLD}
-            series={[{ key: "series-1", label: "cambiar", values: series.map((p) => p.language.switch ?? 0) }]}
-          />
         </div>
       )}
       {status !== "off" && latest && !probabilities && (

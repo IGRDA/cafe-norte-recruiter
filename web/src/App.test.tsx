@@ -1,5 +1,5 @@
 // The page rendered against fake ports: the API, the stream and the dialog are in-memory.
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { describe, expect, it, vi } from "vitest";
@@ -147,9 +147,9 @@ describe("App", () => {
     });
     expect(screen.getByRole("meter", { name: "frustrado" })).toHaveAttribute("value", "0.86");
     expect(screen.getByRole("meter", { name: "mantener" })).toHaveAttribute("value", "0.97");
-    const tone = screen.getByRole("table", { name: "Tono" }); // the chart's table view
-    expect(within(tone).getByRole("row", { name: "1 10 % 0 % 86 % 4 %" })).toBeInTheDocument();
-    expect(screen.getByText("frustrado 86 %")).toBeInTheDocument(); // the line's end label
+    expect(screen.getByRole("meter", { name: "frustrado" })).toHaveAttribute("value", "0.86");
+    expect(screen.getByRole("meter", { name: "mantener" })).toHaveAttribute("value", "0.97");
+    expect(screen.getByText("86 %")).toBeInTheDocument();
     expect(screen.queryByText(/Jev/)).not.toBeInTheDocument();
   });
 

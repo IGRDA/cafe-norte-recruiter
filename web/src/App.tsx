@@ -5,7 +5,7 @@ import { Panel } from "./components/Panel";
 import { Signals } from "./components/Signals";
 import { Transcript } from "./components/Transcript";
 import type { Ports } from "./page/effects";
-import { latestSignal, signalSeries, signalStatus, type State } from "./page/reducer";
+import { latestSignal, signalStatus, type State } from "./page/reducer";
 import { usePage } from "./page/usePage";
 
 interface Props {
@@ -26,7 +26,7 @@ export function App({ requested, ports }: Props) {
         <section className="conversation" aria-label="Conversación con Ana">
           <Transcript bubbles={state.transcript} />
           <Composer state={state} dispatch={dispatch} />
-          <Signals status={signalStatus(state)} latest={latestSignal(state)} series={signalSeries(state)} />
+          <Signals status={signalStatus(state)} latest={latestSignal(state)} />
           {state.error && (
             <p className="error" role="alert">
               {state.error}

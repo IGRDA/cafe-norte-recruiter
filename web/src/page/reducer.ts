@@ -634,8 +634,3 @@ export function signalStatus(state: State): "off" | "idle" | "waiting" | "ready"
   if (!state.lastUserTurn) return "idle";
   return state.signals.some((s) => s.turnId === state.lastUserTurn) ? "ready" : "waiting";
 }
-
-/** The probabilities of every recorded message, oldest first (label-only verdicts have none). */
-export function signalSeries(state: State): NonNullable<SignalPoint["probabilities"]>[] {
-  return state.signals.flatMap((s) => (s.probabilities ? [s.probabilities] : []));
-}

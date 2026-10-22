@@ -114,7 +114,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | LLM first output | 6 s per round, one retry of a silent round, then `timeout` (D35) |
 | External tool | 10 s |
 | Text turn | 1–2000 characters |
-| Signals strip on the page | the latest message's probabilities and a trend of the last 12 messages (`MAX_SIGNAL_POINTS`, D62) |
+| Signals strip on the page | the latest message's probabilities; the last 12 verdicts are kept (`MAX_SIGNAL_POINTS`, D62) |
 | Reviewer panel on the page | the last 40 entries (one per turn, one for the session); older ones drop off (`MAX_REVIEW_ENTRIES`, D61) |
 | Voice sessions per container | 2 (Postgres-enforced) |
 | Session starts per access session per hour | 3 |

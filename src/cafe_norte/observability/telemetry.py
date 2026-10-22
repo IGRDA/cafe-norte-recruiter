@@ -2,6 +2,7 @@
 and the store writes. Without both Langfuse keys nothing is traced and events still go to
 stdout (D36)."""
 
+import asyncio
 import base64
 import json
 from collections.abc import Callable, Mapping
@@ -178,6 +179,7 @@ class _OtelSpan:
         self._content = content
         self._ended = False
         self._failed = False
+        self._warned = False
 
     def child(self, name: str, kind: ObservationKind = "span", **metadata: SpanValue) -> Span:
         span = self._tracer.start_span(
@@ -247,6 +249,12 @@ class _OtelSpan:
         )
         self._span.set_status(StatusCode.ERROR, code)
 
+    def warn(self, code: str) -> None:
+        self._warned = True
+        self._span.set_attributes(
+            {f"{_OBSERVATION}level": "WARNING", f"{_OBSERVATION}status_message": code}
+        )
+
     def end(self) -> None:
         if not self._ended:
             self._ended = True
@@ -261,7 +269,10 @@ class _OtelSpan:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if (
+        if exc_type is not None and issubclass(exc_type, asyncio.CancelledError):
+            if not (self._warned or self._failed):  # a code given on purpose wins
+                self.warn(exc_type.__name__)  # the candidate talked over Ana: not an error
+        elif (
             exc_type is not None
             and not issubclass(exc_type, GeneratorExit)  # an abandoned stream, not an error
             and not self._failed  # a code given on purpose wins

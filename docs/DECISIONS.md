@@ -2027,3 +2027,20 @@ change; rarer now).
 **Consequences we accept.** About 0.3 s more after every finished sentence. A one-word answer
 over Ana ("no") waits until she stops. Barge-in now waits for the first interim transcript
 instead of VAD, a few hundred milliseconds later.
+
+## D58 · The rest of the live-call fixes: warnings that count, the model told the truth
+
+_Added 22 October 2026, from the hosted calls of the same day (KI-12 and the traces read with
+the v2 observations API), after D56 and D57. One entry per fix, in the order they landed._
+
+**Decisions.**
+- **A warning is not a failure.** The `Span` port gains `warn(code)`: Langfuse level
+  `WARNING` with the code as status message, and no OpenTelemetry error status.
+  - An interrupted turn is a warning (`interrupted`), and its outcome is `interrupted`.
+  - A span left by a cancellation is a warning (`CancelledError`), unless a code was set on
+    purpose.
+  - A refused tool call is a warning whose code is its summary before the first colon
+    (`evidence_not_said`, `slot_not_offerable`, `confirmation_refused`), so a dashboard can count
+    refusals per tool.
+  - Timeouts and real failures stay `ERROR`. Live, 13 of 51 turns were `ERROR`, every one a
+    barge-in, and 44 of 89 `update_candidate` calls were refused with nothing to count them by.

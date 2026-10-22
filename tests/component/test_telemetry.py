@@ -1,5 +1,6 @@
 """The OpenTelemetry adapter: one trace per turn, shaped for Langfuse, nothing sent in tests."""
 
+import asyncio
 import base64
 import json
 from collections.abc import Callable
@@ -385,3 +386,28 @@ def test_input_and_output_set_apart_are_both_exported_when_content_is_on() -> No
     attrs = attributes(traced.finished()["chat"])
     assert json.loads(str(attrs["langfuse.observation.input"])) == "hola"
     assert json.loads(str(attrs["langfuse.observation.output"])) == "buenas"
+
+
+def test_a_warned_span_is_a_warning_with_its_code_and_not_an_error() -> None:
+    traced = Traced()
+    with traced.turn() as root:
+        tool = root.child("update_candidate", "tool")
+        tool.warn("evidence_not_said")
+        tool.end()
+    span = traced.finished()["update_candidate"]
+    attrs = attributes(span)
+    assert attrs["langfuse.observation.level"] == "WARNING"
+    assert attrs["langfuse.observation.status_message"] == "evidence_not_said"
+    assert span.status.status_code != trace.StatusCode.ERROR
+
+
+def test_a_cancelled_span_is_a_warning_and_the_cancellation_propagates() -> None:
+    traced = Traced()
+    with (
+        pytest.raises(asyncio.CancelledError),
+        traced.turn() as root,
+        root.child("chat", "generation"),
+    ):
+        raise asyncio.CancelledError
+    attrs = attributes(traced.finished()["chat"])
+    assert attrs["langfuse.observation.level"] == "WARNING"

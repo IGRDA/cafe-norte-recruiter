@@ -16,7 +16,9 @@ with synthetic data.
 The trace of a turn: `handle-candidate-turn`, then `write-user-turn`, `invoke-agent`, a `step`
 per model round (a `chat` generation with model, tokens, EUR cost and time to first token, and
 the round's tool calls) and `write-assistant-turn`. Read a call from it before reading the
-journal (`docs/runbook.md`).
+journal (`docs/runbook.md`). A failure is `ERROR`; a turn the candidate talked over, a span
+left by that cancellation and a refused tool call are `WARNING` with their code (`warn`, D58), so
+Langfuse filters and dashboards count them apart.
 
 | File | Contents |
 | --- | --- |

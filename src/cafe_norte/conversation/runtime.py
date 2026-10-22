@@ -338,10 +338,13 @@ class Runtime:
     def _close_trace(run: _Turn, *, failure: str | None = None) -> None:
         """What the root span says about the turn: how it ended and how big it was, never the
         words (they go in as content, which the adapter drops unless the operator asked)."""
-        if failure is not None:
+        if failure == "interrupted":
+            run.trace.warn(failure)  # a candidate talking over Ana is normal in a call (D58)
+        elif failure is not None:
             run.trace.fail(failure)
+        outcome = "finished" if failure is None else "failed"
         run.trace.annotate(
-            outcome="finished" if failure is None else "failed",
+            outcome="interrupted" if failure == "interrupted" else outcome,
             tools_called=run.tools_called,
             rounds=run.rounds,
             chars_in=len(run.input.text),
@@ -1017,6 +1020,8 @@ class Runtime:
                 span.fail("timeout")
                 raise ServiceError(f"tool {call.name} timed out", code="timeout") from error
             span.annotate(ok=outcome.ok)
+            if not outcome.ok:
+                span.warn(outcome.summary.split(":", 1)[0])  # the stable code a dashboard counts
             span.set_content(input=call.arguments_json, output=outcome.model_text)
         run.tools_called += 1
         run.time("tool", started, tool_name=call.name)

@@ -1,6 +1,7 @@
 """Telemetry fakes: ``NullTelemetry`` for runs that trace nothing, ``RecordingTelemetry`` for
 tests that assert on what a turn emitted."""
 
+import asyncio
 from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Any
@@ -35,6 +36,9 @@ class NullSpan:
         pass
 
     def fail(self, code: str) -> None:
+        pass
+
+    def warn(self, code: str) -> None:
         pass
 
     def end(self) -> None:
@@ -78,6 +82,7 @@ class RecordedSpan:
     content: tuple[str | None, str | None] | None = None
     first_output: bool = False
     failure: str | None = None
+    warning: str | None = None
     ended: bool = False
 
 
@@ -164,6 +169,9 @@ class _RecordingSpan(NullSpan):
     def fail(self, code: str) -> None:
         self._record.failure = code
 
+    def warn(self, code: str) -> None:
+        self._record.warning = code
+
     def end(self) -> None:
         self._record.ended = True
 
@@ -176,7 +184,10 @@ class _RecordingSpan(NullSpan):
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if (
+        if exc_type is not None and issubclass(exc_type, asyncio.CancelledError):
+            if self._record.warning is None and self._record.failure is None:
+                self.warn(exc_type.__name__)  # the candidate talked over Ana: not an error
+        elif (
             exc_type is not None
             and not issubclass(exc_type, GeneratorExit)  # an abandoned stream, not an error
             and self._record.failure is None  # a code given on purpose wins

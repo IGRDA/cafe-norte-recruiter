@@ -2,6 +2,8 @@
 model only words it. So a correction, a language switch or a question always happens, and on
 a line we can name."""
 
+from datetime import UTC, datetime
+
 import pytest
 from evals.contracts import Cue, Persona, Speaker, Transcript
 from evals.simulator import ModelCandidateSimulator, SimulatedCandidate, SimulatorError, cue
@@ -83,6 +85,18 @@ async def test_the_model_words_the_cue_from_the_persona_and_the_transcript() -> 
     assert "Lucía Marín" in system and "hours_per_week: 30" in system
     assert "Ana: Hola, soy Ana." in user
     assert "¿Hay parking?" in user and "Spanish" in user
+
+
+async def test_the_simulator_knows_today_so_a_relative_date_reads_back_right() -> None:
+    """A live run is on a real clock: without today the model resolved "next monday" to a
+    2023 date and corrected Ana's right read-back (S01 live, 22 October 2026)."""
+    model = FakeModel([said("Sí, correcto.")])
+    thursday = datetime(2026, 10, 22, 9, tzinfo=UTC)
+    simulator = ModelCandidateSimulator(model, clock=lambda: thursday)
+    await simulator.reply(PERSONA, Cue(language="es", mood="neutral"), GREETING)
+    system = model.calls[0][0].content
+    assert "Thursday 22 October 2026" in system
+    assert "reads back a detail or a summary" in system
 
 
 async def test_a_simulator_that_says_nothing_stops_the_run() -> None:

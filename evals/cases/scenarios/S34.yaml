@@ -7,6 +7,7 @@ today: "2026-10-20"
 # Postgres (turns_language_check, fixed by migration 0005). The explicit request switches the
 # session to German for this very turn (D28, D63). tests/e2e/test_api_postgres.py runs this
 # scenario on Postgres, where the check lives.
+live_candidate: scripted
 scripted_turns:
   - "Sí, me viene bien."
   - "Can you ask in German, please?"
@@ -28,3 +29,9 @@ checks:
     args: { field: name, value: Lucía Marín }
   - name: language_of_last_assistant_turn
     args: { language: de }
+live_checks:
+  - name: language_of_last_assistant_turn
+    args: { language: de }
+  - name: field_equals
+    args: { field: name, value: Lucía Marín }
+goal: "After the request, Ana goes on in German and every turn is saved."

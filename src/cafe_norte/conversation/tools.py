@@ -30,15 +30,7 @@ class Args(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class Writes(Args):
-    """A tool that changes the record: the model's next sentence may ride with the call in
-    ``then_say``, held by the runtime and said once the call commits, dropped if it is refused
-    (D59). A data turn then costs one model round."""
-
-    then_say: str | None = Field(default=None, min_length=1, max_length=300)
-
-
-class UpdateCandidateArgs(Writes):
+class UpdateCandidateArgs(Args):
     """The patch plus the exact words it came from. The server resolves the source turn."""
 
     patch: CandidatePatch
@@ -73,11 +65,11 @@ class PresentConfirmationArgs(Args):
     evidence_text: str | None = Field(default=None, min_length=1, max_length=500)
 
 
-class ConfirmFieldArgs(Writes):
+class ConfirmFieldArgs(Args):
     answer: Literal["affirm", "deny", "correct"]
 
 
-class ConfirmBriefArgs(Writes):
+class ConfirmBriefArgs(Args):
     answer: Literal["affirm", "deny", "correct"]
 
 
@@ -91,7 +83,7 @@ class ReviewReadbackArgs(Args):
     answer: Literal["affirm", "skip"]
 
 
-class RequestHumanFollowupArgs(Writes):
+class RequestHumanFollowupArgs(Args):
     reason: str = Field(min_length=1, max_length=500)
 
 
@@ -116,8 +108,7 @@ ARGUMENT_MODELS: dict[ToolName, type[Args]] = {
 DESCRIPTIONS: dict[ToolName, str] = {
     "update_candidate": "Record facts the candidate just stated, or mark fields they declined "
     "or do not know. Patch values are plain strings, numbers, dates or lists, never objects. "
-    "Never guess a value. Put your next sentence (the next question) in then_say: it is said "
-    "once the save commits, and dropped if the save is refused.",
+    "Never guess a value.",
     "search_knowledge": "Look up facts about the role, the store, pay, shifts, training, "
     "uniform, benefits, the interview or the company. Call it for every such question, in "
     "the same turn, even if you think you know the answer; never state these facts without it. "
@@ -130,10 +121,8 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "present_confirmation": "Read back a phone/date, the brief, or the slot the candidate chose "
     "(target=slot with its number in interview_slots as choice, and their words asking for the "
     "interview in evidence_text) and wait for the candidate's answer.",
-    "confirm_field": "Resolve the pending field read-back with the candidate's answer; put "
-    "your next question in then_say.",
-    "confirm_brief": "Resolve the pending brief read-back with the candidate's answer; put "
-    "your next question in then_say.",
+    "confirm_field": "Resolve the pending field read-back with the candidate's answer.",
+    "confirm_brief": "Resolve the pending brief read-back with the candidate's answer.",
     "reserve_interview": "The candidate said yes to the slot read-back: reserve that slot_id. "
     "Call it only after they answered.",
     "review_readback": "The candidate answered a read-back they did not hear to the end "

@@ -2356,3 +2356,40 @@ stays. Tuning the wording further against the held-out set would spend it. The o
 set); ask D52's keep/switch question beside this one; or accept the gap. **Iñaki merged it on
 22 October 2026, accepting the gap**: no false switch on either set, and a candidate who names
 no language and is not understood can still ask for one by name, which the patterns catch.
+
+## D64 · then_say is reverted; a goodbye always ends the call; regressions are gated before a merge
+
+_Added 22 October 2026, after Iñaki's calls of 20:36–20:50 (CEST) on deploy 5f379e3, against
+his good calls of 17:57–18:03 on 4707917. Supersedes D59's "a write carries the next sentence
+in then_say" (#48, 356b4b4)._
+
+**Evidence** (gcloud logs, Langfuse observations of sessions 30f10bd8 and 43bba368).
+- A sentence said twice in one turn: "Eso es todo, gracias. Ahora te leo un resumen y me
+  confirmas si está correcto." twice, then "Haré que alguien del equipo te contacte…" twice. The
+  write carried it in `then_say`, the runtime said it on commit, the tool result asked for
+  `present_confirmation`, so a second round ran, and gpt-4.1 said the sentence again instead.
+- The summary was promised three turns running and never read until the candidate gave up.
+- Both goodbyes were refused (`end_session`: "Not ended: the brief was not confirmed, so it
+  was read back again"), so Ana said "¡Hasta luego!" and the call stayed open for minutes.
+- After a switch to German every turn failed to save (`turns_language_check`, D63's missing
+  migration, fixed by 0005).
+
+**Decisions.**
+- `then_say` is reverted whole (prompt `ana_v25`): the turn flow is the one of the good calls.
+  D59 measured 16 of 22 data turns in one round with it; that latency is given back.
+- A goodbye ends the session even when the brief is unconfirmed: the brief is presented once
+  more at most, and a goodbye after that ends the session as `incomplete`. Nobody is kept in a
+  call they want to leave.
+- Speech recognition hears every language (Deepgram nova-3 `multi`), whatever the session
+  language; the session language is only what Ana answers in, still decided by the
+  highest-probability language (D63). D35 kept the session language because `multi` heard a
+  short "sí" as "C"; checked again with Iñaki's voice before merging.
+- Before a merge: `make preflight` (checks, the Postgres suite, live scenarios with behavioural
+  invariants) and Iñaki's call on `make preview` (the branch as production runs it: Postgres,
+  real model, Jev, voice).
+
+**Why the tests missed it.** The live checks ran on the memory store, which has no CHECK
+constraints; no Postgres test used a language other than es/en; fake scenarios script the
+model, so a model that repeats itself or skips a tool never appears; nothing checked "no
+sentence twice in a turn" or "a goodbye ends the call"; nothing ran a live conversation before
+the merge.

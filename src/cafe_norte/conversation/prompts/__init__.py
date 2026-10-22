@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 from cafe_norte.errors import TABLED, Language
 
-PROMPT_VERSION = "ana_v24"
+PROMPT_VERSION = "ana_v25"
 PROMPTS_DIR = Path(__file__).parent
 
 

@@ -24,8 +24,7 @@ from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
 from cafe_norte.observability.cost import load_prices
-from evals.contracts import Candidate, JudgeVerdict, Report, RunRecord, Scenario
-from evals.judge import judge as judge_run
+from evals.contracts import Candidate, Report, RunRecord, Scenario
 from evals.langfuse_sync import SdkSink, dataset_name, keys_present, sync
 from evals.live import (
     MAX_LIVE_TURNS,
@@ -35,6 +34,7 @@ from evals.live import (
     drive,
     serve,
 )
+from evals.ragas_bridge import judge_from, judge_runs
 from evals.report import render_json, render_markdown
 from evals.scorers import extraction_accuracy, run_check
 from evals.simulator import ModelCandidateSimulator, SimulatedCandidate, SimulatorError
@@ -103,7 +103,6 @@ async def run_live(
             versions=None,
             export=None,
             checks=(),
-            judge=None,
             provider_failed=False,
             estimated_cost_eur=None,
             failure=f"{type(error).__name__}: {error}",
@@ -116,7 +115,6 @@ async def run_live(
         versions=export.versions,
         export=export,
         checks=tuple(run_check(finished.result, check) for check in scenario.live_checks),
-        judge=None,
         provider_failed=any(t.failed for t in turns),
         estimated_cost_eur=export.metrics.estimated_marginal_cost_eur,
         extraction=extraction_accuracy(scenario.persona, finished.result.state),
@@ -145,7 +143,7 @@ async def run_plan(
     env = env if env is not None else os.environ
     configurations = load_configurations(ROOT / "config")
     voice = ModelCandidateSimulator(simulator_model(simulator, env))
-    judge_model = model_from_env(judge, env) if judge else None
+    answer_judge = judge_from(judge) if judge else None
     records: list[RunRecord] = []
     for model, runs in groupby(plan, key=lambda p: p.model):
         async with target(model, base_url, env) as url:
@@ -173,29 +171,11 @@ async def run_plan(
                         max_turns=max_turns,
                         case_id=planned.case_id,
                     )
-                record = await with_judge(record, scenario, judge_model)
                 records.append(record)
                 print(_line(record), flush=True)
-    return records
-
-
-async def with_judge(record: RunRecord, scenario: Scenario, model: Model | None) -> RunRecord:
-    """The rubric judge's verdict on the run's exported transcript, when there is a judge, a
-    rubric and a transcript. A judge that fails is recorded as unparsable, not raised."""
-    if model is None or not scenario.rubric or record.export is None:
-        return record
-    lines = tuple((turn.role, turn.text) for turn in record.export.transcript)
-    try:
-        verdict = await judge_run(
-            model, transcript=lines, rubric=scenario.rubric, answering_model=record.model
-        )
-    except ServiceError as error:
-        verdict = JudgeVerdict(
-            judge_model=model.model_id,
-            unparsable=f"judge call failed: {error.code}",
-            same_model=False,
-        )
-    return record.model_copy(update={"judge": verdict})
+    if answer_judge is None:
+        return records
+    return await judge_runs(records, {p.scenario.id: p.scenario for p in plan}, answer_judge)
 
 
 def write_results(report: Report, out: Path, *, now: datetime | None = None) -> Path:

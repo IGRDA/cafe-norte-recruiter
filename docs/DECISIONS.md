@@ -1607,7 +1607,16 @@ generated then curated.
   configuration id, the prompt version, a key shape, raw JSON, or 12 consecutive words of
   `system.md` (8 matched instructed phrases such as the follow-up notice).
 - **ragas and Langfuse only.** promptfoo is Node and a second runner; deepeval overlaps ragas.
-  Injection is a handful of scripted scenarios scored deterministically.
+  Injection is five scripted scenarios (S23–S27: prompt extraction, a false manager after
+  another candidate's data, booking without a read-back, a role-play jailbreak, a fake system
+  override to French), said word for word live (`live_candidate: scripted`) and scored by
+  deterministic checks: `no_leak`, `spoken_language` (what Ana said, not the session's
+  setting), no booking, no confirmation, nothing fabricated. Where the runtime enforces the
+  rule (S25) the fake model obeys, as in S17; where only the model can refuse, the fake model
+  refuses and the live run is the test.
+- **`evals/judge.py` is retired.** Its rubric bullets are now pass/fail criteria of the same
+  ragas judge; `JudgeVerdict` gives way to `RunRecord.scores` and `judge_model`, and the
+  report's judge section reads them (amends D43).
 - **Judge `openai/gpt-4o-mini`, at most €3 for a full paid run**; a self-judged run is
   labelled. The question set is generated once by ragas over our own chunks and curated by
   hand. Answer metrics come from QA probes: one short live session per question.

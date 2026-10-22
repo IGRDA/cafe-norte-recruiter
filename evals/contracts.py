@@ -252,16 +252,6 @@ class Extraction(Frozen):
     misses: tuple[str, ...] = ()
 
 
-class JudgeVerdict(Frozen):
-    """A rubric judge's opinion: one boolean per bullet, or why there is none. A secondary
-    signal next to the checks, never a pass or a fail (D06)."""
-
-    judge_model: str
-    answers: dict[str, bool] = {}  # rubric bullet -> held
-    unparsable: str = ""  # why the output was not one JSON boolean per bullet
-    same_model: bool  # the judge is the answering model: a known bias, labelled
-
-
 class CheckResult(Frozen):
     name: str
     ok: bool
@@ -277,7 +267,6 @@ class RunRecord(Frozen):
     versions: VersionStamp | None  # None only when the session was never created
     export: ExportDocument | None
     checks: tuple[CheckResult, ...]
-    judge: JudgeVerdict | None
     provider_failed: bool  # a turn failed that the case did not expect to
     estimated_cost_eur: float | None  # the answering model's, from the export
     scenario_id: str = ""
@@ -294,6 +283,7 @@ class RunRecord(Frozen):
     hit_turn_cap: bool = False
     cost_is_partial: bool = True
     scores: dict[str, float | None] = {}  # scorecard row id -> ragas score; None: none came (D48)
+    judge_model: str = ""  # who gave ``scores``; the answering model judging itself is labelled
 
     @property
     def passed(self) -> bool:

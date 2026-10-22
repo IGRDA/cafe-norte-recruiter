@@ -224,7 +224,6 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         versions=versions,
         export=export,
         checks=checks,
-        judge=None,
         provider_failed=bool(surprises),
         estimated_cost_eur=0.0,
         scenario_id=scenario.id,

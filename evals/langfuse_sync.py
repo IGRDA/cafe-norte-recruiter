@@ -289,8 +289,7 @@ def _row(suite: str, record: RunRecord) -> ExperimentRow:
         scores["extraction"] = record.extraction.correct / record.extraction.supplied
     if record.estimated_cost_eur is not None:
         scores["cost_eur"] = record.estimated_cost_eur
-    if record.judge is not None:
-        scores |= {f"judge.{n}": held for n, (_, held) in enumerate(record.judge.answers.items())}
+    scores |= {f"judge.{k}": v for k, v in record.scores.items() if v is not None}
     return ExperimentRow(
         item_id=f"{dataset_name(suite)}-{record.case_id}",
         session_id=record.session_id,

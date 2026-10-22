@@ -174,7 +174,9 @@ def _export_valid(runs: Sequence[RunRecord]) -> Reading:
 
 
 def _turn_length(runs: Sequence[RunRecord]) -> Reading:
-    turns = [(r.case_id, t.text) for r in runs if r.export for t in model_turns(r.export)]
+    turns = [
+        (r.case_id, t.text) for r in runs if r.export for t in model_turns(r.export.transcript)
+    ]
     long = [case for case, text in turns if words(text) > MAX_TURN_WORDS]
     return ratio(len(turns) - len(long), len(turns), _per_case(long))
 
@@ -211,7 +213,7 @@ def _language(runs: Sequence[RunRecord]) -> Reading:
         (r.case_id, t.language, said)
         for r in runs
         if r.export
-        for t in model_turns(r.export)
+        for t in model_turns(r.export.transcript)
         if (said := guess_language(t.text)) is not None
     ]
     wrong = [f"{case} ({said} in {lang})" for case, lang, said in told if said != lang]

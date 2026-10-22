@@ -18,7 +18,7 @@
 | Scenario integrity (S01–S22) against fakes | own runner, deterministic scorers | CI |
 | Scenario behaviour live, candidate simulated | own runner over the HTTP API + `ModelCandidateSimulator` worded from deterministic cues (D43) | local, paid, `--yes` |
 | Retrieval quality (41 questions, D48) | own scorers (recall@3, abstention, leakage) + ragas ID-based context precision/recall (`--ragas`, offline) | local, free |
-| Rubric judge | `evals/judge.py` through the `Model` port (`--judge provider/model`) | local, optional |
+| Judges | ragas through the `AnswerJudge` port (`--judge openai/<model>`, `fake` or `off`; the scorecard defaults to `openai/gpt-4o-mini`) | local, optional, report only |
 | Model comparison (gpt-4.1 vs gpt-4o-mini by default, 24 runs) | own runner on one loopback server per model, same prompt/tools/KB | local, once, `--yes`; summary committed |
 | Voice latency | browser monotonic timings + server stage timings | hosted, by hand, ≥6 sessions |
 | Production traces | OpenTelemetry → Langfuse EU | always |
@@ -58,11 +58,14 @@ Recall@3 of expected sections ≥ 90 % on answerable questions; abstention on al
 questions; zero sources from the other store on the four leakage questions. ragas metrics are
 reported next to these, not instead of them.
 
-## Judge
+## Judges
 
-Default off. `--judge provider/model` enables rubric bullets. Output must be one JSON boolean per
-bullet; anything else is recorded as unparsable, never coerced.
-Using the answering model as judge is a known bias and is labelled in the report.
+ragas through the `AnswerJudge` port (D48): `Faithfulness` and `FactualCorrectness` on the QA
+probes, and a pass/fail `DiscreteMetric` (`evals/prompts/criterion.md`) for staying on topic,
+the scenario's goal, style and each rubric bullet. Off for the scenario and comparison suites
+unless `--judge openai/<model>`; the live scorecard defaults to `openai/gpt-4o-mini`. A judge
+that fails leaves no score and is named, never guessed. Using the answering model as judge is a
+known bias and is labelled in the report. Judge rows never pass or fail anything.
 
 ## Cost
 

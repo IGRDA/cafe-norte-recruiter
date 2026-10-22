@@ -126,7 +126,7 @@ async def test_read_backs_and_fixed_replies_are_not_model_turns() -> None:
     (scenario,) = load_scenarios(only=["S01"])
     record: RunRecord = await run_fake(scenario)
     assert record.export is not None
-    texts = [t.text for t in model_turns(record.export)]
+    texts = [t.text for t in model_turns(record.export.transcript)]
     assert texts and not any(t.startswith(prompts.table("brief", "es")["intro"]) for t in texts)
     assert prompts.load("opening", "es").strip() not in texts
 

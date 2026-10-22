@@ -165,7 +165,7 @@ async def judge_runs(
         scenario = scenarios[run.scenario_id or run.case_id]
         said = exchanges(run.export)
         scores: dict[str, float | None] = {"topic_adherence": await _held(judge.holds(said, TOPIC))}
-        if model_turns(run.export):
+        if model_turns(run.export.transcript):
             scores["style"] = await _held(judge.holds(said, STYLE))
         if scenario.goal:
             goal = GOAL.format(goal=scenario.goal)
@@ -174,7 +174,7 @@ async def judge_runs(
             held = [await _held(judge.holds(said, bullet)) for bullet in scenario.rubric]
             answered = [h for h in held if h is not None]
             scores["rubric"] = sum(answered) / len(answered) if answered else None
-        scored.append(run.model_copy(update={"scores": scores}))
+        scored.append(run.model_copy(update={"scores": scores, "judge_model": judge.model_id}))
     return scored
 
 

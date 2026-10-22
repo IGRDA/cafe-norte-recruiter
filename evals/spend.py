@@ -17,7 +17,6 @@ from cafe_norte.observability.cost import estimate
 EXPECTED_TURNS = 14  # candidate lines in a full interview with a brief and a booking
 ANSWER_TOKENS_PER_TURN = (12_000, 200)  # (input, output) for the answering model
 SIMULATOR_TOKENS_PER_TURN = (1_200, 60)
-JUDGE_TOKENS_PER_RUN = (8_000, 300)
 # The scorecard's ragas judges (D48): a probe is about six calls (faithfulness, factual
 # correctness, topic adherence); a scenario about nine over its whole transcript (topic
 # adherence, goal, style, rubric bullets).
@@ -57,7 +56,7 @@ def estimate_spend(
         if simulator is not None:
             usage += _tokens(simulator, SIMULATOR_TOKENS_PER_TURN, EXPECTED_TURNS)
         if judge is not None:
-            usage += _tokens(judge, JUDGE_TOKENS_PER_RUN, 1)
+            usage += _tokens(judge, JUDGE_TOKENS_PER_SCENARIO, 1)
     return _priced(usage, prices, runs=len(answering))
 
 

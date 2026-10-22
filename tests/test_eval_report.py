@@ -4,7 +4,9 @@ import json
 from datetime import UTC, datetime
 
 from evals.contracts import CheckResult, Extraction, Report, RunRecord
+from evals.live_runs import Planned, run_plan
 from evals.report import render_json, render_markdown, summarize
+from evals.runner import load_scenarios
 
 from cafe_norte.observability.contracts import VersionStamp
 
@@ -42,7 +44,6 @@ def run(
         versions=None if failure else VERSIONS.model_copy(update={"model_id": model}),
         export=None,
         checks=() if failure else tuple(checks),
-        judge=None,
         provider_failed=False,
         estimated_cost_eur=None if failure else 0.01,
         failure=failure,
@@ -115,3 +116,38 @@ def test_json_carries_the_summary_and_no_conversation() -> None:
     assert payload["summary"]["models"][0]["passed"] == {"k": 1, "n": 1}
     assert payload["runs"][0]["export"] is None
     assert "export" not in json.dumps(payload["summary"])
+
+
+def test_the_report_shows_the_judges_apart_and_labels_self_judging() -> None:
+    judged = run("C1").model_copy(
+        update={"scores": {"goal_accuracy": 1.0, "rubric": 0.5}, "judge_model": "openai/gpt-4o"}
+    )
+    unscored = run("C2").model_copy(
+        update={"scores": {"goal_accuracy": None}, "judge_model": "openai/gpt-4o"}
+    )
+    (model,) = summarize([judged, unscored]).models
+    assert str(model.judged["goal_accuracy"]) == "1.00 (n=1, 1 unscored)"
+    assert model.judged["style"].mean is None and not model.judge_same_model
+    text = render_markdown(
+        Report(suite="scenarios", runs=(judged, unscored), denominators={}), generated_at=NOW
+    )
+    assert "## Judges" in text and "secondary signal" in text and "| no |" in text
+    itself = judged.model_copy(update={"judge_model": "openai/gpt-4o-mini"})
+    assert summarize([itself]).models[0].judge_same_model
+
+
+def test_a_report_without_a_judge_has_no_judge_section() -> None:
+    text = render_markdown(
+        Report(suite="scenarios", runs=(run("C1"),), denominators={}), generated_at=NOW
+    )
+    assert "judge" not in text.lower()
+
+
+async def test_a_live_plan_is_judged_by_ragas_when_asked() -> None:
+    (scenario,) = load_scenarios(only=["S23"])
+    plan = [Planned(case_id="S23", scenario=scenario, model="fake", repetition=1)]
+    (record,) = await run_plan(
+        plan, simulator="fake", base_url=None, access_code=None, judge="fake", env={}
+    )
+    assert record.judge_model == "fake"
+    assert set(record.scores) >= {"topic_adherence", "goal_accuracy"}

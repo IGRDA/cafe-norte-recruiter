@@ -39,7 +39,6 @@ def run(case: str, model: str, rep: int, *, ok: bool = True) -> RunRecord:
         versions=VERSIONS,
         export=None,
         checks=(CheckResult(name="brief_confirmed", ok=ok, detail="d"),),
-        judge=None,
         provider_failed=False,
         estimated_cost_eur=0.004,
         extraction=Extraction(correct=6, supplied=7),

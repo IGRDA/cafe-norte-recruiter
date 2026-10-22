@@ -14,8 +14,8 @@
         "gate": true
       },
       "value": 1.0,
-      "k": 18,
-      "n": 18,
+      "k": 23,
+      "n": 23,
       "detail": "",
       "baseline": 1.0
     },
@@ -30,8 +30,8 @@
         "gate": true
       },
       "value": 1.0,
-      "k": 89,
-      "n": 89,
+      "k": 109,
+      "n": 109,
       "detail": "",
       "baseline": 1.0
     },
@@ -94,8 +94,8 @@
         "gate": true
       },
       "value": 1.0,
-      "k": 87,
-      "n": 87,
+      "k": 107,
+      "n": 107,
       "detail": "",
       "baseline": 1.0
     },
@@ -110,8 +110,8 @@
         "gate": true
       },
       "value": 1.0,
-      "k": 139,
-      "n": 139,
+      "k": 164,
+      "n": 164,
       "detail": "",
       "baseline": 1.0
     },
@@ -145,7 +145,7 @@
       "k": null,
       "n": 32,
       "detail": "",
-      "baseline": 0.35416666666666663
+      "baseline": 0.3958333333333333
     },
     {
       "spec": {
@@ -161,7 +161,7 @@
       "k": null,
       "n": 32,
       "detail": "",
-      "baseline": 0.875
+      "baseline": 0.859375
     },
     {
       "spec": {
@@ -174,9 +174,9 @@
         "gate": true
       },
       "value": 1.0,
-      "k": 41,
-      "n": 41,
-      "detail": "leaked ",
+      "k": 44,
+      "n": 44,
+      "detail": "",
       "baseline": 1.0
     },
     {
@@ -190,9 +190,9 @@
         "gate": true
       },
       "value": null,
-      "k": null,
+      "k": 0,
       "n": 0,
-      "detail": "",
+      "detail": "answered ",
       "baseline": null
     },
     {
@@ -206,7 +206,7 @@
         "gate": true
       },
       "value": null,
-      "k": null,
+      "k": 0,
       "n": 0,
       "detail": "",
       "baseline": null
@@ -238,8 +238,8 @@
         "gate": true
       },
       "value": 1.0,
-      "k": 7,
-      "n": 7,
+      "k": 11,
+      "n": 11,
       "detail": "",
       "baseline": 1.0
     },
@@ -270,8 +270,8 @@
         "gate": true
       },
       "value": 1.0,
-      "k": 18,
-      "n": 18,
+      "k": 23,
+      "n": 23,
       "detail": "",
       "baseline": 1.0
     },
@@ -301,9 +301,9 @@
         "higher_is_better": true,
         "gate": true
       },
-      "value": null,
-      "k": 0,
-      "n": 0,
+      "value": 1.0,
+      "k": 5,
+      "n": 5,
       "detail": "failed ",
       "baseline": null
     },
@@ -343,7 +343,7 @@
       "spec": {
         "id": "goal_accuracy",
         "tier": 2,
-        "name": "ragas AgentGoalAccuracyWithReference",
+        "name": "Scenario goal achieved (ragas DiscreteMetric)",
         "unit": "score",
         "target": 0.9,
         "higher_is_better": true,
@@ -359,8 +359,8 @@
       "spec": {
         "id": "rubric",
         "tier": 2,
-        "name": "Scenario rubric bullets held (AspectCritic)",
-        "unit": "ratio",
+        "name": "Scenario rubric bullets held (ragas DiscreteMetric)",
+        "unit": "score",
         "target": 0.9,
         "higher_is_better": true,
         "gate": false
@@ -375,7 +375,7 @@
       "spec": {
         "id": "topic_adherence",
         "tier": 3,
-        "name": "ragas TopicAdherence",
+        "name": "Stays on topic (ragas DiscreteMetric)",
         "unit": "score",
         "target": 0.9,
         "higher_is_better": true,
@@ -391,8 +391,8 @@
       "spec": {
         "id": "style",
         "tier": 3,
-        "name": "Style critic: tuteo, short, spoken",
-        "unit": "ratio",
+        "name": "Style: tuteo, short, spoken (ragas DiscreteMetric)",
+        "unit": "score",
         "target": 0.9,
         "higher_is_better": true,
         "gate": false

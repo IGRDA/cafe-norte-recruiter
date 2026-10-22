@@ -6,7 +6,6 @@ the code that formats them.
 
 | File | Used by | Placeholders |
 | --- | --- | --- |
-| `judge.md` | `evals/judge.py`: the rubric judge's system message; the rubric and transcript go in the user message | none |
 | `criterion.md` | `evals/ragas_bridge.py` (`RagasJudge.holds`): the pass/fail `DiscreteMetric` for topic, goal, style and rubric bullets (D48) | `{criterion}`, `{conversation}` |
 | `simulator.md` | `evals/simulator.py` (`ModelCandidateSimulator`): the system message of the simulated candidate | `{facts}`, `{declines}`, `{interview}`, `{mood}` |
 

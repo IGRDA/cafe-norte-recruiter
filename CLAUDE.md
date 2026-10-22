@@ -15,3 +15,6 @@ pull request. Read `src/cafe_norte/README.md` for the module map and import rule
 - Nothing is announced to a candidate before it is persisted. No value is ever guessed into a
   field.
 - Commit messages: `area: what changed` (imperative), body explains why when it is not obvious.
+- Before a merge: `make preflight` green (checks, Postgres suite, live scenarios with the
+  behavioural invariants) and Iñaki's OK after calling `make preview` (D64). A local check on the
+  memory store is not a check: production runs on Postgres.

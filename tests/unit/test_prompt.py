@@ -103,7 +103,7 @@ def test_the_offer_is_in_the_facts_by_number_and_time_never_by_id() -> None:
     ]
     assert offer_facts(state.model_copy(update={"slot_offer": None}), CONFIG) is None
     unsettled = state.model_copy(update={"brief_confirmed_revision": None})
-    assert offer_facts(unsettled, CONFIG) is None  # a correction voids the brief and the offer
+    assert offer_facts(unsettled, CONFIG) == offer_facts(state, CONFIG)  # D64: never hidden
 
 
 def turn(role: Literal["user", "assistant"], text: str) -> TurnRecord:

@@ -172,10 +172,26 @@ async def test_candidate_done_with_an_unconfirmed_brief_reads_the_brief_again() 
     assert state.pending_confirmation.status == "pending"
 
 
-async def test_candidate_done_with_fields_missing_names_the_next_field() -> None:
+async def test_a_goodbye_with_fields_missing_ends_the_session_incomplete() -> None:
+    """D64: a candidate who leaves before the brief is complete is let go, not asked for the
+    next field. The record keeps what was collected."""
     w = await World().open()
-    refused = await w.end(context(), args("end_session", reason="candidate_done"))
-    assert not refused.ok and refused.summary == "brief_not_ready:name"
+    done = await w.end(context(), args("end_session", reason="candidate_done"))
+    assert done.ok
+    state = await w.current()
+    assert (state.lifecycle, state.outcome) == ("stopped", "incomplete")
+
+
+async def test_a_goodbye_with_the_brief_already_read_ends_the_session() -> None:
+    """Live, 22 October: the brief was on the table, every "adiós" read it again and the call
+    never ended. The first goodbye reads it once; the next one ends the session."""
+    w = await World(full_record()).open()
+    first = await w.end(context(), args("end_session", reason="candidate_done"))
+    assert not first.ok and first.summary == "brief_re_presented"
+    second = await w.end(context("t2"), args("end_session", reason="candidate_done"))
+    assert second.ok
+    state = await w.current()
+    assert (state.lifecycle, state.outcome) == ("stopped", "incomplete")
 
 
 async def test_candidate_done_needs_the_brief_confirmed_at_the_current_revision() -> None:

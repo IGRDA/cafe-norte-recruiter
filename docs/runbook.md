@@ -79,3 +79,14 @@
   scripts/teardown.sh` before `demo_end_date`; the bootstrap stack stays unless the project is
   retired. `terraform destroy` removes the Cloud SQL instance too (no deletion protection); its
   backups go with it.
+
+## Before merging a pull request (D64)
+
+1. `make preflight`: offline checks, the Postgres suite, and S01, S02, S33, S34, S35 live on the
+   configured model with the invariants (no sentence twice in a turn, a goodbye ends the call,
+   the summary is read once the record is complete, no internal failure). About €0.5; the
+   estimate is printed first.
+2. `make preview` and call the printed link
+   (`http://localhost:8000/?store=chamberi_barista_v1&lang=es#code=preview`): the branch as
+   production runs it, on Postgres, with the real model, Jev and voice.
+3. Merge only after both. Then check the hosted `commit_sha` at `/api/runtime` and the logs.

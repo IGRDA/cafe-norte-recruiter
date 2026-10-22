@@ -12,14 +12,12 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
-from typing import get_args
 
 import aiohttp
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADAnalyzer, VADParams
-from pipecat.frames.frames import STTUpdateSettingsFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -29,7 +27,6 @@ from pipecat.processors.aggregators.llm_response_universal import (
 )
 from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
 from pipecat.services.elevenlabs.tts import ElevenLabsHttpTTSSettings
-from pipecat.transcriptions.language import Language as PipecatLanguage
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.turns.user_start.min_words_user_turn_start_strategy import (
     MinWordsUserTurnStartStrategy,
@@ -75,17 +72,15 @@ CANDIDATE_JOIN_SECONDS = 30.0
 UNFINISHED_TURN_SILENCE_SECONDS = 2.0
 FINISHED_TURN_SILENCE_SECONDS = 0.5
 BARGE_IN_WORDS = 2
-# Recognition follows the session language (D63); the voice is the one Spanish voice (D47).
-STT_LANGUAGES: dict[Language, PipecatLanguage] = {
-    code: PipecatLanguage(code) for code in get_args(Language)
-}
+# Recognition hears every language at once (D64): the session language is only what Ana
+# answers in. Locked to the session language (D35), a switch to English turned the candidate's
+# Spanish into "Oh, c correcto" (22 October). The voice is the one Spanish voice (D47).
+STT_LANGUAGE = "multi"
 
 
-def stt_settings(language: Language) -> DeepgramSTTSettings:
-    """Deepgram in the session's language: ``multi`` heard a Spanish "sí" as "C" (D35)."""
-    return DeepgramSTTSettings(
-        model=STT_MODEL, language=STT_LANGUAGES[language], interim_results=True
-    )
+def stt_settings() -> DeepgramSTTSettings:
+    """Deepgram nova-3 in ``multi``: Spanish and English (and fr, de, pt, it) in one call."""
+    return DeepgramSTTSettings(model=STT_MODEL, language=STT_LANGUAGE, interim_results=True)
 
 
 def tts_settings(voice_id: str) -> ElevenLabsHttpTTSSettings:
@@ -285,7 +280,7 @@ class PipecatVoiceController:
             "Ana",
             DailyParams(audio_in_enabled=True, audio_out_enabled=True, video_out_enabled=False),
         )
-        stt = DeepgramSTTService(api_key=self._deepgram_api_key, settings=stt_settings(language))
+        stt = DeepgramSTTService(api_key=self._deepgram_api_key, settings=stt_settings())
         http = aiohttp.ClientSession()  # one per call, so sentences reuse its connection
         tts = PrefetchingElevenLabsHttpTTSService(
             api_key=self._elevenlabs_api_key,
@@ -293,15 +288,7 @@ class PipecatVoiceController:
             settings=tts_settings(self._voice_id),
         )
         holder: dict[str, InboundBridge] = {}
-        tasks: set[asyncio.Future[None]] = set()
         task_holder: dict[str, PipelineTask] = {}
-
-        async def recognise_in(new: Language) -> None:
-            """A language switch: Deepgram reconnects with the new language (Pipecat applies
-            the settings delta and reconnects the stream)."""
-            await task_holder["task"].queue_frame(
-                STTUpdateSettingsFrame(delta=DeepgramSTTSettings(language=STT_LANGUAGES[new]))
-            )
 
         async def speak(text: str) -> None:
             await holder["bridge"].speak(text)
@@ -318,7 +305,6 @@ class PipecatVoiceController:
             texts=self._texts,
             language=language,
             clock=self._clock,
-            on_language=lambda new: tasks.add(asyncio.ensure_future(recognise_in(new))),
             on_hang_up=hang_up,
         )
         user = user_side(session, SileroVADAnalyzer(params=vad_params()))

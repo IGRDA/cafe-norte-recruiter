@@ -10,10 +10,15 @@ from collections import Counter
 from collections.abc import Callable, Sequence
 from datetime import date, timedelta
 from functools import cache
+from pathlib import Path
 from typing import get_args
+from zoneinfo import ZoneInfo
 
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.signals import is_farewell
 from cafe_norte.conversation.tools import ToolName
+from cafe_norte.domain.candidate import ready_for_brief
+from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.confirmation import assurance
 from cafe_norte.domain.contracts import (
     CandidateFieldName,
@@ -24,6 +29,8 @@ from cafe_norte.domain.contracts import (
     YearMonth,
 )
 from cafe_norte.domain.fields import value_of
+from cafe_norte.domain.lifecycle import TERMINAL
+from cafe_norte.domain.numbers import plain
 from cafe_norte.errors import Language
 from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.persistence.export import ExportDocument
@@ -56,12 +63,34 @@ CHECKS = (
     "signal_recorded",
     "said_control_reply",
     "tool_ok",
+    "tool_ok_on_any_turn",
+    "offered_real_times",
     "turn_failed",
     "sources_shown_on_any_turn",
     "no_leak",
     "spoken_language",
     "claims_saved_without_save",
+    "no_sentence_twice_in_a_turn",
+    "goodbye_ends_session",
+    "brief_presented_once_complete",
+    "no_internal_failure",
 )
+
+# Run on every scenario, fake and live, whatever it lists (D64): what broke the calls of 22
+# October and no scenario had asked for. A scenario cannot leave them out.
+INVARIANTS: tuple[Check, ...] = (
+    Check(name="no_sentence_twice_in_a_turn"),
+    Check(name="goodbye_ends_session"),
+    Check(name="brief_presented_once_complete"),
+    Check(name="no_internal_failure"),
+)
+
+
+def checks_for(listed: Sequence[Check]) -> tuple[Check, ...]:
+    """A scenario's own checks, then the invariants it does not already list."""
+    names = {c.name for c in listed}
+    return (*listed, *(c for c in INVARIANTS if c.name not in names))
+
 
 SET_FIELDS = {"availability_days", "availability_shifts"}
 INT_FIELDS = {"hours_per_week"}
@@ -249,6 +278,33 @@ def _tool_ok(result: SessionResult, check: Check) -> tuple[bool, str]:
     )
 
 
+def _tool_ok_on_any_turn(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Some call of ``tool`` answered ``ok`` on some turn: the turn-free form for live runs,
+    whose turns vary."""
+    tool, wanted = check.args["tool"], check.args["ok"] == "true"
+    answers = [ok for calls in result.tools_by_turn for name, ok in calls if name == tool]
+    return wanted in answers, f"{tool} answered ok={answers or 'never called'} (wanted {wanted})"
+
+
+def _offered_real_times(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Ana said at least one of the times actually on offer (D64): live, with the calendar
+    blocked, she said there were none. Matched by the local hour, e.g. "17:00"."""
+    offer = result.state.slot_offer
+    if offer is None or not offer.slots:
+        return False, "no times were ever on offer"
+    zone = ZoneInfo(_timezones()[result.state.config_id])
+    times = {s.starts_at_utc.astimezone(zone).strftime("%H:%M") for s in offer.slots}
+    said = " ".join(t.text for t in result.turns if t.role == "assistant")
+    found = sorted(t for t in times if t in said)
+    return bool(found), f"times on offer {sorted(times)}, said {found or 'none'}"
+
+
+@cache
+def _timezones() -> dict[str, str]:
+    configurations = load_configurations(Path(__file__).resolve().parents[1] / "config")
+    return {config_id: c.timezone for config_id, c in configurations.items()}
+
+
 # A sentence that says something was just saved, in either language; a question offering to
 # save ("¿quieres que lo deje anotado?") is not a claim.
 _SAVE_CLAIM = re.compile(
@@ -284,6 +340,51 @@ def _claims_saved_without_save(result: SessionResult, check: Check) -> tuple[boo
             if "?" not in s and _SAVE_CLAIM.search(s) and not s.startswith(_readback_openings())
         ]
     return not claims, f"said saved with nothing saved: {claims or 'none'}"
+
+
+def _no_sentence_twice_in_a_turn(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Live, 22 October: "Eso es todo, gracias. Ahora te leo un resumen…" said twice in one
+    turn. A sentence of a few words or more is never said twice in the same turn."""
+    twice = []
+    for n, sentences in enumerate(result.spoken_by_turn, start=1):
+        seen = Counter(plain(s).strip() for s in sentences if len(s.split()) >= 4)
+        twice += [f"turn {n}: {s!r}" for s, k in seen.items() if k > 1]
+    return not twice, f"said twice: {twice or 'none'}"
+
+
+def _goodbye_ends_session(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Live, 22 October: "Gracias, adiós" twice and the call stayed open. A conversation whose
+    last candidate line is a goodbye has ended."""
+    lines = [t.text for t in result.turns if t.role == "user" and t.text]
+    if not lines or not is_farewell(lines[-1]):
+        return True, "the last line is not a goodbye"
+    ended = result.state.lifecycle in TERMINAL
+    return ended, f"last line {lines[-1]!r}: lifecycle {result.state.lifecycle}"
+
+
+def _brief_presented_once_complete(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Live, 22 October: every field collected, the summary promised three times and never
+    read. Once the record is complete, the brief has been presented at some point."""
+    if not ready_for_brief(result.state.candidate):
+        return True, "the record is not complete"
+    if result.state.lifecycle in ("abandoned", "failed"):
+        return True, f"the system ended the session ({result.state.lifecycle}) first"
+    pending = result.state.pending_confirmation
+    presented = (
+        any(("present_confirmation", True) in tools for tools in result.tools_by_turn)
+        or result.state.brief_confirmed_revision is not None
+        or (pending is not None and pending.target.kind == "brief")
+    )
+    return presented, "brief presented" if presented else "complete record, brief never presented"
+
+
+def _no_internal_failure(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Live, 22 October: turns after a switch to German failed to save. No turn ends with an
+    internal error."""
+    failed = [
+        n for n, code in enumerate(result.failed_by_turn, start=1) if code == "internal_error"
+    ]
+    return not failed, f"internal errors on turns: {failed or 'none'}"
 
 
 def _turn_failed(result: SessionResult, check: Check) -> tuple[bool, str]:
@@ -352,6 +453,8 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "signal_recorded": _signal_recorded,
     "said_control_reply": _said_control_reply,
     "tool_ok": _tool_ok,
+    "tool_ok_on_any_turn": _tool_ok_on_any_turn,
+    "offered_real_times": _offered_real_times,
     "turn_failed": _turn_failed,
     "readback_assurance": _readback_assurance,
     "readback_said_whole": _readback_said_whole,
@@ -359,6 +462,10 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "no_leak": _no_leak,
     "spoken_language": _spoken_language,
     "claims_saved_without_save": _claims_saved_without_save,
+    "no_sentence_twice_in_a_turn": _no_sentence_twice_in_a_turn,
+    "goodbye_ends_session": _goodbye_ends_session,
+    "brief_presented_once_complete": _brief_presented_once_complete,
+    "no_internal_failure": _no_internal_failure,
 }
 LATER: dict[str, str] = {}
 

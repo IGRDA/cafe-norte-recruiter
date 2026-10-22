@@ -51,11 +51,12 @@ def test_a_turn_ends_when_it_sounds_finished_not_after_a_fixed_second() -> None:
     assert analyzer._params.stop_secs == UNFINISHED_TURN_SILENCE_SECONDS  # noqa: SLF001
 
 
-@pytest.mark.parametrize("language", ["es", "en"])
-def test_speech_is_recognised_in_the_session_language_not_multi(language: str) -> None:
-    """The hosted call: in `multi`, "sí" came back as "C" and "Sì"."""
-    settings = stt_settings(language)  # type: ignore[arg-type]
-    assert str(settings.language).lower().startswith(language)
+def test_speech_is_recognised_in_every_language_at_once() -> None:
+    """D64: locked to the session language, a switch to English turned Spanish into "Oh, c
+    correcto". D35 had found `multi` hearing a short "sí" as "C": checked again by voice before
+    the merge."""
+    settings = stt_settings()
+    assert settings.language == "multi"
     assert settings.model == "nova-3" and settings.interim_results is True
 
 

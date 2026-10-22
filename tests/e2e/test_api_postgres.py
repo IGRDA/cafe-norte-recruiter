@@ -120,3 +120,13 @@ def turn_input(session_id: SessionId, text: str, input_id: str) -> TurnInput:
         channel="text",
         received_at=NOW,
     )
+
+
+async def test_s34_a_switch_to_german_saves_every_turn_on_postgres(store: Store) -> None:
+    """Live, 22 October: every turn after the switch failed to save on Postgres
+    (turns_language_check); the memory store never had the check (D63, migration 0005)."""
+    if not isinstance(store, PostgresStore):
+        pytest.skip("the memory parameter is covered by test_scenarios.py")
+    scenario = next(s for s in load_scenarios() if s.id == "S34")
+    record = await run_fake(scenario, store)
+    assert all(check.ok for check in record.checks), [c for c in record.checks if not c.ok]

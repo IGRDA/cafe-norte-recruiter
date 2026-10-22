@@ -10,6 +10,7 @@ from evals.contracts import Check
 from evals.live import HttpConversation, ScriptedCandidate, serve
 from evals.live_runs import Planned, loopback_env, run_live, run_plan
 from evals.runner import load_scenarios, main, script_events
+from evals.scorers import INVARIANTS
 
 from cafe_norte.domain.contracts import ConfigId
 from cafe_norte.model.fake import FakeModel
@@ -60,7 +61,7 @@ async def test_a_live_run_records_checks_extraction_tools_and_timings() -> None:
         )
     assert record.mode == "live"
     assert record.passed
-    assert [c.name for c in record.checks] == ["outcome_is"]
+    assert [c.name for c in record.checks] == ["outcome_is", *(c.name for c in INVARIANTS)]
     assert record.tool_calls == (("update_candidate", True), ("end_session", True))
     assert len(record.turn_ms) == 2 and len(record.first_text_ms) == 2
     assert record.extraction is not None and record.extraction.supplied == 0

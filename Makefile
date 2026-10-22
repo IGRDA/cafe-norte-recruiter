@@ -1,7 +1,7 @@
 INFRA_APP := infra/app
 INFRA_BOOTSTRAP := infra/bootstrap
 
-.PHONY: setup check web-check web-build web-dev lint typecheck test test-unit test-component test-http test-e2e quality test-db db-up db-down run migrate build-index export-schema export-example \
+.PHONY: setup check preview preflight web-check web-build web-dev lint typecheck test test-unit test-component test-http test-e2e quality test-db db-up db-down run migrate build-index export-schema export-example \
         evals evals-retrieval compare evals-signals smoke voice-listen voice-smoke infra-check infra-init infra-plan infra-apply
 
 # Locked install with every extra; CI and local use the same command.
@@ -10,6 +10,19 @@ setup:
 	npm --prefix web ci --no-audit --no-fund
 
 check: lint typecheck test web-check
+
+# The branch as production runs it, on this laptop: Postgres, real model, Jev, voice (D64).
+# Prints the link to call before merging.
+preview:
+	./scripts/preview.sh
+
+# The gate before a merge (D64): the offline checks, the Postgres suite, then live on the
+# configured model with the behavioural invariants: Spanish and English to the end, a goodbye
+# with the summary pending, a switch to German, the calendar with the summary unconfirmed
+# (about €0.5; the estimate is printed first).
+PREFLIGHT_LIVE := S01 S02 S33 S34 S35
+preflight: check test-db
+	$(MAKE) evals ARGS="--suite scenarios --mode live --only $(PREFLIGHT_LIVE) --yes"
 
 # The page (D61): types, lint and Vitest; offline once `make setup` has installed web/node_modules.
 web-check:

@@ -56,7 +56,7 @@ from evals.ragas_bridge import score_with_ragas, to_ragas_samples
 from evals.retrieval import load_cases, recorded_queries, replay, run_retrieval, write_report
 from evals.scorecard import render_markdown as render_scorecard
 from evals.scorecard import scorecard
-from evals.scorers import run_check
+from evals.scorers import checks_for, run_check
 from evals.signals import CASE_SETS, DEFAULT_SIGNAL_MODEL, SYSTEMS, signals_main
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -219,7 +219,7 @@ async def run_fake(scenario: Scenario, store: Store | None = None) -> RunRecord:
         allowed_doc_ids=configuration.kb_doc_ids,
         signals=export.signals,
     )
-    checks = tuple(run_check(result, check) for check in scenario.checks)
+    checks = tuple(run_check(result, check) for check in checks_for(scenario.checks))
     return RunRecord(
         case_id=scenario.id,
         mode="fake",

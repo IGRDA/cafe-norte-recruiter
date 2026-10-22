@@ -1,0 +1,63 @@
+id: S35
+title: The summary cut by a yes, then the interview asked for, and the calendar answers
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# Iñaki's preview call of 22 October (D64): "Es todo correcto, sí" over the summary earned the
+# review offer (D39, kept), the summary stayed unconfirmed, and the calendar was blocked, so Ana
+# said there were no slots. The calendar is always open now: the times are listed whatever the
+# summary's state; only reserving one needs the summary confirmed, and the tool says so.
+live_candidate: scripted
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
+  - "Sí, está todo bien."
+  - "Quiero una entrevista. ¿Qué huecos hay?"
+faults:
+  - { turn: 5, kind: interrupt, after_sentences: 1 }
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    # The candidate speaks over the summary: the turn ends while it is still being said.
+    - tool: present_confirmation
+      args: { target: brief }
+  # "Sí, está todo bien." over the summary: the one offer (D39).
+  - - say: "Perdona, me has contestado antes de acabar. ¿Lo repasamos por partes o seguimos?"
+  # The interview, with the summary still unconfirmed: the calendar answers anyway.
+  - - tool: list_interview_slots
+      args: { evidence_text: "Quiero una entrevista. ¿Qué huecos hay?" }
+    - say: "Tengo el martes 20 a las 17:00, el miércoles 21 a las 10:30 o las 17:00. ¿Cuál prefieres?"
+persona:
+  facts:
+    name: Lucía Marín
+  wants_interview: true
+checks:
+  - name: tool_ok
+    args: { turn: "7", tool: list_interview_slots, ok: "true" }
+  - name: offered_real_times
+live_checks:
+  - name: offered_real_times
+goal: "Asked for an interview with the summary unconfirmed, Ana offers real times instead of saying there are none."

@@ -18,10 +18,10 @@ from cafe_norte.domain.contracts import (
     SlotTarget,
     TurnId,
 )
-from cafe_norte.errors import ServiceError
+from cafe_norte.errors import SWITCHABLE, ServiceError
 from cafe_norte.observability.contracts import StageTiming, UsageRecord
 from cafe_norte.persistence.contracts import EventRecord, Store, TurnRecord
-from tests.support.builders import NOW, STAMP, session_state
+from tests.support.builders import NOW, SESSION, STAMP, session_state
 
 SID = SessionId("s1")
 
@@ -472,3 +472,18 @@ async def test_the_maintenance_lock_is_held_by_one_holder_at_a_time(store: Store
             assert second is False
     async with store.maintenance() as again:
         assert again is True
+
+
+@pytest.mark.parametrize("language", SWITCHABLE)
+async def test_a_turn_saves_in_every_language_ana_answers_in(store: Store, language: str) -> None:
+    """D63 widened the languages and the turns table refused all but es and en: on the hosted
+    demo, after "Can you ask in German?", every turn failed to save (22 October). The memory
+    store has no such check, so this runs on Postgres too (make test-db, CI's postgres job)."""
+    await created(store)
+    async with store.transaction() as tx:
+        await store.turns.append(tx, turn("a").model_copy(update={"language": language}))
+        await store.turns.append(
+            tx, turn("a", role="assistant").model_copy(update={"language": language})
+        )
+    saved = await store.turns.recent(SESSION, 2)
+    assert [t.language for t in saved] == [language, language]

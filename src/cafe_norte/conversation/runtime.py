@@ -1029,6 +1029,7 @@ class Runtime:
                 if run.repairs > self._limits.max_repairs:
                     raise ServiceError("malformed tool call after repair", code="invalid_response")
         held, run.held = run.held, []
+        held += [say for call, _ in results if (say := _then_say(call))]  # ridden with the calls
         if held and committed:
             async for event in self._say_held(run, held):
                 yield event
@@ -1284,6 +1285,15 @@ class _Attempt:
         if isinstance(event, ModelText):
             self.output_characters += len(event.text)
         return not isinstance(event, ModelFinished)
+
+
+def _then_say(call: ToolCall) -> str | None:
+    """The sentence a write carried in ``then_say`` (D59); the registry validated the call."""
+    try:
+        value = json.loads(call.arguments_json).get("then_say")
+    except (ValueError, AttributeError):
+        return None
+    return value if isinstance(value, str) and value.strip() else None
 
 
 # Tools whose result is something for the model to say: a round with one is answered next.

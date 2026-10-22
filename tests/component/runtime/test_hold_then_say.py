@@ -69,3 +69,35 @@ async def test_a_plain_answer_is_said_whole_at_the_end_of_its_stream() -> None:
         "Hola, soy Ana.",
         "¿Cómo te llamas?",
     ]
+
+
+def with_then_say(call: ToolCall, sentence: str) -> ToolCall:
+    payload = {**json.loads(call.arguments_json), "then_say": sentence}
+    return call.model_copy(update={"arguments_json": json.dumps(payload)})
+
+
+async def test_a_question_carried_in_then_say_is_said_once_the_save_commits() -> None:
+    """gpt-4.1 sends a tool call with no text whatever the prompt says: the sentence rides
+    inside the call instead, on the same held path (D59)."""
+    h = Harness([[with_then_say(name_call(), "¿Tienes permiso de trabajo?"), WANTS_TOOLS]])
+    await h.open_session()
+    events = await h.run("Soy Lucía")
+    kinds = [type(e).__name__ for e in events]
+    assert kinds.index("ToolFinished") < kinds.index("AssistantText")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == [
+        "¿Tienes permiso de trabajo?"
+    ]
+    assert len(h.model.calls) == 1
+
+
+async def test_then_say_on_a_refused_save_is_never_heard() -> None:
+    h = Harness(
+        [
+            [with_then_say(name_call(name="Ane"), "¿Tienes permiso?"), WANTS_TOOLS],
+            says("¿Cómo te llamas?"),
+        ]
+    )
+    await h.open_session()
+    events = await h.run("Soy Lucía")
+    assert [e.text for e in events if isinstance(e, AssistantText)] == ["¿Cómo te llamas?"]
+    assert [e.event for e in h.telemetry.events if e.event == "held_dropped"] == ["held_dropped"]

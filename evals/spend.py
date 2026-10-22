@@ -18,6 +18,11 @@ EXPECTED_TURNS = 14  # candidate lines in a full interview with a brief and a bo
 ANSWER_TOKENS_PER_TURN = (12_000, 200)  # (input, output) for the answering model
 SIMULATOR_TOKENS_PER_TURN = (1_200, 60)
 JUDGE_TOKENS_PER_RUN = (8_000, 300)
+# The scorecard's ragas judges (D48): a probe is about six calls (faithfulness, factual
+# correctness, topic adherence); a scenario about nine over its whole transcript (topic
+# adherence, goal, style, rubric bullets).
+JUDGE_TOKENS_PER_PROBE = (8_000, 1_500)
+JUDGE_TOKENS_PER_SCENARIO = (60_000, 2_000)
 
 
 class Spend(BaseModel):
@@ -57,6 +62,35 @@ def estimate_spend(
 
 
 Calls = tuple[str, tuple[int, int], int]  # model selector, (input, output) tokens a call, calls
+
+
+def estimate_scorecard(
+    model: str,
+    *,
+    scenarios: int,
+    probes: int,
+    simulator: str,
+    judge: str | None,
+    prices: PriceTable,
+) -> Spend:
+    """A live scorecard: the scenario runs (simulated candidate), one question turn per probe,
+    and the judges over both."""
+    calls: list[Calls] = [
+        (model, ANSWER_TOKENS_PER_TURN, EXPECTED_TURNS * scenarios + probes),
+        (simulator, SIMULATOR_TOKENS_PER_TURN, EXPECTED_TURNS * scenarios),
+    ]
+    if judge is not None:
+        calls += [
+            (judge, JUDGE_TOKENS_PER_PROBE, probes),
+            (judge, JUDGE_TOKENS_PER_SCENARIO, scenarios),
+        ]
+    return estimate_calls(
+        calls,
+        prices,
+        runs=scenarios + probes,
+        basis=f"{scenarios} scenarios of {EXPECTED_TURNS} turns, {probes} probes, "
+        f"judge {judge or 'off'}",
+    )
 
 
 def estimate_calls(calls: Sequence[Calls], prices: PriceTable, *, runs: int, basis: str) -> Spend:

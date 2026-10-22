@@ -9,6 +9,7 @@ from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.domain.configuration import load_configurations
+from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.main import close_hook, create_app
 from cafe_norte.model.contracts import Model
@@ -34,11 +35,13 @@ def build_test_app(
     access_code: str | None = None,
     store: MemoryStore | None = None,
     estimate: Estimator | None = None,
+    retriever: Retriever | None = None,
 ) -> FastAPI:
     store = store if store is not None else MemoryStore()
     configurations = load_configurations(CONFIG_DIR)
+    retriever = retriever if retriever is not None else FakeRetriever()
     registry = ToolRegistry(
-        all_handlers(store=store, configurations=configurations, retriever=FakeRetriever())
+        all_handlers(store=store, configurations=configurations, retriever=retriever)
     )
     runtime = Runtime(
         model=model,

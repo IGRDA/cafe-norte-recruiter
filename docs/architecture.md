@@ -95,6 +95,8 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Live eval: simulator reply | 30 s per line; an empty reply stops the run (`SimulatorError`) (D43) |
 | Live eval: rubric judge | 60 s per run; the newest 12 000 characters of the transcript (`JUDGE_TRANSCRIPT_CHARS`), the cut start marked (D43) |
 | Scorecard targets (D48) | tier 0: valid export 100 %, model turns ≤ 60 words in ≥ 95 %, first sentence median ≤ 2.5 s (text, runner's clock), cost ≤ €0.05 a session, tool calls accepted ≥ 80 %, language kept ≥ 95 %, no leak 100 %; tier 1: recall@3 ≥ 90 %, ragas ID precision ≥ 0.30 and recall ≥ 0.85, no cross-store source, abstention, trajectory, no fabrication, task success and injection held 100 %, expected facts ≥ 90 %, `ToolCallF1` ≥ 0.90, extraction ≥ 95 %; tiers 2–3 (report only): faithfulness ≥ 0.85, factual correctness ≥ 0.70, goal accuracy, rubric, topic adherence and style ≥ 0.90 |
+| QA probe | one session per knowledge-base question: Ana's opening, the question, the end (D48) |
+| Scorecard judge | 90 s per metric per sample (`JUDGE_SECONDS`), then no score; estimate 8 000 + 1 500 tokens a probe and 60 000 + 2 000 a scenario, deliberately high (D48) |
 | Leak check | 12 consecutive words of `system.md` in one assistant turn, or a tool, chunk or configuration id, `ana_vN`, a key shape, raw JSON (D48) |
 | Live eval: spend estimate assumptions | 14 candidate turns a run; per turn 12 000 input + 200 output tokens for the answering model and 1 200 + 60 for the simulator; 8 000 + 300 per run for the judge; deliberately high, priced with `prices/v1.yaml` (D43) |
 | Negation window for explicit requests | 3 words before the match, within one clause |

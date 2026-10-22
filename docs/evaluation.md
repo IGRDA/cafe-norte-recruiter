@@ -32,8 +32,13 @@ scorecard"`. Four tiers, cheapest first, like a test pyramid:
 | --- | --- | --- | --- |
 | 0 | Deterministic, no reference | valid export, turn length, first-sentence latency, cost, tool calls accepted, language kept, no leak | gate |
 | 1 | Deterministic, against a reference | recall@3, ragas ID precision/recall, no cross-store source, abstention, expected facts, ragas `ToolCallF1`, scenario trajectory, extraction, no fabrication, task success, injection held | gate |
-| 2 | Judge, against a reference | ragas `Faithfulness`, `FactualCorrectness`, `AgentGoalAccuracyWithReference`, rubric bullets (`AspectCritic`) | report |
-| 3 | Judge alone | ragas `TopicAdherence`, style critic | report |
+| 2 | Judge, against a reference | ragas `Faithfulness`, `FactualCorrectness`; the scenario's goal and rubric bullets as pass/fail ragas `DiscreteMetric` | report |
+| 3 | Judge alone | stays on topic, style (pass/fail ragas `DiscreteMetric`) | report |
+
+Answer-level rows come from QA probes: each of the 41 knowledge-base questions as the first
+line of its own live session, so an answer is scored apart from the interview around it.
+`make evals ARGS="--suite scorecard --mode live"` prints the estimate; `--yes` runs the
+scenarios with `live_checks`, the probes and the judges (`openai/gpt-4o-mini` by default).
 
 Each row carries k/n, its target (`docs/architecture.md`) and the delta against the committed
 baseline (`evals/results/scorecard/`). A row nothing measured says "not run" and neither passes

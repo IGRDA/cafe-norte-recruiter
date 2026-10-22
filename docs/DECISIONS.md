@@ -1594,8 +1594,8 @@ generated then curated.
   (recall@3, ragas ID-based precision and recall, no cross-store source, abstention, expected
   facts in the answer, ragas `ToolCallF1`, scenario trajectory, extraction, no fabricated
   value, task success, injection held); 2, a judge against a reference (ragas
-  `Faithfulness`, `FactualCorrectness`, `AgentGoalAccuracyWithReference`, rubric bullets as
-  `AspectCritic`); 3, a judge alone (`TopicAdherence`, a style critic). Tiers 0 and 1 gate;
+  `Faithfulness`, `FactualCorrectness`, the goal and the rubric bullets as a pass/fail
+  `DiscreteMetric`); 3, a judge alone (staying on topic, style, as the same metric). Tiers 0 and 1 gate;
   judge rows report against a target and the committed baseline, never pass or fail (D06
   holds: deterministic checks decide).
 - **The trajectory is the journal's.** A scenario may carry `reference_tools` (`in_order` as a
@@ -1628,6 +1628,20 @@ answer and `expected_facts` with `a|b` alternatives, so an English answer can ho
 fact. Hybrid recall@3 32/32, ragas ID precision 0.40, recall 0.86; BM25 alone misses only
 English questions. ragas `StringPresence` is not used: it has neither alternatives nor
 normalisation (thousands separators, accents), so fact presence is ours.
+
+**The judges (22 October, paid smoke on gpt-4o-mini).** ragas `Faithfulness` and
+`FactualCorrectness` told a right answer (1.0) from a wrong one (0.0). `TopicAdherence` and
+`AgentGoalAccuracyWithReference` did not: on a plain Spanish exchange (the pay question answered
+from the offer, a joke politely declined) the first marked the salary answer as refused and
+classified "salario" outside a pay topic, also on gpt-4o; the second inferred the right end
+state and still gave 0. Both are replaced by a pass/fail ragas `DiscreteMetric` with our own
+prompt (`evals/prompts/criterion.md`): one criterion per row (topic, goal, style, each rubric
+bullet), worded as violations the judge can quote, and "never" statements hold unless the
+transcript shows otherwise. Tool calls are shown on a `(system)` line: inside Ana's turn the
+judge took them for bracketed notes. Checked on a good and a bad conversation, twice: topic
+and style right both times; the goal judge cannot tell an answer from the offer from an
+invented one, which is what faithfulness is for. `FactualCorrectness` runs in precision mode:
+a short answer that leaves out a detail of the reference is not wrong.
 
 **Consequences we accept.** The retrieval rows need the hybrid retriever, so `make check`
 gates the scenario rows and leaves retrieval to its own tests (BM25 alone misses the English

@@ -60,9 +60,11 @@ async def test_the_baseline_gives_each_row_its_delta() -> None:
     assert "-50 pt" in render_markdown(after) and "S03: no_turn_end" in row.detail
 
 
-def test_judge_rows_report_and_never_gate() -> None:
-    card = scorecard([], {}, measured={"faithfulness": (0.5, None, 10, "")})
-    (row,) = [m for m in card.metrics if m.spec.id == "faithfulness"]
+async def test_judge_rows_report_and_never_gate() -> None:
+    (scenario,) = load_scenarios(only=["S03"])
+    record = (await run_fake(scenario)).model_copy(update={"scores": {"goal_accuracy": 0.5}})
+    card = scorecard([record], {"S03": scenario})
+    (row,) = [m for m in card.metrics if m.spec.id == "goal_accuracy"]
     assert row.ok is False and row.spec.tier == 2 and not row.spec.gate
     assert not card.gate_failures
     assert "below target" in render_markdown(card)
@@ -129,10 +131,14 @@ async def test_read_backs_and_fixed_replies_are_not_model_turns() -> None:
     assert prompts.load("opening", "es").strip() not in texts
 
 
-def test_the_cli_prints_the_scorecard_and_refuses_live_until_the_probes(
+def test_the_cli_prints_the_scorecard_and_spends_nothing_live_without_yes(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     main(["--suite", "scorecard", "--retriever", "lexical", "--only", "S03"])
     out = capsys.readouterr().out
     assert "| 0 | Run ended with a valid export | 1/1 (100%)" in out
-    assert main(["--suite", "scorecard", "--mode", "live"]) == 2
+    live = ["--suite", "scorecard", "--mode", "live", "--retriever", "lexical"]
+    assert main(live) == 0
+    out = capsys.readouterr().out
+    assert "estimated spend" in out and "probes, judge openai/gpt-4o-mini" in out
+    assert "Nothing was spent" in out

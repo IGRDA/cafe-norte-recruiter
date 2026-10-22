@@ -27,7 +27,14 @@ from cafe_norte.observability.cost import load_prices
 from evals.contracts import Candidate, JudgeVerdict, Report, RunRecord, Scenario
 from evals.judge import judge as judge_run
 from evals.langfuse_sync import SdkSink, dataset_name, keys_present, sync
-from evals.live import MAX_LIVE_TURNS, HttpConversation, LiveError, drive, serve
+from evals.live import (
+    MAX_LIVE_TURNS,
+    HttpConversation,
+    LiveError,
+    ScriptedCandidate,
+    drive,
+    serve,
+)
 from evals.report import render_json, render_markdown
 from evals.scorers import extraction_accuracy, run_check
 from evals.simulator import ModelCandidateSimulator, SimulatedCandidate, SimulatorError
@@ -141,7 +148,7 @@ async def run_plan(
     judge_model = model_from_env(judge, env) if judge else None
     records: list[RunRecord] = []
     for model, runs in groupby(plan, key=lambda p: p.model):
-        async with _target(model, base_url, env) as url:
+        async with target(model, base_url, env) as url:
             for planned in runs:
                 scenario = planned.scenario
                 async with httpx.AsyncClient(base_url=url, timeout=HTTP_TIMEOUT) as client:
@@ -152,7 +159,11 @@ async def run_plan(
                         allowed_doc_ids=configurations[scenario.config_id].kb_doc_ids,
                         access_code=access_code if base_url else None,
                     )
-                    candidate = SimulatedCandidate(voice, scenario.persona, scenario.language)
+                    candidate: Candidate = (
+                        ScriptedCandidate(scenario.scripted_turns)
+                        if scenario.live_candidate == "scripted"
+                        else SimulatedCandidate(voice, scenario.persona, scenario.language)
+                    )
                     record = await run_live(
                         scenario,
                         conversation,
@@ -232,7 +243,7 @@ def _line(record: RunRecord) -> str:
 
 
 @asynccontextmanager
-async def _target(model: str, base_url: str | None, env: Mapping[str, str]) -> AsyncIterator[str]:
+async def target(model: str, base_url: str | None, env: Mapping[str, str]) -> AsyncIterator[str]:
     if base_url:
         yield base_url
         return

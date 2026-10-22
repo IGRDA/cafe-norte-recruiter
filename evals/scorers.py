@@ -5,6 +5,7 @@ the stage that brings them, so a scenario cannot silently pass on an unimplement
 
 import json
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Callable, Sequence
 from datetime import date, timedelta
@@ -28,6 +29,7 @@ from cafe_norte.persistence.export import ExportDocument
 from evals.contracts import (
     Check,
     CheckResult,
+    Exchange,
     Extraction,
     Persona,
     ReferenceTools,
@@ -507,3 +509,49 @@ def _system_shingles() -> frozenset[tuple[str, ...]]:
     said = [w.lower() for w in _WORD.findall(prompts.load("system"))]
     n = LEAK_SHINGLE_WORDS
     return frozenset(tuple(said[i : i + n]) for i in range(len(said) - n + 1))
+
+
+# ---- reads over a probe's answer (D48) -----------------------------------------------------------
+
+_THOUSANDS = re.compile(r"(?<=\d)[.,](?=\d{3}\b)")
+_ABSTAIN = re.compile(
+    r"\bno (?:lo )?s[ée]\b|no tengo (?:esa |esta |ese |este )?(?:informaci|dato)|no dispongo"
+    r"|no (?:te )?puedo (?:confirmar|decir)|no aparece|no consta"
+    r"|\bdon'?t know\b|\bdo not know\b|don'?t have (?:that|this|any) (?:information|detail)"
+    r"|not sure|can'?t (?:confirm|tell)|\bno information\b",
+    re.IGNORECASE,
+)
+
+
+def facts_missing(answer: str, facts: Sequence[str]) -> list[str]:
+    """The expected facts an answer does not hold. ``a|b`` accepts either; case, accents and
+    thousands separators are ignored, so "1.380", "1,380" and "1380" are the same fact."""
+    said = _fold(answer)
+    return [fact for fact in facts if not any(_fold(alt) in said for alt in fact.split("|"))]
+
+
+def abstained(answer: str, tools: Sequence[str]) -> bool:
+    """An unsupported question was not answered as if it were: Ana said she does not know, or
+    asked for a person to follow up. Whether nothing was invented is the judges' to read."""
+    return "request_human_followup" in tools or bool(_ABSTAIN.search(answer))
+
+
+def exchanges(export: ExportDocument) -> list[Exchange]:
+    """The transcript as the judges read it, each assistant turn with the tools it called."""
+    called: dict[str, list[str]] = {}
+    for event in export.events:
+        if event.kind == "tool_started" and event.turn_id:
+            called.setdefault(event.turn_id, []).append(json.loads(event.payload_json)["name"])
+    return [
+        (
+            "human" if t.role == "user" else "ai",
+            t.text,
+            tuple(called.get(t.turn_id, ())) if t.role == "assistant" else (),
+        )
+        for t in export.transcript
+    ]
+
+
+def _fold(text: str) -> str:
+    plain = unicodedata.normalize("NFKD", _THOUSANDS.sub("", text))
+    return " ".join("".join(c for c in plain if not unicodedata.combining(c)).casefold().split())

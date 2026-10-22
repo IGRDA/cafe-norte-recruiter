@@ -17,7 +17,8 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
-from evals.contracts import Report, RetrievalCase, RunRecord
+from evals.contracts import ProbeRecord, Report, RetrievalCase, RunRecord
+from evals.scorers import abstained, facts_missing
 
 PREFIX = "cafe-norte"
 RAG_DATASET = f"{PREFIX}-rag"  # the knowledge-base questions, probed one session each (D48)
@@ -123,6 +124,43 @@ def rag_items(cases: Sequence[RetrievalCase]) -> list[DatasetItem]:
 def sync_rag_dataset(cases: Sequence[RetrievalCase], sink: ExperimentSink) -> None:
     sink.upsert_dataset(RAG_DATASET, "Café Norte knowledge-base questions (evals/cases/retrieval)")
     sink.upsert_items(RAG_DATASET, rag_items(cases))
+
+
+def probe_run(probes: Sequence[ProbeRecord], model: str) -> ExperimentRun:
+    """The probes of one scorecard as one experiment run on ``cafe-norte-rag``: the answer as
+    output, the deterministic reads and ragas' scores as scores (D48)."""
+    stamp = next((p.run.versions for p in probes if p.run.versions is not None), None)
+    prompt = stamp.prompt_version if stamp else "unknown"
+    rows: list[ExperimentRow] = []
+    for probe in probes:
+        scores: dict[str, bool | float] = {k: v for k, v in probe.scores.items() if v is not None}
+        if probe.run.export is not None and probe.kind == "answerable":
+            missing = facts_missing(probe.answer, probe.expected_facts)
+            scores["fact_presence"] = 1 - len(missing) / max(len(probe.expected_facts), 1)
+        if probe.run.export is not None and probe.kind == "unsupported":
+            scores["abstention"] = abstained(probe.answer, probe.tools)
+        rows.append(
+            ExperimentRow(
+                item_id=f"{RAG_DATASET}-{probe.case_id}",
+                session_id=probe.run.session_id,
+                output={
+                    "answer": probe.answer,
+                    "sources": list(probe.sources),
+                    "tools": list(probe.tools),
+                    "failure": probe.run.failure,
+                },
+                scores=scores,
+            )
+        )
+    return ExperimentRun(
+        run_name=f"{prompt} · {model} · probes",
+        metadata={
+            "model": model,
+            "prompt_version": prompt,
+            "kb_version": stamp.kb_version if stamp else "",
+        },
+        rows=tuple(rows),
+    )
 
 
 def experiment_runs(report: Report) -> list[ExperimentRun]:

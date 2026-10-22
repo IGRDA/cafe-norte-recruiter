@@ -1,5 +1,6 @@
 """Evaluation types and ports."""
 
+from collections.abc import Sequence
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -292,6 +293,7 @@ class RunRecord(Frozen):
     lines: int = 0  # candidate lines said
     hit_turn_cap: bool = False
     cost_is_partial: bool = True
+    scores: dict[str, float | None] = {}  # scorecard row id -> ragas score; None: none came (D48)
 
     @property
     def passed(self) -> bool:
@@ -391,3 +393,40 @@ class Scorecard(Frozen):
     @property
     def gate_failures(self) -> tuple[Metric, ...]:
         return tuple(m for m in self.metrics if m.spec.gate and m.ok is False)
+
+
+Kind = Literal["answerable", "unsupported", "leakage"]
+
+
+class ProbeRecord(Frozen):
+    """One knowledge-base question asked live as the first line of its own session (D48): what
+    Ana answered, the chunks shown for it and the tools the turn called. ``run`` is the session
+    as any live run records it, so the tier-0 rows read probes and scenarios alike."""
+
+    case_id: str
+    kind: Kind
+    run: RunRecord
+    expected_facts: tuple[str, ...] = ()  # the case's, so the record scores on its own
+    answer: str = ""  # what Ana said in the question's turn
+    sources: tuple[str, ...] = ()  # chunk ids shown in that turn
+    foreign_sources: tuple[str, ...] = ()  # of those, the ones outside the store's documents
+    contexts: tuple[str, ...] = ()  # their text, for faithfulness
+    tools: tuple[str, ...] = ()  # the turn's tool calls, journal order
+    scores: dict[str, float | None] = {}  # scorecard row id -> ragas score; None: none came
+
+
+Exchange = tuple[Literal["human", "ai"], str, tuple[str, ...]]  # speaker, text, tools it called
+
+
+class AnswerJudge(Protocol):
+    """The tier 2 and 3 judges (D48): ragas over an LLM, or a fake. A judge that cannot answer
+    raises; the caller records no score, never a guessed one."""
+
+    @property
+    def model_id(self) -> str: ...
+
+    async def faithfulness(self, question: str, answer: str, contexts: Sequence[str]) -> float: ...
+
+    async def factual_correctness(self, answer: str, reference: str) -> float: ...
+
+    async def holds(self, exchanges: Sequence[Exchange], criterion: str) -> bool: ...

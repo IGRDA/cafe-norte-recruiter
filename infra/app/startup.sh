@@ -38,6 +38,16 @@ fi
 # /root is read-only on COS; docker keeps its credential store under HOME.
 export HOME="$ENV_DIR"
 printf '%s' "$TOKEN" | docker login -u oauth2accesstoken --password-stdin https://europe-west1-docker.pkg.dev
+# COS drops inbound traffic except ssh; host networking does not add port rules. Opened
+# before the pull: if it fails, the previous release, restarted by docker, stays reachable.
+for PORT in 80 443; do
+  iptables -w -C INPUT -p tcp --dport "$PORT" -j ACCEPT 2>/dev/null \
+    || iptables -w -A INPUT -p tcp --dport "$PORT" -j ACCEPT
+done
+# Every deploy pulls a 1.7 GB image onto a 16 GB docker partition; nine filled it on 22 October
+# 2026 and the deploy stopped. The image the existing containers run is kept, so a failed pull
+# still leaves the previous release running.
+docker image prune -af >/dev/null || true
 docker pull "$IMAGE"
 docker rm -f app caddy cloud-sql-proxy >/dev/null 2>&1 || true
 if [ -n "$DB_CONNECTION" ]; then
@@ -53,11 +63,6 @@ fi
 # needs for ICE candidates (the reason this is a VM and not Cloud Run, D24).
 docker run -d --name app --restart=always --network host --env-file "$ENV_FILE" \
   -e PORT=8080 "$IMAGE"
-# COS drops inbound traffic except ssh; host networking does not add port rules.
-for PORT in 80 443; do
-  iptables -w -C INPUT -p tcp --dport "$PORT" -j ACCEPT 2>/dev/null \
-    || iptables -w -A INPUT -p tcp --dport "$PORT" -j ACCEPT
-done
 mkdir -p /var/lib/caddy
 docker run -d --name caddy --restart=always --network host -v /var/lib/caddy:/data \
   caddy:2.9 caddy reverse-proxy --from "https://$PUBLIC_HOST" --to localhost:8080

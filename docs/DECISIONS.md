@@ -2153,7 +2153,19 @@ D56–D58 and the feedback on them. One entry per fix, in the order they landed.
   estimate was about 0.3 s against about 0.7 s saved on a data turn. D49 named this lever and
   left it for measurement; Langfuse's `first_output_ms` and turn latency before and after this
   deploy are the check, and the numbers go here once read.
-- Prompt `ana_v22`.
+- **Measured** (Iñaki's calls on the D59 build, 15:57 and 16:02 UTC, gpt-4.1 `ana_v22`): turn
+  latency p50 2.33 s in Spanish (18 turns) and 1.87 s in English (10 turns), against 2.75–2.8 s
+  on the morning's calls; first token p50 780–795 ms, unchanged. Most turns still took two
+  rounds (21 of 26): with "puedes escribir…" gpt-4.1 kept sending the tool call alone, so the
+  prompt now asks for text and call together (`ana_v23`); the one-round path is the saving
+  still to collect. Cached input was 70% of the input tokens.
+- **`then_say`.** Told to write text and call together (`ana_v23`), gpt-4.1 still sent the call
+  alone on 14 of 21 live turns. The write tools (`update_candidate`, `confirm_field`,
+  `confirm_brief`, `request_human_followup`) take an optional `then_say`: the model's next
+  sentence, carried inside the call and put on the same held path, said once the call commits
+  and dropped if it is refused. The read-back tools get none: they ask their own question. The
+  words stay the model's; the runtime still decides when they are heard.
+- Prompt `ana_v22`, then `ana_v23` for `then_say`.
 - **Two seconds before Ana leaves.** Once the goodbye has played, the voice session waits
   2.0 s of silence (`hang_up_grace_seconds`, through `_after_silence`) before hanging up.
   Words over or after the goodbye run no turn on the ended session (live, four of them failed

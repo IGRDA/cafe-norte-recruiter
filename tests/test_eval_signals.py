@@ -103,10 +103,10 @@ ANSWER = {
                 "uncertain": 0.05,
             },
         },
-        "reply_language": {
+        "language": {
             "type": "choice",
-            "choice": "en",
-            "probabilities": {"es": 0.08, "en": 0.92},
+            "choice": "switch",
+            "probabilities": {"keep": 0.08, "switch": 0.92},
         },
     },
     "usage": {"input_tokens": 300, "output_tokens": 0, "cost": 0.0000126},
@@ -132,14 +132,15 @@ async def test_the_request_carries_the_state_and_choice_questions() -> None:
     assert sent[0]["state"] == {"candidate_said": "hola"}
     questions = sent[0]["questions"]
     assert isinstance(questions, dict)
-    assert questions["reply_language"]["type"] == "choice"
+    assert questions["language"]["type"] == "choice"
+    assert set(questions["language"]["criteria"]) == {"keep", "switch"}
     assert set(questions["sentiment"]["criteria"]) == {
         "neutral",
         "positive",
         "frustrated",
         "uncertain",
     }
-    assert decision.answers["reply_language"].probabilities["en"] == 0.92
+    assert decision.answers["language"].probabilities["switch"] == 0.92
     assert decision.cost_usd == 0.0000126
     assert decision.model.startswith("typesafe/jev-1.14")
 
@@ -184,7 +185,7 @@ async def test_jev_answers_both_questions_with_probabilities_and_cost() -> None:
 
 async def test_jev_answering_outside_the_criteria_is_an_error() -> None:
     body = json.loads(json.dumps(ANSWER))
-    body["answers"]["reply_language"]["choice"] = "fr"
+    body["answers"]["language"]["choice"] = "fr"
     found = await JevClassifier(client(httpx.Response(200, json=body)), 1.0).classify(case(), 1)
     assert found.error == "unknown_choice" and found.reply_language is None
 
@@ -213,7 +214,7 @@ def reply(text: str) -> FakeModel:
 
 
 async def test_the_llm_system_parses_a_fenced_answer_and_prices_it() -> None:
-    model = reply('```json\n{"sentiment": "uncertain", "reply_language": "en"}\n```')
+    model = reply('```json\n{"sentiment": "uncertain", "language": "switch"}\n```')
     found = await LlmClassifier(model, PRICES).classify(case(), 1)
     assert (found.sentiment, found.reply_language, found.error) == ("uncertain", "en", None)
     assert found.cost_eur is not None and found.cost_eur > 0

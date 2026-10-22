@@ -16,7 +16,7 @@ import time
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 import httpx
 import yaml
@@ -72,14 +72,31 @@ QUESTIONS: dict[str, ChoiceQuestion] = {
             "uncertain": "Hesitation, doubt or confusion about what to answer.",
         },
     ),
-    "reply_language": ChoiceQuestion(
-        instructions="The language Ana should use for her next reply. Keep session_language "
-        "unless candidate_said asks to change language, says the candidate cannot follow "
-        "session_language, or is written entirely in the other language. Mentioning a "
-        "language, a borrowed word or two, or refusing a switch keeps session_language.",
-        criteria={"es": "Spanish", "en": "English"},
+    # Relative to the session, not "es"/"en": a decision about the conversation, which the
+    # dev set showed Jev reads better (indirect requests).
+    "language": ChoiceQuestion(
+        instructions="Whether Ana should keep session_language for her next reply or switch "
+        "to the other language (es is Spanish, en is English), from candidate_said.",
+        criteria={
+            "keep": "An ordinary reply in session_language; or names a language without asking "
+            "to leave session_language (asks if it is needed for the job, says they studied "
+            "it); or turns down a switch; or uses a borrowed word or two from the other "
+            "language.",
+            "switch": "Asks to continue in the other language; or says the candidate cannot "
+            "speak, understand or follow session_language well, or only speaks the other "
+            "language; or is written entirely in the other language.",
+        },
     ),
 }
+LanguageMove = Literal["keep", "switch"]
+
+
+def reply_of(case: SignalCase, move: LanguageMove) -> Language:
+    return case.session_language if move == "keep" else _other(case.session_language)
+
+
+def _other(language: Language) -> Language:
+    return "en" if language == "es" else "es"
 
 
 def load_cases(path: Path = FIXTURE, only: Sequence[str] = ()) -> list[SignalCase]:
@@ -168,7 +185,7 @@ class _Answer(BaseModel):
     model_config = ConfigDict(frozen=True, extra="ignore")
 
     sentiment: Sentiment
-    reply_language: Language
+    language: LanguageMove
 
 
 class LlmClassifier:
@@ -210,7 +227,7 @@ class LlmClassifier:
             system=self.system,
             repetition=repetition,
             sentiment=answer.sentiment if answer else None,
-            reply_language=answer.reply_language if answer else None,
+            reply_language=reply_of(case, answer.language) if answer else None,
             milliseconds=_since(started),
             cost_eur=_eur(self._prices, self.model, usage),
             error=error,
@@ -238,9 +255,9 @@ class JevClassifier:
                 error=failure.code,
             )
         sentiment = decision.answers["sentiment"]
-        language = decision.answers["reply_language"]
+        language = decision.answers["language"]
         if sentiment.choice not in QUESTIONS["sentiment"].criteria or (
-            language.choice not in QUESTIONS["reply_language"].criteria
+            language.choice not in QUESTIONS["language"].criteria
         ):
             return SignalPrediction(
                 case_id=case.id,
@@ -255,8 +272,11 @@ class JevClassifier:
             repetition=repetition,
             sentiment=sentiment.choice,
             sentiment_probabilities=sentiment.probabilities,
-            reply_language=language.choice,
-            language_probabilities=language.probabilities,
+            reply_language=reply_of(case, "switch" if language.choice == "switch" else "keep"),
+            language_probabilities={
+                reply_of(case, "keep"): language.probabilities.get("keep", 0.0),
+                reply_of(case, "switch"): language.probabilities.get("switch", 0.0),
+            },
             milliseconds=_since(started),
             cost_eur=decision.cost_usd / self._usd_per_eur,
         )

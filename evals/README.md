@@ -121,7 +121,9 @@ language switch? Four systems answer the same synthetic turns (`evals/signals.py
 | `llm` | the same two questions Jev gets, as JSON, from the chat model (`--signal-model`, default `openai/gpt-4o-mini`) | both |
 | `jev` | TypeSafe's `typesafe/jev-1.14` through OpenRouter's Decisions API (`evals/jev.py`), two `choice` questions in one call | both, with probabilities |
 
-The questions live once in `QUESTIONS`; the `llm` prompt is written from them. Each system reads
+The questions live once in `QUESTIONS`; the `llm` prompt is written from them. Language is asked
+as `keep` or `switch` relative to the session, not as `es`/`en`: on the dev set that took Jev
+from 8/38 missed requests to 0/38, and the held-out set confirmed it (0/36, no false switch). Each system reads
 `session_language`, what Ana said last and what the candidate said. A failed call scores as the
 runtime's fallback (neutral, session language) and is counted under errors. `written_other` (a
 whole message in the other language, no request) is labelled a switch but kept out of the false

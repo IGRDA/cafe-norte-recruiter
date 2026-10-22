@@ -37,11 +37,13 @@ class ConfigurationSummary(Frozen):
 
 
 class RuntimeInfo(Frozen):
-    """What the page needs before it renders: which voice to offer and the stores."""
+    """What the page needs before it renders: which voice to offer and the stores; and the
+    commit this process runs, which the deploy waits for."""
 
     voice: VoiceMode
     config_ids: tuple[ConfigId, ...]
     access_required: bool
+    commit_sha: str
 
 
 class CreateSessionRequest(Frozen):

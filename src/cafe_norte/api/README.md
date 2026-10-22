@@ -32,7 +32,7 @@ headers locally and hosted.
 
 Implemented today: `POST /api/sessions` (the reply carries the version stamp), `GET /api/sessions/{id}` (typed snapshot with `last_seq`), `POST …/confirmations/{confirmation_id}` (202; 404 if not the pending read-back, 409 if answered or the revision moved; D38), `POST …/end` (204, idempotent), `POST …/turns` (202, the turn runs in the background
 and its events are journaled by the runtime), `GET …/events`, `GET /api/configurations`,
-`GET /api/runtime` (which voice mode to offer), `POST …/voice` (admission, private room, bot
+`GET /api/runtime` (which voice mode to offer, and the commit this process runs, which the deploy waits for), `POST …/voice` (admission, private room, bot
 start; nothing left behind on failure), `POST …/voice/timings`, `GET …/export` (the snapshot stored at close, or built on demand while open), `POST /api/resume` (the private link's token, exchanged for the session cookie; Ana resumes), `DELETE /api/sessions/{id}` and health. Ownership is a signed session cookie. `ServiceError` maps to `{code, message}` with
 fixed public text; request validation errors never echo the body.
 

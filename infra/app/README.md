@@ -16,7 +16,9 @@ pull so a failed pull leaves the previous release reachable → prune images no 
 22 October 2026) → pull → `docker run` of the app and of Caddy, both with host networking, on
 every boot.
 A change to `startup.sh` replaces the instance (the address survives); a change to the image
-only updates metadata, and the reset in `deploy.yml` applies it.
+only updates metadata, and the reset in `deploy.yml` applies it. After the reset docker
+restarts the previous release, which answers while the new image is pulled, so the deploy waits
+until `GET /api/runtime` names the commit it built before it checks readiness and runs the smoke.
 
 `database.tf` (D33) is Cloud SQL Postgres 16 on the smallest tier, public address with no
 authorized networks, daily backups kept three days, no point-in-time recovery, no deletion

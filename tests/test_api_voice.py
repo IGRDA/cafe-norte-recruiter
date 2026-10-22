@@ -39,6 +39,12 @@ def test_runtime_endpoint_tells_the_page_which_voice_to_offer(client: TestClient
     assert "chamberi_barista_v1" in body["config_ids"]
 
 
+def test_runtime_endpoint_names_the_commit_it_runs(client: TestClient) -> None:
+    """The deploy waits for this to be the commit it built: after a reset docker restarts
+    the previous release first, and it answers health checks while the new image is pulled."""
+    assert client.get("/api/runtime").json()["commit_sha"] == "test"
+
+
 def test_starting_voice_provisions_a_room_and_starts_the_bot(
     client: TestClient, voice: FakeVoiceController, rooms: FakeRooms
 ) -> None:

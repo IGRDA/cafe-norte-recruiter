@@ -118,7 +118,9 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Signals strip on the page | the latest message's probabilities; the last 12 verdicts are kept (`MAX_SIGNAL_POINTS`, D62) |
 | Reviewer panel on the page | the last 40 entries (one per turn, one for the session); older ones drop off (`MAX_REVIEW_ENTRIES`, D61) |
 | Voice sessions per container | 2 (Postgres-enforced) |
-| Session starts per access session per hour | 3 |
+| Access code attempts per client IP per minute | 15, right or wrong, then 429 `rate_limited`; only when an access code is set (D65) |
+| Session starts per client IP per hour | 9, then 429 `rate_limited`; only when an access code is set (D65) |
+| Sessions started in the last 24 h, all clients | 150, then 503 `busy`; counted from the sessions that still exist, read before create (D65) |
 | Silence | 8 s of audible silence (queued audio played, no speech heard), then one "¿Sigues ahí?" per candidate turn; speech restarts the count; a live call is never paused, the session pauses when the call ends (D35, D40) |
 | Database connections per container | 5 |
 | Database statement timeout | 3 s |

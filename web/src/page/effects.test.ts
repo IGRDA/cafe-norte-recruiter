@@ -51,6 +51,20 @@ describe("effect runner", () => {
     expect(actions).toEqual([{ type: "session-needs-code" }]);
   });
 
+  it("a refusal for too many attempts or a full day carries the server's message", async () => {
+    const limited = setup({
+      "POST /api/access": reply(429, { code: "rate_limited", message: "Demasiados intentos seguidos." }),
+    });
+    limited.runner.run({ type: "check-code", code: "1234" });
+    await limited.settled();
+    expect(limited.actions).toEqual([{ type: "access-refused", message: "Demasiados intentos seguidos." }]);
+
+    const full = setup({ "POST /api/sessions": reply(503, { code: "busy", message: "No hay plazas libres." }) });
+    full.runner.run({ type: "create-session", store: "chamberi", language: "es" });
+    await full.settled();
+    expect(full.actions).toEqual([{ type: "session-failed", message: "No hay plazas libres." }]);
+  });
+
   it("posts a turn with a fresh input id and passes the server's message on a refusal", async () => {
     const { runner, actions, calls, settled } = setup({
       "POST /api/sessions/s1/turns": reply(409, { code: "busy", message: "Ana sigue con el turno anterior." }),

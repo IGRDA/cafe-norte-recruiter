@@ -2399,3 +2399,49 @@ constraints; no Postgres test used a language other than es/en; fake scenarios s
 model, so a model that repeats itself or skips a tool never appears; nothing checked "no
 sentence twice in a turn" or "a goodbye ends the call"; nothing ran a live conversation before
 the merge.
+
+## D65 · Ceilings on what the shared access code can spend
+
+_Added 22 October 2026, from a security review before making the repository public._
+
+**Context.** The access code travels in `#code=` links, and the access cookie is a signature
+over the code, so every browser that has it holds the same cookie. Nothing limited guesses at
+`POST /api/access`, or how many sessions one holder could start: `architecture.md` promised
+three starts per access session per hour, and the code passed `access_hash=""` and counted
+nothing. The GCP budget only alerts, and it does not cover the model or voice providers.
+Spend had no ceiling.
+
+**Options.**
+- Key per-client limits on the client IP, on a per-browser cookie, or on both.
+- Keep the counters in process memory, or in a Postgres table.
+- A global ceiling on sessions a day, on euros a day, or none.
+
+**Decision.**
+- Per client IP: 15 code attempts a minute (right or wrong) and 9 session starts an hour,
+  then 429 `rate_limited`. Behind Caddy, uvicorn takes the IP from `X-Forwarded-For` (it
+  trusts 127.0.0.1, which is where Caddy connects from on the host network).
+- For everyone: 150 sessions started in the last 24 h, then 503 `busy`, counted from
+  `sessions.created_at`.
+- The per-IP counters are a sliding window in memory; the daily count comes from the store.
+- The ceilings are on only when an access code is set. Local runs, tests and the loopback
+  evals start many sessions from one address and guard nothing.
+- `CAFE_NORTE_ACCESS_ATTEMPTS_PER_MINUTE`, `CAFE_NORTE_SESSION_STARTS_PER_HOUR` and
+  `CAFE_NORTE_SESSIONS_PER_DAY` override the defaults.
+- The deploy workflow's `id-token: write` moves to the deploy job, so the job that installs
+  npm and uv packages cannot mint a GCP credential.
+
+**Why.** First proposed at 5, 3 and 50; Iñaki tripled them, so a reviewer behind one office
+NAT is never stopped. An IP cannot be renewed by clearing cookies, and a per-browser cookie is
+renewed by entering the code again. One container serves the demo, so a counter in memory is
+exact, and a restart only forgives a few minutes; a table would add a migration, a port and a
+fake for that. Counting sessions instead of euros is exact at the moment of the start; recorded
+costs arrive after each turn, and voice euros are an estimate.
+
+**Consequences we accept.**
+- The access code is kept as it is. At 15 guesses a minute (21 600 a day) a short code can
+  still be found; the other ceilings then bound what it opens.
+- The daily count reads, then creates. Two racing starts can pass one over 150.
+- A session the candidate deletes, or retention removes, frees its place in the day.
+- An eval run against the hosted URL from one machine stops at 9 sessions an hour, unless
+  the VM sets `CAFE_NORTE_SESSION_STARTS_PER_HOUR`.
+- A restart forgets the per-IP counters.

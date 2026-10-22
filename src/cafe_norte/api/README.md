@@ -27,6 +27,7 @@ headers locally and hosted.
 | `contracts.py` | Request and response models, the `SessionEvent` envelope |
 | `routes.py` | `build_router(...)` from ports |
 | `access.py` | Demo code, cookies, resume token hashing, same-origin checks |
+| `limits.py` | `RequestLimits` and `SlidingWindow`: code attempts and session starts per client IP, sessions per day; on only when an access code is set (D65) |
 | `events.py` | SSE encoding and replay |
 | `boundary.py` | `HttpBoundary`: 64 KiB body limit (413), CSP (`'unsafe-eval'` only for Daily's call machine), `Referrer-Policy`, `X-Content-Type-Options`, frame denial on every response, installed by the app factory (D38) |
 

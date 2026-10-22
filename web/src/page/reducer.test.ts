@@ -126,6 +126,9 @@ describe("access gate", () => {
     expect(refused.error).toBe("Código incorrecto.");
     expect(refused.page).toBe("gate");
 
+    const limited = run(checking.state, { type: "access-refused", message: "Demasiados intentos." }).state;
+    expect(limited.error).toBe("Demasiados intentos.");
+
     const granted = run(checking.state, { type: "access-granted" });
     expect(granted.effects).toEqual([{ type: "create-session", store: "chamberi", language: "es" }]);
     expect(granted.state.error).toBeNull();
@@ -175,6 +178,15 @@ describe("access link (#code=)", () => {
 });
 
 describe("session", () => {
+  it("a session that cannot start says why when the server does", () => {
+    expect(run(booted(), { type: "session-failed", message: "No hay plazas libres." }).state.error).toBe(
+      "No hay plazas libres.",
+    );
+    expect(run(booted(), { type: "session-failed" }).state.error).toBe(
+      "No se pudo crear la conversación. Recarga la página.",
+    );
+  });
+
   it("an opened session streams, shows its link once and names its store", () => {
     const { state, effects } = run(booted(), {
       type: "session-opened",

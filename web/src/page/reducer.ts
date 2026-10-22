@@ -140,14 +140,14 @@ export type Action =
   // Access
   | { type: "code-submitted"; code: string }
   | { type: "access-granted" }
-  | { type: "access-refused" }
+  | { type: "access-refused"; message?: string | null }
   // Chooser
   | { type: "chooser-changed"; store?: string; language?: Language }
   | { type: "chooser-submitted" }
   // Session
   | { type: "session-opened"; body: CreateSessionResponse }
   | { type: "session-needs-code" }
-  | { type: "session-failed" }
+  | { type: "session-failed"; message?: string | null }
   | { type: "resumed"; sessionId: string }
   | { type: "resume-failed" }
   | { type: "snapshot-loaded"; snapshot: SessionSnapshotResponse }
@@ -249,7 +249,7 @@ export function reduce(state: State, action: Action, exec: Exec): State {
       // A wrong code in the link lands on the form, as a wrong typed one does.
       if (state.access !== "checking") return state;
       if (state.page !== "gate") exec({ type: "focus", target: "code" });
-      return { ...state, page: "gate", access: "refused", error: "Código incorrecto.", status: GATE };
+      return { ...state, page: "gate", access: "refused", error: action.message ?? "Código incorrecto.", status: GATE };
 
     // Chooser
     case "chooser-changed":
@@ -290,7 +290,11 @@ export function reduce(state: State, action: Action, exec: Exec): State {
       return { ...state, page: "gate", status: GATE };
     case "session-failed":
       if (state.page !== "loading") return state;
-      return { ...state, page: "failed", error: "No se pudo crear la conversación. Recarga la página." };
+      return {
+        ...state,
+        page: "failed",
+        error: action.message ?? "No se pudo crear la conversación. Recarga la página.",
+      };
     case "resumed": {
       if (state.page !== "loading") return state;
       exec({ type: "load-snapshot", sessionId: action.sessionId });

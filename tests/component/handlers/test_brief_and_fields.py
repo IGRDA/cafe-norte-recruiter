@@ -362,3 +362,43 @@ async def test_a_note_tells_the_model_nobody_will_act_on_it() -> None:
         context("t2"), args("update_candidate", patch={"name": "Ane"}, evidence_text="Ane")
     )
     assert "nobody will contact" not in named.model_text  # only a note earns it
+
+
+async def test_a_question_in_the_closing_line_is_answered_before_the_call_ends() -> None:
+    """Live: "No, muchas gracias. ¿Tienes alguna otra oferta?" was closed with the question
+    unanswered (D59). A stated stop still closes."""
+    w = await World(full_record()).open()
+    await w.present(context(), args("present_confirmation", target="brief"))
+    await w.deliver()
+    await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+    await w.said("t3", "No, muchas gracias. ¿Tienes alguna otra oferta?")
+    asked = await w.end(context("t3"), args("end_session", reason="candidate_done"))
+    assert not asked.ok and asked.summary == "answer_first"
+    assert "search_knowledge" in asked.model_text
+    assert (await w.current()).lifecycle == "active"
+    stop = await w.end(context("t3"), args("end_session", reason="candidate_stop"))
+    assert stop.ok
+
+
+async def test_a_correction_after_the_brief_reads_back_only_what_changed() -> None:
+    """Live: "Sí, pero mi nombre es Princesa Rosmugalda" had the whole summary read again,
+    then the review offer. Only the changed sentence is said, with the closing question
+    (D59); it is still a read-back of the whole brief at its new revision."""
+    w = await World(full_record()).open()
+    await w.present(context(), args("present_confirmation", target="brief"))
+    await w.deliver()
+    await w.update(
+        context("t2"),
+        args(
+            "update_candidate",
+            patch={"name": "Princesa Rosmugalda"},
+            evidence_text="mi nombre es Princesa Rosmugalda",
+        ),
+    )
+    again = await w.present(context("t2"), args("present_confirmation", target="brief"))
+    assert again.ok and again.spoken == "Te llamas Princesa Rosmugalda. ¿Es todo correcto?"
+    await w.deliver()
+    confirmed = await w.confirm_brief(context("t3"), args("confirm_brief", answer="affirm"))
+    assert confirmed.ok
+    state = await w.current()
+    assert state.brief_confirmed_revision == state.candidate.revision == 2

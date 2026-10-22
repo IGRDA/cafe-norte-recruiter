@@ -1,0 +1,79 @@
+id: S32
+title: The closing question of 22 October, replayed with a model that closes on it
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# What went wrong live: "No, muchas gracias. ¿Tienes alguna otra oferta?" was answered with
+# the goodbye, and Ana hung up. end_session now refuses while the turn's message asks
+# something (D59): line 7's close is refused, the model answers, and line 8 closes.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
+  - "Sí, todo correcto."
+  - "No, muchas gracias. ¿Tienes alguna otra oferta?"
+  - "No, gracias, adiós."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: confirm_brief
+      args: { answer: affirm }
+    - say: "¿Tienes alguna duda sobre el puesto o la tienda?"
+  - - tool: end_session
+      args: { reason: candidate_done }
+    - tool: search_knowledge
+      args:
+        question: "¿Tienes alguna otra oferta?"
+        queries: ["otras ofertas de empleo en Café Norte"]
+    - say: "Ahora mismo solo tengo esta oferta de barista en Chamberí; una persona del equipo podría contarte si sale otra. ¿Quieres que lo deje pedido?"
+  - - tool: end_session
+      args: { reason: candidate_done }
+    - say: "Gracias por tu tiempo, Lucía. ¡Hasta pronto!"
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: next monday
+    experience: dos años en una cafetería de barrio
+  wants_interview: false
+checks:
+  - name: claims_saved_without_save
+  - name: tool_ok
+    args: { turn: "7", tool: end_session, ok: "false" }
+  - name: tool_ok
+    args: { turn: "8", tool: end_session, ok: "true" }
+  - name: lifecycle_is
+    args: { lifecycle: completed }
+live_candidate: scripted
+live_checks:
+  - name: claims_saved_without_save
+  - name: lifecycle_is
+    args: { lifecycle: completed }

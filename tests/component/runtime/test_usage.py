@@ -36,7 +36,8 @@ async def test_a_generation_closed_by_a_barge_in_is_estimated_from_its_character
     await stream.aclose()
     (input_tokens, output_tokens) = await estimated(h)
     assert input_tokens[0] == "fake:input" and input_tokens[1] > 100  # the system prompt
-    assert output_tokens == ("fake:output", 2)  # "Hola. ": what was read before the close
+    # The whole answer was read before its first sentence was said (D59): all three count.
+    assert output_tokens == ("fake:output", 7)
 
 
 async def test_a_cut_runaway_answer_is_estimated() -> None:

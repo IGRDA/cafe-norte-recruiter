@@ -2107,3 +2107,50 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   gpt-4.1, "Sí, anótalo para que me contacten" with no offer before it became a second note
   even after the note's result named the tool; a stated request is the runtime's, like the
   other explicit ones.
+
+## D59 · Closing, latency and repetition: what Iñaki's calls of 22 October left
+
+_Added 22 October 2026, from two hosted voice calls (14:23 and 14:33 UTC, gpt-4.1) made after
+D56–D58 and the feedback on them. One entry per fix, in the order they landed._
+
+**Decisions.**
+- **A goodbye is the whole utterance.** `is_farewell` (D46) now needs every clause to be a
+  farewell or glue around one ("vale", "nada más", "Ana"); a clause that says anything else
+  leaves the words to the model. Live, "Sí, no me lo expliques, he vivido por ahí, muchas
+  gracias" closed the call on "gracias" with no model round, and the next four things said
+  failed on an ended session (KI-19). The long simulated thanks of D46's tests
+  ("I appreciate your help and I'm looking forward…") are now the model's, which closes
+  through `end_session` as before D46; the shortcut keeps the plain goodbyes.
+- **A question is answered before the call ends.** `end_session` with `candidate_done` or
+  `not_interested` is refused (`answer_first`) while the turn's own message asks something
+  (`asks_question`, D58); `candidate_stop` still closes. Live, "No, muchas gracias. ¿Tienes
+  alguna otra oferta?" got the goodbye (KI-20). S32 replays it.
+- **No review for a one-sentence read-back.** A cut date, phone or slot read-back has one part:
+  a yes says it again once, and the next answer confirms it; a carry-on waives it; no offer in
+  between. Live, a cut date took three yeses (cut, offer, part). The D39 matrix oracle and S08
+  follow. The review of the brief is unchanged.
+- **The summary states what was said.** "Me has dicho que te interesa el puesto." and "Me has
+  dicho que tienes permiso de trabajo." (and the English pair), so a short statement read aloud
+  cannot sound like the question it answers. Iñaki heard "te interesa el puesto" as Ana asking
+  again.
+- **A correction reads back only what changed.** When the brief is presented again after a
+  correction (its last read-back invalidated or confirmed), `render_brief_changes` says the
+  sentences that differ from that read-back plus "¿Es todo correcto?": "Te llamas Princesa
+  Rosmugalda. ¿Es todo correcto?". The confirmation still binds the whole brief at its new
+  revision, and the review in parts works on the short text. The first presentation, and one
+  where everything changed, are the whole brief. Live, the full summary was read twice in a row
+  (KI-21).
+- **Hold, then say.** The model may write its next sentence in the same reply as a tool call.
+  The runtime holds a round's sentences unspoken until its stream ends: with no call they are
+  said then; with calls they are said after every call of the round succeeded, and dropped
+  (`held_dropped`) when one was refused, so a question asked on a failed save is never heard.
+  "Nothing announced before it is persisted" stays in code. A round whose calls were all
+  writes, committed, and whose held question was said, is the turn's last (`round_settled`):
+  the second round of D44's loop is gone on a data turn. A round with a lookup
+  (`search_knowledge`, `list_interview_slots`) is still answered next, since its result is
+  something to say. The tool messages are built after the held words, so "already said this
+  turn" stays true. Cost: a plain answer's first word waits for the end of its stream; the
+  estimate was about 0.3 s against about 0.7 s saved on a data turn. D49 named this lever and
+  left it for measurement; Langfuse's `first_output_ms` and turn latency before and after this
+  deploy are the check, and the numbers go here once read.
+- Prompt `ana_v22`.

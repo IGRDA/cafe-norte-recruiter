@@ -3,6 +3,7 @@
 from typing import Literal
 
 from cafe_norte.conversation.contracts import (
+    AssistantText,
     RuntimeEvent,
     ToolStarted,
     TurnInput,
@@ -117,9 +118,10 @@ async def test_a_button_for_another_read_back_changes_nothing() -> None:
     assert not [e for e in events if isinstance(e, ToolStarted)]
 
 
-async def test_the_button_on_a_read_back_the_voice_has_not_finished_earns_the_offer() -> None:
+async def test_the_button_on_a_read_back_the_voice_has_not_finished_says_it_again() -> None:
     """A page only mirrors the call (D39): pressing Sí on a card whose read-back was cut is a
-    yes to what was not heard, like a spoken one. It no longer counts as reading it (D38)."""
+    yes to what was not heard, like a spoken one. It no longer counts as reading it (D38). A
+    one-sentence read-back has no offer: it is said again once (D59)."""
     h = with_date_read_back(says("Perdona. ¿Lo repasamos o seguimos?"))
     await h.open_session()
     await readback_pending(h)
@@ -138,7 +140,11 @@ async def test_the_button_on_a_read_back_the_voice_has_not_finished_earns_the_of
     assert state is not None and state.pending_confirmation is not None
     assert state.pending_confirmation.status == "pending"
     assert state.pending_confirmation.review is not None
-    assert state.pending_confirmation.review.stage == "offered"
+    assert state.pending_confirmation.review.stage == "in_parts"
+    assert [e.text for e in events if isinstance(e, AssistantText)] == [
+        "He apuntado que podrías empezar el lunes 2 de noviembre de 2026.",
+        "¿Está bien?",
+    ]
 
 
 async def _run(h: Harness, turn_input: TurnInput) -> list[RuntimeEvent]:

@@ -16,6 +16,7 @@ from cafe_norte.conversation.brief import (
     ReadbackField,
     field_readback,
     render_brief,
+    render_brief_changes,
     slot_readback,
     slot_time,
 )
@@ -167,6 +168,12 @@ class _Handler:
     @staticmethod
     def _refuse(summary: str, model_text: str, *, idle: bool = False) -> ToolOutcome:
         return ToolOutcome(ok=False, model_text=model_text, summary=summary, idle=idle)
+
+    async def _asked(self, context: ToolContext) -> bool:
+        """The candidate's message of this turn asks a question."""
+        turns = await self._store.turns.recent(context.session_id, 2)
+        mine = [t for t in turns if t.role == "user" and t.turn_id == context.turn_id]
+        return bool(mine) and asks_question(mine[-1].text)
 
     async def _said(self, context: ToolContext, text: str) -> Evidence | None:
         """``text`` as evidence, when the candidate said it in their recent messages (D46): the
@@ -483,6 +490,17 @@ class PresentConfirmationHandler(_Handler):
             text = render_brief(
                 state.candidate, configuration, state.language, followup=has_followup(state)
             )
+            previous = state.pending_confirmation
+            if (
+                previous is not None
+                and isinstance(previous.target, BriefTarget)
+                and previous.status != "pending"
+            ):
+                # A correction: say what changed, not the whole brief again (D59).
+                changed = render_brief_changes(
+                    state.candidate, configuration, state.language, since=previous.presentation_text
+                )
+                text = changed or text
         elif arguments.target == "slot":
             if not _brief_confirmed(state):
                 return self._refuse(
@@ -723,12 +741,6 @@ class ReviewReadbackHandler(_Handler):
             events=(self._updated(new_state),),
         )
 
-    async def _asked(self, context: ToolContext) -> bool:
-        """The candidate's message of this turn asks a question."""
-        turns = await self._store.turns.recent(context.session_id, 2)
-        mine = [t for t in turns if t.role == "user" and t.turn_id == context.turn_id]
-        return bool(mine) and asks_question(mine[-1].text)
-
     async def _confirm(self, context: ToolContext, pending: Confirmation) -> ToolOutcome:
         """The read-back's own tool with a yes: the domain checks it is ready to confirm."""
         name, arguments = target_call(pending.target, "affirm")
@@ -916,6 +928,13 @@ class EndSessionHandler(_Handler):
         state = await self._state(context)
         if state is None:
             return self._refuse("not_found", "Session not found.")
+        if arguments.reason in ("candidate_done", "not_interested") and await self._asked(context):
+            # Live, "No, gracias. ¿Tienes alguna otra oferta?" was closed unanswered (D59).
+            return self._refuse(
+                "answer_first",
+                "They asked something: answer it first (search_knowledge for facts), then "
+                "close in a later turn if they still want to.",
+            )
         if arguments.reason == "candidate_done" and not _brief_confirmed(state):
             presented = await self._present(context, PresentConfirmationArgs(target="brief"))
             if not presented.ok:

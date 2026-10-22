@@ -181,6 +181,8 @@ class _Turn:
     trace: Span = field(init=False)  # the root span; set by run_turn before anything else
     tools_called: int = 0
     rounds: int = 0
+    held: list[str] = field(default_factory=list)  # a tool round's words, said once it commits
+    round_settled: bool = False  # a held question was said after writes alone (D59)
 
     @property
     def restarting(self) -> bool:
@@ -852,7 +854,9 @@ class Runtime:
         """One model call: sentences out as they complete; tool calls collected in ``run.calls``;
         the assistant message appended to ``run.messages`` when tools were requested."""
         run.calls = []
+        run.held = []
         start = len(run.spoken)  # what this round says is what run.spoken gains from here
+        held: list[str] = []  # complete sentences, said at the end of the stream (D59)
         buffer = ""
         first = True
         with step.child("chat", "generation") as chat:
@@ -866,15 +870,10 @@ class Runtime:
                     if isinstance(event, ModelText):
                         buffer += event.text
                         complete, buffer = split_sentences(buffer)
-                        for sentence in complete:
-                            if await self._switch_due(run):
-                                break
-                            if self._say_once(run, sentence):
-                                yield await self._emit(run, _say(sentence))
+                        held.extend(complete)
                         if run.restarting:
                             break  # dropped: the turn is answered again (D53, D58)
-                        said = run.spoken[start:]
-                        if sum(map(len, said)) + len(buffer) > self._limits.max_answer_characters:
+                        if sum(map(len, held)) + len(buffer) > self._limits.max_answer_characters:
                             # A runaway generation: stop reading, keep what was said, drop the rest.
                             self._event(
                                 run,
@@ -900,17 +899,28 @@ class Runtime:
             finally:
                 await events.aclose()
             tail = clean_sentence(buffer) if not run.restarting else ""
-            if tail and not await self._switch_due(run) and self._say_once(run, tail):
-                yield await self._emit(run, _say(tail))
-            chat.set_content(output=" ".join(run.spoken[start:]))
+            if tail:
+                held.append(tail)
+            if run.calls and not run.restarting:
+                # Said after the calls commit, or dropped when one is refused (D59).
+                run.held = held
+                chat.set_content(output=" ".join(held))
+            else:
+                async for said in self._say_held(run, held):
+                    yield said
+                chat.set_content(output=" ".join(run.spoken[start:]))
         if run.calls and not run.restarting:
             run.messages.append(
-                ModelMessage(
-                    role="assistant",
-                    content=" ".join(run.spoken[start:]),
-                    tool_calls=tuple(run.calls),
-                )
+                ModelMessage(role="assistant", content=" ".join(held), tool_calls=tuple(run.calls))
             )
+
+    async def _say_held(self, run: _Turn, held: list[str]) -> AsyncIterator[RuntimeEvent]:
+        """Held sentences, said in order, unless the analyzer asks to answer again (D53)."""
+        for sentence in held:
+            if await self._switch_due(run):
+                return
+            if self._say_once(run, sentence):
+                yield await self._emit(run, _say(sentence))
 
     @staticmethod
     def _say_once(run: _Turn, sentence: str) -> bool:
@@ -1002,9 +1012,15 @@ class Runtime:
     async def _tool_calls(self, run: _Turn, step: Span) -> AsyncIterator[RuntimeEvent]:
         """Dispatch every call of the round in order; each result becomes a tool message."""
         run.round_idle = True
+        run.round_settled = False
+        committed, writes_only = True, True
+        results: list[tuple[ToolCall, str]] = []
         for call in run.calls:
             async for event in self._run_tool(run, call, step):
                 yield event
+            results.append((call, run.outcome.model_text))
+            committed = committed and run.outcome.ok
+            writes_only = writes_only and call.name not in _SPEAKS_RESULT
             run.round_idle = run.round_idle and run.outcome.idle
             if run.outcome.idle:
                 run.withheld.add(call.name)  # the next round has to speak instead
@@ -1012,10 +1028,19 @@ class Runtime:
                 run.repairs += 1
                 if run.repairs > self._limits.max_repairs:
                     raise ServiceError("malformed tool call after repair", code="invalid_response")
+        held, run.held = run.held, []
+        if held and committed:
+            async for event in self._say_held(run, held):
+                yield event
+            run.round_settled = writes_only and run.asked
+        elif held:
+            # A question asked on a save that failed is never heard (D59).
+            self._event(run, "held_dropped", "INFO", sentences=len(held))
+        for call, model_text in results:  # after the held words, so "already said" is true
             run.messages.append(
                 ModelMessage(
                     role="tool",
-                    content=tool_message(run.outcome.model_text, run.spoken),
+                    content=tool_message(model_text, run.spoken),
                     tool_call_id=call.call_id,
                 )
             )
@@ -1261,11 +1286,15 @@ class _Attempt:
         return not isinstance(event, ModelFinished)
 
 
+# Tools whose result is something for the model to say: a round with one is answered next.
+_SPEAKS_RESULT = frozenset({"search_knowledge", "list_interview_slots"})
+
+
 def _nothing_left_to_do(run: _Turn) -> bool:
     """The question of the turn has been said and the round only repeated what was done or
-    answered for the candidate: nothing more can be voiced, so another round is only latency
-    (KI-08, D44)."""
-    return run.asked and run.round_idle
+    answered for the candidate, or its writes committed and the question held with them was
+    said (D59): nothing more can be voiced, so another round is only latency (KI-08, D44)."""
+    return run.asked and (run.round_idle or run.round_settled)
 
 
 def _offered(schemas: tuple[ToolSchema, ...], withheld: set[str]) -> tuple[ToolSchema, ...]:

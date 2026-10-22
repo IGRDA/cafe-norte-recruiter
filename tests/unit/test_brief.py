@@ -24,8 +24,9 @@ def test_the_s01_record_renders_as_short_spoken_sentences() -> None:
         experience="dos años en una cafetería",
     )
     assert render_brief(lucia, CONFIG, "es") == (
-        "Te resumo lo que tengo. Te llamas Lucía Marín. Te interesa el puesto. "
-        "Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, "
+        "Te resumo lo que tengo. Te llamas Lucía Marín. Me has dicho que te interesa el puesto. "
+        "Me has dicho que tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, "
+        "en turno de Mañana, "
         "unas 30 horas a la semana. Podrías empezar el lunes 26 de octubre de 2026. "
         "Experiencia: dos años en una cafetería. ¿Es todo correcto?"
     )
@@ -77,7 +78,7 @@ def test_the_brief_and_read_backs_in_english_use_the_english_labels_and_date() -
         declined=frozenset({"experience"}),
     )
     assert render_brief(lucy, CONFIG, "en") == (
-        "Here is what I have. Your name is Lucy Martin. You are interested in the role. "
+        "Here is what I have. Your name is Lucy Martin. You said you are interested in the role. "
         "You are not sure whether you have permission to work. You can work Monday, Tuesday "
         "and Thursday, on the Morning shift, about 30 hours a week. You could start on "
         "Monday 26 October 2026. Experience: you would rather not say. Is all of that correct?"

@@ -35,6 +35,9 @@ the session never paused during the call; no model round timed out.
 | KI-16 | "Enero del año que viene" saved and read back as 1 January | Medium | S31, `test_a_start_day_the_candidate_did_not_say_…` | **fixed (D58)** |
 | KI-17 | A confirmed start date is read back a second time | Medium | `test_a_confirmed_field_is_not_read_back_again` | **fixed (D58)** |
 | KI-18 | A question during the read-back review is taken as a yes; the answer comes three turns late | Medium | `test_a_question_during_the_review_…` | **fixed (D58)** |
+| KI-19 | "Muchas gracias" inside a longer sentence ends the call at once | High | `test_thanks_beside_other_words_…` | **fixed (D59)** |
+| KI-20 | A question in the closing line is answered with the goodbye | High | S32, `test_a_question_in_the_closing_line_…` | **fixed (D59)** |
+| KI-21 | A correction after the summary has the whole summary read again | Medium | `test_a_correction_after_the_brief_reads_back_only_what_changed` | **fixed (D59)** |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -252,3 +255,16 @@ Found in the hosted voice calls of 22 October 2026 (10:19 and 11:30 UTC, gpt-4.1
 read from the Langfuse traces and, for KI-18, the session's journal. Each is described with its
 evidence, cause and fix under D58, one bullet per issue, in the order they landed. The
 reproductions named in the table are the tests that went red first.
+
+## KI-19 and KI-20 · Closing too soon (22 October, 14:23 and 14:33 UTC)
+
+- **KI-19.** "Sí, no me lo expliques, he vivido por ahí, muchas gracias." after the booking
+  matched the fixed farewell (D46) on "gracias": the session ended with no model round, Ana
+  said goodbye and left, and "Ya está", "Pero no lo entiendo muy bien…" and "Cuelga" failed on
+  the ended session. Fixed in D59: the farewell must be the whole utterance.
+- **KI-20.** "No, muchas gracias. ¿Tienes alguna otra oferta?" with the brief confirmed: the
+  model saved "no quiere entrevista", called `end_session`, and said goodbye; the question was
+  never answered. Fixed in D59: `end_session` refuses while the message asks something.
+- **KI-21.** "Sí, pero mi nombre es Princesa Rosmugalda" after the summary: the name was
+  saved and the whole summary read again from "Te resumo lo que tengo", then cut, then the
+  review offer. Fixed in D59: only the changed sentence and the closing question.

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-22T09:53:45+00:00",
+  "generated_at": "2026-10-22T11:58:58+00:00",
   "kb_version": "2",
   "embedding_model": "none",
   "embedding_revision": "none",
@@ -597,8 +597,8 @@
       "kind": "answerable",
       "returned": [
         "barista_role#requisitos",
-        "company#que-buscamos-en-un-barista",
-        "faq#que-idiomas-hacen-falta"
+        "faq#que-idiomas-hacen-falta",
+        "company#que-buscamos-en-un-barista"
       ],
       "fused_scores": [
         0.01639,
@@ -606,9 +606,9 @@
         0.01587
       ],
       "bm25_scores": [
-        12.627,
-        4.707,
-        3.463
+        10.259,
+        3.463,
+        3.366
       ],
       "dense_scores": [
         null,
@@ -758,9 +758,9 @@
       "case_id": "R31",
       "kind": "answerable",
       "returned": [
-        "uniform#que-proporciona-cafe-norte",
-        "company#quienes-somos",
-        "uniform#que-trae-el-barista"
+        "uniform#que-trae-el-barista",
+        "uniform#normas-de-presentacion",
+        "uniform#que-proporciona-cafe-norte"
       ],
       "fused_scores": [
         0.01639,
@@ -768,9 +768,9 @@
         0.01587
       ],
       "bm25_scores": [
-        7.876,
-        4.302,
-        4.216
+        4.216,
+        4.109,
+        4.007
       ],
       "dense_scores": [
         null,
@@ -824,8 +824,8 @@
       "kind": "answerable",
       "returned": [
         "faq#puedo-cambiar-de-tienda-mas-adelante",
-        "unknown_policy#cuando-ana-no-tiene-la-informacion",
-        "faq#puedo-compaginarlo-con-estudios"
+        "faq#puedo-compaginarlo-con-estudios",
+        "unknown_policy#cuando-ana-no-tiene-la-informacion"
       ],
       "fused_scores": [
         0.01639,
@@ -833,9 +833,9 @@
         0.01587
       ],
       "bm25_scores": [
-        15.578,
-        7.101,
-        5.699
+        12.85,
+        5.699,
+        4.579
       ],
       "dense_scores": [
         null,
@@ -850,9 +850,9 @@
       "case_id": "R35",
       "kind": "answerable",
       "returned": [
-        "offer_arganzuela#salario",
         "store_arganzuela#horario",
-        "store_arganzuela#equipo"
+        "store_arganzuela#equipo",
+        "store_arganzuela#como-es-la-tienda"
       ],
       "fused_scores": [
         0.01639,
@@ -860,16 +860,16 @@
         0.01587
       ],
       "bm25_scores": [
-        5.563,
         5.433,
-        5.342
+        5.342,
+        5.254
       ],
       "dense_scores": [
         null,
         null,
         null
       ],
-      "hit": true,
+      "hit": false,
       "leaked": false,
       "milliseconds": 0
     },
@@ -932,8 +932,8 @@
       "kind": "answerable",
       "returned": [
         "store_chamberi#direccion",
-        "company#quienes-somos",
-        "offer_chamberi#contrato"
+        "offer_chamberi#contrato",
+        "store_chamberi#horario"
       ],
       "fused_scores": [
         0.01639,
@@ -941,9 +941,9 @@
         0.01587
       ],
       "bm25_scores": [
-        8.378,
-        5.59,
-        5.16
+        6.339,
+        5.16,
+        3.535
       ],
       "dense_scores": [
         null,
@@ -1036,10 +1036,177 @@
       "milliseconds": 0
     }
   ],
-  "recall_at_3": 0.8125,
+  "recall_at_3": 0.78125,
   "answerable": 32,
   "leaked": 0,
   "unsupported_with_sources": 3,
   "median_ms": 0,
-  "ragas": null
+  "ragas": {
+    "samples": 32,
+    "mean_precision": 0.33888888888888885,
+    "mean_recall": 0.75,
+    "nothing_retrieved": 2,
+    "per_case": [
+      {
+        "case_id": "R01",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R02",
+        "precision": 0.5,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R03",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R04",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R05",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R06",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R07",
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "case_id": "R08",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R09",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R10",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R11",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R12",
+        "precision": 0.6666666666666666,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R13",
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "case_id": "R14",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R15",
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "case_id": "R16",
+        "precision": null,
+        "recall": 0.0
+      },
+      {
+        "case_id": "R25",
+        "precision": 0.6666666666666666,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R26",
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "case_id": "R27",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R28",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      },
+      {
+        "case_id": "R29",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R30",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R31",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R32",
+        "precision": null,
+        "recall": 0.0
+      },
+      {
+        "case_id": "R33",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R34",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R35",
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "case_id": "R36",
+        "precision": 0.6666666666666666,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R37",
+        "precision": 0.6666666666666666,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R38",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R39",
+        "precision": 0.6666666666666666,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R40",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      }
+    ]
+  }
 }

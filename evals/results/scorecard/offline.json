@@ -1,6 +1,6 @@
 {
   "model": "fake",
-  "prompt_version": "ana_v17",
+  "prompt_version": "ana_v18",
   "kb_version": "2",
   "concurrency": 1,
   "metrics": [
@@ -18,7 +18,7 @@
       "k": 23,
       "n": 23,
       "detail": "",
-      "baseline": null
+      "baseline": 1.0
     },
     {
       "spec": {

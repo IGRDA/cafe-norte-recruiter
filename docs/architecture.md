@@ -76,7 +76,8 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | A generation with no usage report (barge-in, answer cut, silent or failed attempt) | estimated at 4 characters per token, from the messages and tools sent and the text streamed; marked `estimated` (D44) |
 | Recent turns in the prompt | 20 |
 | Knowledge chunk | one `## ` section, at most 90 words |
-| Chunks per `search_knowledge` call | 3; RRF k = 60; 1–3 phrasings per call |
+| Chunks per `search_knowledge` call | 3; RRF k = 60; 1–3 phrasings per call; every document of the session's configuration, no topic filter (D52) |
+| Words removed from a query before ranking | "Café Norte", "Madrid", "barista(s)": every document shares them; the store's name stays (D52) |
 | Relevance floor | a chunk with BM25 = 0 needs cosine ≥ 0.40 (D27, re-measured when the embedding model changes) |
 | Query embeddings in flight | 2 per process |
 | `search_knowledge` tool time | target ≤ 300 ms after warm-up; measured per call in `timings` (`stage: tool`) |

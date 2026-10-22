@@ -15,14 +15,12 @@ fake_script:
   - - tool: search_knowledge
       args:
         question: "¿Cuánto se cobra en Chamberí?"
-        queries: ["¿Cuál es el salario del puesto de barista?"]
-        topic: pay
+        queries: ["¿Cuál es el salario mensual del puesto de barista y en cuántas pagas?"]
     - say: "Solo tengo la información de Arganzuela: según la oferta, 800 euros brutos al mes en 14 pagas. ¿Cómo te llamas?"
   - - tool: search_knowledge
       args:
         question: "¿Y hay parking para empleados?"
         queries: ["¿Hay aparcamiento o parking para el personal?", "plaza de garaje para empleados"]
-        topic: any
     - say: "No tengo esa información. ¿Quieres que una persona del equipo te responda más adelante?"
   - - tool: request_human_followup
       args: { reason: "¿Hay parking para empleados?" }

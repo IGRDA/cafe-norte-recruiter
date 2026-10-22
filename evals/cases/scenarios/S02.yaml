@@ -25,7 +25,6 @@ fake_script:
       args:
         question: "How much does it pay?"
         queries: ["¿Cuál es el salario del puesto de barista?", "sueldo bruto mensual y pagas"]
-        topic: pay
     - say: "According to the offer, 800 euros gross a month in 14 payments. Do you have permission to work, and which days suit you?"
   - - tool: update_candidate
       args:

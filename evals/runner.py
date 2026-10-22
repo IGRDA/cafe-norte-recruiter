@@ -53,7 +53,7 @@ from evals.live_runs import DEFAULT_SIMULATOR, Planned, execute
 from evals.observation import fold, session_result
 from evals.pool import CONCURRENCY
 from evals.ragas_bridge import score_with_ragas, to_ragas_samples
-from evals.retrieval import load_cases, run_retrieval, write_report
+from evals.retrieval import load_cases, recorded_queries, replay, run_retrieval, write_report
 from evals.scorecard import render_markdown as render_scorecard
 from evals.scorecard import scorecard
 from evals.scorers import run_check
@@ -273,6 +273,9 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
     parser.add_argument(
         "--rescore", default=None, help="scorecard: a recorded live results folder, scored again"
     )
+    parser.add_argument(
+        "--replay", default=None, help="retrieval: a recorded scorecard's probe queries, rerun"
+    )
     live = parser.add_argument_group("live runs (paid; the estimate is printed first)")
     live.add_argument("--model", default=os.environ.get("CAFE_NORTE_MODEL") or DEFAULT_MODEL)
     live.add_argument("--simulator", default=DEFAULT_SIMULATOR)
@@ -291,6 +294,8 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
         for scenario in load_scenarios():
             print(f"{scenario.id}  {scenario.title}")
         return 0
+    if args.suite == "retrieval" and args.replay:
+        return replay_main(args.retriever, Path(args.replay))
     if args.suite == "retrieval":
         out = Path(args.out or RETRIEVAL_RESULTS)
         return retrieval_main(args.retriever, args.only, out, ragas=args.ragas)
@@ -399,22 +404,44 @@ def retrieval_report(
     and downloads the model once; ``lexical`` is BM25 only and runs anywhere. ``ragas`` adds its
     ID-based context precision and recall over the answerable questions (offline, free)."""
     configurations = load_configurations(CONFIG_DIR)
-    (kb_version,) = {c.kb_version for c in configurations.values()}
-    documents = load_documents(KB_DIR)
-    if mode == "hybrid":
-        from cafe_norte.knowledge.embedder import FastEmbedEmbedder
-
-        embedder: FastEmbedEmbedder | None = FastEmbedEmbedder()
-    else:
-        embedder = None
-    index = asyncio.run(index_from_documents(documents, embedder, kb_version=kb_version))
-    retriever = HybridRetriever(index, embedder)
+    retriever = _retriever(mode)
     cases = [c for c in load_cases() if not only or c.id in set(only)]
     report = asyncio.run(run_retrieval(cases, retriever, configurations))
     if ragas:
         scores = asyncio.run(score_with_ragas(to_ragas_samples(report.runs, cases)))
         report = report.model_copy(update={"ragas": scores})
     return report
+
+
+def _retriever(mode: str) -> HybridRetriever:
+    """``hybrid`` needs the knowledge extra and downloads the model once; ``lexical`` is BM25
+    only and runs anywhere."""
+    configurations = load_configurations(CONFIG_DIR)
+    (kb_version,) = {c.kb_version for c in configurations.values()}
+    if mode == "hybrid":
+        from cafe_norte.knowledge.embedder import FastEmbedEmbedder
+
+        embedder: FastEmbedEmbedder | None = FastEmbedEmbedder()
+    else:
+        embedder = None
+    index = asyncio.run(
+        index_from_documents(load_documents(KB_DIR), embedder, kb_version=kb_version)
+    )
+    return HybridRetriever(index, embedder)
+
+
+def replay_main(mode: str, folder: Path) -> int:
+    """The model's recorded queries of a live scorecard through today's retriever (D52)."""
+    retriever = _retriever(mode)
+    configurations = load_configurations(CONFIG_DIR)
+    recorded = recorded_queries(folder / "probe-exports")
+    hits, searched, misses = asyncio.run(replay(load_cases(), recorded, retriever, configurations))
+    for miss in misses:
+        print(f"MISS {miss}")
+    print(
+        f"the model's own queries: {hits}/{searched} answerable questions found an expected section"
+    )
+    return 0
 
 
 def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = False) -> int:

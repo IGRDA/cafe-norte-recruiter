@@ -1,5 +1,7 @@
 """BM25 + dense cosine, reciprocal rank fusion, filtered by store before ranking."""
 
+import re
+
 import numpy as np
 import numpy.typing as npt
 
@@ -20,6 +22,17 @@ RRF_K = 60
 # scored ≥ 0.40; the unsupported questions with no lexical match scored ≤ 0.37. Re-measure
 # when the embedding model changes.
 DENSE_FLOOR = 0.40
+# Words nearly every chunk shares: the brand, the city and the role. The configuration already
+# names the store, so in a query they only pull the company and role sections up. The store's
+# own name stays: an address question needs it. Measured on the model's queries of the gpt-4.1
+# baseline: 30/32 answerable questions found, against 26 with its own topic filter (D52).
+SHARED_WORDS = re.compile(r"\b(?:caf[eé]\s+norte|madrid|baristas?)\b", re.IGNORECASE)
+
+
+def searchable(phrasing: str) -> str:
+    """The phrasing without the words every document shares; unchanged if nothing else is
+    left."""
+    return " ".join(SHARED_WORDS.sub(" ", phrasing).split()) or phrasing
 
 
 def lexical_text(chunk: Chunk) -> str:
@@ -68,13 +81,14 @@ class HybridRetriever:
             return ()
         # One BM25 ranking per phrasing, one dense ranking per phrasing (one batched embed
         # call), all fused by reciprocal rank. The raw scores kept per chunk are its best.
-        lexical = [self._bm25.scores(tokenize(text)) for text in query.queries]
+        phrasings = [searchable(text) for text in query.queries]
+        lexical = [self._bm25.scores(tokenize(text)) for text in phrasings]
         rankings = [_ranks(allowed, scores) for scores in lexical]
         bm25_scores = [max(scores[i] for scores in lexical) for i in range(len(self._index.chunks))]
         dense_scores: list[float] | None = None
         dense_rankings: list[dict[int, int]] = []
         if self._embedder is not None and self._unit is not None:
-            vectors = await self._embedder.embed(list(query.queries))
+            vectors = await self._embedder.embed(phrasings)
             cosines = _unit_rows(vectors) @ self._unit.T
             dense_rankings = [_ranks(allowed, scores) for scores in cosines.tolist()]
             dense_scores = cosines.max(axis=0).tolist()

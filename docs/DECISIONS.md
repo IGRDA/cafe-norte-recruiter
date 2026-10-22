@@ -1760,3 +1760,46 @@ were missed by the regex and re-scored for free from the recording (`--rescore`)
 gates the scenario rows and leaves retrieval to its own tests (BM25 alone misses the English
 questions the model would have reformulated). Latency and cost targets are provisional until
 the first paid baseline.
+
+---
+
+## D52 · Search the store's documents, not the model's topic; shared words leave the query
+
+_Added 22 October 2026, from the gpt-4.1 baseline of D51._
+
+**Context.** Offline, recall@3 was 32/32: the suite searched the fixture's question over the
+store's documents. Live, 4 of 32 answerable probes said the knowledge base did not have the
+answer when it did. The model's Spanish queries were good; the `topic` it chose filtered the
+answer away. Hours and contract were searched as `role` and holidays as `benefits`, and
+`TOPIC_DOCS` gave neither topic the offer documents (D26).
+
+**Measured.** `make evals-retrieval ARGS="--replay <scorecard>"` reruns the 36 searches (78
+phrasings) the model made for the 32 answerable probes through the real hybrid index, with no model and for
+free. With its own topic, 26/32 found an expected section; without any topic, 27/32. The rest
+came from the words every chunk shares: "¿Cuántos días de vacaciones tiene el puesto de
+barista en Café Norte Chamberí?" ranked the company and role sections above the holiday one.
+With "Café Norte", "Madrid" and "barista" removed from each phrasing: 30/32. Removing the
+store's name as well lost the address question (R29), so it stays.
+
+**Decisions.**
+- `search_knowledge` has no `topic`. The handler searches every document of the session's
+  configuration; keeping the two stores apart was always the configuration's job. One fewer
+  argument for the model to get wrong. `TOPIC_DOCS` and `Topic` are gone; prompt `ana_v18`.
+- `HybridRetriever` takes the shared words out of each phrasing before both rankers
+  (`searchable`); a phrasing that is only those words is kept whole.
+- The retrieval suite gains `--replay`: the model's recorded queries of a live scorecard,
+  rerun through today's retriever. A change to retrieval is judged on what the model really
+  writes, not only on the fixture's tidy questions.
+
+**Rejected.** Widening `TOPIC_DOCS` (fixes the four cases seen, waits for the next); the topic
+as a ranking boost (more logic, nothing measured shows it helps).
+
+**Measured after.** Hybrid recall@3 still 32/32, leakage 0/41, unsupported with sources 3/5,
+ragas ID precision 0.40 and recall 0.86. Replay 30/32: R32 (the work permit for non-EU
+nationals) and R36 (whom to ask for at the interview) still miss; R36 was found with the
+`interview` topic, the one case the topic helped. BM25 alone loses the English R35, whose raw
+question names the barista; the model always searches in Spanish.
+
+**Consequences we accept.** The topic's precision is gone: a question can now bring back a
+chunk of any document of the store. Thirty-two recorded questions are a small sample; the next
+live scorecard is the check.

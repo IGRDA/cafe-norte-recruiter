@@ -15,7 +15,6 @@ fake_script:
       args:
         question: "Antes de nada, ¿cuántas horas a la semana son?"
         queries: ["¿Cuántas horas a la semana tiene la jornada?", "horas semanales del puesto"]
-        topic: pay
     - say: "Según la oferta, la jornada es de 35 horas a la semana. ¿Cómo te llamas?"
   - - tool: update_candidate
       args:

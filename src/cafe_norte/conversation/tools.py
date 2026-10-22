@@ -10,7 +10,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from cafe_norte.domain.contracts import CandidateFieldName, CandidatePatch, SlotId
 from cafe_norte.errors import Language
-from cafe_norte.knowledge.contracts import Topic
 from cafe_norte.model.contracts import ToolSchema
 
 ToolName = Literal[
@@ -39,13 +38,12 @@ class UpdateCandidateArgs(Args):
 
 
 class SearchKnowledgeArgs(Args):
-    """The candidate's words for the record, the model's self-contained Spanish query for
-    the index (English questions are reformulated here), and a topic that narrows the
-    documents before ranking."""
+    """The candidate's words for the record and the model's self-contained Spanish queries
+    for the index (English questions are reformulated here). No topic: a model-chosen topic
+    hid answers its documents did not include (D52)."""
 
     question: str = Field(min_length=1, max_length=500)
     queries: tuple[str, ...] = Field(min_length=1, max_length=3)
-    topic: Topic = "any"
 
 
 class ListInterviewSlotsArgs(Args):
@@ -110,7 +108,7 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "the same turn, even if you think you know the answer; never state these facts without it. "
     "`question` is what the candidate said; `queries` are one to three self-contained Spanish "
     "phrasings of it with the key words (two when the question is vague or in English); "
-    "`topic` narrows the documents.",
+    "The store's documents are searched; nothing else narrows them.",
     "list_interview_slots": "Call when the candidate says they want an interview, with their "
     "exact words in evidence_text. The system speaks the available slots for you.",
     "present_confirmation": "Read back a phone/date, the brief, or the slot the candidate chose "

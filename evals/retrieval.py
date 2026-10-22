@@ -88,3 +88,55 @@ def write_report(report: RetrievalReport, directory: Path) -> Path:
     }
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     return path
+
+
+# ---- the model's own queries, replayed (D52) -----------------------------------------------------
+
+
+def recorded_queries(exports: Path) -> dict[str, tuple[tuple[str, ...], ...]]:
+    """``<case id>.json`` exports of a live scorecard's probes → the queries of every
+    ``search_knowledge`` call the model made for that question, in order."""
+    found: dict[str, tuple[tuple[str, ...], ...]] = {}
+    for path in sorted(exports.glob("*.json")):
+        events = json.loads(path.read_text())["events"]
+        calls = [json.loads(e["payload_json"]) for e in events if e["kind"] == "tool_started"]
+        found[path.stem] = tuple(
+            tuple(json.loads(c["arguments"])["queries"])
+            for c in calls
+            if c["name"] == "search_knowledge"
+        )
+    return found
+
+
+async def replay(
+    cases: Sequence[RetrievalCase],
+    recorded: Mapping[str, tuple[tuple[str, ...], ...]],
+    retriever: Retriever,
+    configurations: Mapping[ConfigId, StoreConfiguration],
+) -> tuple[int, int, list[str]]:
+    """Answerable questions whose recorded searches, run again through ``retriever``, bring
+    back an expected section: (found, searched, the misses). What the live probes measure,
+    without the model and for free, so a retrieval change is judged on real queries."""
+    hits, searched, misses = 0, 0, []
+    for case in cases:
+        calls = recorded.get(case.id, ())
+        if case.kind != "answerable" or not calls:
+            continue
+        configuration = configurations[case.config_id]
+        returned: set[str] = set()
+        for queries in calls:
+            found = await retriever.retrieve(
+                RetrievalQuery(
+                    queries=queries,
+                    config_id=case.config_id,
+                    kb_version=configuration.kb_version,
+                    doc_ids=configuration.kb_doc_ids,
+                )
+            )
+            returned |= {r.chunk.chunk_id for r in found}
+        searched += 1
+        if returned & set(case.expected_sections):
+            hits += 1
+        else:
+            misses.append(f"{case.id}: {calls[0][0]}")
+    return hits, searched, misses

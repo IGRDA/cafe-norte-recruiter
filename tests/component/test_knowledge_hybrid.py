@@ -6,7 +6,7 @@ from math import isclose, sqrt
 import pytest
 
 from cafe_norte.domain.contracts import ConfigId
-from cafe_norte.knowledge.contracts import TOPIC_DOCS, Index, RetrievalQuery, Vector
+from cafe_norte.knowledge.contracts import Index, RetrievalQuery, Vector
 from cafe_norte.knowledge.fake import FakeEmbedder
 from cafe_norte.knowledge.hybrid import HybridRetriever
 from cafe_norte.knowledge.index import index_from_documents
@@ -48,9 +48,9 @@ async def test_both_rankers_contribute_and_results_come_best_first(index: Index)
     assert len(found) <= 3
 
 
-async def test_the_topic_filter_narrows_the_documents(index: Index) -> None:
+async def test_the_document_filter_narrows_the_documents(index: Index) -> None:
     retriever = HybridRetriever(index, FakeEmbedder())
-    found = await retriever.retrieve(query("horas", doc_ids=TOPIC_DOCS["uniform"]))
+    found = await retriever.retrieve(query("horas", doc_ids=frozenset({"uniform", "faq"})))
     assert found and {r.chunk.doc_id for r in found} <= {"uniform", "faq"}
     assert await retriever.retrieve(query("horas", doc_ids=frozenset({"nope"}))) == ()
 
@@ -117,3 +117,24 @@ class ZeroEmbedder(FakeEmbedder):
 async def test_a_zero_vector_has_no_cosine_and_no_dense_rank(index: Index) -> None:
     found = await HybridRetriever(index, ZeroEmbedder()).retrieve(query("uniforme delantal"))
     assert found and all(r.dense_score == 0.0 and r.dense_rank is None for r in found)
+
+
+@pytest.mark.parametrize(
+    ("question", "section"),
+    [  # the model's own queries from the gpt-4.1 baseline (D52)
+        (
+            "¿Cuántos días de vacaciones tiene el puesto de barista en Café Norte Chamberí?",
+            "offer_chamberi#vacaciones",
+        ),
+        ("horas semanales del puesto de barista en Café Norte Chamberí", "offer_chamberi#horas"),
+        (
+            "¿Qué tipo de contrato tiene el puesto de barista en Café Norte Chamberí?",
+            "offer_chamberi#contrato",
+        ),
+    ],
+)
+async def test_words_every_document_shares_do_not_drown_the_question(
+    index: Index, question: str, section: str
+) -> None:
+    found = await HybridRetriever(index, None).retrieve(query(question))
+    assert section in [r.chunk.chunk_id for r in found]

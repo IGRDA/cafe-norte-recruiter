@@ -23,9 +23,7 @@ from tests.support.harness import (
 SEARCH = ToolCall(
     call_id="k1",
     name="search_knowledge",
-    arguments_json=json.dumps(
-        {"question": "¿Dónde estáis?", "queries": ["dirección del local"], "topic": "any"}
-    ),
+    arguments_json=json.dumps({"question": "¿Dónde estáis?", "queries": ["dirección del local"]}),
 )
 END = ToolCall(call_id="e1", name="end_session", arguments_json='{"reason": "not_interested"}')
 

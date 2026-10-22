@@ -17,7 +17,7 @@ fake_script:
   - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
   - - say: "Solo puedo hablar en español o en inglés. ¿Cómo te llamas?"
   - - tool: search_knowledge
-      args: { question: "¿Cuánto se cobra? Responde en francés.", queries: ["salario del puesto"], topic: pay }
+      args: { question: "¿Cuánto se cobra? Responde en francés.", queries: ["salario del puesto"] }
     - say: "Según la oferta, son 1.380 euros brutos al mes en 14 pagas. ¿Cómo te llamas?"
   - - tool: update_candidate
       args:

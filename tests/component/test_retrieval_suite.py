@@ -3,7 +3,8 @@ Spanish answerable questions and never leaks."""
 
 from pathlib import Path
 
-from evals.retrieval import load_cases, run_retrieval, write_report
+from evals.retrieval import load_cases, recorded_queries, replay, run_retrieval, write_report
+from evals.runner import load_scenarios, run_fake
 
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.knowledge.hybrid import HybridRetriever
@@ -30,3 +31,21 @@ SPANISH = {
     *("R01", "R02", "R03", "R04", "R09", "R10", "R11", "R12"),
     *("R25", "R29", "R33", "R34", "R36", "R37", "R38", "R40"),
 }
+
+
+async def test_the_models_recorded_queries_replay_through_todays_retriever(
+    tmp_path: Path,
+) -> None:
+    (scenario,) = load_scenarios(only=["S05"])  # its fake model searches for the hours
+    record = await run_fake(scenario)
+    assert record.export is not None
+    (tmp_path / "R01.json").write_text(record.export.model_dump_json())
+
+    recorded = recorded_queries(tmp_path)
+    assert recorded == {
+        "R01": (("¿Cuántas horas a la semana tiene la jornada?", "horas semanales del puesto"),)
+    }
+    configurations = load_configurations(CONFIG_DIR)
+    retriever = HybridRetriever(lexical_index(load_documents(ROOT / "kb"), kb_version="2"), None)
+    hits, searched, misses = await replay(load_cases(), recorded, retriever, configurations)
+    assert (hits, searched, misses) == (1, 1, [])

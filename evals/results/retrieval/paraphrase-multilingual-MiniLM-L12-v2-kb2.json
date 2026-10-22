@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-22T09:53:47+00:00",
+  "generated_at": "2026-10-22T11:58:56+00:00",
   "kb_version": "2",
   "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
   "embedding_revision": "fastembed-0.9.0",
@@ -29,7 +29,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R02",
@@ -52,7 +52,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R03",
@@ -79,7 +79,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R04",
@@ -106,7 +106,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R05",
@@ -133,7 +133,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 3
     },
     {
       "case_id": "R06",
@@ -160,7 +160,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 3
     },
     {
       "case_id": "R07",
@@ -187,7 +187,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 9
     },
     {
       "case_id": "R08",
@@ -214,7 +214,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 5
     },
     {
       "case_id": "R09",
@@ -241,7 +241,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 7
+      "milliseconds": 5
     },
     {
       "case_id": "R10",
@@ -268,7 +268,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R11",
@@ -295,7 +295,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 8
+      "milliseconds": 6
     },
     {
       "case_id": "R12",
@@ -322,7 +322,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 8
     },
     {
       "case_id": "R13",
@@ -349,7 +349,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 7
     },
     {
       "case_id": "R14",
@@ -376,7 +376,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 4
+      "milliseconds": 5
     },
     {
       "case_id": "R15",
@@ -403,7 +403,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R16",
@@ -426,7 +426,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 7
+      "milliseconds": 3
     },
     {
       "case_id": "R17",
@@ -453,7 +453,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R18",
@@ -464,7 +464,7 @@
       "dense_scores": [],
       "hit": null,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 3
     },
     {
       "case_id": "R19",
@@ -491,7 +491,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 3
     },
     {
       "case_id": "R20",
@@ -502,7 +502,7 @@
       "dense_scores": [],
       "hit": null,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 4
     },
     {
       "case_id": "R21",
@@ -525,7 +525,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 2
     },
     {
       "case_id": "R22",
@@ -552,7 +552,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 3
     },
     {
       "case_id": "R23",
@@ -579,7 +579,7 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 4
+      "milliseconds": 3
     },
     {
       "case_id": "R24",
@@ -602,30 +602,30 @@
       ],
       "hit": null,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R25",
       "kind": "answerable",
       "returned": [
         "barista_role#requisitos",
-        "company#que-buscamos-en-un-barista",
-        "training#curso-de-barista"
+        "faq#que-idiomas-hacen-falta",
+        "company#que-buscamos-en-un-barista"
       ],
       "fused_scores": [
         0.03279,
-        0.032,
-        0.03151
+        0.03226,
+        0.0315
       ],
       "bm25_scores": [
-        12.627,
-        4.707,
-        2.368
+        10.259,
+        3.463,
+        3.366
       ],
       "dense_scores": [
-        0.752,
-        0.54,
-        0.544
+        0.706,
+        0.487,
+        0.43
       ],
       "hit": true,
       "leaked": false,
@@ -656,7 +656,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 4
     },
     {
       "case_id": "R27",
@@ -683,7 +683,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 3
     },
     {
       "case_id": "R28",
@@ -710,7 +710,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 7
+      "milliseconds": 4
     },
     {
       "case_id": "R29",
@@ -737,7 +737,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 5
     },
     {
       "case_id": "R30",
@@ -764,34 +764,34 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 9
+      "milliseconds": 6
     },
     {
       "case_id": "R31",
       "kind": "answerable",
       "returned": [
-        "uniform#que-proporciona-cafe-norte",
-        "company#quienes-somos",
-        "uniform#que-trae-el-barista"
+        "uniform#que-trae-el-barista",
+        "uniform#normas-de-presentacion",
+        "uniform#que-proporciona-cafe-norte"
       ],
       "fused_scores": [
-        0.03279,
-        0.03226,
-        0.03175
+        0.03252,
+        0.03252,
+        0.03126
       ],
       "bm25_scores": [
-        7.876,
-        4.302,
-        4.216
+        4.216,
+        4.109,
+        4.007
       ],
       "dense_scores": [
-        0.706,
-        0.559,
-        0.499
+        0.514,
+        0.597,
+        0.315
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 6
     },
     {
       "case_id": "R32",
@@ -837,57 +837,57 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 9
     },
     {
       "case_id": "R34",
       "kind": "answerable",
       "returned": [
         "faq#puedo-cambiar-de-tienda-mas-adelante",
-        "company#quienes-somos",
-        "benefits#descuento"
+        "store_chamberi#turnos",
+        "store_chamberi#como-es-la-tienda"
       ],
       "fused_scores": [
         0.03279,
-        0.0315,
-        0.03062
+        0.02964,
+        0.02964
       ],
       "bm25_scores": [
-        15.578,
-        4.835,
-        3.13
+        12.85,
+        2.179,
+        0.934
       ],
       "dense_scores": [
-        0.775,
-        0.603,
-        0.659
+        0.683,
+        0.427,
+        0.471
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 5
+      "milliseconds": 8
     },
     {
       "case_id": "R35",
       "kind": "answerable",
       "returned": [
+        "store_arganzuela#horario",
         "offer_arganzuela#salario",
-        "store_arganzuela#direccion",
-        "store_arganzuela#horario"
+        "store_arganzuela#equipo"
       ],
       "fused_scores": [
-        0.03279,
-        0.03151,
-        0.03151
+        0.03202,
+        0.0311,
+        0.03105
       ],
       "bm25_scores": [
-        5.563,
-        5.053,
-        5.433
+        5.433,
+        4.337,
+        5.342
       ],
       "dense_scores": [
-        0.736,
-        0.642,
-        0.592
+        0.625,
+        0.656,
+        0.559
       ],
       "hit": true,
       "leaked": false,
@@ -918,7 +918,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 10
     },
     {
       "case_id": "R37",
@@ -945,61 +945,61 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 17
     },
     {
       "case_id": "R38",
       "kind": "answerable",
       "returned": [
         "store_chamberi#direccion",
-        "company#quienes-somos",
-        "store_chamberi#como-es-la-tienda"
+        "store_chamberi#como-es-la-tienda",
+        "store_chamberi#horario"
       ],
       "fused_scores": [
         0.03279,
-        0.032,
-        0.03151
+        0.03151,
+        0.0315
       ],
       "bm25_scores": [
-        8.378,
-        5.59,
-        4.403
+        6.339,
+        3.227,
+        3.535
       ],
       "dense_scores": [
-        0.806,
-        0.605,
-        0.636
+        0.669,
+        0.482,
+        0.457
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 6
+      "milliseconds": 9
     },
     {
       "case_id": "R39",
       "kind": "answerable",
       "returned": [
-        "training#curso-de-barista",
         "training#induccion",
-        "store_chamberi#equipo"
+        "training#despues-de-los-seis-meses",
+        "training#curso-de-barista"
       ],
       "fused_scores": [
-        0.03227,
-        0.03128,
-        0.03055
+        0.03252,
+        0.03132,
+        0.03126
       ],
       "bm25_scores": [
-        3.879,
         4.007,
-        2.94
+        4.074,
+        3.879
       ],
       "dense_scores": [
-        0.636,
-        0.483,
-        0.473
+        0.665,
+        0.417,
+        0.435
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 4
+      "milliseconds": 8
     },
     {
       "case_id": "R40",
@@ -1026,7 +1026,7 @@
       ],
       "hit": true,
       "leaked": false,
-      "milliseconds": 7
+      "milliseconds": 10
     },
     {
       "case_id": "R41",
@@ -1060,6 +1060,173 @@
   "answerable": 32,
   "leaked": 0,
   "unsupported_with_sources": 3,
-  "median_ms": 6,
-  "ragas": null
+  "median_ms": 4,
+  "ragas": {
+    "samples": 32,
+    "mean_precision": 0.3958333333333333,
+    "mean_recall": 0.859375,
+    "nothing_retrieved": 0,
+    "per_case": [
+      {
+        "case_id": "R01",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R02",
+        "precision": 0.5,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R03",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R04",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R05",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R06",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R07",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      },
+      {
+        "case_id": "R08",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R09",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R10",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R11",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R12",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      },
+      {
+        "case_id": "R13",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R14",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R15",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      },
+      {
+        "case_id": "R16",
+        "precision": 0.5,
+        "recall": 0.5
+      },
+      {
+        "case_id": "R25",
+        "precision": 0.6666666666666666,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R26",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      },
+      {
+        "case_id": "R27",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R28",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      },
+      {
+        "case_id": "R29",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R30",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R31",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R32",
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R33",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R34",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R35",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      },
+      {
+        "case_id": "R36",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      },
+      {
+        "case_id": "R37",
+        "precision": 0.6666666666666666,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R38",
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R39",
+        "precision": 0.6666666666666666,
+        "recall": 1.0
+      },
+      {
+        "case_id": "R40",
+        "precision": 0.3333333333333333,
+        "recall": 0.5
+      }
+    ]
+  }
 }

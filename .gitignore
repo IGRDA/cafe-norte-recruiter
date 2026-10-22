@@ -33,3 +33,6 @@ infra/**/.terraform/
 .prompts/
 mutants/
 .quality/
+web/node_modules/
+web/dist/
+*.tsbuildinfo

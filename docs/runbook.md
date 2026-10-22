@@ -2,7 +2,13 @@
 
 ## Hosted demo (one Compute Engine VM, project `cafe-norte-orbio`, D24)
 
-- **URL**: the `service_url` output of `infra/app` (`https://<ip-with-dashes>.sslip.io`).
+- **URL**: the `service_url` output of `infra/app`: `https://<public_hostname>` (DuckDNS, D60),
+  or `https://<ip-with-dashes>.sslip.io`, which always answers too. The DuckDNS record is an A
+  record on the static address, set once at duckdns.org; CI reads the name from the
+  `PUBLIC_HOSTNAME` repository variable.
+- **Share the demo**: `https://<host>/?store=chamberi_barista_v1&lang=es#code=<access code>`.
+  The code stays in the fragment: the page checks it once and removes it from the address bar.
+  Rotating `CAFE_NORTE_ACCESS_CODE` invalidates every link already sent.
 - **Deploy**: push to `main`; `deploy.yml` builds, pushes, applies with the digest, resets the
   instance, waits for `/health/ready` and runs `scripts/smoke.py`. By hand: `make infra-init`,
   `make infra-plan`, `make infra-apply` with `-var image_digest=…`, then

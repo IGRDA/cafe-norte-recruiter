@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from cafe_norte.api.access import AccessGate, gate_from_env
 from cafe_norte.api.boundary import HttpBoundary
-from cafe_norte.api.contracts import ErrorResponse
+from cafe_norte.api.contracts import ErrorResponse, SignalsMode
 from cafe_norte.api.routes import TurnTasks, build_router
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import ConversationRuntime, SignalAnalyzer
@@ -88,6 +88,7 @@ def create_app(
     voice: VoiceSessionController | None = None,
     web_dir: Path | None = None,
     voice_mode: VoiceMode = "off",
+    signals_mode: SignalsMode = "off",
     max_voice_sessions: int = 2,
     session_seconds: float = 480.0,
     warm_up: Callable[[], Awaitable[None]] | None = None,
@@ -142,6 +143,7 @@ def create_app(
             versions=versions,
             tasks=tasks,
             voice_mode=voice_mode,
+            signals_mode=signals_mode,
             max_voice_sessions=max_voice_sessions,
             session_seconds=session_seconds,
             estimate=estimate,
@@ -161,7 +163,11 @@ def create_app(
         body = ErrorResponse(code="validation_failed", message=MESSAGES["es"]["validation_failed"])
         return JSONResponse(body.model_dump(), status_code=422)
 
-    if web_dir is not None:
+    if web_dir is not None and not web_dir.is_dir():
+        # The page is built (`make web-build`, D61); the API, the evals and the tests run
+        # without it. The image always builds it, and the deploy's smoke check asks for "/".
+        log.warning("no page at %s: run `make web-build`; serving the API only", web_dir)
+    elif web_dir is not None:
         app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
     return app
 
@@ -174,16 +180,17 @@ def _model(env: Mapping[str, str]) -> Model:
     return FakeModel([], fallback=demo)
 
 
-def _signals(env: Mapping[str, str]) -> SignalAnalyzer | None:
+def _signals(env: Mapping[str, str]) -> tuple[SignalAnalyzer | None, SignalsMode]:
     """The asynchronous classifier is opt-in: ``CAFE_NORTE_SIGNAL_MODEL`` names a small model
     (same selector format as ``CAFE_NORTE_MODEL``), or ``openrouter/<decision model>`` for Jev
-    with ``OPENROUTER_API_KEY`` (D52); unset, no turn pays for a second call."""
+    with ``OPENROUTER_API_KEY`` (D52); unset, no turn pays for a second call. The mode tells
+    the page what to expect: labels only, or Jev's probabilities (D62)."""
     selector = env.get("CAFE_NORTE_SIGNAL_MODEL", "")
     if not selector:
-        return None
+        return None, "off"
     if selector.startswith("openrouter/"):
-        return DecisionSignalAnalyzer(decision_model_from_env(selector, env))
-    return ModelSignalAnalyzer(model_from_env(selector, env))
+        return DecisionSignalAnalyzer(decision_model_from_env(selector, env)), "jev"
+    return ModelSignalAnalyzer(model_from_env(selector, env)), "labels"
 
 
 def create_default_app(
@@ -203,6 +210,7 @@ def create_default_app(
         all_handlers(store=store, configurations=configurations, retriever=retriever)
     )
     model = _model(env)
+    signals, signals_mode = _signals(env)
     process = _process_versions(env, model.model_id, voice_mode)
     telemetry, flush = telemetry_for(env, process)
     estimate = partial(price_usage, prices=load_prices())
@@ -211,7 +219,7 @@ def create_default_app(
         tools=registry,
         store=store,
         configurations=configurations,
-        signals=_signals(env),
+        signals=signals,
         limits=Limits(
             llm_first_output_seconds=float(env.get("CAFE_NORTE_LLM_FIRST_OUTPUT_SECONDS", "6")),
             tool_seconds=float(env.get("CAFE_NORTE_TOOL_SECONDS", "10")),
@@ -232,8 +240,9 @@ def create_default_app(
         configurations=configurations,
         gate=gate_from_env(env),
         versions=process,
-        web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web")),
+        web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web/dist")),  # `npm run build` (D61)
         voice_mode=voice_mode,
+        signals_mode=signals_mode,
         rooms=rooms,
         voice=voice,
         max_voice_sessions=int(env.get("CAFE_NORTE_MAX_VOICE_SESSIONS", "2")),

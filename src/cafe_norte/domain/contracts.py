@@ -341,6 +341,14 @@ class ReviewFlag(Frozen):
 Sentiment = Literal["neutral", "positive", "frustrated", "uncertain"]
 
 
+class SignalProbabilities(Frozen):
+    """What a decision model gave each option (D52), shown on the page as it arrives (D62).
+    Advisory: the verdict in ``Signal`` is what the runtime acts on."""
+
+    sentiment: dict[Sentiment, float]
+    language: dict[Literal["keep", "switch"], float]
+
+
 class Signal(Frozen):
     """Conversational signal attached to the turn it came from; never a hiring input."""
 
@@ -350,6 +358,7 @@ class Signal(Frozen):
     explicit_stop: bool
     language_switch_to: Language | None
     evidence_text: str
+    probabilities: SignalProbabilities | None = None  # a decision model's; None for labels only
 
 
 # ---- configuration -------------------------------------------------------------------------------

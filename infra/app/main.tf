@@ -74,7 +74,10 @@ resource "google_compute_address" "app" {
 }
 
 locals {
-  public_host = "${replace(google_compute_address.app.address, ".", "-")}.sslip.io"
+  sslip_host = "${replace(google_compute_address.app.address, ".", "-")}.sslip.io"
+  # The named host (DuckDNS, D60) when set; the sslip.io name always answers too, as a fallback.
+  public_host  = coalesce(var.public_hostname, local.sslip_host)
+  public_hosts = distinct(compact([var.public_hostname, local.sslip_host]))
   plain_env = join("\n", [
     "CAFE_NORTE_ENV=demo",
     "CAFE_NORTE_MODEL=${var.model}",
@@ -134,7 +137,7 @@ resource "google_compute_instance" "app" {
 
   metadata = {
     image                  = var.image_digest
-    public_host            = local.public_host
+    public_hosts           = join(" ", local.public_hosts)
     env                    = local.plain_env
     secret_names           = join(" ", concat(local.secret_names, var.enable_database ? [local.db_secret_name] : []))
     db_connection_name     = local.db_connection_name

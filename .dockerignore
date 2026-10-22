@@ -13,3 +13,5 @@ tests
 **/.mypy_cache
 **/.ruff_cache
 .hypothesis
+web/node_modules
+web/dist

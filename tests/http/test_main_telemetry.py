@@ -1,7 +1,9 @@
 """The composition root binds telemetry, prices and the shutdown flush; no network."""
 
 from collections.abc import Callable
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from cafe_norte.main import _process_versions, create_default_app
@@ -57,3 +59,14 @@ def test_the_default_app_traces_turns_prices_the_export_and_flushes_on_shutdown(
     assert seen and seen[0].model_id == "fake"
     assert recording.span("handle-candidate-turn").ended
     assert document.metrics.estimated_marginal_cost_eur == 0.0  # priced: the fake model is free
+
+
+def test_an_unbuilt_page_leaves_the_api_serving(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """CI's `make check` never builds the page: the default app must start without web/dist."""
+    env = {"CAFE_NORTE_CONFIG_DIR": str(CONFIG_DIR), "CAFE_NORTE_WEB_DIR": str(tmp_path / "dist")}
+    with caplog.at_level("WARNING"), TestClient(create_default_app(env)) as client:
+        assert client.get("/api/runtime").status_code == 200
+        assert client.get("/").status_code == 404
+    assert "make web-build" in caplog.text

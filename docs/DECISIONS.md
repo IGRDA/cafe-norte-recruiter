@@ -2182,3 +2182,97 @@ D56–D58 and the feedback on them. One entry per fix, in the order they landed.
   frames are untouched. Live, short sentences gapped: the next request only started once the
   previous audio had finished downloading (KI-23). Whether the gaps are gone is heard on the
   hosted demo; if not, the next place is the output transport's buffer reset per sentence.
+
+## D60 · A named URL on DuckDNS, and a link that carries the access code
+
+_Added 22 October 2026, to share the hosted demo by a name instead of an address._
+
+**Context.** D24 serves the demo on `https://<ip-with-dashes>.sslip.io`: free, but it reads as
+an address, and every visitor types the shared access code by hand.
+
+**Options.** A registered domain (about 10 EUR a year); a free DuckDNS subdomain; a vanity
+redirect on `*.vercel.app` to the sslip.io name; no change. Cloud Run's `*.run.app` is ruled
+out by D24 (voice needs a routable NIC).
+
+**Decisions.**
+- **DuckDNS, with sslip.io kept.** `public_hostname` (e.g. `cafenorte-recruiting.duckdns.org`, an A record
+  on the static address) is the shared URL and the `service_url` output; Caddy serves it and the
+  sslip.io name from one Caddyfile, one certificate each. It is DNS only: the page, the stream
+  and the API go straight to the VM as before, and voice media still flows through Daily. If
+  DuckDNS stops resolving, the sslip.io URL still works. The address is static, so no updater
+  runs. Empty keeps D24 exactly. CI reads it from the `PUBLIC_HOSTNAME` repository variable.
+- **The code travels in the fragment.** `https://<host>/?store=…&lang=…#code=…` opens the page
+  past the gate: the page posts the code to `POST /api/access` once and removes the fragment
+  from the address bar, as the resume link does (D34). A fragment never reaches the server,
+  its logs or a Referer; a query string would. The form stays for a wrong or missing code. This
+  is the same shared code as before (luzia's `/#code=`), not user authentication.
+
+**Consequences.** A third-party DNS provider in the path of the shared link; a wrong
+`public_hostname` fails the deploy's smoke check, which uses the named URL. Anyone with the link
+has the code, as anyone told the code had before.
+
+## D61 · The page in React, TypeScript and Vite, with its logic in one reducer
+
+_Added 22 October 2026. Supersedes D02._
+
+**Context.** D02 chose vanilla ES modules over the spec's React + TypeScript + Vite to keep one
+toolchain. The page has since grown: SSE replay, an access gate, resume links, read-back
+answers, voice with its own life cycle, end, delete, a reviewer panel. Its state lived in one
+mutable object and its rules in event handlers that also touched the DOM. The demo is also a
+React sample for the role it accompanies.
+
+**Options.** Keep D02 and add JSDoc types; React with logic in hooks and `useEffect`; React with
+the logic in one pure reducer whose effects are data; XState.
+
+**Decisions.**
+- **React 19, TypeScript (strict), Vite.** A `node:24-slim` stage builds `web/dist`; the
+  runtime image gets the static files only, never Node. FastAPI serves `web/dist`
+  (`CAFE_NORTE_WEB_DIR`). The CSP (D38) is unchanged: the build emits same-origin module
+  scripts and no inline code. `daily-js` comes from npm at the same pinned 0.94.0, split into
+  its own chunk that loads only when **Hablar** is pressed; `web/vendor/` is gone.
+- **One reducer, effects as data.** `web/src/page/reducer.ts` is `(state, action, exec) =>
+  state`: actions are what happened (a click, a reply, a stream event), and the reducer calls
+  `exec(effect)` to ask for I/O (post a turn, open the stream, start voice, ask a yes/no
+  question, focus a field). `effects.ts` runs them and dispatches what came back; it has no
+  rules. `usePage` keeps each step's effects next to its state, so the reducer stays pure under
+  StrictMode's double call and every effect runs once. Components read selectors and dispatch.
+- **Phases, not flags.** `page` is `loading | gate | choosing | active | ended | deleted |
+  failed`, `voice` is `off | connecting | live | closing`. An ended page cannot send, answer or
+  call; delete hangs up a live call (the old page left it to the server).
+- **Types from the API.** `browser_schema()` (`api/contracts.py`) is one JSON Schema of every
+  contract the page sends or reads; `make export-schema` writes it and generates
+  `web/src/api/contracts.ts`. A Python test and a Vitest test fail when either is stale.
+- **Tests without a browser.** Most of the page's tests are pure reducer cases asserting the
+  next state and the exact effects; the runner is tested with a fake `fetch`; a few render
+  tests use Testing Library and axe. `make check` runs `tsc`, ESLint (hooks, jsx-a11y) and
+  Vitest offline after `make setup`.
+
+**Consequences.** Node 24 joins Python in `make setup` and CI; `npm ci` needs the network once,
+as `uv sync` does. The Postgres and smoke jobs stay Python-only. Behaviour is a port: the same
+API, the same texts, the same SSE handling; a failed voice join now returns to text instead of
+leaving **Parar** pressed.
+
+## D62 · The classifier's probabilities reach the page, as a quiet strip under the composer
+
+_Added 22 October 2026._
+
+**Context.** Jev (D52) gives every candidate message a probability per tone and for keeping or
+switching language, but only the thresholded labels were kept, in the reviewer panel. Seeing
+the numbers move per message shows what the runtime is reading and why it switched, or not.
+
+**Decisions.**
+- `Signal.probabilities` (`SignalProbabilities`: `sentiment` and `language` keep/switch) is
+  copied from Jev's answers. Optional with a default: journals and exports written before it
+  still load, so the export `schema_version` stays "1". The label-only classifier leaves it
+  empty. Thresholds and decisions are unchanged.
+- `GET /api/runtime` says which classifier runs (`signals: off | labels | jev`), so the page
+  can say "no classifier" instead of looking broken.
+- The page shows the latest message's bars (four tones, keep/switch) under the composer, so it
+  is visible on a phone. The model is not named on the page. Charts of the verdicts over time
+  were tried and removed the same day: more than the strip should be. The probabilities are shown as the classifier returns them; how well they are
+  calibrated is a measurement for `evals/signals`, not something the chart claims. Native `<meter>` elements: no inline style for the CSP, and screen readers read the
+  values. Not a live region: it would talk over Ana.
+- Advisory, as D30 and D52: it describes the words of one message, never the person, and no
+  decision reads it.
+
+**Consequences.** The SSE event and the export carry a few more numbers per message.

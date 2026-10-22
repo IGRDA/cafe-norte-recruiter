@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.json_schema import JsonSchemaMode, JsonSchemaValue, models_json_schema
 
 from cafe_norte.conversation.contracts import RuntimeEvent
 from cafe_norte.domain.contracts import (
@@ -18,6 +19,9 @@ from cafe_norte.errors import ErrorCode, Language
 from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.voice.contracts import VoiceMode, VoiceStatus
+
+# The asynchronous classifier (D30, D52): none, a label-only model, or Jev with probabilities.
+SignalsMode = Literal["off", "labels", "jev"]
 
 
 class Frozen(BaseModel):
@@ -41,6 +45,7 @@ class RuntimeInfo(Frozen):
     commit this process runs, which the deploy waits for."""
 
     voice: VoiceMode
+    signals: SignalsMode  # which classifier reads each message; the page says when none does
     config_ids: tuple[ConfigId, ...]
     access_required: bool
     commit_sha: str
@@ -125,3 +130,66 @@ class SessionSnapshotResponse(Frozen):
     state: SessionState
     transcript: tuple[TurnRecord, ...]
     versions: VersionStamp
+
+
+# What the page sends and what it reads. `make export-schema` writes this schema and generates
+# web/src/api/contracts.ts from it (D61), so the page's types follow the API.
+BROWSER_REQUESTS: tuple[type[BaseModel], ...] = (
+    AccessRequest,
+    CreateSessionRequest,
+    ResumeRequest,
+    TurnRequest,
+    ConfirmationAnswer,
+    VoiceTimingReport,
+)
+BROWSER_RESPONSES: tuple[type[BaseModel], ...] = (
+    RuntimeInfo,
+    ConfigurationSummary,
+    CreateSessionResponse,
+    ResumeResponse,
+    TurnAccepted,
+    VoiceStartResponse,
+    ErrorResponse,
+    SessionEvent,
+    SessionSnapshotResponse,
+)
+
+
+def browser_schema() -> JsonSchemaValue:
+    """One JSON Schema whose properties name every contract the page uses. Field titles are
+    dropped (a generator would name a type for each), and every field of what the page reads is
+    required: the server serializes defaults too, and TypeScript narrows unions on ``type``."""
+    models: list[tuple[type[BaseModel], JsonSchemaMode]] = [
+        *((m, "validation") for m in BROWSER_REQUESTS),
+        *((m, "serialization") for m in BROWSER_RESPONSES),
+    ]
+    _, schema = models_json_schema(models, ref_template="#/$defs/{model}")
+    sent = {m.__name__ for m in BROWSER_REQUESTS}
+    names = [m.__name__ for m in (*BROWSER_REQUESTS, *BROWSER_RESPONSES)]
+    definitions = {
+        name: _untitled(d, keep=True) if name in sent else _read(_untitled(d, keep=True))
+        for name, d in schema["$defs"].items()
+    }
+    return {
+        "title": "BrowserContracts",
+        "type": "object",
+        "properties": {name: {"$ref": f"#/$defs/{name}"} for name in names},
+        "required": names,
+        "additionalProperties": False,
+        "$defs": definitions,
+    }
+
+
+def _untitled(node: object, *, keep: bool = False) -> object:
+    if isinstance(node, dict):
+        return {k: _untitled(v) for k, v in node.items() if keep or k != "title"}
+    if isinstance(node, list):
+        return [_untitled(v) for v in node]
+    return node
+
+
+def _read(definition: object) -> object:
+    assert isinstance(definition, dict)
+    if "properties" not in definition:
+        return definition
+    return {**definition, "required": list(definition["properties"])}

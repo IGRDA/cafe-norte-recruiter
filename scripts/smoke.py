@@ -1,7 +1,7 @@
 """Post-deployment smoke check: page, health, access gate and session creation. No model call,
 so a deploy costs nothing and cannot fail on a provider hiccup.
 
-    uv run python scripts/smoke.py https://<ip-with-dashes>.sslip.io  # SMOKE_ACCESS_CODE if gated
+    uv run python scripts/smoke.py https://cafenorte-recruiting.duckdns.org  # SMOKE_ACCESS_CODE
 """
 
 import asyncio

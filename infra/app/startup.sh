@@ -7,7 +7,7 @@ META="http://metadata.google.internal/computeMetadata/v1"
 H="Metadata-Flavor: Google"
 PROJECT="$(curl -sf -H "$H" "$META/project/project-id")"
 IMAGE="$(curl -sf -H "$H" "$META/instance/attributes/image")"
-PUBLIC_HOST="$(curl -sf -H "$H" "$META/instance/attributes/public_host")"
+PUBLIC_HOSTS="$(curl -sf -H "$H" "$META/instance/attributes/public_hosts")"
 DB_CONNECTION="$(curl -sf -H "$H" "$META/instance/attributes/db_connection_name" || true)"
 TOKEN="$(curl -sf -H "$H" "$META/instance/service-accounts/default/token" | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)"
 
@@ -63,6 +63,10 @@ fi
 # needs for ICE candidates (the reason this is a VM and not Cloud Run, D24).
 docker run -d --name app --restart=always --network host --env-file "$ENV_FILE" \
   -e PORT=8080 "$IMAGE"
+# One site block for every public name (D60): Caddy gets a certificate per name. The CLI's
+# reverse-proxy takes a single --from, hence the two-line Caddyfile.
 mkdir -p /var/lib/caddy
+printf '%s {\n\treverse_proxy localhost:8080\n}\n' "$(echo "$PUBLIC_HOSTS" | sed 's/ /, /g')" \
+  > /var/lib/caddy/Caddyfile
 docker run -d --name caddy --restart=always --network host -v /var/lib/caddy:/data \
-  caddy:2.9 caddy reverse-proxy --from "https://$PUBLIC_HOST" --to localhost:8080
+  -v /var/lib/caddy/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2.9

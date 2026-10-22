@@ -29,6 +29,12 @@ the session never paused during the call; no model round timed out.
 | KI-10 | No interview time is ever said: the model promises them and calls no tool | High | S28 | **fixed (D56)** |
 | KI-11 | An invented slot id makes the whole list be said again, up to four times | High | S29, `test_a_wrong_choice_…` | **fixed (D56)** |
 | KI-12 | Ana cuts the candidate off when they take a breath mid-sentence | High | `test_a_finished_sentence_…`, `test_a_long_continuation_…`, `test_a_fragment_joined_…` | **fixed (D57)**, to confirm by voice |
+| KI-13 | A complaint ("estoy mosqueado… mala reputación") gets the next field question | High | `test_frustration_read_before_…` | **fixed (D58)** |
+| KI-14 | "Sí, anótalo" to a follow-up offer becomes a note nobody reads | High | S30, `test_a_note_tells_the_model_…` | **fixed (D58)** |
+| KI-15 | "Guardo que…" said in a turn that saved nothing | High | `claims_saved_without_save` in every scenario | **fixed (D58)** |
+| KI-16 | "Enero del año que viene" saved and read back as 1 January | Medium | S31, `test_a_start_day_the_candidate_did_not_say_…` | **fixed (D58)** |
+| KI-17 | A confirmed start date is read back a second time | Medium | `test_a_confirmed_field_is_not_read_back_again` | **fixed (D58)** |
+| KI-18 | A question during the read-back review is taken as a yes; the answer comes three turns late | Medium | `test_a_question_during_the_review_…` | **fixed (D58)** |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -239,3 +245,10 @@ the session never paused during the call; no model round timed out.
 - **Fixed (D57).** 0.5 s of silence after a finished-sounding sentence; turns start on words,
   two while Ana speaks; the window counts the pause; the fragment leaves the history. To be
   confirmed by voice on the hosted demo.
+
+## KI-13 to KI-18 · The rest of the 22 October calls
+
+Found in the hosted voice calls of 22 October 2026 (10:19 and 11:30 UTC, gpt-4.1, `ana_v17`),
+read from the Langfuse traces and, for KI-18, the session's journal. Each is described with its
+evidence, cause and fix under D58, one bullet per issue, in the order they landed. The
+reproductions named in the table are the tests that went red first.

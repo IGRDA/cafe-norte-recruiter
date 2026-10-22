@@ -1,0 +1,76 @@
+id: S31
+title: Ignacio's "enero del año que viene" of 22 October, replayed with a model that fills in the 1st
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# What went wrong live: "Desde enero del año que viene" was saved as 2027-01-01 and read back
+# as "el viernes 1 de enero de 2027", a day the candidate never said; he said yes to it. The
+# day is now refused (D58): line 4's first call is rejected, the model sends the month, and
+# the read-back says "en enero de 2027".
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Desde enero del año que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
+  - "Sí, todo correcto."
+  - "No, nada más. Gracias."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2027-01-01", experience: dos años en una cafetería }
+        evidence_text: "Desde enero del año que viene. He trabajado dos años en una cafetería."
+    - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2027-01", experience: dos años en una cafetería }
+        evidence_text: "Desde enero del año que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: confirm_brief
+      args: { answer: affirm }
+    - say: "¿Tienes alguna duda sobre el puesto o la tienda?"
+  - - tool: end_session
+      args: { reason: candidate_done }
+    - say: "Gracias a ti, Lucía. ¡Hasta pronto!"
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: "2027-01"
+    experience: dos años en una cafetería de barrio
+  wants_interview: false
+checks:
+  - name: claims_saved_without_save
+  - name: field_equals
+    args: { field: earliest_start_date, value: "2027-01" }
+  - name: field_status
+    args: { field: earliest_start_date, status: confirmed }
+  - name: brief_confirmed
+live_candidate: scripted
+live_checks:
+  - name: claims_saved_without_save
+  - name: field_equals
+    args: { field: earliest_start_date, value: "2027-01" }
+  - name: brief_confirmed

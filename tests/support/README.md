@@ -8,7 +8,7 @@ test (`test_no_test_module_imports_another`) holds the rule.
 | `__init__.py` | `ROOT`, `CONFIG_DIR` |
 | `builders.py` | `NOW`, `SID`/`SESSION`, `CONFIG_ID`/`CONFIG`/`CONFIGS` (loaded once), `EVIDENCE`, `STAMP`, `FULL`, `record(**fields)`, `full_record()`, `session_state(...)` |
 | `app.py` | `build_runtime` (the real runtime and handlers over any store), `build_test_app` (the app wired with fakes), `VERSIONS` |
-| `harness.py` | `Harness` (runtime + memory store + scripted model), `says`, `name_call`, `turn`, `DATE_CALL`, `present_brief`, `offer_call`, the slot ids, `fill_record`, `with_slots_offered`, `slots_offered`, `SlowFirst` |
+| `harness.py` | `Harness` (runtime + memory store + scripted model), `says`, `name_call`, `turn`, `DATE_CALL`, `present_brief`, `offer_call`, the slot ids, `fill_record`, `with_slots_offered`, `slots_offered`, `SlowFirst`, `decision_analyzer` (a fake Jev that answers each turn's switch probability, D52/D53) |
 | `http.py` | `create_session`, `read_turn` (one turn of SSE), the scripted tracer turns |
 | `tools.py` | `context`, `args`: calling a tool handler directly |
 | `exports.py` | One session's journal and `snapshot()` for the export tests |

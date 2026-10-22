@@ -13,6 +13,7 @@ from cafe_norte.conversation.contracts import (
     TurnFinished,
     TurnStarted,
 )
+from cafe_norte.conversation.runtime import Limits
 from cafe_norte.conversation.signals import DecisionSignalAnalyzer, ModelSignalAnalyzer
 from cafe_norte.domain.contracts import (
     Signal,
@@ -20,8 +21,6 @@ from cafe_norte.domain.contracts import (
 )
 from cafe_norte.errors import Language
 from cafe_norte.model.contracts import (
-    ChoiceAnswer,
-    Decision,
     ModelMessage,
     ToolCall,
 )
@@ -30,6 +29,7 @@ from tests.support.builders import SESSION
 from tests.support.harness import (
     WANTS_TOOLS,
     Harness,
+    decision_analyzer,
     says,
     turn,
 )
@@ -121,6 +121,8 @@ async def test_a_verdict_is_journaled_against_its_source_turn() -> None:
 
 async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() -> None:
     class Gated:
+        switches_language = False
+
         """Turn 1's verdict waits until the test lets it through; later ones are immediate."""
 
         def __init__(self) -> None:
@@ -157,6 +159,8 @@ async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() 
 
 async def test_a_failing_analyzer_never_reaches_the_turn() -> None:
     class Broken:
+        switches_language = False
+
         async def analyze(
             self, turn_id: TurnId, text: str, language: Language, *, ana_said: str = ""
         ) -> SignalAnalysis:
@@ -174,32 +178,8 @@ async def test_a_failing_analyzer_never_reaches_the_turn() -> None:
 # ---- a switch the decision-model analyzer read (D52) ---------------------------------------------
 
 
-def decisions(*p_switch: float, delay: float = 0) -> DecisionSignalAnalyzer:
-    """A decision model that answers each turn neutral, with this probability of a switch."""
-    return DecisionSignalAnalyzer(
-        FakeDecisionModel(
-            [
-                Decision(
-                    answers={
-                        "sentiment": ChoiceAnswer(choice="neutral", probabilities={"neutral": 1}),
-                        "language": ChoiceAnswer(
-                            choice="switch" if p >= 0.5 else "keep",
-                            probabilities={"keep": 1 - p, "switch": p},
-                        ),
-                    },
-                    model_id="fake-decision",
-                    input_tokens=300,
-                    output_tokens=0,
-                )
-                for p in p_switch
-            ],
-            delay_seconds=delay,
-        )
-    )
-
-
 async def test_a_switch_the_analyzer_read_applies_at_the_start_of_the_next_turn() -> None:
-    h = Harness([says("Vale."), says("Great.")], signals=decisions(0.95, 0.0))
+    h = Harness([says("Vale."), says("Great.")], signals=decision_analyzer(0.95, 0.0))
     await h.open_session()
     await h.run("Sorry, my Spanish is not very good.", "in-1")
     await h.runtime.settle()
@@ -213,14 +193,18 @@ async def test_a_switch_the_analyzer_read_applies_at_the_start_of_the_next_turn(
 
 
 async def test_a_switch_below_the_threshold_or_too_late_changes_nothing() -> None:
-    h = Harness([says("Uno."), says("Dos.")], signals=decisions(0.6))
+    h = Harness([says("Uno."), says("Dos.")], signals=decision_analyzer(0.6))
     await h.open_session()
     await h.run("Mi español es regular.", "in-1")
     await h.runtime.settle()
     events = await h.run("Vale.", "in-2")
     assert next(e for e in events if isinstance(e, TurnStarted)).language == "es"
 
-    late = Harness([says("Uno."), says("Dos.")], signals=decisions(0.95, delay=0.05))
+    late = Harness(
+        [says("Uno."), says("Dos.")],
+        signals=decision_analyzer(0.95, delay=0.05),
+        limits=Limits(switch_wait_seconds=0),  # no wait in the turn: D52's path alone
+    )
     await late.open_session()
     await late.run("Sorry, my Spanish is not very good.", "in-1")
     events = await late.run("Okay.", "in-2")  # no verdict yet: the session language stays
@@ -228,7 +212,7 @@ async def test_a_switch_below_the_threshold_or_too_late_changes_nothing() -> Non
 
 
 async def test_an_explicit_request_this_turn_wins_over_the_previous_verdict() -> None:
-    h = Harness([says("Vale."), says("Perfecto.")], signals=decisions(0.95, 0.0))
+    h = Harness([says("Vale."), says("Perfecto.")], signals=decision_analyzer(0.95, 0.0))
     await h.open_session()
     await h.run("Sorry, my Spanish is not very good.", "in-1")
     await h.runtime.settle()

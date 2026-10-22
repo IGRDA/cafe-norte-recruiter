@@ -8,10 +8,19 @@ from typing import Any
 
 from cafe_norte.conversation.contracts import RuntimeEvent, SignalAnalyzer, ToolStarted, TurnInput
 from cafe_norte.conversation.runtime import Limits
+from cafe_norte.conversation.signals import DecisionSignalAnalyzer
 from cafe_norte.domain.contracts import InputId, SessionId, SlotId
 from cafe_norte.errors import Language
-from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelMessage, ModelText, ToolCall
-from cafe_norte.model.fake import FakeModel
+from cafe_norte.model.contracts import (
+    ChoiceAnswer,
+    Decision,
+    ModelEvent,
+    ModelFinished,
+    ModelMessage,
+    ModelText,
+    ToolCall,
+)
+from cafe_norte.model.fake import FakeDecisionModel, FakeModel
 from cafe_norte.observability.contracts import UsageRecord
 from cafe_norte.observability.fakes import RecordingTelemetry
 from cafe_norte.persistence.contracts import EventRecord
@@ -196,3 +205,27 @@ async def voice_run(h: Harness, text: str, input_id: str = "v-1") -> list[Runtim
         session_id=SESSION, input_id=InputId(input_id), text=text, channel="voice", received_at=NOW
     )
     return [event async for event in h.runtime.run_turn(voice_turn)]
+
+
+def decision_analyzer(*p_switch: float, delay: float = 0) -> DecisionSignalAnalyzer:
+    """A decision model that answers each turn neutral, with this probability of a switch."""
+    return DecisionSignalAnalyzer(
+        FakeDecisionModel(
+            [
+                Decision(
+                    answers={
+                        "sentiment": ChoiceAnswer(choice="neutral", probabilities={"neutral": 1}),
+                        "language": ChoiceAnswer(
+                            choice="switch" if p >= 0.5 else "keep",
+                            probabilities={"keep": 1 - p, "switch": p},
+                        ),
+                    },
+                    model_id="fake-decision",
+                    input_tokens=300,
+                    output_tokens=0,
+                )
+                for p in p_switch
+            ],
+            delay_seconds=delay,
+        )
+    )

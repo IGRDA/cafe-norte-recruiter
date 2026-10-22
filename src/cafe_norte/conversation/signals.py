@@ -286,6 +286,8 @@ class ModelSignalAnalyzer:
     explicit preference. ``None`` when the verdict is late, malformed or not backed by the
     candidate's own words: nothing is guessed into a signal."""
 
+    switches_language = False  # its switch is the patterns', already applied in the turn
+
     def __init__(self, model: Model, *, deadline_seconds: float = 5.0) -> None:
         self._model = model
         self._deadline_seconds = deadline_seconds
@@ -396,6 +398,8 @@ class DecisionSignalAnalyzer:
     ``SENTIMENT_THRESHOLD``, a language switch only at ``SWITCH_THRESHOLD``; an explicit request
     the patterns saw wins over the model's suggestion. A decision model quotes nothing, so the
     evidence is the message it read. A late or failed call is no signal (D30)."""
+
+    switches_language = True
 
     def __init__(self, model: DecisionModel, *, deadline_seconds: float = 5.0) -> None:
         self._model = model

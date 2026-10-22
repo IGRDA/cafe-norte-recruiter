@@ -103,6 +103,7 @@ class Limits:
         "max_repairs",
         "max_tool_rounds",
         "session_seconds",
+        "switch_wait_seconds",
         "tool_seconds",
     )
 
@@ -116,6 +117,7 @@ class Limits:
         session_seconds: float = 480.0,
         max_answer_characters: int = 600,
         lease_seconds: int = 60,
+        switch_wait_seconds: float = 0.5,
     ) -> None:
         self.lease_seconds = lease_seconds
         self.max_tool_rounds = max_tool_rounds
@@ -124,6 +126,7 @@ class Limits:
         self.llm_first_output_seconds = llm_first_output_seconds
         self.tool_seconds = tool_seconds
         self.session_seconds = session_seconds
+        self.switch_wait_seconds = switch_wait_seconds  # for the analyzer, before Ana speaks (D53)
 
 
 log = logging.getLogger(__name__)
@@ -159,6 +162,11 @@ class _Turn:
     withheld: set[str] = field(default_factory=set)  # tools not offered again this turn (D44)
     previous_end: datetime | None = None  # when Ana last finished, for the gap before this turn
     ana_before: str = ""  # what Ana said last before this turn, for the signal analyzer (D52)
+    analysis: "asyncio.Task[SignalAnalysis] | None" = None  # started with the turn (D53)
+    analysis_kept: bool = False  # handed to the after-turn journaling; otherwise cancelled
+    gated: bool = False  # the switch check before Ana's first words has been made (D53)
+    switch_to: Language | None = None  # the language the turn restarts in (D53)
+    switch_waited_ms: int = 0  # how long Ana's first words waited for the analyzer
     recorded: bool = False  # the user turn is stored, so an interruption has a turn to close
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
     outcome: ToolOutcome = field(
@@ -310,6 +318,8 @@ class Runtime:
                     run.lease = None  # the fence may be what failed; journal the failure unfenced
                     yield await self._emit(run, run.failed(error.code))
                 finally:
+                    if run.analysis is not None and not run.analysis_kept:
+                        run.analysis.cancel()  # a failed or cut turn journals no verdict
                     await self._release(run)
 
     def _event(self, run: _Turn, name: EventName, severity: Severity, **payload: SpanValue) -> None:
@@ -587,28 +597,27 @@ class Runtime:
             )
             configuration = self._configurations[run.state.config_id]
             today = self._clock().astimezone(ZoneInfo(configuration.timezone)).date()
-            run.messages = list(
-                build_messages(configuration, run.state, history[:-1], run.input.text, today, hints)
-            )
 
+            def assemble() -> list[ModelMessage]:
+                return list(
+                    build_messages(
+                        configuration, run.state, history[:-1], run.input.text, today, hints
+                    )
+                )
+
+            run.messages = assemble()
+            self._start_analysis(run)
             with run.trace.child("invoke-agent", "agent", model=self._model.model_id) as agent:
-                for round_index in range(self._limits.max_tool_rounds + 1):
-                    run.rounds = round_index + 1
-                    with agent.child("step", "chain", round=run.rounds) as step:
-                        async with aclosing(self._model_round(run, step)) as round_events:
-                            async for (
-                                event
-                            ) in round_events:  # closing it closes the provider stream
-                                yield event
-                        if not run.calls:
-                            break
-                        if round_index == self._limits.max_tool_rounds:
-                            raise ServiceError("tool rounds exhausted", code="limit_exceeded")
-                        async for event in self._tool_calls(run, step):
+                async with aclosing(self._rounds(run, agent)) as rounds:
+                    async for event in rounds:  # closing the turn closes the model stream
+                        yield event
+                if run.switch_to is not None:  # nothing said or done yet: answer again (D53)
+                    async for event in self._switch_in_turn(run):
+                        yield event
+                    run.messages = assemble()
+                    async with aclosing(self._rounds(run, agent)) as rounds:
+                        async for event in rounds:
                             yield event
-                        if _nothing_left_to_do(run):
-                            step.annotate(idle=True)
-                            break
 
         run.time("llm_total", run.started)
         with run.trace.child("write-assistant-turn"):
@@ -629,6 +638,79 @@ class Runtime:
         )
         if self._signals is not None:
             self._analyze_later(self._signals, run)
+
+    async def _rounds(self, run: _Turn, agent: Span) -> AsyncGenerator[RuntimeEvent, None]:
+        """The bounded tool loop. Stops early, with nothing said or run, when the analyzer asks
+        for the other language before Ana's first words (``run.switch_to``, D53)."""
+        for round_index in range(self._limits.max_tool_rounds + 1):
+            run.rounds += 1
+            with agent.child("step", "chain", round=run.rounds) as step:
+                async with aclosing(self._model_round(run, step)) as round_events:
+                    async for event in round_events:  # closing it closes the provider stream
+                        yield event
+                if run.switch_to is not None or (run.calls and await self._switch_due(run)):
+                    step.annotate(dropped_for_language=run.switch_to or "")
+                    run.calls = []
+                    return
+                if not run.calls:
+                    return
+                if round_index == self._limits.max_tool_rounds:
+                    raise ServiceError("tool rounds exhausted", code="limit_exceeded")
+                async for event in self._tool_calls(run, step):
+                    yield event
+                if _nothing_left_to_do(run):
+                    step.annotate(idle=True)
+                    return
+
+    def _start_analysis(self, run: _Turn) -> None:
+        """An analyzer that can switch the language starts with the model, beside it (D53)."""
+        analyzer = self._signals
+        if analyzer is None or not analyzer.switches_language:
+            return
+        run.analysis = asyncio.create_task(
+            analyzer.analyze(
+                run.turn_id, run.input.text, run.state.language, ana_said=run.ana_before
+            )
+        )
+
+    async def _switch_due(self, run: _Turn) -> bool:
+        """Once, before Ana's first words of the turn: whether the analyzer, given at most
+        ``switch_wait_seconds`` more, asks for the other language. Once anything was said it is
+        too late; the verdict then switches the next turn (D52)."""
+        if run.gated or run.spoken or run.analysis is None:
+            run.gated = True
+            return False
+        run.gated = True
+        waited = time.monotonic()
+        done, _ = await asyncio.wait({run.analysis}, timeout=self._limits.switch_wait_seconds)
+        if not done or run.analysis.cancelled() or run.analysis.exception() is not None:
+            return False
+        signal = run.analysis.result().signal
+        target = signal.language_switch_to if signal is not None else None
+        if target is None or target == run.state.language:
+            return False
+        run.switch_to = target
+        run.switch_waited_ms = int((time.monotonic() - waited) * 1000)
+        return True
+
+    async def _switch_in_turn(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        """The analyzer's switch, applied before Ana says anything: saved, then announced, so
+        the channel (speech recognition, the page) follows before the answer comes (D53)."""
+        language, run.switch_to = run.switch_to, None
+        assert language is not None
+        state = run.state.model_copy(update={"language": language})
+        async with self._store.transaction() as tx:
+            await self._store.sessions.save(
+                tx,
+                state,
+                expected_revision=run.state.candidate.revision,
+                lease_generation=run.generation,
+            )
+        run.state = state
+        self._event(
+            run, "language_switched", "INFO", language=language, waited_ms=run.switch_waited_ms
+        )
+        yield await self._emit(run, StateUpdated.of(state))
 
     async def _close_turn(
         self, run: _Turn, *, interrupted: bool
@@ -710,8 +792,12 @@ class Runtime:
 
         async def analyze() -> None:
             try:
-                analysis = await analyzer.analyze(
-                    run.turn_id, run.input.text, run.state.language, ana_said=run.ana_before
+                analysis = await (
+                    run.analysis
+                    if run.analysis is not None
+                    else analyzer.analyze(
+                        run.turn_id, run.input.text, run.state.language, ana_said=run.ana_before
+                    )
                 )
                 if analysis.usage is not None:
                     await self._record(_analysis_usage(run, analysis))
@@ -724,6 +810,7 @@ class Runtime:
             except Exception:  # advisory: a failed analysis never reaches the candidate
                 log.exception("signal analysis failed session=%s", run.session_id)
 
+        run.analysis_kept = True
         task = asyncio.create_task(analyze())
         self._analyses.add(task)
         task.add_done_callback(self._analyses.discard)
@@ -753,8 +840,12 @@ class Runtime:
                         buffer += event.text
                         complete, buffer = split_sentences(buffer)
                         for sentence in complete:
+                            if await self._switch_due(run):
+                                break
                             if self._say_once(run, sentence):
                                 yield await self._emit(run, _say(sentence))
+                        if run.switch_to is not None:
+                            break  # dropped: the turn is answered again in the other language
                         said = run.spoken[start:]
                         if sum(map(len, said)) + len(buffer) > self._limits.max_answer_characters:
                             # A runaway generation: stop reading, keep what was said, drop the rest.
@@ -780,11 +871,11 @@ class Runtime:
                 raise
             finally:
                 await events.aclose()
-            tail = clean_sentence(buffer)
-            if tail and self._say_once(run, tail):
+            tail = clean_sentence(buffer) if run.switch_to is None else ""
+            if tail and not await self._switch_due(run) and self._say_once(run, tail):
                 yield await self._emit(run, _say(tail))
             chat.set_content(output=" ".join(run.spoken[start:]))
-        if run.calls:
+        if run.calls and run.switch_to is None:
             run.messages.append(
                 ModelMessage(
                     role="assistant",

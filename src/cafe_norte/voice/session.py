@@ -211,8 +211,13 @@ class VoiceSession:
                         self._cancel_filler()
                         self._set("speaking")
                         await self._voice(event.spoken_form)
-                    elif isinstance(event, StateUpdated) and event.ended:
-                        self._ending = True
+                    elif isinstance(event, StateUpdated):
+                        self._ending = self._ending or event.ended
+                        language = event.language
+                        if language is not None and language != self._language:
+                            if self._on_language is not None:
+                                self._on_language(language)  # switched inside the turn (D53)
+                            self._language = language
                     elif isinstance(event, ToolStarted):
                         self._filler_task = asyncio.create_task(self._filler())
                     elif isinstance(event, ToolFinished):

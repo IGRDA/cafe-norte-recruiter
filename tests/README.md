@@ -40,6 +40,30 @@ beside their port in `src/` (`model/fake.py`, `persistence/memory.py`, `knowledg
 - **Red, then green.** A new behaviour or a fix starts with a test seen failing. A refactor of
   tests keeps the collected test names identical.
 
+## `make quality`
+
+A manual report of the suite's shape and strength in `.quality/report.md`, about two minutes:
+tests, properties and state machines per layer, line and branch coverage, the ten slowest
+tests, and mutmut over the small pure modules (`[tool.mutmut]` in `pyproject.toml`) against
+`tests/unit` on the derandomized `ci` profile, so the score repeats. `make quality
+PROFILE=deep` runs the suite with 2000 examples per property (about four minutes). It is not a
+CI gate; the scores below are a ratchet: a commit that kills survivors raises them, none lowers
+them.
+
+| Module | Mutation score (22 October 2026) |
+| --- | ---: |
+| `domain/booking.py`, `lifecycle.py`, `review.py`, `session_time.py` | 100 % |
+| `domain/confirmation.py` | 99 % |
+| `observability/cost.py` | 96 % |
+| `domain/numbers.py` | 94 % |
+| `domain/fields.py`, `observability/redaction.py` | 92 % |
+| `domain/candidate.py` | 90 % |
+| `voice/delivery.py` | 86 % |
+| All 794 mutants | 95 % |
+
+Some survivors are equivalent (a `rsplit` on text with no space, a prior state `capture`
+ignores) or a pinned default (`redact`'s limit); the rest are the follow-up list.
+
 ## Notable suites
 
 `component/test_readback_matrix.py` is the read-back behaviour matrix (D39): every kind of

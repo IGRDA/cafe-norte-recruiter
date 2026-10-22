@@ -1607,5 +1607,13 @@ _Added 22 October 2026, after an audit of the offline suite (1216 tests, 46 s, 9
 - Mutation over the whole of `src/`. Async and the 1200-test suite per mutant make it slow and
   noisy.
 
+**Measured.** Before: 1216 offline tests in a flat folder, 46 s with coverage, 28 properties,
+about twenty tests on the wall clock with 10 ms margins, one test 13 s long because ragas phoned
+home. After: 1263 tests in four layers (unit 544, component 625, http 64, e2e 30), 27 s with
+coverage, 51 properties and 3 state machines, no test on the wall clock (twenty runs under
+load, no failure), the network refused, branch coverage 87.6 % inside a 91.5 % total, and a
+mutation score of 95 % over 794 mutants of the pure modules. The properties found one real
+bug: `plain()` was not idempotent for compatibility letters.
+
 **Consequences we accept.** One large move of test files. A `Sleep` argument on the few
 classes that wait. The mutation score is not a gate.

@@ -1,7 +1,7 @@
 INFRA_APP := infra/app
 INFRA_BOOTSTRAP := infra/bootstrap
 
-.PHONY: setup check lint typecheck test test-unit test-component test-http test-e2e test-db db-up db-down run migrate build-index export-schema export-example \
+.PHONY: setup check lint typecheck test test-unit test-component test-http test-e2e quality test-db db-up db-down run migrate build-index export-schema export-example \
         evals evals-retrieval compare smoke voice-listen voice-smoke infra-check infra-init infra-plan infra-apply
 
 # Locked install with every extra; CI and local use the same command.
@@ -23,6 +23,16 @@ test:
 # One layer of the pyramid (tests/README.md); no coverage floor, for a fast loop.
 test-unit test-component test-http test-e2e:
 	uv run pytest tests/$(@:test-%=%)
+
+# Manual (D50): the suite's shape and strength in .quality/report.md: tests per layer,
+# properties, coverage, the slowest tests and the mutation score of the pure modules.
+# PROFILE=deep runs 2000 examples per property (about four minutes) instead of CI's 300.
+quality:
+	mkdir -p .quality
+	HYPOTHESIS_PROFILE=$(or $(PROFILE),ci) uv run pytest -q --cov --cov-report=json:.quality/coverage.json --junitxml=.quality/junit.xml
+	rm -rf mutants  # mutmut keeps old verdicts when only the tests change
+	HYPOTHESIS_PROFILE=ci uv run mutmut run --max-children 8 > .quality/mutmut.log 2>&1
+	uv run python scripts/quality_report.py
 
 # Postgres-backed tests against the compose database (or CAFE_NORTE_TEST_DATABASE_URL if set).
 test-db: db-up

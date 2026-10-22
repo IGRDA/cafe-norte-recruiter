@@ -45,3 +45,8 @@ def test_what_redact_returns_has_nothing_left_to_redact(text: str) -> None:
 @given(st.text(max_size=300), st.integers(min_value=1, max_value=200))
 def test_the_result_never_exceeds_the_limit(text: str, limit: int) -> None:
     assert len(redact(text, limit=limit)) <= limit
+
+
+@given(words)
+def test_text_with_nothing_to_mask_that_fits_comes_back_unchanged(text: str) -> None:
+    assert redact(text, limit=max(len(text), 1)) == text

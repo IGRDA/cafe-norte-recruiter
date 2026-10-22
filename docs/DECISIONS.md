@@ -1574,6 +1574,56 @@ turn.
 
 ---
 
+## D50 · The test pyramid: layers as folders, time as an argument, a quality report
+
+_Added 22 October 2026, after an audit of the offline suite (1216 tests, 46 s, 92 % lines)._
+
+**Decision.**
+
+- **Layers are folders.** `tests/unit` holds pure code only (no store, runtime or app),
+  `tests/component` one module behind fakes, `tests/http` the app through `build_test_app`,
+  `tests/e2e` the scenario replays, the acceptance test and Postgres end to end. An
+  architecture test keeps `unit` pure and forbids a test module importing another; shared
+  builders, harnesses and Hypothesis strategies live in the `tests/support` package.
+- **Time is an argument, and so is sleep.** Code that waits takes a `Sleep` beside its clock
+  (default `asyncio.sleep`). Tests drive a `FakeTime` that shares one virtual instant between
+  the clock and the sleeper, so no offline test sleeps on the wall clock.
+- **Laws over examples for pure code.** Pure functions get properties (round trips,
+  idempotence, absorption, invariants) on shared strategies, and the session domain is
+  checked by one Hypothesis state machine. Profiles: `dev` (default), `ci`, `deep`.
+- **Assertions read behaviour.** Returned values, reads through the `Store` contract, HTTP
+  responses, events parsed as models. Not private attributes, not substrings of JSON, and a
+  call count only when the count is the behaviour.
+- **`make quality` is a manual report.** Branch coverage, tests per layer, the slowest tests and
+  a mutation score (mutmut) over the small pure modules. The scores are a ratchet recorded in
+  `tests/README.md`; CI does not run mutation.
+
+**Rejected.**
+
+- Gherkin (`pytest-bdd`). The scenario YAMLs are the behaviour specs and test names are
+  sentences; step glue would duplicate both.
+- A virtual-time event loop plugin. It hides the clock instead of passing it, and needs magic
+  around `asyncio.timeout`.
+- Mutation over the whole of `src/`. Async and the 1200-test suite per mutant make it slow and
+  noisy.
+
+**Measured.** Before: 1216 offline tests in a flat folder, 46 s with coverage, 28 properties,
+about twenty tests on the wall clock with 10 ms margins, one test 13 s long because ragas phoned
+home. After: 1273 tests in four layers (unit 593, component 586, http 64, e2e 30), 27 s with
+coverage, 51 properties and 3 state machines, no test on the wall clock (twenty runs under
+load, no failure), the network refused, branch coverage 87.6 % inside a 91.5 % total, and a
+mutation score of 95 % over 910 mutants of the pure modules. The slot-offer decision moved out
+of the runtime into a pure `conversation/slot_answer.py` (its component tests that only repeated
+the decision went to `unit`; those that check the runtime runs it stayed), and the pure tests of
+the export, the eval report and the simulated candidate's cues moved to `unit`, so the base is
+the widest layer. The properties found one real
+bug: `plain()` was not idempotent for compatibility letters.
+
+**Consequences we accept.** One large move of test files. A `Sleep` argument on the few
+classes that wait. The mutation score is not a gate.
+
+---
+
 ## D51 · One scorecard in four tiers; ragas measures answers, tools and goals
 
 _Added 22 October 2026, the evaluation stage._

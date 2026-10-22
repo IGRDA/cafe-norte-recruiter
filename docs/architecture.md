@@ -140,9 +140,9 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 
 The spec's table (§12) is the contract. Each row that a fake can produce is a deterministic
 offline test: malformed or invalid tool arguments and unknown tools (`test_registry.py`,
-`test_runtime.py`), a slow first token and rate limits (`test_runtime.py`,
+`runtime/test_turn_loop.py`), a slow first token and rate limits (`runtime/test_slow_model.py`,
 `test_chat_completions.py`), the call ending and the pause (`test_voice_session.py`), a taken
-slot offering fresh ones and two reservers for one slot (`test_handlers.py`,
+slot offering fresh ones and two reservers for one slot (`handlers/test_interview.py`,
 `test_calendar_contract.py`), idempotent booking keys (`test_booking.py`), a write fenced on a
 stale lease (`test_store_contract.py`), voice admission limits (`test_store_contract.py`), and a
 dropped store connection through `MemoryStore.sessions.fail_next_save` (the evals' `storage`

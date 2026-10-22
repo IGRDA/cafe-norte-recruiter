@@ -2,6 +2,7 @@
 
 import json
 import re
+from collections.abc import Sequence
 from datetime import date, timedelta
 
 from pydantic import BaseModel, ConfigDict
@@ -190,3 +191,38 @@ def clean_sentence(text: str) -> str:
     if not sentence or _STAGE_DIRECTION.match(sentence):
         return ""
     return sentence
+
+
+# What a generation's trace keeps of the conversation it saw (docs/architecture.md).
+TRACE_CONTEXT_CHARACTERS = 1800
+
+
+def conversation_tail(
+    messages: Sequence[ModelMessage], budget: int = TRACE_CONTEXT_CHARACTERS
+) -> str:
+    """The latest messages the model saw, newest kept first within ``budget`` characters, one
+    per line. Without the system prompt: ``prompt_version`` already pins it. The newest message
+    is always kept; the adapter redacts and drops the lot unless content is on."""
+    lines: list[str] = []
+    used = 0
+    for message in reversed([m for m in messages if m.role != "system"]):
+        line = f"{message.role}: {message.content}" + "".join(
+            f" [call {call.name}]" for call in message.tool_calls
+        )
+        if lines and used + len(line) > budget:
+            break
+        lines.append(line)
+        used += len(line)
+    return "\n".join(reversed(lines))
+
+
+def tool_message(model_text: str, spoken: list[str]) -> str:
+    """The tool result plus what the candidate has already heard this turn, so the model
+    continues instead of asking again in other words."""
+    if not spoken:
+        return model_text
+    said = " ".join(spoken)
+    return (
+        f"{model_text} Already said to the candidate this turn: {said} "
+        "Do not repeat or rephrase it; continue, or reply with nothing if it is enough."
+    )

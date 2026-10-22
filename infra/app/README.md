@@ -6,7 +6,7 @@ exist by name; their versions come from `scripts/set_secrets.py`. Runtime config
 not a secret is plain env in instance metadata (`plain_env` in `main.tf`): model, voice mode,
 voice id, voice session cap, Langfuse host and environment, and trace content (`on`, D42; `off`
 before any real applicant). Every key there must exist in `.env.example`
-(`tests/test_infra_settings.py`), so a misspelling cannot silently drop a setting.
+(`tests/unit/test_infra_settings.py`), so a misspelling cannot silently drop a setting.
 
 The app runs on one Compute Engine VM because Cloud Run containers have no routable address
 for WebRTC (D24). `startup.sh` is the deploy: metadata → env file (secrets from Secret

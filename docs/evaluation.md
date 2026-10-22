@@ -43,7 +43,7 @@ scenarios with `live_checks`, the probes and the judges (`openai/gpt-4o` by defa
 Each row carries k/n, its target (`docs/architecture.md`) and the delta against the committed
 baseline (`evals/results/scorecard/`). A row nothing measured says "not run" and neither passes
 nor fails. `make check` holds the gated scenario rows on every fake scenario
-(`tests/test_eval_scorecard.py`).
+(`tests/component/test_eval_scorecard.py`).
 
 ## What a scenario checks
 

@@ -247,7 +247,7 @@ def _arm(fault: Fault | None, model: FakeModel, store: Store) -> None:
         store.sessions.fail_next_save = ServiceError("scripted outage", code="provider_unavailable")
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS) -> int:
     parser = argparse.ArgumentParser(prog="evals")
     parser.add_argument(
         "--suite",
@@ -299,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.suite == "scenarios" and args.mode == "live":
         return live_main(args)
     if args.suite == "comparison":
-        return comparison_main(args)
+        return comparison_main(args, committed=committed)
     if args.suite != "scenarios" or args.mode != "fake":
         print(f"{args.suite} in {args.mode} mode is not available yet (later stage).")
         return 2
@@ -371,8 +371,9 @@ def comparison_plan(models: Sequence[str], *, repeat: int) -> list[Planned]:
     ]
 
 
-def comparison_main(args: argparse.Namespace) -> int:
-    """Spec §13: the six cases through each model, ``COMPARISON_REPEAT`` times, on loopback."""
+def comparison_main(args: argparse.Namespace, *, committed: Path = COMPARISON_RESULTS) -> int:
+    """Spec §13: the six cases through each model, ``COMPARISON_REPEAT`` times, on loopback;
+    the results are also written to ``committed``."""
     plan = comparison_plan(
         args.models or COMPARISON_MODELS, repeat=args.repeat or COMPARISON_REPEAT
     )
@@ -387,7 +388,7 @@ def comparison_main(args: argparse.Namespace) -> int:
         yes=args.yes,
         judge=None if args.judge in (None, "off") else args.judge,
         langfuse=args.langfuse,
-        committed=COMPARISON_RESULTS,
+        committed=committed,
     )
 
 

@@ -30,3 +30,5 @@ infra/**/.terraform/
 # The original, unsanitised specification stays private; docs/SPEC.md is the public copy.
 .trees/
 .prompts/
+mutants/
+.quality/

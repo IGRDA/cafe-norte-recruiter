@@ -39,7 +39,7 @@ from cafe_norte.knowledge.loader import load_documents
 from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.model.select import model_from_env
-from cafe_norte.observability.contracts import Estimator, ProcessVersions, stamp
+from cafe_norte.observability.contracts import Estimator, ProcessVersions, Telemetry, stamp
 from cafe_norte.observability.cost import estimate as price_usage
 from cafe_norte.observability.cost import load_prices
 from cafe_norte.observability.telemetry import configure
@@ -173,7 +173,13 @@ def _signals(env: Mapping[str, str]) -> SignalAnalyzer | None:
     return ModelSignalAnalyzer(model_from_env(selector, env)) if selector else None
 
 
-def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
+def create_default_app(
+    env: Mapping[str, str] | None = None,
+    *,
+    telemetry_for: Callable[
+        [Mapping[str, str], ProcessVersions], tuple[Telemetry, Callable[[], None]]
+    ] = configure,
+) -> FastAPI:
     """Select adapters from ``env`` (default ``os.environ``) and call ``create_app``."""
     env = env if env is not None else os.environ
     voice_mode = _voice_mode(env)
@@ -185,7 +191,7 @@ def create_default_app(env: Mapping[str, str] | None = None) -> FastAPI:
     )
     model = _model(env)
     process = _process_versions(env, model.model_id, voice_mode)
-    telemetry, flush = configure(env, process)
+    telemetry, flush = telemetry_for(env, process)
     estimate = partial(price_usage, prices=load_prices())
     runtime = Runtime(
         model=model,

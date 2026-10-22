@@ -82,7 +82,7 @@ class ModelCandidateSimulator:
 
     async def reply(self, persona: Persona, cue: Cue, transcript: Transcript) -> str:
         messages = (
-            ModelMessage(role="system", content=_system(persona)),
+            ModelMessage(role="system", content=_system(persona, self._clock())),
             ModelMessage(role="user", content=_user(cue, transcript)),
         )
         deadline = self._clock() + timedelta(seconds=REPLY_SECONDS)
@@ -115,9 +115,10 @@ class SimulatedCandidate:
         return await self._simulator.reply(self._persona, this, transcript)
 
 
-def _system(persona: Persona) -> str:
+def _system(persona: Persona, now: datetime) -> str:
     facts = "\n".join(f"- {field}: {value}" for field, value in persona.facts.items())
     return _template().format(
+        today=f"{now:%A} {now.day} {now:%B %Y}",
         facts=facts or "- nothing beyond your first name being private",
         declines=", ".join(persona.declines) or "none",
         interview="want" if persona.wants_interview else "do not want",

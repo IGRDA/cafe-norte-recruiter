@@ -46,6 +46,7 @@ Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 E164Phone = Annotated[str, StringConstraints(pattern=r"^\+[1-9]\d{6,14}$")]
 HoursPerWeek = Annotated[int, Field(ge=1, le=60)]
 Experience = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
+Note = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
 
 # ---- field algebra -------------------------------------------------------------------------------
 
@@ -156,7 +157,7 @@ class CandidatePatch(Frozen):
     experience: Experience | None = None
     declined: frozenset[CandidateFieldName] = frozenset()
     unknown: frozenset[CandidateFieldName] = frozenset()
-    note: str | None = None
+    note: Note | None = None
 
 
 class FieldError(Frozen):

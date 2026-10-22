@@ -84,6 +84,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Searches per turn | bounded by the 4 tool rounds; the tool text allows one retry |
 | Turns read into one export snapshot | 10 000 (the whole transcript; the session cap keeps it far below) |
 | Tool arguments from the model | 16 KiB |
+| `update_candidate` note | 1–300 characters after trimming; longer goes back to the model as a repairable error |
 | SSE heartbeat while idle | 15 s |
 | Request body | 64 KiB, then 413 `limit_exceeded` (D38) |
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |

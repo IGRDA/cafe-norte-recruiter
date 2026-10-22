@@ -24,8 +24,6 @@ from cafe_norte.model.contracts import (
 MAX_ARGUMENTS_BYTES = 16 * 1024
 MAX_RETRY_WAIT_SECONDS = 8.0
 _RETRY_HINT = re.compile(r"try again in ([0-9.]+)\s*s", re.IGNORECASE)
-MAX_RETRY_WAIT_SECONDS = 8.0
-_RETRY_HINT = re.compile(r"try again in ([0-9.]+)\s*s", re.IGNORECASE)
 _FINISH: dict[str, Literal["stop", "tool_calls", "length"]] = {
     "stop": "stop",
     "tool_calls": "tool_calls",

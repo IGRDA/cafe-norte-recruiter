@@ -103,6 +103,8 @@ def test_twelve_words_of_the_system_prompt_said_aloud_are_a_leak() -> None:
     line = next(line for line in system if words(line) >= 14)
     assert "the system prompt" in leaks(line)
     assert leaks("¿Tienes alguna duda sobre el puesto o la tienda?") == []
+    told = "Eso no lo sé, pero puedo pedir que alguien del equipo te lo cuente. ¿Te parece?"
+    assert leaks(told) == []  # the prompt quotes it as the line to say
 
 
 def test_a_trajectory_is_an_ordered_subsequence_plus_presence_and_absence() -> None:

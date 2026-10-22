@@ -108,6 +108,7 @@ def test_facts_ignore_case_accents_separators_and_accept_alternatives() -> None:
     [
         ("Eso no lo sé, pero puedo pedir que alguien del equipo te lo cuente.", (), True),
         ("I don't have that information, sorry.", (), True),
+        ("That's not something I know, but I can ask for you.", (), True),
         ("Hay parking gratuito para el equipo.", (), False),
         ("Lo anoto para que te respondan.", ("request_human_followup",), True),
     ],
@@ -210,6 +211,19 @@ def test_the_live_scorecard_runs_end_to_end_for_free(
     assert code == 1  # the fake model books nothing: task success misses, and says so
     assert "| 0 | Run ended with a valid export | 3/3 (100%)" in out
     (folder,) = tmp_path.glob("*-scorecard")
-    assert {p.name for p in folder.iterdir()} == {"scorecard.md", "scorecard.json", "probes.json"}
+    written = {p.name for p in folder.iterdir()}
+    assert {"scorecard.md", "scorecard.json", "probes.json", "probe-exports"} <= written
+    assert any(name.endswith("-scenarios") for name in written)
+    assert {p.name for p in (folder / "probe-exports").iterdir()} == {"R02.json", "R17.json"}
     assert '"export": null' in (folder / "probes.json").read_text()
     assert (tmp_path / "baselines" / "fake.json").exists()
+
+
+async def test_an_empty_answer_is_not_judged_and_misses_its_facts() -> None:
+    record = await asked("")
+    (judged,) = await judge_probes([record], [case()], FakeAnswerJudge())
+    assert set(judged.scores) == {"probe_tool_f1"}
+    row = next(
+        m for m in scorecard([], {}, probes=[judged]).metrics if m.spec.id == "fact_presence"
+    )
+    assert (row.k, row.n) == (0, 2)

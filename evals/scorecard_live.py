@@ -4,7 +4,8 @@ suite, and one scorecard with its delta against the committed baseline.
 
 Nothing runs before the estimate is printed and ``--yes`` was passed. Results go to
 ``results/live/<UTC>-scorecard/`` (ignored): ``scorecard.md``, ``scorecard.json`` and
-``probes.json`` (no exports). ``--save-baseline`` commits the scorecard as
+``probes.json`` (no exports), the scenario runs as any live run writes them, and every
+probe's export in ``probe-exports/``. ``--save-baseline`` commits the scorecard as
 ``results/scorecard/<model>.json``."""
 
 import asyncio
@@ -33,7 +34,7 @@ from evals.langfuse_sync import (
     sync,
     sync_rag_dataset,
 )
-from evals.live_runs import Planned, run_plan
+from evals.live_runs import Planned, run_plan, write_results
 from evals.probes import run_probes
 from evals.ragas_bridge import judge_from, judge_probes, judge_runs
 from evals.scorecard import render_markdown, scorecard
@@ -102,8 +103,17 @@ def execute(
     )
     markdown = render_markdown(card)
     print(markdown)
-    folder = out / f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}-scorecard"
+    now = datetime.now(UTC)
+    folder = out / f"{now:%Y%m%dT%H%M%SZ}-scorecard"
     folder.mkdir(parents=True, exist_ok=True)
+    report = Report(suite="scenarios", runs=tuple(runs), denominators={"runs": len(runs)})
+    write_results(report, folder, now=now)  # the scenario runs, with their exports
+    (folder / "probe-exports").mkdir()
+    for probe in probes:
+        if probe.run.export is not None:
+            (folder / "probe-exports" / f"{probe.case_id}.json").write_text(
+                probe.run.export.model_dump_json(indent=2) + "\n", encoding="utf-8"
+            )
     (folder / "scorecard.md").write_text(markdown, encoding="utf-8")
     (folder / "scorecard.json").write_text(card.model_dump_json(indent=2) + "\n")
     bare = [p.model_copy(update={"run": p.run.model_copy(update={"export": None})}) for p in probes]

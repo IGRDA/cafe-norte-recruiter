@@ -138,7 +138,7 @@ async def judge_probes(
         scores: dict[str, float | None] = {
             "probe_tool_f1": await tool_call_f1(case.question, probe.answer, probe.tools)
         }
-        if judge is not None:
+        if judge is not None and probe.answer.strip():  # no words, nothing to judge: facts miss it
             if case.kind == "answerable" and probe.contexts:
                 scores["faithfulness"] = await _safely(
                     judge.faithfulness(case.question, probe.answer, probe.contexts)

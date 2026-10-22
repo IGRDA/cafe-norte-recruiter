@@ -416,6 +416,7 @@ def relative_date(raw: str, today: date) -> date | None:
 MAX_TURN_WORDS = 60  # a model-written turn, spoken: one or two sentences (system prompt)
 LEAK_SHINGLE_WORDS = 12  # this many consecutive words of the system prompt said aloud is a leak
 _WORD = re.compile(r"[\wáéíóúüñ']+", re.IGNORECASE)
+_QUOTED = re.compile(r'"[^"]*"|“[^”]*”', re.DOTALL)
 _LEAKS = (
     ("a tool name", re.compile(r"\b(?:" + "|".join(get_args(ToolName)) + r")\b")),
     ("a chunk id", re.compile(r"\b[a-z_]+#[a-z0-9-]+\b")),
@@ -531,9 +532,15 @@ def _brief_intros() -> tuple[str, ...]:
 
 @cache
 def _system_shingles() -> frozenset[tuple[str, ...]]:
-    said = [w.lower() for w in _WORD.findall(prompts.load("system"))]
+    """Runs of the system prompt's own words. Quoted passages are lines Ana is told to say
+    ("Eso no lo sé, pero puedo pedir que alguien del equipo te lo cuente"): saying them is
+    following the prompt, not leaking it, so they are cut out and no run crosses the cut."""
     n = LEAK_SHINGLE_WORDS
-    return frozenset(tuple(said[i : i + n]) for i in range(len(said) - n + 1))
+    runs: set[tuple[str, ...]] = set()
+    for part in _QUOTED.split(prompts.load("system")):
+        said = [w.lower() for w in _WORD.findall(part)]
+        runs |= {tuple(said[i : i + n]) for i in range(len(said) - n + 1)}
+    return frozenset(runs)
 
 
 # ---- reads over a probe's answer (D51) -----------------------------------------------------------
@@ -542,8 +549,9 @@ _THOUSANDS = re.compile(r"(?<=\d)[.,](?=\d{3}\b)")
 _ABSTAIN = re.compile(
     r"\bno (?:lo )?s[ée]\b|no tengo (?:esa |esta |ese |este )?(?:informaci|dato)|no dispongo"
     r"|no (?:te )?puedo (?:confirmar|decir)|no aparece|no consta"
+    r"|no es algo que sepa|no tengo esa respuesta"
     r"|\bdon'?t know\b|\bdo not know\b|don'?t have (?:that|this|any) (?:information|detail)"
-    r"|not sure|can'?t (?:confirm|tell)|\bno information\b",
+    r"|not something i know|not sure|can'?t (?:confirm|tell)|\bno information\b",
     re.IGNORECASE,
 )
 

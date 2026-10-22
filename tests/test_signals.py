@@ -11,6 +11,7 @@ from cafe_norte.conversation.signals import (
     answer_to_readback,
     explicit_controls,
     fresh_sentiment,
+    is_farewell,
     requested_language,
 )
 from cafe_norte.domain.contracts import Sentiment, Signal, TurnId
@@ -351,3 +352,36 @@ def test_a_plain_no_is_a_denial(text: str) -> None:
 )
 def test_anything_more_than_a_plain_answer_goes_to_the_model(text: str) -> None:
     assert answer_to_readback(text) is None
+
+
+# ---- a farewell (D46) ----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "¡Hasta luego, Ana!",
+        "No, nada más. Muchas gracias, adiós.",
+        "Vale, gracias, nos vemos.",
+        "Goodbye, Ana! Thank you again!",
+        "Thank you, Ana! I appreciate your help and I'm looking forward to the interview. Goodbye!",
+        "Thank you, Ana! I'm excited about the opportunity.",  # thanks alone closes too
+        "Gracias, Ana.",
+    ],
+)
+def test_a_farewell_is_seen_in_both_languages(text: str) -> None:
+    assert is_farewell(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Vale.",
+        "Adiós, pero ¿puedo cambiar la hora?",
+        "Hasta luego no, espera, quiero otra hora.",
+        "Bye, actually I need to change the interview.",
+        "¿Cómo se dice adiós en inglés?",
+    ],
+)
+def test_a_farewell_with_anything_still_to_do_is_not_one(text: str) -> None:
+    assert not is_farewell(text)

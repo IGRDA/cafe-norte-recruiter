@@ -116,10 +116,11 @@ _GLUE = frozenset(
 _CHOICE_TALK = frozenset(
     "si vale exacto perfecto claro correcto genial estupendo bien va viene me mejor prefiero "
     "quiero puedo podria gracias eso es asi acuerdo venga entonces hay algo tienes tiene pues "
-    "bueno "
+    "bueno ya he confirmado confirmo reserva reservar reservame "
     "yes yeah yep sure ok okay great perfect fine good works that thats sounds right correct "
     "exactly i id like prefer want take thanks thank you is there anything have do then lets "
-    "suits better best can could will ill go with eh mm mhm mhmm hmm um uh so well".split()
+    "suits better best can could will ill go with make it book reserve confirm confirmed "
+    "eh mm mhm mhmm hmm um uh so well".split()
 )
 _AFTERNOON_FROM = 14  # a slot at 14:00 or later is "de la tarde"
 

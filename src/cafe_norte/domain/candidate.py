@@ -1,5 +1,8 @@
 """Whole-record operations: apply a patch, find what is still unfinished, render the brief."""
 
+import re
+import unicodedata
+from collections.abc import Sequence
 from datetime import date
 
 import phonenumbers
@@ -13,6 +16,7 @@ from cafe_norte.domain.contracts import (
     FieldError,
     FieldState,
     StoreConfiguration,
+    TurnId,
     Unknown,
 )
 from cafe_norte.domain.fields import capture, decline, mark_unknown
@@ -123,3 +127,34 @@ def ready_for_brief(record: CandidateRecord) -> bool:
 def _field(record: CandidateRecord, name: CandidateFieldName) -> FieldState[object]:
     state: FieldState[object] = getattr(record, name)
     return state
+
+
+_NOT_A_WORD = re.compile(r"[^a-z0-9]+")
+_CLAUSE_END = re.compile(r"[.,!?;:\n]+")
+
+
+def said_in(
+    evidence_text: str, utterances: Sequence[tuple[TurnId, str]]
+) -> tuple[TurnId, str] | None:
+    """Whether the candidate said ``evidence_text``: each of its clauses must appear, as whole
+    words (case, accents and punctuation aside), in one of their utterances. The evidence kept
+    is the latest utterance that holds one, as its turn and its whole text; ``None`` when any
+    clause was never said, so words the candidate did not say are never evidence (D46)."""
+    said = [(turn_id, text, f" {_words(text)} ") for turn_id, text in utterances]
+    wanted = [w for w in (_words(part) for part in _CLAUSE_END.split(evidence_text)) if w]
+    if not wanted:
+        return None
+    holders: set[int] = set()
+    for clause in wanted:
+        found = [i for i, (_, _, words) in enumerate(said) if f" {clause} " in words]
+        if not found:
+            return None
+        holders.add(found[-1])
+    turn_id, text, _ = said[max(holders)]
+    return turn_id, text
+
+
+def _words(text: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", text.casefold())
+    plain = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return " ".join(_NOT_A_WORD.sub(" ", plain).split())

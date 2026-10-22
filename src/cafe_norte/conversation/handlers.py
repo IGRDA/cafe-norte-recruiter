@@ -27,6 +27,7 @@ from cafe_norte.conversation.contracts import (
     ToolHandler,
     ToolOutcome,
 )
+from cafe_norte.conversation.prompt import HISTORY_TURNS
 from cafe_norte.conversation.readback import (
     CONFIRM_TOOL,
     current_saying,
@@ -53,6 +54,7 @@ from cafe_norte.domain.candidate import (
     apply_patch,
     changed_fields,
     ready_for_brief,
+    said_in,
     unfinished_fields,
     validate_patch,
 )
@@ -250,7 +252,19 @@ class UpdateCandidateHandler(_Handler):
                 )
             return self._refuse("empty_patch", "Nothing to save; call only with stated facts.")
 
-        evidence = Evidence(source_turn_id=context.turn_id, text=arguments.evidence_text)
+        turns = await self._store.turns.recent(context.session_id, HISTORY_TURNS)
+        said = said_in(
+            arguments.evidence_text, [(t.turn_id, t.text) for t in turns if t.role == "user"]
+        )
+        if said is None:
+            return self._refuse(
+                "evidence_not_said",
+                "evidence_text must be the candidate's exact words from ONE of their messages. "
+                "Nothing was saved. Do not ask the candidate to repeat: call update_candidate "
+                "again now, once per message, each call with only the facts that message "
+                "states and its exact words.",
+            )
+        evidence = Evidence(source_turn_id=said[0], text=said[1])
         candidate = apply_patch(state.candidate, patch, evidence)
         flags = state.review_flags
         if patch.work_authorization in {"no", "unsure"}:

@@ -45,6 +45,7 @@ from cafe_norte.conversation.signals import (
     answer_to_readback,
     explicit_controls,
     fresh_sentiment,
+    is_farewell,
     requested_language,
 )
 from cafe_norte.domain.contracts import (
@@ -589,36 +590,42 @@ class Runtime:
         if run.answered is None and "human" not in controls:
             async for event in self._slot_choice(run):
                 yield event
+        if run.answered is None and run.slot_choice is None and "human" not in controls:
+            async for event in self._farewell(run):
+                yield event
         if run.answered is not None:
             hints = hints.model_copy(update={"readback_answered": run.answered})
         if run.slot_choice is not None:
             hints = hints.model_copy(update={"slot_choice": run.slot_choice})
 
-        history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
-        if len(history) > 1:
-            run.previous_end = history[-2].finished_at
-        configuration = self._configurations[run.state.config_id]
-        today = self._clock().astimezone(ZoneInfo(configuration.timezone)).date()
-        run.messages = list(
-            build_messages(configuration, run.state, history[:-1], run.input.text, today, hints)
-        )
+        if not is_terminal(run.state):  # a farewell ended it above: nothing for the model
+            history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
+            if len(history) > 1:
+                run.previous_end = history[-2].finished_at
+            configuration = self._configurations[run.state.config_id]
+            today = self._clock().astimezone(ZoneInfo(configuration.timezone)).date()
+            run.messages = list(
+                build_messages(configuration, run.state, history[:-1], run.input.text, today, hints)
+            )
 
-        with run.trace.child("invoke-agent", "agent", model=self._model.model_id) as agent:
-            for round_index in range(self._limits.max_tool_rounds + 1):
-                run.rounds = round_index + 1
-                with agent.child("step", "chain", round=run.rounds) as step:
-                    async with aclosing(self._model_round(run, step)) as round_events:
-                        async for event in round_events:  # closing it closes the provider stream
+            with run.trace.child("invoke-agent", "agent", model=self._model.model_id) as agent:
+                for round_index in range(self._limits.max_tool_rounds + 1):
+                    run.rounds = round_index + 1
+                    with agent.child("step", "chain", round=run.rounds) as step:
+                        async with aclosing(self._model_round(run, step)) as round_events:
+                            async for (
+                                event
+                            ) in round_events:  # closing it closes the provider stream
+                                yield event
+                        if not run.calls:
+                            break
+                        if round_index == self._limits.max_tool_rounds:
+                            raise ServiceError("tool rounds exhausted", code="limit_exceeded")
+                        async for event in self._tool_calls(run, step):
                             yield event
-                    if not run.calls:
-                        break
-                    if round_index == self._limits.max_tool_rounds:
-                        raise ServiceError("tool rounds exhausted", code="limit_exceeded")
-                    async for event in self._tool_calls(run, step):
-                        yield event
-                    if _nothing_left_to_do(run):
-                        step.annotate(idle=True)
-                        break
+                        if _nothing_left_to_do(run):
+                            step.annotate(idle=True)
+                            break
 
         run.time("llm_total", run.started)
         with run.trace.child("write-assistant-turn"):
@@ -1037,6 +1044,18 @@ class Runtime:
             )
         run.state = state
 
+    async def _farewell(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
+        """A goodbye once the interview is booked ends the session here, through
+        ``end_session`` like the model's call, and the fixed goodbye is said (D46): a model
+        that answers every goodbye with one of its own can no longer leave the session open."""
+        if run.state.booking is None or not is_farewell(run.input.text):
+            return
+        async for event in self._runtime_call(run, "end_session", {"reason": "candidate_done"}):
+            yield event
+        if is_terminal(run.state):
+            async for event in self._verbatim(run, _control_reply("goodbye", run.state.language)):
+                yield event
+
     async def _runtime_call(
         self, run: _Turn, name: str, arguments: dict[str, str]
     ) -> AsyncIterator[RuntimeEvent]:
@@ -1231,7 +1250,7 @@ def _tool_message(model_text: str, spoken: list[str]) -> str:
     )
 
 
-def _control_reply(control: Literal["human", "time_cap"], language: Language) -> str:
+def _control_reply(control: Literal["human", "time_cap", "goodbye"], language: Language) -> str:
     return prompts.table("controls", language)[control]
 
 

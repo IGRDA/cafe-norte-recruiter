@@ -1,6 +1,7 @@
 """Tool handlers: the domain decides, the store commits, the model is told what to do next."""
 
 import json
+import uuid
 from datetime import UTC, date, datetime
 
 import pytest
@@ -27,11 +28,13 @@ from cafe_norte.domain.contracts import (
     BriefTarget,
     CandidatePatch,
     CandidateRecord,
+    Captured,
     ConfigId,
     Confirmation,
     ConfirmationId,
     Evidence,
     FieldTarget,
+    InputId,
     ReviewInParts,
     ReviewOffered,
     ReviewWaived,
@@ -42,6 +45,7 @@ from cafe_norte.domain.contracts import (
     TurnId,
 )
 from cafe_norte.errors import ServiceError
+from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
 from tests.support import CONFIG_DIR
@@ -87,7 +91,7 @@ class World:
             created_at=NOW,
             candidate=candidate or CandidateRecord(),
         )
-        self.update = UpdateCandidateHandler(store=self.store, configurations=CONFIGS)
+        self.update_handler = UpdateCandidateHandler(store=self.store, configurations=CONFIGS)
         self.present = PresentConfirmationHandler(store=self.store, configurations=CONFIGS)
         self.confirm_field = ConfirmFieldHandler(store=self.store)
         self.confirm_brief = ConfirmBriefHandler(store=self.store)
@@ -105,6 +109,26 @@ class World:
     async def open(self) -> "World":
         await self.store.sessions.create(self.state, access_hash="")
         return self
+
+    async def said(self, turn: str, text: str) -> None:
+        """The candidate's message, as the runtime records it before any tool runs."""
+        record = TurnRecord(
+            turn_id=TurnId(turn),
+            session_id=SID,
+            input_id=InputId(f"in-{uuid.uuid4().hex}"),
+            role="user",
+            channel="text",
+            language="es",
+            text=text,
+            started_at=NOW,
+        )
+        async with self.store.transaction() as tx:
+            await self.store.turns.append(tx, record)
+
+    async def update(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
+        """``update_candidate`` after the candidate said its evidence in that turn (D46)."""
+        await self.said(context.turn_id, getattr(arguments, "evidence_text", ""))
+        return await self.update_handler(context, arguments)
 
     async def current(self) -> SessionState:
         state = await self.store.sessions.get(SID)
@@ -678,6 +702,7 @@ def full_confirmation() -> Confirmation:
 async def test_a_handler_save_is_fenced_on_the_contexts_lease_generation() -> None:
     w = World()
     await w.store.sessions.create(w.state, access_hash="")
+    await w.said("t1", "Ane")
     stale = ToolContext(
         session_id=SID, turn_id=TurnId("t1"), now=NOW, language="es", lease_generation=7
     )
@@ -813,3 +838,39 @@ async def test_only_a_call_that_changed_nothing_is_idle() -> None:
     )
     nothing = await w.confirm_field(context(), args("confirm_field", answer="affirm"))
     assert [o.idle for o in (saved, refused, again, nothing)] == [False, False, True, False]
+
+
+# ---- evidence is the candidate's own words (D46) -------------------------------------------------
+
+
+async def test_evidence_in_none_of_the_candidates_messages_is_refused() -> None:
+    w = await World().open()
+    await w.said("t1", "Me llamo Lucía Marín.")
+    outcome = await w.update_handler(
+        context("t2"),
+        args(
+            "update_candidate",
+            patch={"experience": "ninguna"},
+            evidence_text="no tengo experiencia previa",
+        ),
+    )
+    assert not outcome.ok and outcome.summary == "evidence_not_said"
+    assert "once per message" in outcome.model_text and "repeat" in outcome.model_text
+    assert (await w.current()).candidate.experience.status == "unset"
+
+
+async def test_the_evidence_kept_is_the_whole_message_and_its_turn() -> None:
+    w = await World().open()
+    await w.said("t1", "Hola. Me llamo Lucía Marín, sí.")
+    outcome = await w.update_handler(
+        context("t2"),
+        args(
+            "update_candidate", patch={"name": "Lucía Marín"}, evidence_text="me llamo Lucía Marín"
+        ),
+    )
+    assert outcome.ok
+    name = (await w.current()).candidate.name
+    assert isinstance(name, Captured)
+    assert name.evidence == Evidence(
+        source_turn_id=TurnId("t1"), text="Hola. Me llamo Lucía Marín, sí."
+    )

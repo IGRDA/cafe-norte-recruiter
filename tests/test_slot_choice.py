@@ -330,6 +330,9 @@ def test_a_question_that_happens_to_hold_a_slot_word_is_not_a_choice(text: str) 
         ("I can do Wednesday 21 October 2026 at 17:00.", 2),
         ("I could go with Wednesday at 10:30.", 1),
         ("Podría el miércoles a las 17:00.", 2),
+        ("I can make it at 10:30 on Wednesday, that works for me!", 1),
+        ("Ya he confirmado la reserva para el miércoles a las 10:30.", 1),
+        ("Please book Wednesday at 17:00.", 2),
     ],
 )
 def test_the_talk_around_a_choice_keeps_it_a_choice(text: str, index: int) -> None:

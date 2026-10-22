@@ -142,7 +142,8 @@ def test_a_name_is_captured_persisted_and_then_announced(
 def test_the_stream_replays_from_last_event_id(client: TestClient) -> None:
     session_id = create_session(client)
     client.post(
-        f"/api/sessions/{session_id}/turns", json={"input_id": "in-1", "text": "Me llamo Lucía"}
+        f"/api/sessions/{session_id}/turns",
+        json={"input_id": "in-1", "text": "Me llamo Lucía Marín"},
     )
     read_turn(client, session_id, after=OPENING_EVENTS)
 
@@ -156,7 +157,7 @@ def test_the_stream_replays_from_last_event_id(client: TestClient) -> None:
 
 def test_a_resubmitted_input_id_fails_once_with_conflict(client: TestClient) -> None:
     session_id = create_session(client)
-    body = {"input_id": "in-1", "text": "Me llamo Lucía"}
+    body = {"input_id": "in-1", "text": "Me llamo Lucía Marín"}
     client.post(f"/api/sessions/{session_id}/turns", json=body)
     read_turn(client, session_id, after=OPENING_EVENTS)
 

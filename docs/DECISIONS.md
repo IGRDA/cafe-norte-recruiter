@@ -24,7 +24,7 @@ tools, bounded rounds, stream answer). Voice (Pipecat) and text both need it.
 
 **Why.** The brief grades conversation flow, error handling, testing and design. A puts all of
 that in code we own and can test offline with a fake model in milliseconds, keeps one path for
-both channels, and ports the luzia model adapter unchanged. B gives tested interruption and
+both channels, and reuses an existing model adapter unchanged. B gives tested interruption and
 function streaming for free but moves the bounded tool loop and "validate before execute" into
 framework callbacks, couples the core to Pipecat's context API, and makes loop tests depend on
 the pipeline harness.
@@ -41,7 +41,7 @@ checkpoint demands it.
 **Decision.** Vanilla ES modules with vendored, pinned `daily-js`.
 
 **Why.** One toolchain, one Docker stage, no Node job in CI, Python stays the main language.
-The UI is bigger than luzia's chat page (brief, confirmation cards, reviewer panel) but still a
+The UI is bigger than a plain chat page (brief, confirmation cards, reviewer panel) but still a
 few renderers over one state object. HTMX fights live SSE state and voice status.
 
 **Consequences.** Hand-rolled DOM rendering; no TypeScript. JSDoc plus `tsc --checkJs` can be

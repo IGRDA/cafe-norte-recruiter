@@ -1,4 +1,4 @@
-"""Streaming Chat Completions adapter (Groq): luzia's wire parsing, plus several calls per turn."""
+"""Streaming Chat Completions adapter (Groq): wire parsing, plus several calls per turn."""
 
 import asyncio
 import json

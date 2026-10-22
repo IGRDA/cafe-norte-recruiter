@@ -2049,3 +2049,8 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   second `confirm_field` hears "It is already confirmed" plus the next step, instead of
   "Present it again", the order that read Iñaki's start date twice. The other defaults of the
   kind ("Present the slot again") now say that nothing was reserved, and give the next step.
+- **An interview request is the candidate's own words.** `list_interview_slots` and a first
+  `present_confirmation(slot)` check `evidence_text` with the same `said_in` as
+  `update_candidate` (D46) before they save the intent. Live, "Sí, quiero tener una entrevista."
+  was saved when the candidate had said only "Sí.". An intent already saved is reused, not
+  checked again.

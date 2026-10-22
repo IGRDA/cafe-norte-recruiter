@@ -50,7 +50,7 @@ class World:
             candidate=candidate or CandidateRecord(),
         )
         self.update_handler = UpdateCandidateHandler(store=self.store, configurations=CONFIGS)
-        self.present = PresentConfirmationHandler(store=self.store, configurations=CONFIGS)
+        self.present_handler = PresentConfirmationHandler(store=self.store, configurations=CONFIGS)
         self.confirm_field = ConfirmFieldHandler(store=self.store)
         self.confirm_brief = ConfirmBriefHandler(store=self.store)
         self.end = EndSessionHandler(store=self.store, configurations=CONFIGS)
@@ -83,6 +83,12 @@ class World:
         async with self.store.transaction() as tx:
             await self.store.turns.append(tx, record)
 
+    async def present(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
+        """``present_confirmation``; words asking for the interview were said first (D58)."""
+        if getattr(arguments, "evidence_text", None):
+            await self.said(context.turn_id, arguments.evidence_text)  # type: ignore[attr-defined]
+        return await self.present_handler(context, arguments)
+
     async def update(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
         """``update_candidate`` after the candidate said its evidence in that turn (D46)."""
         await self.said(context.turn_id, getattr(arguments, "evidence_text", ""))
@@ -114,7 +120,12 @@ class Interview(World):
 
     def __init__(self) -> None:
         super().__init__(full_record(), MemoryStore(clock=lambda: NOW))
-        self.slots = ListInterviewSlotsHandler(store=self.store, configurations=CONFIGS)
+        self.slots_handler = ListInterviewSlotsHandler(store=self.store, configurations=CONFIGS)
+
+    async def slots(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
+        """``list_interview_slots`` after the candidate said its evidence (D58)."""
+        await self.said(context.turn_id, getattr(arguments, "evidence_text", ""))
+        return await self.slots_handler(context, arguments)
 
     async def ready(self) -> "Interview":
         await self.open()

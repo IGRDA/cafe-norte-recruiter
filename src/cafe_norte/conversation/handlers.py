@@ -100,6 +100,11 @@ NEXT_STEP = {
     "booked": "The interview is reserved. Call end_session(reason=candidate_done).",
     "goodbye": "Session ended. Say goodbye in one short sentence.",
 }
+# Words given as the candidate's that they never said (D46, D58).
+NOT_SAID = (
+    "evidence_text must be the candidate's exact words asking for the interview, from one of "
+    "their messages. Nothing was saved."
+)
 # A read-back the candidate did not hear to the end: their answer goes to the review (D39).
 NOT_HEARD = (
     "It was not heard to the end: call review_readback with the candidate's answer "
@@ -161,6 +166,13 @@ class _Handler:
     @staticmethod
     def _refuse(summary: str, model_text: str, *, idle: bool = False) -> ToolOutcome:
         return ToolOutcome(ok=False, model_text=model_text, summary=summary, idle=idle)
+
+    async def _said(self, context: ToolContext, text: str) -> Evidence | None:
+        """``text`` as evidence, when the candidate said it in their recent messages (D46): the
+        latest message that holds it, whole. ``None`` when they never said it."""
+        turns = await self._store.turns.recent(context.session_id, HISTORY_TURNS)
+        said = said_in(text, [(t.turn_id, t.text) for t in turns if t.role == "user"])
+        return None if said is None else Evidence(source_turn_id=said[0], text=said[1])
 
     async def _free_slots(
         self, state: SessionState, context: ToolContext
@@ -273,11 +285,8 @@ class UpdateCandidateHandler(_Handler):
                 )
             return self._refuse("empty_patch", "Nothing to save; call only with stated facts.")
 
-        turns = await self._store.turns.recent(context.session_id, HISTORY_TURNS)
-        said = said_in(
-            arguments.evidence_text, [(t.turn_id, t.text) for t in turns if t.role == "user"]
-        )
-        if said is None:
+        evidence = await self._said(context, arguments.evidence_text)
+        if evidence is None:
             return self._refuse(
                 "evidence_not_said",
                 "evidence_text must be the candidate's exact words from ONE of their messages. "
@@ -285,7 +294,6 @@ class UpdateCandidateHandler(_Handler):
                 "again now, once per message, each call with only the facts that message "
                 "states and its exact words.",
             )
-        evidence = Evidence(source_turn_id=said[0], text=said[1])
         candidate = apply_patch(state.candidate, patch, evidence)
         flags = state.review_flags
         if patch.work_authorization in {"no", "unsure"}:
@@ -505,13 +513,10 @@ class PresentConfirmationHandler(_Handler):
             target = SlotTarget(slot_id=slot.slot_id, brief_revision=revision)
             text = slot_readback(slot, configuration, state.language)
             if state.schedule_intent is None and arguments.evidence_text is not None:
-                state = state.model_copy(
-                    update={
-                        "schedule_intent": Evidence(
-                            source_turn_id=context.turn_id, text=arguments.evidence_text
-                        )
-                    }
-                )
+                intent = await self._said(context, arguments.evidence_text)
+                if intent is None:
+                    return self._refuse("evidence_not_said", NOT_SAID)
+                state = state.model_copy(update={"schedule_intent": intent})
         elif arguments.target == "field" and arguments.field in READBACK_FIELDS:
             field_name: ReadbackField = arguments.field
             value = fields.value_of(getattr(state.candidate, field_name))
@@ -758,9 +763,9 @@ class ListInterviewSlotsHandler(_InterviewHandler):
         none_on_day = day is not None and not preferred
         # The first words asking for an interview stay its evidence when the offer is made
         # again for another day.
-        intent = state.schedule_intent or Evidence(
-            source_turn_id=context.turn_id, text=arguments.evidence_text
-        )
+        intent = state.schedule_intent or await self._said(context, arguments.evidence_text)
+        if intent is None:
+            return self._refuse("evidence_not_said", NOT_SAID)
         new_state = state.model_copy(
             update={"schedule_intent": intent, "slot_offer": _offer(slots)}
         )

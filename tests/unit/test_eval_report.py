@@ -3,10 +3,12 @@
 import json
 from datetime import UTC, datetime
 
-from evals.contracts import CheckResult, Extraction, Report, RunRecord
+from evals.contracts import CheckResult, Extraction, JudgeVerdict, Report, RunRecord
+from evals.judge import JUDGE_TRANSCRIPT_CHARS, render_transcript
 from evals.report import render_json, render_markdown, summarize
 
 from cafe_norte.observability.contracts import VersionStamp
+from tests.support.evals import record
 
 VERSIONS = VersionStamp(
     config_id="chamberi_barista_v1",
@@ -115,3 +117,29 @@ def test_json_carries_the_summary_and_no_conversation() -> None:
     assert payload["summary"]["models"][0]["passed"] == {"k": 1, "n": 1}
     assert payload["runs"][0]["export"] is None
     assert "export" not in json.dumps(payload["summary"])
+
+
+# ---- the judge in the report ---------------------------------------------------------------------
+
+
+def test_a_long_transcript_keeps_its_end() -> None:
+    lines = tuple(("user", f"línea {n} " + "x" * 200) for n in range(200))
+    text = render_transcript(lines)
+    assert len(text) <= JUDGE_TRANSCRIPT_CHARS
+    assert "línea 199" in text and text.startswith("[…]")
+
+
+def test_the_report_shows_the_judge_apart_and_labelled() -> None:
+    held = JudgeVerdict(judge_model="gpt-4o", answers={"a": True, "b": False}, same_model=False)
+    broken = JudgeVerdict(judge_model="gpt-4o", unparsable="x", same_model=False)
+    report = Report(suite="scenarios", runs=(record(held), record(broken)), denominators={})
+    (model,) = summarize(report.runs).models
+    assert (model.judge_held.k, model.judge_held.n, model.judge_unparsable) == (1, 2, 1)
+    text = render_markdown(report, generated_at=datetime(2026, 10, 21, tzinfo=UTC))
+    assert "secondary signal" in text and "1/2 (50%)" in text
+
+
+def test_a_report_without_a_judge_has_no_judge_section() -> None:
+    report = Report(suite="scenarios", runs=(record(),), denominators={})
+    text = render_markdown(report, generated_at=datetime(2026, 10, 21, tzinfo=UTC))
+    assert "judge" not in text.lower()

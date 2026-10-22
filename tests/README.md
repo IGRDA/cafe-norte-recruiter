@@ -11,7 +11,7 @@ runs both. `live`-marked tests are paid and manual (`evals/`).
 
 | Folder | Holds | Rule | `make` |
 | --- | --- | --- | --- |
-| `unit/` | Pure code: domain, signals, slot choice, brief, read-backs, codecs, delivery, cost, scorers; static checks of the repository (import rules, settings, schema) | Imports no store, runtime, handler, app, composition root, adapter or the support built on them (`test_unit_tests_import_only_pure_code`) | `test-unit` |
+| `unit/` | Pure code: domain, signals, slot choice and the answer to an offer (`slot_answer`), brief, read-backs, prompt helpers, the export document, codecs, delivery, cost, the eval report, scorers and the simulated candidate's cues; static checks of the repository (import rules, settings, schema, eval cases) | Imports no store, runtime, handler, app, composition root, adapter or the support built on them (`test_unit_tests_import_only_pure_code`) | `test-unit` |
 | `component/` | One module behind fakes: the runtime (`runtime/`, one file per behaviour), the handlers (`handlers/`), the store contract on both stores, the voice session, adapters against scripted transports, the composition root, the eval tooling | Fakes for every port; Postgres only under `@pytest.mark.postgres` | `test-component` |
 | `http/` | The app through `build_test_app` and `TestClient`: validation, ownership, SSE, cookies, export, voice routes, the eval HTTP drivers | Fakes behind the app | `test-http` |
 | `e2e/` | Whole sessions: `S01`–`S20` replayed through `evals.runner.run_fake` (the deterministic release gate), the tracer-bullet acceptance test, S01 and S12 on Postgres | The real runtime and handlers | `test-e2e` |
@@ -54,12 +54,13 @@ them.
 | --- | ---: |
 | `domain/booking.py`, `lifecycle.py`, `review.py`, `session_time.py` | 100 % |
 | `domain/confirmation.py` | 99 % |
+| `conversation/slot_answer.py` | 95 % |
 | `observability/cost.py` | 96 % |
 | `domain/numbers.py` | 94 % |
 | `domain/fields.py`, `observability/redaction.py` | 92 % |
 | `domain/candidate.py` | 90 % |
 | `voice/delivery.py` | 86 % |
-| All 794 mutants | 95 % |
+| All 910 mutants | 95 % |
 
 Some survivors are equivalent (a `rsplit` on text with no space, a prior state `capture`
 ignores) or a pinned default (`redact`'s limit); the rest are the follow-up list.

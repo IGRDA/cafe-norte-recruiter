@@ -207,14 +207,17 @@ async def voice_run(h: Harness, text: str, input_id: str = "v-1") -> list[Runtim
     return [event async for event in h.runtime.run_turn(voice_turn)]
 
 
-def decision_analyzer(*p_switch: float, delay: float = 0) -> DecisionSignalAnalyzer:
-    """A decision model that answers each turn neutral, with this probability of a switch."""
+def decision_analyzer(
+    *p_switch: float, delay: float = 0, sentiment: str = "neutral"
+) -> DecisionSignalAnalyzer:
+    """A decision model that answers each turn with this sentiment (neutral unless said), and
+    this probability of a switch."""
     return DecisionSignalAnalyzer(
         FakeDecisionModel(
             [
                 Decision(
                     answers={
-                        "sentiment": ChoiceAnswer(choice="neutral", probabilities={"neutral": 1}),
+                        "sentiment": ChoiceAnswer(choice=sentiment, probabilities={sentiment: 1}),
                         "language": ChoiceAnswer(
                             choice="switch" if p >= 0.5 else "keep",
                             probabilities={"keep": 1 - p, "switch": p},

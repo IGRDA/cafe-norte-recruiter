@@ -2066,3 +2066,13 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   read-backs ("He apuntado…") are exempt. Live, "Guardo que puedes trabajar los fines de
   semana" was said in a turn with no tool call. A runtime filter on Ana's words was rejected:
   holding text back until tools run would not have caught a turn with none.
+- **Frustration reaches the turn it is about.** At D53's check before Ana's first words (the
+  same verdict and the same wait of at most 0.5 s), a `frustrated` or `uncertain` sentiment the
+  prompt does not have yet drops the round, as a language switch does, and the turn is
+  answered again with it in `candidate_sentiment`. A later verdict keeps the next-turn path
+  of D30. The prompt now says to acknowledge it first in Ana's own words, not to argue or change
+  the conditions, and to offer a person (`request_human_followup` on a yes). Live, Ignacio's
+  "estoy bastante mosqueado… no me ha gustado nada tu servicio" got the next field question,
+  before Jev was on. No phrase list: Jev is on in the hosted demo (D52), and one reader is
+  enough. The cost is one more round on the rare turn that is frustrated. The event is
+  `sentiment_in_turn`.

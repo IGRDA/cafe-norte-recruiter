@@ -43,6 +43,7 @@ from cafe_norte.conversation.prompt import (
 from cafe_norte.conversation.readback import answer_call, current_saying
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.signals import (
+    SOFT_SENTIMENTS,
     answer_to_readback,
     explicit_controls,
     fresh_sentiment,
@@ -54,6 +55,7 @@ from cafe_norte.conversation.slot_answer import Shortlist, slot_answer
 from cafe_norte.domain.contracts import (
     ConfigId,
     InputId,
+    Sentiment,
     SessionId,
     SessionState,
     Signal,
@@ -166,6 +168,8 @@ class _Turn:
     analysis_kept: bool = False  # handed to the after-turn journaling; otherwise cancelled
     gated: bool = False  # the switch check before Ana's first words has been made (D53)
     switch_to: Language | None = None  # the language the turn restarts in (D53)
+    sentiment: Sentiment | None = None  # the tone the prompt adapts to this turn
+    retone: Sentiment | None = None  # read before Ana spoke: the turn restarts with it (D58)
     switch_waited_ms: int = 0  # how long Ana's first words waited for the analyzer
     recorded: bool = False  # the user turn is stored, so an interruption has a turn to close
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
@@ -177,6 +181,12 @@ class _Turn:
     trace: Span = field(init=False)  # the root span; set by run_turn before anything else
     tools_called: int = 0
     rounds: int = 0
+
+    @property
+    def restarting(self) -> bool:
+        """The analyzer read, before Ana's first words, a language or a tone the round did not
+        have: it is dropped and answered again (D53, D58)."""
+        return self.switch_to is not None or self.retone is not None
 
     @property
     def session_id(self) -> SessionId:
@@ -574,6 +584,7 @@ class Runtime:
                 self._last_user_turn.get(run.session_id),
             ),
         )
+        run.sentiment = hints.sentiment
         self._last_user_turn[run.session_id] = run.turn_id
         if "human" in controls:
             async for event in self._human_request(run):
@@ -614,9 +625,14 @@ class Runtime:
                 async with aclosing(self._rounds(run, agent)) as rounds:
                     async for event in rounds:  # closing the turn closes the model stream
                         yield event
-                if run.switch_to is not None:  # nothing said or done yet: answer again (D53)
-                    async for event in self._switch_in_turn(run):
-                        yield event
+                if run.restarting:  # nothing said or done yet: answer again (D53, D58)
+                    if run.switch_to is not None:
+                        async for event in self._switch_in_turn(run):
+                            yield event
+                    if run.retone is not None:
+                        hints = hints.model_copy(update={"sentiment": run.retone})
+                        run.sentiment, run.retone = run.retone, None
+                        self._event(run, "sentiment_in_turn", "INFO", sentiment=run.sentiment)
                     run.messages = assemble()
                     async with aclosing(self._rounds(run, agent)) as rounds:
                         async for event in rounds:
@@ -651,8 +667,8 @@ class Runtime:
                 async with aclosing(self._model_round(run, step)) as round_events:
                     async for event in round_events:  # closing it closes the provider stream
                         yield event
-                if run.switch_to is not None or (run.calls and await self._switch_due(run)):
-                    step.annotate(dropped_for_language=run.switch_to or "")
+                if run.restarting or (run.calls and await self._switch_due(run)):
+                    step.annotate(dropped_for=run.switch_to or run.retone or "")
                     run.calls = []
                     return
                 if not run.calls:
@@ -689,9 +705,16 @@ class Runtime:
         if not done or run.analysis.cancelled() or run.analysis.exception() is not None:
             return False
         signal = run.analysis.result().signal
-        target = signal.language_switch_to if signal is not None else None
-        if target is None or target == run.state.language:
+        if signal is None:
             return False
+        target = signal.language_switch_to
+        if target is None or target == run.state.language:
+            # No switch; a tone the prompt does not have yet restarts the round with it (D58).
+            soft = signal.sentiment if signal.sentiment in SOFT_SENTIMENTS else None
+            if soft is None or soft == run.sentiment:
+                return False
+            run.retone = soft
+            return True
         run.switch_to = target
         run.switch_waited_ms = int((time.monotonic() - waited) * 1000)
         return True
@@ -847,8 +870,8 @@ class Runtime:
                                 break
                             if self._say_once(run, sentence):
                                 yield await self._emit(run, _say(sentence))
-                        if run.switch_to is not None:
-                            break  # dropped: the turn is answered again in the other language
+                        if run.restarting:
+                            break  # dropped: the turn is answered again (D53, D58)
                         said = run.spoken[start:]
                         if sum(map(len, said)) + len(buffer) > self._limits.max_answer_characters:
                             # A runaway generation: stop reading, keep what was said, drop the rest.
@@ -874,11 +897,11 @@ class Runtime:
                 raise
             finally:
                 await events.aclose()
-            tail = clean_sentence(buffer) if run.switch_to is None else ""
+            tail = clean_sentence(buffer) if not run.restarting else ""
             if tail and not await self._switch_due(run) and self._say_once(run, tail):
                 yield await self._emit(run, _say(tail))
             chat.set_content(output=" ".join(run.spoken[start:]))
-        if run.calls and run.switch_to is None:
+        if run.calls and not run.restarting:
             run.messages.append(
                 ModelMessage(
                     role="assistant",

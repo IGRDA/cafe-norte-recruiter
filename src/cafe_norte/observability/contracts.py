@@ -148,7 +148,12 @@ Estimator = Callable[[SessionId, Sequence[UsageRecord]], CostEstimate]
 
 Severity = Literal["INFO", "WARNING", "ERROR"]
 EventName = Literal[
-    "turn_failed", "model_round", "model_round_silent", "answer_cut", "language_switched"
+    "turn_failed",
+    "model_round",
+    "model_round_silent",
+    "answer_cut",
+    "language_switched",
+    "sentiment_in_turn",
 ]
 
 

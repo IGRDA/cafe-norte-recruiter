@@ -143,7 +143,8 @@ def mean(values: Sequence[float], detail: str = "") -> Reading:
 def render_markdown(card: Scorecard) -> str:
     lines = [
         f"# Scorecard · `{card.model or '?'}` · prompt `{card.prompt_version or '?'}` · "
-        f"KB `{card.kb_version or '?'}`",
+        f"KB `{card.kb_version or '?'}`"
+        + (f" · {card.concurrency} sessions at a time" if card.concurrency > 1 else ""),
         "",
         "Tiers: 0 deterministic, 1 deterministic against a reference, 2 judge against a "
         "reference, 3 judge alone. Gate rows fail the run on a miss; judge rows report (D51).",

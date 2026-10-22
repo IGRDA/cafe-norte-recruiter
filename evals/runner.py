@@ -51,6 +51,7 @@ from evals.contracts import (
 from evals.live import MAX_LIVE_TURNS
 from evals.live_runs import DEFAULT_SIMULATOR, Planned, execute
 from evals.observation import fold, session_result
+from evals.pool import CONCURRENCY
 from evals.ragas_bridge import score_with_ragas, to_ragas_samples
 from evals.retrieval import load_cases, run_retrieval, write_report
 from evals.scorecard import render_markdown as render_scorecard
@@ -276,6 +277,9 @@ def main(argv: list[str] | None = None) -> int:
         "--base-url", default=None, help="an existing server; access code from EVAL_ACCESS_CODE"
     )
     live.add_argument("--max-turns", type=int, default=MAX_LIVE_TURNS)
+    live.add_argument(
+        "--concurrency", type=int, default=CONCURRENCY, help="sessions at a time within a phase"
+    )
     live.add_argument("--langfuse", action="store_true", help="sync cases and runs (needs keys)")
     live.add_argument("--yes", action="store_true", help="spend: without it nothing is called")
     args = parser.parse_args(argv)
@@ -454,6 +458,7 @@ def scorecard_main(args: argparse.Namespace) -> int:
             yes=args.yes,
             save_baseline=args.save_baseline,
             langfuse=args.langfuse,
+            concurrency=args.concurrency,
         )
     scenarios = load_scenarios(only=args.only)
     runs = [asyncio.run(run_fake(s)) for s in scenarios]

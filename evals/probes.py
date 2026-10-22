@@ -16,6 +16,7 @@ from cafe_norte.errors import ServiceError
 from evals.contracts import ProbeRecord, RetrievalCase, RunRecord
 from evals.live import HttpConversation, LiveError, ScriptedCandidate, drive
 from evals.live_runs import HTTP_TIMEOUT, ROOT, target
+from evals.pool import CONCURRENCY, bounded
 from evals.scorers import tool_trajectory
 from evals.testset import kb_chunks
 
@@ -88,13 +89,14 @@ async def run_probes(
     base_url: str | None,
     access_code: str | None,
     env: Mapping[str, str],
+    concurrency: int = CONCURRENCY,
 ) -> list[ProbeRecord]:
-    """Every question, one session each, one at a time (provider rate limits)."""
+    """Every question, one session each, ``concurrency`` at a time, in the cases' order."""
     configurations = load_configurations(ROOT / "config")
     chunk_text = {c.chunk_id: c.text for c in kb_chunks()}
-    records: list[ProbeRecord] = []
     async with target(model, base_url, env) as url:
-        for case in cases:
+
+        async def one(case: RetrievalCase) -> ProbeRecord:
             async with httpx.AsyncClient(base_url=url, timeout=HTTP_TIMEOUT) as client:
                 allowed = configurations[case.config_id].kb_doc_ids
                 conversation = HttpConversation(
@@ -107,9 +109,10 @@ async def run_probes(
                 record = await probe(
                     case, conversation, model=model, chunk_text=chunk_text, allowed_doc_ids=allowed
                 )
-            records.append(record)
             print(_line(record), flush=True)
-    return records
+            return record
+
+        return await bounded(cases, one, limit=concurrency)
 
 
 def _line(record: ProbeRecord) -> str:

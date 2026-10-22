@@ -34,6 +34,7 @@ from evals.live import (
     drive,
     serve,
 )
+from evals.pool import CONCURRENCY, bounded
 from evals.ragas_bridge import judge_from, judge_runs
 from evals.report import render_json, render_markdown
 from evals.scorers import extraction_accuracy, run_check
@@ -138,8 +139,10 @@ async def run_plan(
     max_turns: int = MAX_LIVE_TURNS,
     judge: str | None = None,
     env: Mapping[str, str] | None = None,
+    concurrency: int = CONCURRENCY,
 ) -> list[RunRecord]:
-    """Every planned run, one at a time (provider rate limits), grouped by model."""
+    """Every planned run, grouped by model (one server each); within a model, ``concurrency``
+    sessions at a time. Records come back in plan order."""
     env = env if env is not None else os.environ
     configurations = load_configurations(ROOT / "config")
     voice = ModelCandidateSimulator(simulator_model(simulator, env))
@@ -147,7 +150,8 @@ async def run_plan(
     records: list[RunRecord] = []
     for model, runs in groupby(plan, key=lambda p: p.model):
         async with target(model, base_url, env) as url:
-            for planned in runs:
+
+            async def one(planned: Planned, url: str = url, model: str = model) -> RunRecord:
                 scenario = planned.scenario
                 async with httpx.AsyncClient(base_url=url, timeout=HTTP_TIMEOUT) as client:
                     conversation = HttpConversation(
@@ -171,11 +175,14 @@ async def run_plan(
                         max_turns=max_turns,
                         case_id=planned.case_id,
                     )
-                records.append(record)
                 print(_line(record), flush=True)
+                return record
+
+            records += await bounded(list(runs), one, limit=concurrency)
     if answer_judge is None:
         return records
-    return await judge_runs(records, {p.scenario.id: p.scenario for p in plan}, answer_judge)
+    scenarios = {p.scenario.id: p.scenario for p in plan}
+    return await judge_runs(records, scenarios, answer_judge, concurrency=concurrency)
 
 
 def write_results(report: Report, out: Path, *, now: datetime | None = None) -> Path:

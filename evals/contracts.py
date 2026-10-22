@@ -378,6 +378,7 @@ class Scorecard(Frozen):
     model: str
     prompt_version: str
     kb_version: str
+    concurrency: int = 1  # live sessions at a time: latency is measured under this much load
     metrics: tuple[Metric, ...]
 
     @property

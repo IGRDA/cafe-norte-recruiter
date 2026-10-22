@@ -30,6 +30,7 @@ from evals.contracts import (
     RunRecord,
     Scenario,
 )
+from evals.pool import CONCURRENCY, bounded
 from evals.scorers import exchanges, model_turns
 
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
@@ -129,19 +130,22 @@ async def tool_call_f1(question: str, answer: str, called: Sequence[str]) -> flo
 
 
 async def judge_probes(
-    probes: Sequence[ProbeRecord], cases: Sequence[RetrievalCase], judge: AnswerJudge | None
+    probes: Sequence[ProbeRecord],
+    cases: Sequence[RetrievalCase],
+    judge: AnswerJudge | None,
+    *,
+    concurrency: int = CONCURRENCY,
 ) -> list[ProbeRecord]:
     """Each probe with its scores: ``probe_tool_f1`` always (free); with a judge,
     ``faithfulness`` (answerable, sources shown), ``answer_accuracy`` (answerable) and
     ``topic_adherence``. A broken probe gets none. The answer is judged without Ana's
-    follow-up question: a question is not a claim."""
+    follow-up question: a question is not a claim. ``concurrency`` probes at a time."""
     by_id = {c.id: c for c in cases}
-    scored: list[ProbeRecord] = []
-    for probe in probes:
+
+    async def one(probe: ProbeRecord) -> ProbeRecord:
         export = probe.run.export
         if export is None:
-            scored.append(probe)
-            continue
+            return probe
         case = by_id[probe.case_id]
         scores: dict[str, float | None] = {
             "probe_tool_f1": await tool_call_f1(case.question, probe.answer, probe.tools)
@@ -157,20 +161,25 @@ async def judge_probes(
                     judge.answer_accuracy(case.question, said, case.reference)
                 )
             scores["topic_adherence"] = await _held(judge.holds(exchanges(export), TOPIC))
-        scored.append(probe.model_copy(update={"scores": scores}))
-    return scored
+        return probe.model_copy(update={"scores": scores})
+
+    return await bounded(probes, one, limit=concurrency)
 
 
 async def judge_runs(
-    runs: Sequence[RunRecord], scenarios: Mapping[str, Scenario], judge: AnswerJudge
+    runs: Sequence[RunRecord],
+    scenarios: Mapping[str, Scenario],
+    judge: AnswerJudge,
+    *,
+    concurrency: int = CONCURRENCY,
 ) -> list[RunRecord]:
     """Each scenario run with ``goal_accuracy`` (scenarios with a ``goal``), ``rubric`` (the
-    share of its bullets that held), ``style`` and ``topic_adherence``."""
-    scored: list[RunRecord] = []
-    for run in runs:
+    share of its bullets that held), ``style`` and ``topic_adherence``; ``concurrency`` runs
+    at a time."""
+
+    async def one(run: RunRecord) -> RunRecord:
         if run.export is None:
-            scored.append(run)
-            continue
+            return run
         scenario = scenarios[run.scenario_id or run.case_id]
         said = exchanges(run.export)
         scores: dict[str, float | None] = {"topic_adherence": await _held(judge.holds(said, TOPIC))}
@@ -183,8 +192,9 @@ async def judge_runs(
             held = [await _held(judge.holds(said, bullet)) for bullet in scenario.rubric]
             answered = [h for h in held if h is not None]
             scores["rubric"] = sum(answered) / len(answered) if answered else None
-        scored.append(run.model_copy(update={"scores": scores, "judge_model": judge.model_id}))
-    return scored
+        return run.model_copy(update={"scores": scores, "judge_model": judge.model_id})
+
+    return await bounded(runs, one, limit=concurrency)
 
 
 class RagasJudge:

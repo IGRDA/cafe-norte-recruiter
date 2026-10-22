@@ -35,6 +35,7 @@ from evals.langfuse_sync import (
     sync_rag_dataset,
 )
 from evals.live_runs import Planned, run_plan, write_results
+from evals.pool import CONCURRENCY
 from evals.probes import run_probes
 from evals.ragas_bridge import judge_from, judge_probes, judge_runs
 from evals.scorecard import render_markdown, scorecard
@@ -68,6 +69,7 @@ def execute(
     yes: bool,
     save_baseline: bool = False,
     langfuse: bool = False,
+    concurrency: int = CONCURRENCY,
 ) -> int:
     """Print the estimate; without ``yes`` stop there. Otherwise run, score, write, and exit 1
     when a gated row missed its target."""
@@ -94,13 +96,14 @@ def execute(
             base_url=base_url,
             access_code=access_code,
             max_turns=max_turns,
+            concurrency=concurrency,
         )
     )
     by_id = {s.id: s for s in scenarios}
     target = baseline_path(model)
     card = scorecard(
         runs, by_id, probes=probes, retrieval=retrieval, model=model, baseline=load_baseline(target)
-    )
+    ).model_copy(update={"concurrency": concurrency})
     markdown = render_markdown(card)
     print(markdown)
     now = datetime.now(UTC)
@@ -140,17 +143,30 @@ async def _run(
     base_url: str | None,
     access_code: str | None,
     max_turns: int,
+    concurrency: int,
 ) -> tuple[list[RunRecord], list[ProbeRecord]]:
+    """The phases in order (scenarios, probes, judges); inside each, ``concurrency`` at a time."""
     runs = await run_plan(
-        plan, simulator=simulator, base_url=base_url, access_code=access_code, max_turns=max_turns
+        plan,
+        simulator=simulator,
+        base_url=base_url,
+        access_code=access_code,
+        max_turns=max_turns,
+        concurrency=concurrency,
     )
     probes = await run_probes(
-        cases, model=model, base_url=base_url, access_code=access_code, env=os.environ
+        cases,
+        model=model,
+        base_url=base_url,
+        access_code=access_code,
+        env=os.environ,
+        concurrency=concurrency,
     )
     answer_judge = judge_from(judge)
-    probes = await judge_probes(probes, cases, answer_judge)
+    probes = await judge_probes(probes, cases, answer_judge, concurrency=concurrency)
     if answer_judge is not None:
-        runs = await judge_runs(runs, {p.scenario.id: p.scenario for p in plan}, answer_judge)
+        scenarios = {p.scenario.id: p.scenario for p in plan}
+        runs = await judge_runs(runs, scenarios, answer_judge, concurrency=concurrency)
     return runs, probes
 
 

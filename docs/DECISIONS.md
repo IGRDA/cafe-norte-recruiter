@@ -1677,6 +1677,13 @@ Read with the transcripts, it showed as much about the measurement as about Ana:
   in French; three of seven simulated scenarios passed. The baseline is not committed: its
   judge rows predate the calibration.
 
+**Concurrency (owner's call).** The first baseline ran every session one after the other,
+a rule from the Groq free tier (8 000 tokens a minute). Now the phases (scenarios, probes,
+judges) still run in order, and inside each up to four sessions or judged runs run at once
+(`evals/pool.py`, `--concurrency`). A session's own turns stay in order. The scorecard states
+the concurrency, because its latency row is measured under that load. This also applies to
+the scenario and comparison suites.
+
 **Consequences we accept.** The retrieval rows need the hybrid retriever, so `make check`
 gates the scenario rows and leaves retrieval to its own tests (BM25 alone misses the English
 questions the model would have reformulated). Latency and cost targets are provisional until

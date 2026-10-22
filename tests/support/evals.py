@@ -1,5 +1,4 @@
-"""Fixtures of the evaluation tooling's tests: a simulated candidate's persona and the run
-record of the committed example export."""
+"""Evaluation test builders and a frozen session export for compatibility checks."""
 
 from evals.contracts import (
     Persona,
@@ -27,7 +26,7 @@ def after(*lines: tuple[Speaker, str]) -> Transcript:
 
 
 EXPORT = ExportDocument.model_validate_json(
-    (ROOT / "examples" / "session_export.example.json").read_text()
+    (ROOT / "tests" / "fixtures" / "session_export.json").read_text()
 )
 
 

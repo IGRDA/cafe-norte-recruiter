@@ -9,7 +9,7 @@ from evals.scorers import SCORERS
 from tests.support import ROOT
 
 COMPARISON = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
-RELEASE_GATE = {"S01", "S02"}  # spec §13: both live happy paths must complete
+RELEASE_GATE = {"S01", "S02"}  # both live happy paths must complete
 
 
 def comparison_cases() -> list[ComparisonCase]:

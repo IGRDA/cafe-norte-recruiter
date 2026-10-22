@@ -1,7 +1,7 @@
 """Voice admission as rows: a place is held from ``acquire`` until ``release`` or until the row
 is older than the admission ttl, so a crashed container frees its place by itself. Each row
 names the instance that acquired it, so a restarted instance releases its own left-over places
-at once instead of waiting for the ttl (D55)."""
+at once instead of waiting for the ttl."""
 
 from cafe_norte.domain.contracts import SessionId
 from cafe_norte.persistence.postgres.support import Connect, fetch_one, writing

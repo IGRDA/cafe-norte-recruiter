@@ -1,8 +1,8 @@
-"""Going over a read-back the candidate cut (D39): its short parts, and which tool a plain
+"""Going over a read-back the candidate cut: its short parts, and which tool a plain
 answer calls.
 
 A part is a slice of the read-back's own sentences, so what is gone over is the text that is
-confirmed (D20); each part ends with the short check from ``prompts/brief.<language>.md``."""
+confirmed; each part ends with the short check from ``prompts/brief.<language>.md``."""
 
 from typing import Literal
 

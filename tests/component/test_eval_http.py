@@ -21,12 +21,8 @@ from cafe_norte.conversation.contracts import (
     TurnStarted,
 )
 from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, TurnId
-from cafe_norte.persistence.export import ExportDocument
-from tests.support import ROOT
+from tests.support.evals import EXPORT
 
-EXPORT = ExportDocument.model_validate_json(
-    (ROOT / "examples" / "session_export.example.json").read_text(encoding="utf-8")
-)
 SID = SessionId("sess-1")
 AT = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)
 

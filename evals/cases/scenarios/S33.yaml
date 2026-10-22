@@ -3,7 +3,7 @@ title: A goodbye with the summary read and unanswered ends the call, Chamberí
 config_id: chamberi_barista_v1
 language: es
 today: "2026-10-20"
-# Live, 22 October (D64): the brief was on the table, every "adiós" read it again, and the
+# Live, 22 October: the brief was on the table, every "adiós" read it again, and the
 # call stayed open for minutes. The goodbye now ends the session as an early stop; the brief
 # stays unconfirmed in the record.
 live_candidate: scripted

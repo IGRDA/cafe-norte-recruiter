@@ -1,4 +1,4 @@
-"""A read-back the candidate cut: the offer, the parts, carrying on (D39)."""
+"""A read-back the candidate cut: the offer, the parts, carrying on."""
 
 import json
 

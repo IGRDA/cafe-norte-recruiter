@@ -1,5 +1,5 @@
-// Hosted voice for the page (D22, D45): join the session's Daily room; STT, VAD, barge-in and TTS
-// run on the server (D01). The page only carries audio and reports timings. The effect runner
+// Hosted voice for the page: join the session's Daily room; STT, VAD, barge-in and TTS
+// run on the server. The page only carries audio and reports timings. The effect runner
 // uses three calls: start(), stop() and closing(); everything else arrives through callbacks.
 import type { DailyCall } from "@daily-co/daily-js";
 import type { VoiceStartResponse, VoiceTimingReport } from "./api/contracts";

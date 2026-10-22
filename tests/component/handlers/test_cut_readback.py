@@ -1,4 +1,4 @@
-"""Going over a read-back the candidate cut (D39)."""
+"""Going over a read-back the candidate cut."""
 
 from cafe_norte.conversation.contracts import StateUpdated
 from cafe_norte.conversation.handlers import (
@@ -141,7 +141,7 @@ async def test_only_a_call_that_changed_nothing_is_idle() -> None:
 async def test_a_question_during_the_review_is_answered_before_any_part() -> None:
     """Iñaki's call: "Me gustaría saber cuál es la localización exacta." during the offer went
     to review_readback as a yes; part 1 was said and the answer about the place was dropped,
-    three turns running (D58)."""
+    three turns running."""
     w, _ = await cut_brief()
     await w.review(context("t2"), args("review_readback", answer="affirm"))  # the offer
     await w.said("t3", "Me gustaría saber cuál es la localización exacta.")

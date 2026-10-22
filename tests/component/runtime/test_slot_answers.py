@@ -1,4 +1,4 @@
-"""Choosing a slot through the runtime (D41): the decision is ``slot_answer``'s and is pinned in
+"""Choosing a slot through the runtime: the decision is ``slot_answer``'s and is pinned in
 ``tests/unit/test_slot_answer.py``; these check that the runtime runs it, through the tools,
 the store and what the model is told."""
 
@@ -97,7 +97,7 @@ async def test_a_day_not_offered_is_offered_again_for_that_day_by_the_runtime() 
     events = await h.run("¿Y el viernes?", "in-2")
     assert tools_started(events) == ["list_interview_slots"]
     assert await offered_ids(h) == [FRI_1030, FRI_17]
-    # The model says the new times in its own words; the runtime says no list (D56).
+    # The model says the new times in its own words; the runtime says no list.
     assert not [e for e in events if isinstance(e, AssistantText)]
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.schedule_intent is not None
@@ -146,7 +146,7 @@ async def test_a_yes_with_the_slot_restated_reserves_it() -> None:
 
 async def test_a_farewell_after_the_booking_completes_the_session_without_the_model() -> None:
     """Live S01/S02 (22 October 2026): after booking, the model said goodbye back to every
-    goodbye and never called end_session, so the session stayed active (D46)."""
+    goodbye and never called end_session, so the session stayed active."""
     h = with_slots_offered(says(""), says("Reservado."))
     await slots_offered(h)
     await h.run("El primero.", "in-2")

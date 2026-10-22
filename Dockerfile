@@ -1,7 +1,7 @@
 # One image: Python application, static browser assets, fixed knowledge base and its index.
 # Cloud Run runs it with CPU always allocated so Pipecat voice tasks keep running after the
 # session-start HTTP response returns.
-# The page is built in its own stage; the runtime image gets the static files, not Node (D61).
+# The page is built in its own stage; the runtime image gets the static files, not Node.
 FROM node:24-slim AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./

@@ -208,7 +208,7 @@ def write_results(report: Report, out: Path, *, now: datetime | None = None) -> 
 
 def write_committed(report: Report, directory: Path, *, now: datetime) -> Path:
     """``<date>-<prompt version>.md`` and ``.json`` with no conversation in either: the
-    comparison's structured results, kept in the repository (spec §13)."""
+    comparison's structured results, kept in the repository."""
     directory.mkdir(parents=True, exist_ok=True)
     prompt = next((r.versions.prompt_version for r in report.runs if r.versions), "unknown")
     stem = directory / f"{now.strftime('%Y-%m-%d')}-{prompt}"

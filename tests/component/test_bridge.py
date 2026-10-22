@@ -127,7 +127,7 @@ async def test_the_playback_tap_counts_finished_sentences() -> None:
 
 
 async def test_transcripts_reach_the_session_through_the_real_user_aggregator() -> None:
-    """KI-03. Pipecat's aggregator consumes every transcript frame, so a tap after it never
+    """Pipecat's aggregator consumes every transcript frame, so a tap after it never
     sees one; the session must hear them from the production assembly, not from frames sent
     straight to the bridge."""
     spy = SessionSpy()
@@ -142,7 +142,7 @@ async def test_transcripts_reach_the_session_through_the_real_user_aggregator() 
 
 async def test_speech_usage_is_counted_once_however_many_processors_pass_it_on() -> None:
     """Deepgram reports audio seconds and ElevenLabs characters as ``MetricsFrame``s, which
-    every later processor pushes again; only the first push is the provider's report (D44)."""
+    every later processor pushes again; only the first push is the provider's report."""
     spy = SessionSpy()
     meter = SpeechMeter()
     usage = MetricsFrame(

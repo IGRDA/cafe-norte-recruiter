@@ -10,7 +10,7 @@ function reply(status: number, body: unknown = null): Response {
 
 function setup(responses: Record<string, Response | Error>) {
   const actions: Action[] = [];
-  const calls: { url: string; init?: RequestInit }[] = [];
+  const calls: { url: string; init: RequestInit | undefined }[] = [];
   const ports: Ports = {
     fetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);

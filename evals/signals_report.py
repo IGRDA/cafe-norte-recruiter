@@ -151,8 +151,7 @@ def stability(predictions: Sequence[SignalPrediction]) -> Ratio | None:
 
 
 def _other(case: SignalCase, prediction: SignalPrediction) -> float:
-    """The probability of answering in some other language: the top one that is not the
-    session's (D63; with two languages, the other one)."""
+    """Return the highest probability of a language other than the session language."""
     probabilities = prediction.language_probabilities
     others = (
         p for code, p in probabilities.items() if code not in (case.session_language, "other")

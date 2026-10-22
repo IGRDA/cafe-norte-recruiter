@@ -84,13 +84,13 @@ class World:
             await self.store.turns.append(tx, record)
 
     async def present(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
-        """``present_confirmation``; words asking for the interview were said first (D58)."""
+        """``present_confirmation``; words asking for the interview were said first."""
         if getattr(arguments, "evidence_text", None):
             await self.said(context.turn_id, arguments.evidence_text)  # type: ignore[attr-defined]
         return await self.present_handler(context, arguments)
 
     async def update(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
-        """``update_candidate`` after the candidate said its evidence in that turn (D46)."""
+        """``update_candidate`` after the candidate said its evidence in that turn."""
         await self.said(context.turn_id, getattr(arguments, "evidence_text", ""))
         return await self.update_handler(context, arguments)
 
@@ -123,7 +123,7 @@ class Interview(World):
         self.slots_handler = ListInterviewSlotsHandler(store=self.store, configurations=CONFIGS)
 
     async def slots(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
-        """``list_interview_slots`` after the candidate said its evidence (D58)."""
+        """``list_interview_slots`` after the candidate said its evidence."""
         await self.said(context.turn_id, getattr(arguments, "evidence_text", ""))
         return await self.slots_handler(context, arguments)
 

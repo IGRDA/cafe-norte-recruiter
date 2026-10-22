@@ -10,7 +10,6 @@ export function generate(): Promise<string> {
   const schema = JSON.parse(readFileSync(new URL("contracts.schema.json", DIR), "utf8")) as JSONSchema;
   return compile(schema, "BrowserContracts", {
     bannerComment: BANNER,
-    unreachableDefinitions: true,
     additionalProperties: false,
   });
 }

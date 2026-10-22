@@ -1,6 +1,6 @@
-"""Retention: demo sessions older than the retention window are deleted, a bounded batch at a
-time, at startup and periodically, under the store's maintenance lock so two containers never
-do the same work (spec §8, D34)."""
+"""Delete expired sessions in bounded batches under the store maintenance lock.
+
+Startup and periodic purges share this path; concurrent purgers do not duplicate work."""
 
 import asyncio
 import logging

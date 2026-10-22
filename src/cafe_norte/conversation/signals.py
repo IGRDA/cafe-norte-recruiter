@@ -1,11 +1,9 @@
-"""Fast synchronous controls and the asynchronous classifier adapter.
+"""Explicit controls and evidence-backed signal analysis.
 
-``explicit_controls`` is the synchronous path: plain patterns over finalized text, run before
-the model in the same turn, for stop and human requests and for explicit language requests.
-``ModelSignalAnalyzer`` is the soft path: a small classifier call after the turn, whose
-sentiment shapes the next response only (``fresh_sentiment``). ``DecisionSignalAnalyzer`` is
-the same port over a decision model (Jev, D52): sentiment and the language to answer in,
-with probabilities (D63), the switch applied at the start of the next turn (``fresh_switch``)."""
+Stop, human and language requests have a synchronous pattern-matching path. The chat
+classifier supplies sentiment after a turn. The decision analyzer runs alongside the model;
+the runtime may apply its language or sentiment verdict before the first output, otherwise
+on the next turn. Explicit language requests take precedence."""
 
 import asyncio
 import logging
@@ -60,7 +58,7 @@ _PATTERNS: dict[Language, dict[Control, re.Pattern[str]]] = {
             rf"\b(?:(?:hablar|hable|habla|pasame|pasarme|me pasas|ponme|ponerme|comunicame"
             rf"|comunicarme) con|quiero|prefiero|que me atienda) {_PERSON_ES}\b"
             # "Anótalo para que me contacten": a request for a person, said as a request to
-            # be contacted (D58).
+            # be contacted.
             r"|\bque (?:me|nos) (?:contacten|contacte|llamen|llame|escriban|escriba)\b"
             r"|\bque (?:alguien|una persona)(?: del equipo)? (?:me|nos) "
             r"(?:contacte|llame|escriba)\b"
@@ -96,7 +94,7 @@ _NEGATION_WINDOW = 3  # words before a match that can negate it ("no quiero habl
 # An explicit language request names the language with a request word around it; a bare
 # borrowed word ("Starbucks", "I studied English") never matches, and "speak"/"hablar" count
 # only after a request word ("can we speak English", "puedes hablar español"), so "do I need
-# to speak Spanish" and "I don't speak Spanish" are not requests (KI-09). Matched on the whole
+# to speak Spanish" and "I don't speak Spanish" are not requests. Matched on the whole
 # text in lower case without accents, so "English, please" keeps its comma.
 _EN = r"english(?![\w-])"
 _ES = r"(?:spanish|espanol|castellano)(?![\w-])"
@@ -126,8 +124,8 @@ _SWITCH_TO: dict[Control, Language] = {f"switch_{code}": code for code in SWITCH
 
 def _other_switches() -> tuple[tuple[Control, re.Pattern[str]], ...]:
     """The same request shapes for the other languages, from their names in
-    ``languages.yaml`` (D63): "en francés", "in French, please", "puedes hablar portugués".
-    Spanish and English keep their tuned patterns above (KI-09)."""
+    ``languages.yaml``: "en francés", "in French, please", "puedes hablar portugués".
+    Spanish and English keep their tuned patterns above."""
     found: list[tuple[Control, re.Pattern[str]]] = []
     for code, info in prompts.languages().items():
         if code in ("es", "en"):
@@ -197,7 +195,7 @@ def _refused(before: str) -> bool:
     return not _NEGATIONS.isdisjoint(words[-_LANGUAGE_NEGATION_WINDOW:])
 
 
-# ---- a farewell (D46) ----------------------------------------------------------------------------
+# ---- a farewell ----------------------------------------------------------------------------
 
 _FAREWELLS = (
     "adios", "hasta luego", "hasta pronto", "hasta manana", "hasta la proxima", "nos vemos",
@@ -220,7 +218,7 @@ def is_farewell(text: str) -> bool:
     """The candidate is closing: a goodbye or thanks that is the whole utterance, with no
     question and nothing still to change ("adiós, pero ¿puedo cambiar la hora?" is not one).
     A clause that says anything else ("no me lo expliques, he vivido por ahí, muchas
-    gracias") leaves it to the model, which can answer before it closes (D46, D59). Only read
+    gracias") leaves it to the model, which can answer before it closes. Only read
     once the interview is booked, when thanks means the candidate is done. Pure; both
     languages."""
     if "?" in text:
@@ -321,7 +319,7 @@ _QUESTION_OPENING = re.compile(
 
 def asks_question(text: str) -> bool:
     """Whether the candidate asks something: a question mark, or a clause that opens like a
-    question. Pure; both languages. A question is never an answer to a read-back (D58)."""
+    question. Pure; both languages. A question is never an answer to a read-back."""
     if "?" in text or "¿" in text:
         return True
     folded = plain(text).replace("'", "'")
@@ -441,9 +439,9 @@ def _strip_fence(raw: str) -> str:
 SOFT_SENTIMENTS: frozenset[Sentiment] = frozenset({"frustrated", "uncertain"})
 
 
-# ---- the decision-model analyzer (D52) -----------------------------------------------------------
+# ---- the decision-model analyzer -----------------------------------------------------------
 
-# Thresholds from the signals suite (docs/architecture.md): no false alarm on either case set.
+# Calibrated against evals/cases/signals; remeasure dev and held-out cases when changing.
 SENTIMENT_THRESHOLD = 0.5  # p(frustrated) or p(uncertain) to report it
 SWITCH_THRESHOLD = 0.7  # p(top language) to answer in it when it is not the session's
 SENTIMENTS: tuple[Sentiment, ...] = get_args(Sentiment)
@@ -465,7 +463,7 @@ def decision_state(language: Language, ana_said: str, candidate_said: str) -> di
 
 def as_languages(probabilities: Mapping[str, float], current: Language) -> dict[str, float]:
     """The answer per language: ``keep`` is staying in ``current``, so its probability is
-    ``current``'s (D63). What the page shows and the suite scores."""
+    ``current``'s. What the page shows and the suite scores."""
     folded = {k: p for k, p in probabilities.items() if k != "keep"}
     if "keep" in probabilities:
         folded[current] = folded.get(current, 0.0) + probabilities["keep"]
@@ -474,7 +472,7 @@ def as_languages(probabilities: Mapping[str, float], current: Language) -> dict[
 
 def chosen_language(probabilities: Mapping[str, float], current: Language) -> Language:
     """The top language of the ``reply_language`` answer when it is not ``current`` and is at
-    least ``SWITCH_THRESHOLD`` likely; ``current`` otherwise. ``other`` never switches (D63)."""
+    least ``SWITCH_THRESHOLD`` likely; ``current`` otherwise. ``other`` never switches."""
     best = max(SWITCHABLE, key=lambda code: probabilities.get(code, 0.0))
     if best == current or probabilities.get(best, 0.0) < SWITCH_THRESHOLD:
         return current
@@ -485,7 +483,7 @@ class DecisionSignalAnalyzer:
     """The ``SignalAnalyzer`` port over a decision model. A soft sentiment is reported only at
     ``SENTIMENT_THRESHOLD``, a language switch only at ``SWITCH_THRESHOLD``; an explicit request
     the patterns saw wins over the model's suggestion. A decision model quotes nothing, so the
-    evidence is the message it read. A late or failed call is no signal (D30)."""
+    evidence is the message it read. A late or failed call is no signal."""
 
     switches_language = True
 
@@ -552,7 +550,7 @@ def _decided_sentiment(answer: ChoiceAnswer) -> Sentiment:
 
 
 def fresh_switch(signal: Signal | None, previous_turn_id: TurnId | None) -> Language | None:
-    """The language the previous user turn's verdict asks Ana to switch to, if any (D52). Only
+    """The language the previous user turn's verdict asks Ana to switch to, if any. Only
     from the immediately previous user turn: a late or older verdict switches nothing."""
     if signal is None or signal.turn_id != previous_turn_id:
         return None

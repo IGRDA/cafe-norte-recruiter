@@ -12,12 +12,8 @@ htmlcov/
 .env.*
 !.env.example
 data/
-evals/results/*
-!evals/results/README.md
-!evals/results/retrieval/
-!evals/results/comparison/
-!evals/results/scorecard/
-!evals/results/signals/
+# Selected baselines stay tracked; promote new ones explicitly with git add -f.
+evals/results/
 kb/index/
 infra/**/.terraform/
 *.tfstate
@@ -28,7 +24,6 @@ infra/**/.terraform/
 *.backend.hcl
 !*.backend.hcl.example
 .DS_Store
-# The original, unsanitised specification stays private; docs/SPEC.md is the public copy.
 .trees/
 .prompts/
 mutants/
@@ -36,3 +31,8 @@ mutants/
 web/node_modules/
 web/dist/
 *.tsbuildinfo
+
+# Local agent instructions are personal, not repository documentation.
+CLAUDE.md
+CLOUD.md
+cloud.md

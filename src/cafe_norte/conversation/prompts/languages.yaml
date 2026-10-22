@@ -1,4 +1,4 @@
-# The languages Ana answers in (D63): the native name goes into the system prompt's closing
+# The languages Ana answers in: the native name goes into the system prompt's closing
 # line and the page's chooser; `names` are the words an explicit request may use
 # (`signals.explicit_controls`), in Spanish and English plus the native one when it is
 # written in Latin letters; `rtl` sets the page's text direction.

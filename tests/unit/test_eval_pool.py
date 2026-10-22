@@ -1,4 +1,4 @@
-"""Bounded concurrency (D51): never more than the limit in flight, results in input order."""
+"""Bounded concurrency: never more than the limit in flight, results in input order."""
 
 import asyncio
 

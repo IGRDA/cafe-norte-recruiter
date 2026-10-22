@@ -279,11 +279,6 @@ async def test_an_expired_lease_can_be_claimed_by_another_owner(store: Store) ->
     await asyncio.sleep(0.01)
     other = await store.leases.claim(SID, "b", ttl_seconds=60)
     assert other is not None and other.owner == "b" and other.generation == 2
-    assert await store.leases.renew(short, ttl_seconds=60) is None  # superseded
-    renewed = await store.leases.renew(other, ttl_seconds=60)
-    assert (
-        renewed is not None and renewed.generation == 2 and renewed.expires_at >= other.expires_at
-    )
 
 
 async def test_a_lease_needs_a_session_and_release_of_a_stale_lease_is_harmless(
@@ -476,9 +471,7 @@ async def test_the_maintenance_lock_is_held_by_one_holder_at_a_time(store: Store
 
 @pytest.mark.parametrize("language", SWITCHABLE)
 async def test_a_turn_saves_in_every_language_ana_answers_in(store: Store, language: str) -> None:
-    """D63 widened the languages and the turns table refused all but es and en: on the hosted
-    demo, after "Can you ask in German?", every turn failed to save (22 October). The memory
-    store has no such check, so this runs on Postgres too (make test-db, CI's postgres job)."""
+    """Run on both stores: only Postgres can expose a stale database CHECK constraint."""
     await created(store)
     async with store.transaction() as tx:
         await store.turns.append(tx, turn("a").model_copy(update={"language": language}))

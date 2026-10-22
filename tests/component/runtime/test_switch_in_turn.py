@@ -1,6 +1,6 @@
-"""A language switch the analyzer reads in time is applied in the same turn (D53): the round is
-dropped before Ana says anything, the language is saved and announced, and Ana answers again in
-the new language. A verdict that comes too late keeps D52's switch at the next turn."""
+"""Apply timely signal verdicts before any words or tools from a stale model round.
+
+A late language verdict is applied at the next turn instead."""
 
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import (
@@ -104,9 +104,7 @@ async def test_once_ana_has_spoken_the_turn_is_not_restarted() -> None:
 
 
 async def test_frustration_read_before_the_first_sentence_reaches_this_turn() -> None:
-    """Ignacio's call: "estoy bastante mosqueado… no me ha gustado nada tu servicio" got the
-    next field question. The analyzer's verdict, read where D53 reads the language, now
-    reaches the turn it is about: the round is dropped and answered again with it (D58)."""
+    """A timely sentiment verdict restarts the unsaid round with the updated prompt."""
     h = Harness(
         [says("¿Qué turno prefieres?"), says("Siento que te haya molestado.")],
         signals=decision_analyzer(0.0, sentiment="frustrated"),

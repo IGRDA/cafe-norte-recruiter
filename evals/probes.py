@@ -1,4 +1,4 @@
-"""QA probes (D51): each knowledge-base question asked live as the first line of its own
+"""QA probes: each knowledge-base question asked live as the first line of its own
 session, so what Ana answers can be scored apart from the rest of the interview.
 
 ``probe`` drives one session and records the answer, the chunks shown in that turn (with

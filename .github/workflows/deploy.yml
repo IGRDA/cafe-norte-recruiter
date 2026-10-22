@@ -2,7 +2,7 @@
 # Authentication is GitHub OIDC through Workload Identity Federation; no service-account key.
 # Steps: build and push the image by digest, Terraform apply with that digest, reset the VM so
 # its startup script pulls the new image, wait for readiness, then smoke-check the service. Runs never overlap. Markdown-only pushes are skipped. Actions are
-# pinned by commit SHA. Migrations return with the Postgres stage.
+# pinned by commit SHA. The app applies migrations at startup.
 name: Deploy
 
 on:

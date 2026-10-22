@@ -28,18 +28,6 @@ class PostgresLeases:
             )
         return None if row is None else lease_from_row(row)
 
-    async def renew(self, lease: Lease, ttl_seconds: int) -> Lease | None:
-        async with writing(self._connect) as conn:
-            row = await fetch_one(
-                conn,
-                "update leases set expires_at = now() + %(ttl)s * interval '1 second' "
-                "where session_id = %(session_id)s and owner = %(owner)s "
-                "and generation = %(generation)s and expires_at > now() "
-                f"returning {LEASE_COLUMNS}",
-                {"ttl": ttl_seconds, **lease.model_dump()},
-            )
-        return None if row is None else lease_from_row(row)
-
     async def release(self, lease: Lease) -> None:
         """Expire, never delete: the generation keeps growing, so a writer fenced on an old
         one can never pass again."""

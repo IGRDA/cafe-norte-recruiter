@@ -173,8 +173,7 @@ async def test_candidate_done_with_an_unconfirmed_brief_reads_the_brief_again() 
 
 
 async def test_a_goodbye_with_fields_missing_ends_the_session_incomplete() -> None:
-    """D64: a candidate who leaves before the brief is complete is let go, not asked for the
-    next field. The record keeps what was collected."""
+    """A goodbye ends collection while preserving the facts already recorded."""
     w = await World().open()
     done = await w.end(context(), args("end_session", reason="candidate_done"))
     assert done.ok
@@ -240,8 +239,7 @@ async def test_the_interview_answer_after_the_confirmed_brief_leads_to_the_end()
 
 
 async def test_a_read_back_that_was_not_fully_heard_is_gone_over_in_parts() -> None:
-    """The hosted call: "Mhmm" over the brief left it unheard and D35 read it again, word for
-    word, and it was cut again. Presented again, a cut read-back starts with its first part."""
+    """Presenting an interrupted read-back starts its first part without repeating it whole."""
     w = await World(full_record()).open()
     first = await w.present(context("t1"), args("present_confirmation", target="brief"))
     again = await w.present(context("t2"), args("present_confirmation", target="brief"))
@@ -361,7 +359,7 @@ async def test_a_confirmed_field_is_not_read_back_again() -> None:
 async def test_a_note_tells_the_model_nobody_will_act_on_it() -> None:
     """Ignacio's call: "¿Quieres que lo deje anotado para que te contacten?" — "Sí, anótalo",
     and the model saved a note. A note reaches no one; the result says so, with the tool that
-    does, so the model can correct itself (D58)."""
+    does, so the model can correct itself."""
     w = await World().open()
     outcome = await w.update(
         context(),
@@ -382,7 +380,7 @@ async def test_a_note_tells_the_model_nobody_will_act_on_it() -> None:
 
 async def test_a_question_in_the_closing_line_is_answered_before_the_call_ends() -> None:
     """Live: "No, muchas gracias. ¿Tienes alguna otra oferta?" was closed with the question
-    unanswered (D59). A stated stop still closes."""
+    unanswered. A stated stop still closes."""
     w = await World(full_record()).open()
     await w.present(context(), args("present_confirmation", target="brief"))
     await w.deliver()
@@ -398,8 +396,8 @@ async def test_a_question_in_the_closing_line_is_answered_before_the_call_ends()
 
 async def test_a_correction_after_the_brief_reads_back_only_what_changed() -> None:
     """Live: "Sí, pero mi nombre es Princesa Rosmugalda" had the whole summary read again,
-    then the review offer. Only the changed sentence is said, with the closing question
-    (D59); it is still a read-back of the whole brief at its new revision."""
+        then the review offer. Only the changed sentence is said, with the closing question
+    ; it is still a read-back of the whole brief at its new revision."""
     w = await World(full_record()).open()
     await w.present(context(), args("present_confirmation", target="brief"))
     await w.deliver()

@@ -90,7 +90,7 @@ live_checks:
     args: { outcome: brief_only }
   - name: no_fabricated_confirmed_values
   - name: no_cross_store_sources
-# What a good run achieves, and the tool trajectory every good run shows (D51).
+# What a good run achieves, and the tool trajectory every good run shows.
 goal: "The correction to 25 hours is applied after the brief, the corrected brief is confirmed and nothing is booked."
 reference_tools:
   in_order: [update_candidate, present_confirmation, update_candidate, present_confirmation, confirm_brief]

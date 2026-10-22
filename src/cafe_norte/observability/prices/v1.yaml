@@ -1,4 +1,4 @@
-# Provider prices in USD, converted to EUR at load time (D36). A price is data, not code:
+# Provider prices in USD, converted to EUR at load time. A price is data, not code:
 # change this file, bump `version`, update `verified_on`. Re-verify before every release.
 version: "2026-10-22.1"
 verified_on: 2026-10-21
@@ -6,7 +6,7 @@ verified_on: 2026-10-21
 usd_per_eur: 1.1234
 prices:
   # https://developers.openai.com/api/docs/models/gpt-4o-mini : $0.15 / 1M in, $0.075 / 1M
-  # cached in, $0.60 / 1M out. Cached input is its own record since D58.
+  # cached in, $0.60 / 1M out. Cached input is its own record.
   - kind: llm_tokens
     unit_detail: "gpt-4o-mini:input"
     usd_per_unit: 0.00000015
@@ -20,7 +20,7 @@ prices:
     usd_per_unit: 0.0000006
     source: https://developers.openai.com/api/docs/models/gpt-4o-mini
   # https://developers.openai.com/api/docs/models/gpt-4o : $2.50 / 1M in, $10 / 1M out
-  # (verified 2026-10-21), cached input $1.25 / 1M. The model comparison's second candidate (D43).
+  # (verified 2026-10-21), cached input $1.25 / 1M. The model comparison's second candidate.
   - kind: llm_tokens
     unit_detail: "gpt-4o:input"
     usd_per_unit: 0.0000025
@@ -34,7 +34,7 @@ prices:
     usd_per_unit: 0.00001
     source: https://developers.openai.com/api/docs/models/gpt-4o
   # https://developers.openai.com/api/docs/pricing : gpt-4.1, standard tier: $2 / 1M in, $8 / 1M out
-  # (verified 2026-10-22), cached input $0.50 / 1M. The voice model since D49.
+  # (verified 2026-10-22), cached input $0.50 / 1M. The configured voice model.
   - kind: llm_tokens
     unit_detail: "gpt-4.1:input"
     usd_per_unit: 0.000002
@@ -48,7 +48,7 @@ prices:
     usd_per_unit: 0.000008
     source: https://developers.openai.com/api/docs/pricing
   # https://openrouter.ai/typesafe/jev-1.14 : $0.042 / 1M input tokens, output free (verified
-  # 2026-10-22). The optional signal analyzer (D52); OpenRouter adds no fee on top.
+  # 2026-10-22). The optional signal analyzer; OpenRouter adds no fee on top.
   - kind: llm_tokens
     unit_detail: "typesafe/jev-1.14:input"
     usd_per_unit: 0.000000042
@@ -58,19 +58,19 @@ prices:
     usd_per_unit: 0
     source: https://openrouter.ai/typesafe/jev-1.14
   # https://developers.openai.com/api/docs/models/text-embedding-3-small : $0.02 / 1M tokens
-  # (verified 2026-10-22). Evaluation only: ragas' testset generation and judges (D51).
+  # (verified 2026-10-22). Evaluation only: ragas' testset generation and judges.
   - kind: llm_tokens
     unit_detail: "text-embedding-3-small:input"
     usd_per_unit: 0.00000002
     source: https://developers.openai.com/api/docs/models/text-embedding-3-small
-  # Deepgram nova-3 streaming, monolingual (D35: STT runs in the session language).
+  # Deepgram nova-3 streaming; the configured pipeline uses multilingual recognition.
   # List price $0.0077 / min. The page shows a limited-time $0.0048 / min; we keep the list
   # price so the estimate stays conservative when the promotion ends.
   - kind: stt_seconds
     unit_detail: nova-3
     usd_per_unit: 0.000128333
     source: https://deepgram.com/pricing
-  # ElevenLabs v4 Turbo, the voice since D48, pay as you go: $0.04 / 1,000 characters
+  # ElevenLabs v4 Turbo, pay as you go: $0.04 / 1,000 characters
   # (verified 2026-10-22). Flash stays priced for the exports made before the switch.
   - kind: tts_characters
     unit_detail: eleven_v4_turbo

@@ -78,7 +78,7 @@ def validate_patch(
     start = patch.earliest_start_date
     if isinstance(start, date):
         if not names_a_day(evidence_text, start, today):
-            # "Desde enero del año que viene" was once saved as the 1st: a guessed day (D58).
+            # "Desde enero del año que viene" was once saved as the 1st: a guessed day.
             return Err(
                 FieldError(
                     field="earliest_start_date",
@@ -181,7 +181,7 @@ def said_in(
     """Whether the candidate said ``evidence_text``: each of its clauses must appear, as whole
     words (case, accents and punctuation aside), in one of their utterances. The evidence kept
     is the latest utterance that holds one, as its turn and its whole text; ``None`` when any
-    clause was never said, so words the candidate did not say are never evidence (D46)."""
+    clause was never said, so words the candidate did not say are never evidence."""
     said = [(turn_id, text, f" {_words(text)} ") for turn_id, text in utterances]
     wanted = [w for w in (_words(part) for part in _CLAUSE_END.split(evidence_text)) if w]
     if not wanted:

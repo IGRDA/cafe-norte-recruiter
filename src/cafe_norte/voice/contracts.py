@@ -35,7 +35,7 @@ VoiceStatus = Literal["connecting", "listening", "thinking", "speaking", "paused
 # The hosted pipeline's providers, named once: the pipeline runs them and the version stamp and
 # the price table (observability/prices) refer to them by these ids.
 STT_MODEL = "nova-3"
-TTS_MODEL = "eleven_v4_turbo"  # HTTP only: the WebSocket endpoint rejects v4 (D48)
+TTS_MODEL = "eleven_v4_turbo"  # HTTP only: the WebSocket endpoint rejects v4
 
 VoiceMode = Literal["off", "pipecat"]
 

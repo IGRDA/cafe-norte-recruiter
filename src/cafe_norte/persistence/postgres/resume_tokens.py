@@ -1,5 +1,4 @@
-"""Private resume tokens: only the hash is stored; a token opens its own session until it
-expires, as often as needed (spec §8, D32)."""
+"""Reusable private resume tokens: store only hashes and reject tokens after expiry."""
 
 from datetime import datetime
 

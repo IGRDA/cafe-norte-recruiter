@@ -1,4 +1,4 @@
-"""The page's TypeScript types come from one JSON Schema of the API contracts (D61)."""
+"""The page's TypeScript types come from one JSON Schema of the API contracts."""
 
 import json
 
@@ -7,7 +7,7 @@ from tests.support import ROOT
 
 
 def test_browser_schema_file_matches_the_contracts() -> None:
-    """The page's TypeScript types are generated from this file (D61); web's own test checks
+    """The page's TypeScript types are generated from this file; web's own test checks
     the generated types against it."""
     on_disk = json.loads((ROOT / "web" / "src" / "api" / "contracts.schema.json").read_text())
     assert on_disk == browser_schema(), "run `make export-schema`"

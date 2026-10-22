@@ -1,4 +1,4 @@
-"""Evidence is the candidate's own words (D46)."""
+"""Evidence is the candidate's own words."""
 
 from cafe_norte.domain.contracts import (
     Captured,

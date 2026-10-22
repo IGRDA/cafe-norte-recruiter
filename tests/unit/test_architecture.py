@@ -1,4 +1,4 @@
-"""The import rules of src/cafe_norte/README.md, checked from the imports of the source files."""
+"""Enforce module dependency direction and test-layer boundaries from Python imports."""
 
 import ast
 from pathlib import Path

@@ -1,11 +1,4 @@
-"""Known issues from the second hosted voice call of 21 October (docs/known-issues.md).
-
-Each test reproduces one problem offline and is marked ``xfail(strict=True)``: it fails today,
-as it should, and the suite stays green. The fix makes it pass, strict xfail then fails the
-suite, and the marker comes off in the same commit as the fix. KI-03, KI-04 and KI-05 are fixed
-(D40), KI-06 (D41), KI-01 and KI-02 (D39), KI-07 and KI-08 (D44), KI-09 (D52); their tests stay as
-regression guards.
-"""
+"""Regression guards for interrupted read-backs, language requests and slot selection."""
 
 import json
 from typing import Literal
@@ -106,7 +99,7 @@ async def test_ki02_a_yes_over_the_summary_earns_one_offer_and_carrying_on_confi
     read-back was not heard, so the yes could not confirm it; it was read again three times,
     each one interrupted the same way, until the turn hit its round limit (16:09:04).
 
-    Decided (D39): the yes is not a confirmation of what was not heard; it earns one offer, in
+    Decided: the yes is not a confirmation of what was not heard; it earns one offer, in
     the model's words, and "sigue" confirms it, recorded as waived. The model never re-reads."""
     offer = "Perdona, me has contestado antes de acabar. ¿Lo repasamos por partes o seguimos?"
     h = Harness([[present_brief(), WANTS_TOOLS], says(""), says(offer), says("¿Alguna duda?")])
@@ -138,7 +131,7 @@ async def test_ki06_a_day_and_a_time_end_in_a_booking_without_the_model_copying_
     diez y media" the model re-listed the slots, asked in plain text, reserved with nothing
     pending and presented an id that does not exist (seq 172 to 183). Here the model never
     presents a slot; the runtime turns the words into the read-back, and the yes into the
-    booking (D41)."""
+    booking."""
     ask = "¿Cuál te viene mejor?"
     h = with_slots_offered(
         says(ask), says(ask), says(ask), says(""), says("Reservado."), date_preference="2026-10-23"

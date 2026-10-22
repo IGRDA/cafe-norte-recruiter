@@ -90,7 +90,7 @@ class PlaybackTap(FrameProcessor):
 class UsageObserver(BaseObserver):
     """Deepgram reports the audio seconds it was sent and ElevenLabs the characters it was
     given, as ``MetricsFrame``s pushed on by every later processor; the first push is the
-    provider's own report, so each is counted once wherever it travels (D44)."""
+    provider's own report, so each is counted once wherever it travels."""
 
     def __init__(self, meter: SpeechMeter) -> None:
         super().__init__()

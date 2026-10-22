@@ -102,12 +102,12 @@ NEXT_STEP = {
     "booked": "The interview is reserved. Call end_session(reason=candidate_done).",
     "goodbye": "Session ended. Say goodbye in one short sentence.",
 }
-# Words given as the candidate's that they never said (D46, D58).
+# Words given as the candidate's that they never said.
 NOT_SAID = (
     "evidence_text must be the candidate's exact words asking for the interview, from one of "
     "their messages. Nothing was saved."
 )
-# A read-back the candidate did not hear to the end: their answer goes to the review (D39).
+# A read-back the candidate did not hear to the end: their answer goes to the review.
 NOT_HEARD = (
     "It was not heard to the end: call review_readback with the candidate's answer "
     "(affirm for a yes, skip to carry on without going over it)."
@@ -176,7 +176,7 @@ class _Handler:
         return bool(mine) and asks_question(mine[-1].text)
 
     async def _said(self, context: ToolContext, text: str) -> Evidence | None:
-        """``text`` as evidence, when the candidate said it in their recent messages (D46): the
+        """``text`` as evidence, when the candidate said it in their recent messages: the
         latest message that holds it, whole. ``None`` when they never said it."""
         turns = await self._store.turns.recent(context.session_id, HISTORY_TURNS)
         said = said_in(text, [(t.turn_id, t.text) for t in turns if t.role == "user"])
@@ -196,7 +196,7 @@ def _brief_confirmed(state: SessionState) -> bool:
 
 
 def _confirm_brief_first(state: SessionState) -> str:
-    """What to do when a slot is chosen before the brief is confirmed (D64): one step, not a
+    """What to do when a slot is chosen before the brief is confirmed: one step, not a
     wall. The slots stay on offer; the reservation records the brief it belongs to."""
     if _brief_on_the_table(state):
         return (
@@ -238,7 +238,7 @@ def _without_known_values(patch: CandidatePatch, candidate: CandidateRecord) -> 
     return patch.model_copy(update=repeated) if repeated else patch
 
 
-# A read-back answered in the turn that said it: the candidate has not spoken yet (D44).
+# A read-back answered in the turn that said it: the candidate has not spoken yet.
 SAME_TURN = (
     "The candidate has not answered yet: wait for them. End your turn now, with no text and "
     "no tool call."
@@ -359,7 +359,7 @@ class UpdateCandidateHandler(_Handler):
         else:
             step = _next_question(new_state)
         if patch.note is not None and not has_followup(new_state):
-            # A note is read by no one: "Sí, anótalo" to a follow-up offer went here (D58).
+            # A note is read by no one: "Sí, anótalo" to a follow-up offer went here.
             step = (
                 "The note is kept in the record; nobody will contact the candidate from it. If "
                 f"they accepted that a person follows up, call request_human_followup. {step}"
@@ -515,7 +515,7 @@ class PresentConfirmationHandler(_Handler):
                 and isinstance(previous.target, BriefTarget)
                 and previous.status != "pending"
             ):
-                # A correction: say what changed, not the whole brief again (D59).
+                # A correction: say what changed, not the whole brief again.
                 changed = render_brief_changes(
                     state.candidate, configuration, state.language, since=previous.presentation_text
                 )
@@ -590,7 +590,7 @@ class PresentConfirmationHandler(_Handler):
                 parts=len(review_parts(current.presentation_text, state.language)),
             )
             if isinstance(started, Ok):
-                # Cut in an earlier turn: gone over in parts, never said whole again (D39).
+                # Cut in an earlier turn: gone over in parts, never said whole again.
                 new_state = state.model_copy(update={"pending_confirmation": started.value})
                 await self._save(context, new_state, expected_revision=revision)
                 return _part_said(new_state)
@@ -641,7 +641,7 @@ class _ConfirmHandler(_Handler):
             advice = {
                 "same_turn": SAME_TURN,
                 "not_delivered": NOT_HEARD,
-                # Saying it again was the order that read a confirmed date twice (D58).
+                # Saying it again was the order that read a confirmed date twice.
                 "already_answered": f"It is already {answered}. {_next_question(state)}",
             }.get(result.error, f"Continue. {_next_question(state)}")
             return self._refuse(
@@ -665,7 +665,7 @@ class _ConfirmHandler(_Handler):
             brief_revision = resolved.target.revision
             if state.booking is None:
                 # The first times are on offer with the brief: the model sees them and offers
-                # them itself, so no tool call stands between a yes and the times (D56).
+                # them itself, so no tool call stands between a yes and the times.
                 offer = _offer((await self._free_slots(state, context))[:OFFERED_SLOTS])
         new_state = state.model_copy(
             update={
@@ -700,9 +700,9 @@ class ConfirmBriefHandler(_ConfirmHandler):
 
 class ReviewReadbackHandler(_Handler):
     """``review_readback``: the candidate's answer to a read-back they did not hear to the end
-    (D39). The domain moves the review one step: a yes earns the one offer, then each part in
-    turn; carrying on waives it. A waived read-back, or one ready to confirm, is confirmed in
-    this same call through its own tool, so a model that stops here leaves nothing pending."""
+    . The domain moves the review one step: a yes earns the one offer, then each part in
+        turn; carrying on waives it. A waived read-back, or one ready to confirm, is confirmed in
+        this same call through its own tool, so a model that stops here leaves nothing pending."""
 
     OFFER = (
         "The candidate answered before hearing the read-back to the end. Make one offer, in "
@@ -730,7 +730,7 @@ class ReviewReadbackHandler(_Handler):
             return await self._confirm(context, pending)  # nothing left to go over
         if await self._asked(context):
             # Live, a question here went in as a yes; the part was said and the answer to the
-            # question dropped, three turns running (D58).
+            # question dropped, three turns running.
             return self._refuse("review_refused:question", self.QUESTION)
         text = pending.presentation_text if pending is not None else ""
         result = confirmation.advance_review(
@@ -789,16 +789,16 @@ class _InterviewHandler(_Handler):
 
 class ListInterviewSlotsHandler(_InterviewHandler):
     """``list_interview_slots``: other times, for the day the candidate asks. Their words
-    asking for an interview are saved as the explicit intent to schedule, in the same save that
-    replaces the offer. The model gets the times by number and offers them in its own words
-    (D56); a day with nothing free is said plainly, never covered by the first times."""
+        asking for an interview are saved as the explicit intent to schedule, in the same save that
+        replaces the offer. The model gets the times by number and offers them in its own words
+    ; a day with nothing free is said plainly, never covered by the first times."""
 
     async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
         assert isinstance(arguments, ListInterviewSlotsArgs)
         state = await self._state(context)
         if state is None:
             return self._refuse("not_found", "Session not found.")
-        # The calendar is always open to a candidate who asks (D64): live, an unconfirmed brief
+        # The calendar is always open to a candidate who asks: live, an unconfirmed brief
         # blocked the slots and Ana said there were none. Booking still needs the confirmed brief.
         if state.booking is not None:
             return self._refuse(
@@ -924,11 +924,10 @@ def _local_date(slot: InterviewSlot, configuration: StoreConfiguration) -> date:
 
 
 class EndSessionHandler(_Handler):
-    """``end_session``: the lifecycle table decides; the outcome follows from the state.
-    ``candidate_done`` with an unconfirmed brief reads the brief once, so a "sí" can still
-    close it properly; a goodbye with the brief already on the table, or one that cannot be
-    read yet, ends the session as an early stop (``incomplete``, D64). Live, a refusal per
-    goodbye kept the candidate in the call for minutes (22 October)."""
+    """End through the lifecycle rules.
+
+    An unconfirmed brief may be read once on candidate_done. A goodbye after that, or before
+    the record is complete, ends as incomplete without requiring another confirmation."""
 
     EVENTS: dict[str, LifecycleEvent] = {
         "candidate_done": "complete",
@@ -947,7 +946,7 @@ class EndSessionHandler(_Handler):
         if state is None:
             return self._refuse("not_found", "Session not found.")
         if arguments.reason in ("candidate_done", "not_interested") and await self._asked(context):
-            # Live, "No, gracias. ¿Tienes alguna otra oferta?" was closed unanswered (D59).
+            # Live, "No, gracias. ¿Tienes alguna otra oferta?" was closed unanswered.
             return self._refuse(
                 "answer_first",
                 "They asked something: answer it first (search_knowledge for facts), then "
@@ -966,7 +965,7 @@ class EndSessionHandler(_Handler):
                         events=presented.events,
                         spoken=presented.spoken,
                     )
-            event = "stop"  # D64: the goodbye ends it; the brief stays unconfirmed
+            event = "stop"  # The goodbye ends it; the brief stays unconfirmed
         result = transition(state, event)
         if isinstance(result, Err):
             return self._refuse(

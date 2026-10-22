@@ -1,4 +1,4 @@
-# Cloud SQL for the demo (D33): the smallest Postgres 16 instance, reached from the VM through
+# Cloud SQL for the demo: the smallest Postgres 16 instance, reached from the VM through
 # the Cloud SQL Auth Proxy (IAM identity of the runtime service account, no authorized
 # networks). The runtime user's password is generated here as an ephemeral value and written
 # only to places Terraform does not read back: the user (`password_wo`) and a Secret Manager
@@ -29,7 +29,7 @@ resource "google_sql_database_instance" "db" {
       enabled                        = true
       point_in_time_recovery_enabled = false
       backup_retention_settings {
-        retained_backups = 3 # deleted records leave the backups within days (spec §8)
+        retained_backups = 3 # deleted records leave the backups within days
         retention_unit   = "COUNT"
       }
     }

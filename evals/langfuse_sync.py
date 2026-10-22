@@ -1,5 +1,5 @@
 """Cases as a Langfuse dataset and runs as experiment runs, so traces, scores and prompt
-versions line up in one place (D05, D06).
+versions line up in one place.
 
 The mapping is pure (``dataset_items``, ``experiment_runs``); ``ExperimentSink`` is the port.
 ``SdkSink`` replays runs that already happened through the SDK's experiment runner (the
@@ -21,7 +21,7 @@ from evals.contracts import ProbeRecord, Report, RetrievalCase, RunRecord
 from evals.scorers import abstained, facts_missing
 
 PREFIX = "cafe-norte"
-RAG_DATASET = f"{PREFIX}-rag"  # the knowledge-base questions, probed one session each (D51)
+RAG_DATASET = f"{PREFIX}-rag"  # the knowledge-base questions, probed one session each
 
 
 class Frozen(BaseModel):
@@ -128,7 +128,7 @@ def sync_rag_dataset(cases: Sequence[RetrievalCase], sink: ExperimentSink) -> No
 
 def probe_run(probes: Sequence[ProbeRecord], model: str) -> ExperimentRun:
     """The probes of one scorecard as one experiment run on ``cafe-norte-rag``: the answer as
-    output, the deterministic reads and ragas' scores as scores (D51)."""
+    output, the deterministic reads and ragas' scores as scores."""
     stamp = next((p.run.versions for p in probes if p.run.versions is not None), None)
     prompt = stamp.prompt_version if stamp else "unknown"
     rows: list[ExperimentRow] = []

@@ -1,4 +1,4 @@
-"""The 41 retrieval questions have the shape the spec asks for; the sections they expect exist."""
+"""Retrieval questions satisfy their schema and refer to existing knowledge sections."""
 
 from collections import Counter
 

@@ -1,5 +1,4 @@
-"""The database must accept every language the code can switch to: D63 widened the code and
-not the table, and the hosted demo failed every turn after a switch (22 October)."""
+"""The database language constraint must accept every language supported by the runtime."""
 
 import re
 

@@ -1,4 +1,4 @@
-// The page's logic in one pure function (D61): (state, action, exec) => state. Actions are what
+// The page's logic in one pure function: (state, action, exec) => state. Actions are what
 // happened (a click, a server reply, a stream event); effects are what the page asks the outside
 // world to do, run by effects.ts. Nothing here touches the DOM, fetch, EventSource or Daily, so
 // every rule is tested without a browser. Components read selectors and dispatch actions.
@@ -20,7 +20,7 @@ import { finishedTurn, sourceLines, TERMINAL } from "./format";
 // ---- state ---------------------------------------------------------------------------------
 
 /** Where the page is. Each phase allows a fixed set of actions; the rest are ignored. */
-export type Page =
+type Page =
   | "loading" // booting, or creating / resuming a session
   | "gate" // the shared access code is needed
   | "choosing" // no store chosen yet: nothing is created until Empezar
@@ -30,9 +30,9 @@ export type Page =
   | "failed"; // nothing more can happen without a reload
 
 /** off → connecting → live → (closing →) off. Never on without an active session. */
-export type Voice = "off" | "connecting" | "live" | "closing";
+type Voice = "off" | "connecting" | "live" | "closing";
 
-export type Access = "idle" | "checking" | "refused";
+type Access = "idle" | "checking" | "refused";
 
 export interface Bubble {
   id: string;
@@ -40,7 +40,7 @@ export interface Bubble {
   sentences: string[];
 }
 
-/** The classifier's reading of one candidate message (D62): advisory, never a hiring input. */
+/** The classifier's reading of one candidate message: advisory, never a hiring input. */
 export interface SignalPoint {
   turnId: string;
   sentiment: Signal["sentiment"];
@@ -48,7 +48,7 @@ export interface SignalPoint {
   switchTo: Signal["language_switch_to"];
 }
 
-export type SignalsMode = RuntimeInfo["signals"];
+type SignalsMode = RuntimeInfo["signals"];
 
 /** One collapsed reviewer entry per turn and one for the session itself. */
 export interface ReviewEntry {
@@ -63,11 +63,11 @@ export interface State {
   voice: Voice;
   access: Access;
   // From the address: ?store= and ?lang= open a session, #resume= resumes one, #code= is the
-  // shared access code (D60), checked before anything else.
+  // shared access code, checked before anything else.
   requested: { store: string | null; language: Language; resumeToken: string | null; code: string | null };
   voiceOffered: boolean;
   signalsMode: SignalsMode;
-  languages: LanguageOption[]; // the chooser's list, from GET /api/runtime (D63)
+  languages: LanguageOption[]; // the chooser's list, from GET /api/runtime
   stores: ConfigurationSummary[];
   chooser: { store: string; language: Language };
   sessionId: string | null;
@@ -579,13 +579,12 @@ function labelReview(state: State, turnId: string | null, label: string): State 
 
 // ---- selectors -----------------------------------------------------------------------------
 
-/** The session is open and nothing has frozen it. */
-export function isLive(state: State): boolean {
+function isLive(state: State): boolean {
   return state.page === "active";
 }
 
 export function canType(state: State): boolean {
-  return state.page === "active";
+  return isLive(state);
 }
 
 export function canSend(state: State): boolean {

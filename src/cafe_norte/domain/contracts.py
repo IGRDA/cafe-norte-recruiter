@@ -56,7 +56,7 @@ HoursPerWeek = Annotated[int, Field(ge=1, le=60)]
 
 class YearMonth(Frozen):
     """A start the candidate gave by month only ("en enero"): never filled to a day they did not
-    say (D58). Serialized as ``YYYY-MM``."""
+    say. Serialized as ``YYYY-MM``."""
 
     year: int = Field(ge=2000, le=2100)
     month: int = Field(ge=1, le=12)
@@ -268,7 +268,7 @@ class Confirmation(Frozen):
     presentation_text: str  # canonical recap, the exact words shown or spoken
     presented_turn_id: TurnId
     fully_delivered: bool = False  # the latest saying (whole text or one part) was heard to its end
-    review: Review | None = None  # None: said once, whole; set after a cut (D39)
+    review: Review | None = None  # None: said once, whole; set after a cut
     response_turn_id: TurnId | None = None
     status: ConfirmationStatus = "pending"
     source: Literal["model", "ui"] = "model"
@@ -292,7 +292,7 @@ class OfferedSlot(Frozen):
 
 class SlotOffer(Frozen):
     """The slots Ana last offered, in the order she said them, and the ones an ambiguous answer
-    left in question (D41). The runtime matches the candidate's choice against it."""
+    left in question. The runtime matches the candidate's choice against it."""
 
     slots: tuple[OfferedSlot, ...]
     shortlist: tuple[SlotId, ...] = ()
@@ -342,11 +342,11 @@ Sentiment = Literal["neutral", "positive", "frustrated", "uncertain"]
 
 
 class SignalProbabilities(Frozen):
-    """What a decision model gave each option (D52), shown on the page as it arrives (D62).
+    """What a decision model gave each option, shown on the page as it arrives.
     Advisory: the verdict in ``Signal`` is what the runtime acts on."""
 
     sentiment: dict[Sentiment, float]
-    language: dict[str, float]  # one per language code Ana can answer in, plus "other" (D63)
+    language: dict[str, float]  # one per language code Ana can answer in, plus "other"
 
 
 class Signal(Frozen):
@@ -372,8 +372,7 @@ class ShiftDefinition(Frozen):
     days: frozenset[Weekday]
 
     def label_in(self, language: Language) -> str:
-        """The label in ``language``; English for a language the configuration has none in
-        (D63: the model words the rest of the sentence)."""
+        """Return the configured label, falling back to English for an untabled language."""
         return self.label.get(language) or self.label["en"]
 
 

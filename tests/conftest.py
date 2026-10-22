@@ -15,7 +15,7 @@ from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.postgres import PostgresStore
 from tests.support.offline import block_network
 
-# Property-test effort (D50): ``dev`` by default, ``ci`` in CI (more examples, the same ones
+# Property-test effort: ``dev`` by default, ``ci`` in CI (more examples, the same ones
 # every run), ``deep`` for ``make quality``. No deadline: these are not timing tests.
 settings.register_profile("dev", max_examples=50, deadline=None)
 settings.register_profile("ci", max_examples=300, deadline=None, derandomize=True)

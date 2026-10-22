@@ -1,6 +1,6 @@
-# Everything the running demo needs. The image is an input (image_digest), so a deployment is a
-# Terraform change plus an instance reset. Cloud SQL is in database.tf; the uptime check arrives
-# with its stage.
+# Deploy the image digest on Compute Engine: Daily WebRTC needs a routable network
+# interface, unavailable in the tested Cloud Run environment. The VM runs the app, Caddy
+# and Cloud SQL Auth Proxy with host networking; see infra/OPERATIONS.md.
 
 provider "google" {
   project               = var.project_id
@@ -18,14 +18,14 @@ locals {
     "ELEVENLABS_API_KEY",
     "CAFE_NORTE_ACCESS_CODE",
     "CAFE_NORTE_COOKIE_SECRET",
-    "LANGFUSE_PUBLIC_KEY", # tracing (D36); empty until set_secrets.py --only writes a version
+    "LANGFUSE_PUBLIC_KEY", # tracing; empty until set_secrets.py --only writes a version
     "LANGFUSE_SECRET_KEY",
-    "OPENROUTER_API_KEY", # Jev signal analyzer (D52); a version must exist before it is enabled
+    "OPENROUTER_API_KEY", # Jev signal analyzer; a version must exist before it is enabled
   ]
 }
 
 # OPENROUTER_API_KEY was created with its first version before Terraform knew it, so the first
-# deploy with the analyzer on found a key (an analyzer without one refuses to start, D52).
+# deploy with the analyzer on found a key (an analyzer without one refuses to start).
 import {
   to = google_secret_manager_secret.keys["OPENROUTER_API_KEY"]
   id = "projects/${var.project_id}/secrets/OPENROUTER_API_KEY"
@@ -67,7 +67,7 @@ resource "google_secret_manager_secret_iam_member" "runtime_reads" {
 }
 
 # One small VM instead of Cloud Run: Cloud Run containers only have a link-local address and
-# libwebrtc (daily-core) cannot gather ICE candidates there, so no voice media ever flows (D24).
+# libwebrtc (daily-core) cannot gather ICE candidates there, so no voice media ever flows.
 resource "google_compute_address" "app" {
   name   = "${var.service_name}-ip"
   region = var.region
@@ -75,18 +75,18 @@ resource "google_compute_address" "app" {
 
 locals {
   sslip_host = "${replace(google_compute_address.app.address, ".", "-")}.sslip.io"
-  # The named host (DuckDNS, D60) when set; the sslip.io name always answers too, as a fallback.
+  # The named host (DuckDNS) when set; the sslip.io name always answers too, as a fallback.
   public_host  = coalesce(var.public_hostname, local.sslip_host)
   public_hosts = distinct(compact([var.public_hostname, local.sslip_host]))
   plain_env = join("\n", [
     "CAFE_NORTE_ENV=demo",
     "CAFE_NORTE_MODEL=${var.model}",
-    "CAFE_NORTE_SIGNAL_MODEL=${var.signal_model}", # empty: no analyzer (D30, D52)
+    "CAFE_NORTE_SIGNAL_MODEL=${var.signal_model}", # empty: no analyzer
     "CAFE_NORTE_VOICE=pipecat",
     "ELEVENLABS_VOICE_ID=${var.elevenlabs_voice_id}",
     "CAFE_NORTE_MAX_VOICE_SESSIONS=2",
     "CAFE_NORTE_ENVIRONMENT=production",
-    "CAFE_NORTE_TRACE_CONTENT=on", # redacted words and tool arguments in traces; fictional data only (D42)
+    "CAFE_NORTE_TRACE_CONTENT=on", # redacted words and tool arguments in traces; fictional data only
     "LANGFUSE_BASE_URL=${var.langfuse_base_url}",
   ])
 }

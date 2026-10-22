@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The branch as production runs it, on this laptop (D64): Postgres (its constraints included),
+# The branch as production runs it, on this laptop: Postgres (its constraints included),
 # the built page, the real model, Jev and hosted voice, behind a local access code. Call the
 # printed link before a PR is merged. Ctrl-C stops it; the local database keeps its sessions.
 set -euo pipefail

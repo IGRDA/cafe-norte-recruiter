@@ -1,4 +1,4 @@
-"""Fixed texts in a language without reviewed files (D63): the model words the English
+"""Fixed texts in a language without reviewed files: the model words the English
 templates once per language, a wording that loses a key or a placeholder stays English, and
 the facts are filled in by the runtime afterwards, never by the model."""
 

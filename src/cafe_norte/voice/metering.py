@@ -1,4 +1,4 @@
-"""What one call used of the speech providers, as measured (D44). No audio framework in it:
+"""What one call used of the speech providers, as measured. No audio framework in it:
 ``bridge.UsageObserver`` feeds it the providers' own usage reports and the pipeline the room's
 joins and leaves; times are arguments."""
 

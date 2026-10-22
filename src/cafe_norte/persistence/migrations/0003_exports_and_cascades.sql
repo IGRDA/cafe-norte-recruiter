@@ -1,6 +1,6 @@
 -- 0003: the export snapshot stored at session close, and deletion that takes everything
--- with it (retention stage, D34). Deleting a session removes its simulated reservation too,
--- which is what spec §8 asks of the delete action; the slot becomes free again.
+-- with it. Deleting a session removes its simulated reservation too,
+-- freeing the slot.
 
 create table exports (
     session_id     text primary key references sessions on delete cascade,

@@ -15,7 +15,7 @@ interface Props {
 
 export function App({ requested, ports }: Props) {
   const [state, dispatch] = usePage(requested, ports);
-  // Screen readers pronounce the page in the session's language, which can switch (D53).
+  // Screen readers pronounce the page in the session's language, which can switch.
   const rtl = isRtl(state);
   useEffect(() => {
     document.documentElement.lang = state.language;

@@ -5,7 +5,7 @@ language: es
 today: "2026-10-20"
 # As S21, but the candidate accepts the offer: the runtime says the summary in short parts,
 # word for word, each ending with "¿Está bien?", and the yes to the last part heard confirms it,
-# recorded as reviewed (D39).
+# recorded as reviewed.
 scripted_turns:
   - "Sí, me viene bien."
   - "Me llamo Lucía Marín, sí me interesa el puesto."
@@ -47,7 +47,7 @@ fake_script:
     - tool: present_confirmation
       args: { target: brief }
   # "Sí, está todo bien." over the summary: the runtime routes it to the review, and the
-  # model makes the one offer in its own words (D39).
+  # model makes the one offer in its own words.
   - - say: "Perdona, me has contestado antes de acabar. ¿Lo repasamos por partes o seguimos?"
   # Going over it: the runtime says each part; the model adds nothing.
   - - say: ""

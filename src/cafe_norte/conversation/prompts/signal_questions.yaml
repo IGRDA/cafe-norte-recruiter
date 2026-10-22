@@ -1,4 +1,4 @@
-# The two choice questions Jev answers about one candidate message (D52). The state it reads:
+# The two choice questions Jev answers about one candidate message. The state it reads:
 # session_language (es is Spanish, en is English), ana_said, candidate_said. Each question
 # has instructions and one criterion per option; Jev returns a probability for each option.
 # Measured with evals/signals.py: change a word here and run the suite on both case sets.
@@ -11,8 +11,8 @@ sentiment:
     positive: Clear enthusiasm or thanks.
     frustrated: Annoyance, impatience, sarcasm, or feeling misunderstood or made to repeat.
     uncertain: Hesitation, doubt or confusion about what to answer.
-# Which language Ana should write her next reply in (D63), asked relative to the session as
-# D52 found Jev reads better: `keep` is the ordinary answer and stays in session_language; a
+# Which language Ana should write her next reply in, asked relative to the session as
+# `keep` is the ordinary answer and stays in session_language; a
 # language option is a switch to it. The runtime takes the top option; a language that is not
 # the session's switches at p >= 0.7; keep, the session's own code and `other` never switch.
 reply_language:

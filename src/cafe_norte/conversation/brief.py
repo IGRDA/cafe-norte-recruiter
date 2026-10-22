@@ -72,7 +72,7 @@ def render_brief_changes(
 ) -> str | None:
     """The brief's sentences that are not in ``since`` (the brief as it was last read back),
     with the closing question: what a correction changed, said once instead of the whole
-    brief again (D59). ``None`` when nothing or everything changed."""
+    brief again. ``None`` when nothing or everything changed."""
     from cafe_norte.conversation.prompt import sentences  # prompt imports this module
 
     t = _texts(language)
@@ -101,7 +101,7 @@ def slot_readback(
 
 
 def review_check(language: Language) -> str:
-    """The short check said after each part of a read-back that is gone over (D39)."""
+    """The short check said after each part of a read-back that is gone over."""
     return _texts(language)["review.check"]
 
 
@@ -201,7 +201,7 @@ def _date(value: object, t: dict[str, str]) -> str:
 
 def _start(value: object, t: dict[str, str]) -> str:
     """A start date with its preposition ("el lunes 2 de noviembre de 2026"), or the month alone
-    ("en enero de 2027") when that is all the candidate said (D58)."""
+    ("en enero de 2027") when that is all the candidate said."""
     if isinstance(value, YearMonth):
         month = t["months"].split(",")[value.month - 1]
         return t["start.in"].format(month=month, year=value.year)

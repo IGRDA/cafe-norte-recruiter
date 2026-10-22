@@ -100,18 +100,17 @@ def create_app(
     estimate: Estimator | None = None,
     flush: Callable[[], None] | None = None,
 ) -> FastAPI:
-    """Build from typed collaborators. Lifespan: open the store (migrations), release the voice
-    places a previous process left held, seed the
-    simulated calendar when ``seed`` is set, ``warm_up`` (the embedding model) before the first
-    request, cancel in-flight turns on
-    shutdown. Later stages add lease renewal and the summary worker."""
+    """Compose typed collaborators into the HTTP app.
+
+    Open storage and apply migrations, release abandoned voice places, optionally seed the
+    calendar and warm retrieval before serving. Shutdown cancels turns and closes resources."""
     tasks = TurnTasks()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await store.open()
         # A restart ended the previous process's calls without releasing their voice places;
-        # without this the next calls are refused as busy until the rows age out (D55).
+        # without this the next calls are refused as busy until the rows age out.
         if left_over := await store.admission.release_left_over():
             log.info("admission: released %d voice places held before the restart", left_over)
         if seed:
@@ -167,7 +166,7 @@ def create_app(
         return JSONResponse(body.model_dump(), status_code=422)
 
     if web_dir is not None and not web_dir.is_dir():
-        # The page is built (`make web-build`, D61); the API, the evals and the tests run
+        # The page is built (`make web-build`); the API, the evals and the tests run
         # without it. The image always builds it, and the deploy's smoke check asks for "/".
         log.warning("no page at %s: run `make web-build`; serving the API only", web_dir)
     elif web_dir is not None:
@@ -186,8 +185,8 @@ def _model(env: Mapping[str, str]) -> Model:
 def _signals(env: Mapping[str, str]) -> tuple[SignalAnalyzer | None, SignalsMode]:
     """The asynchronous classifier is opt-in: ``CAFE_NORTE_SIGNAL_MODEL`` names a small model
     (same selector format as ``CAFE_NORTE_MODEL``), or ``openrouter/<decision model>`` for Jev
-    with ``OPENROUTER_API_KEY`` (D52); unset, no turn pays for a second call. The mode tells
-    the page what to expect: labels only, or Jev's probabilities (D62)."""
+    with ``OPENROUTER_API_KEY``; unset, no turn pays for a second call. The mode tells
+    the page what to expect: labels only, or Jev's probabilities."""
     selector = env.get("CAFE_NORTE_SIGNAL_MODEL", "")
     if not selector:
         return None, "off"
@@ -197,7 +196,7 @@ def _signals(env: Mapping[str, str]) -> tuple[SignalAnalyzer | None, SignalsMode
 
 
 def _languages() -> tuple[LanguageOption, ...]:
-    """The page's list of languages, from ``prompts/languages.yaml`` (D63)."""
+    """The page's list of languages, from ``prompts/languages.yaml``."""
     return tuple(
         LanguageOption(code=code, native=info.native, rtl=info.rtl, tested=code in TABLED)
         for code, info in prompts.languages().items()
@@ -252,7 +251,7 @@ def create_default_app(
         configurations=configurations,
         gate=gate_from_env(env),
         versions=process,
-        web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web/dist")),  # `npm run build` (D61)
+        web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web/dist")),  # `npm run build`
         voice_mode=voice_mode,
         signals_mode=signals_mode,
         languages=_languages(),

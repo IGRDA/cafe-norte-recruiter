@@ -1,4 +1,4 @@
-"""The runtime's word-for-word texts in a language without reviewed files (D63).
+"""The runtime's word-for-word texts in a language without reviewed files.
 
 The English template files (``opening``, ``resume``, ``brief``, ``controls``, ``ui``,
 ``voice``) are worded once per process and language by the model, and checked: a table keeps

@@ -1,4 +1,4 @@
-"""The offline suite's network guard (D50): loopback and Unix sockets only, so `make check`
+"""The offline suite's network guard: loopback and Unix sockets only, so `make check`
 can never depend on, or leak to, anything outside the machine."""
 
 import ipaddress

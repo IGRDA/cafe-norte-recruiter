@@ -193,7 +193,7 @@ def test_only_the_previous_turns_soft_sentiment_reaches_the_next_prompt() -> Non
         "Yes.",
         "That's right",
         "Yes, correct.",
-        # KI-01: everyday ways of saying it is all right, in any order
+        # Everyday ways of saying it is all right, in any order.
         "Sí, está todo bien.",
         "Está todo bien.",
         "Está todo bien. Todo correcto.",
@@ -291,7 +291,7 @@ def test_anything_more_than_a_plain_answer_goes_to_the_model(text: str) -> None:
     assert answer_to_readback(text) is None
 
 
-# ---- a farewell (D46) ----------------------------------------------------------------------------
+# ---- a farewell ----------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -319,7 +319,7 @@ def test_a_farewell_is_seen_in_both_languages(text: str) -> None:
 )
 def test_thanks_beside_other_words_is_the_models(text: str) -> None:
     """Live: "muchas gracias" inside a longer sentence closed the call with no model round,
-    and the next four things said failed on an ended session (D59). Only a goodbye that is
+    and the next four things said failed on an ended session. Only a goodbye that is
     the whole utterance is the runtime's."""
     assert not is_farewell(text)
 
@@ -424,8 +424,7 @@ def test_asking_to_be_contacted_is_a_request_for_a_person(text: str) -> None:
 
 
 def test_any_explicit_language_request_counts_not_only_spanish_and_english() -> None:
-    """The runtime skips the analyzer's suggestion when the candidate asked for a language
-    themselves; before D63 only es/en requests did, so "en francés" lost to a stale verdict."""
+    """An explicit request for any supported language takes precedence over a stale verdict."""
     assert asks_for_a_language(explicit_controls("En francés, por favor."))
     assert asks_for_a_language(explicit_controls("In English, please."))
     assert not asks_for_a_language(explicit_controls("Quiero hablar con una persona."))

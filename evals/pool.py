@@ -1,4 +1,4 @@
-"""Bounded concurrency for the live phases (D51): the phases (scenarios, probes, judges) run
+"""Bounded concurrency for the live phases: the phases (scenarios, probes, judges) run
 one after the other; inside a phase, independent sessions and judge calls run at most
 ``limit`` at a time. One session's turns stay in order: each line answers the last."""
 
@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable, Sequence
 
 # Sessions or judged runs in flight. Each model round sends about 10 000 tokens and gpt-4.1
 # answers in about a second: four sessions at once passed its 450 000 tokens a minute on this
-# organisation and 39 turns failed with 429 (D51). Raise it only for a model with more room.
+# organisation and 39 turns failed with 429. Raise it only for a model with more room.
 CONCURRENCY = 2
 
 

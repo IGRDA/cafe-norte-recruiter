@@ -420,7 +420,7 @@ describe("lifecycle", () => {
   });
 });
 
-describe("signals (D62)", () => {
+describe("signals", () => {
   it("waits for the verdict on the latest message, then shows it", () => {
     expect(signalStatus(active())).toBe("idle");
     const waiting = run(active(), userTurn("t1")).state;
@@ -460,7 +460,7 @@ describe("signals (D62)", () => {
   });
 });
 
-describe("languages (D63)", () => {
+describe("languages", () => {
   it("shows the three likeliest languages by their own names, then the rest as otros", () => {
     const bars = languageBars(active(), { es: 0.05, fr: 0.8, en: 0.1, other: 0.03, de: 0.02 });
     expect(bars.map((b) => b.label)).toEqual(["français", "English", "español", "otros"]);

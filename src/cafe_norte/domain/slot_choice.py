@@ -1,9 +1,9 @@
-"""Which interview slot a candidate's words mean (D41). Pure; both languages, no language
+"""Which interview slot a candidate's words mean. Pure; both languages, no language
 argument: the words of one language never collide with the other's in a slot answer.
 
 ``read_slot_words`` says what was said (an ordinal, a weekday, a day of the month, a month, a
 relative day, a clock time, a part of the day) and what was left over; ``choose_slot`` holds
-those words against the slots just offered. As with a plain yes (D35), only an answer that is
+those words against the slots just offered. As with a plain yes, only an answer that is
 all about the slot is a choice: one word that is neither a slot word nor the talk around a
 choice ("me va bien", "mejor", "sí") makes it the model's, which covers refusals ("no,
 ninguno") and questions ("¿dura treinta minutos?") alike. Nothing is guessed: a feature that

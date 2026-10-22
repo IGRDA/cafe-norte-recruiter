@@ -1,5 +1,7 @@
-"""The JSON export: ``ExportDocument`` is the schema the spec asks to publish, and
-``build_export`` fills it from one ``SessionSnapshot``."""
+"""``ExportDocument`` defines the public session export schema.
+
+``build_export`` fills it from one ``SessionSnapshot``.
+"""
 
 import json
 from collections.abc import Callable
@@ -80,7 +82,7 @@ class Metrics(Frozen):
 
 
 class ExportedConfirmation(Confirmation):
-    """A read-back as the export shows it: with how a confirmed one was confirmed (D39), heard
+    """A read-back as the export shows it: with how a confirmed one was confirmed, heard
     whole, gone over to the end, or carried on without going over it. ``None`` otherwise."""
 
     assurance: Assurance | None = None
@@ -123,7 +125,7 @@ async def persist_export(
     estimate: Estimator | None = None,
 ) -> None:
     """Build the session's export from one snapshot and store it: what a closed session serves
-    from then on (D34). Idempotent; a second close overwrites."""
+    from then on. Idempotent; a second close overwrites."""
     state = await store.sessions.get(session_id)
     if state is None:
         return
@@ -174,7 +176,7 @@ def build_export(snapshot: SessionSnapshot, *, estimate: Estimator | None = None
             timings=snapshot.timings,
             usage=usage,
             estimated_marginal_cost_eur=None if cost is None else cost.marginal_eur,
-            # Partial when something is missing: no prices, or speech nothing measured (D44).
+            # Partial when something is missing: no prices, or speech nothing measured.
             # An estimate of a cut generation is flagged on its record, not here.
             cost_is_partial=cost is None or bool(cost.missing_prices) or bool(derived),
         ),
@@ -185,7 +187,7 @@ def build_export(snapshot: SessionSnapshot, *, estimate: Estimator | None = None
 def voice_usage(snapshot: SessionSnapshot) -> tuple[UsageRecord, ...]:
     """What a voice session used that nothing measured, derived from the snapshot: the
     characters Ana spoke, the seconds the candidate was heard, and the minutes of the bot and
-    the candidate in the room. A kind the call measured (D44) is never derived again."""
+    the candidate in the room. A kind the call measured is never derived again."""
     state = snapshot.state
     if state.channel != "voice":
         return ()

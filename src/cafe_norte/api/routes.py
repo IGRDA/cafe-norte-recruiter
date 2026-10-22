@@ -81,7 +81,12 @@ def build_router(
     session_seconds: float = 480.0,
     estimate: Estimator | None = None,
 ) -> APIRouter:
-    """Voice endpoints return ``provider_unavailable`` when ``rooms``/``voice`` are None."""
+    """Expose session operations through injected runtime and storage ports.
+
+    Session routes require the owner's signed cookie; the shared access code only permits
+    creation. Accepted turns run asynchronously and report completion on the SSE stream.
+    Voice endpoints return provider_unavailable unless both room and voice ports are bound.
+    """
     router = APIRouter()
     hosted_voice = voice_mode == "pipecat" and rooms is not None and voice is not None
 
@@ -218,7 +223,7 @@ def build_router(
 
     @router.post("/api/resume")
     async def resume(body: ResumeRequest, response: Response) -> ResumeResponse:
-        """A private resume link: the token alone is the credential (spec §8). It opens only
+        """A private resume link: the token alone is the credential. It opens only
         its own session, as long as it has not expired; Ana then picks the conversation up."""
         session_id = await store.resume_tokens.redeem(
             gate.token_hash(body.token), now=datetime.now(UTC)
@@ -264,7 +269,7 @@ def build_router(
     ) -> TurnAccepted:
         """The page's Sí / No. It must name the read-back that is pending now, at the revision
         the candidate was looking at; the answer then runs as a turn with no words, so the
-        domain rules are the ones a spoken answer meets (D38)."""
+        domain rules are the ones a spoken answer meets."""
         sid = owner(request, session_id)
         state = await store.sessions.get(sid)
         if state is None:
@@ -311,7 +316,7 @@ def build_router(
 
     @router.get("/api/sessions/{session_id}/export")
     async def export_session(session_id: str, request: Request) -> Response:
-        """The JSON record of the owner's session: the snapshot stored at close (D34), or
+        """The JSON record of the owner's session: the snapshot stored at close, or
         one built on demand while the session is still open."""
         sid = owner(request, session_id)
         state = await store.sessions.get(sid)
@@ -348,7 +353,7 @@ def build_router(
 
     @router.delete("/api/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_session(session_id: str, request: Request) -> Response:
-        """The owner's delete action (spec §8): the session and everything that belongs to it,
+        """The owner's delete action: the session and everything that belongs to it,
         the stored export, the resume token and the simulated reservation included. A voice
         session still running is stopped first. Idempotent."""
         sid = owner(request, session_id)

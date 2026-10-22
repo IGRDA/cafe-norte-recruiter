@@ -1,4 +1,4 @@
-"""The candidate's answer to the slot offer (D41): which tool the words call, decided from the
+"""The candidate's answer to the slot offer: which tool the words call, decided from the
 session, the words and the day. Pure; the runtime runs what it returns, through the tools the
 model would call, so a model that does not copy the slot id cannot leave the choice looping."""
 
@@ -42,7 +42,7 @@ def slot_answer(
     offered are offered again for that day. ``None``: no open offer or no request for the
     interview yet, words that are not a
     choice, or words that name no day (a time, a month with nothing free): the model has the
-    options in its facts and says what there is, so the same list is never said again (D56)."""
+    options in its facts and says what there is, so the same list is never said again."""
     offer = open_offer(state, by_button=by_button)
     intent = state.schedule_intent
     if offer is None or intent is None:
@@ -88,7 +88,7 @@ def open_offer(state: SessionState, *, by_button: bool) -> SlotOffer | None:
     is live, and no field or brief read-back is waiting for its own answer. A button press
     answers a read-back, never an offer. ``slot_answer`` also waits for the candidate to have
     asked for the interview: the offer is made with the brief, before Ana has said a time, and
-    "la última" then means nothing yet (D56)."""
+    "la última" then means nothing yet."""
     offer = state.slot_offer
     pending = state.pending_confirmation
     waiting = (

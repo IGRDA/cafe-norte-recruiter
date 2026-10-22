@@ -40,7 +40,7 @@ class PromptHints(BaseModel):
     explicit: frozenset[Control] = frozenset()
     sentiment: Sentiment | None = None
     readback_answered: str | None = None  # the runtime resolved a plain yes/no this turn
-    slot_choice: str | None = None  # the runtime matched the candidate's slot choice (D41)
+    slot_choice: str | None = None  # the runtime matched the candidate's slot choice
 
 
 WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
@@ -122,7 +122,7 @@ def pending_facts(state: SessionState) -> dict[str, object] | None:
 
 
 def review_label(review: Review | None) -> str | None:
-    """Where the review of a cut read-back stands, for the model (D39)."""
+    """Where the review of a cut read-back stands, for the model."""
     if isinstance(review, ReviewInParts):
         return f"part {review.part + 1} of {review.parts}"
     return review.stage if review is not None else None
@@ -132,7 +132,7 @@ def offer_facts(
     state: SessionState, configuration: StoreConfiguration
 ) -> list[dict[str, object]] | None:
     """The interview times on offer, by number, in the store's local time: the model offers
-    them in its own words and chooses by number, never by an id it could miscopy (D56)."""
+    them in its own words and chooses by number, never by an id it could miscopy."""
     offer = state.slot_offer
     if offer is None or not offer.slots or state.booking is not None:
         return None
@@ -161,9 +161,9 @@ def field_status(candidate: CandidateRecord) -> dict[str, str]:
 def history_messages(
     turns: tuple[TurnRecord, ...], user_text: str = ""
 ) -> tuple[ModelMessage, ...]:
-    """What was said, in order, before ``user_text``. A candidate's words cut by a pause and
-    said again in full in the next turn (the voice side joins them, D44) appear once, in full
-    (D57)."""
+    """Return ordered history before user_text.
+
+    Words cut by a voice pause and repeated in the joined turn appear once, in full."""
     said = [(turn.role, turn.text) for turn in turns if turn.text.strip()]
     following = [*said[1:], ("user", user_text)] if said else []
     return tuple(
@@ -217,7 +217,7 @@ def clean_sentence(text: str) -> str:
     return sentence
 
 
-# What a generation's trace keeps of the conversation it saw (docs/architecture.md).
+# What a generation's trace keeps of the conversation it saw.
 TRACE_CONTEXT_CHARACTERS = 1800
 
 

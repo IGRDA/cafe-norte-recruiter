@@ -54,7 +54,7 @@ def _is_brief(text: str) -> bool:
 @cache
 def _brief_questions() -> frozenset[str]:
     """The brief's fixed closing question in every language: the runtime reads it word for
-    word (D20), so it marks a read-back reliably."""
+    word, so it marks a read-back reliably."""
     return frozenset(prompts.table("brief", lang)["question"] for lang in get_args(Language))
 
 

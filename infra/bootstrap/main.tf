@@ -64,7 +64,7 @@ resource "google_service_account_iam_member" "deployer_wif" {
 resource "google_project_iam_member" "deployer" {
   for_each = toset([
     "roles/compute.admin",
-    "roles/cloudsql.admin", # database.tf in the app stack (D33)
+    "roles/cloudsql.admin", # database.tf in the app stack
     "roles/artifactregistry.writer",
     "roles/secretmanager.admin",
     "roles/iam.serviceAccountUser",

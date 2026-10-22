@@ -1,10 +1,7 @@
-"""In-memory Store for offline tests and local runs. Same semantics, one process, no durability.
+"""In-memory storage for offline tests and local runs; no durability.
 
-Writes taken through a transaction are buffered and applied on ``commit``; conditional checks
-(revision, uniqueness) run again at commit time so a conflict surfaces exactly where Postgres
-would raise it. Repositories of later stages come from ``later.py`` and raise
-``NotImplementedError``.
-"""
+Transaction writes are buffered until commit. Revision and uniqueness checks run at commit
+time as well as enlistment. Database-specific concurrency is tested on Postgres."""
 
 import asyncio
 from collections.abc import AsyncIterator, Callable, Sequence
@@ -33,7 +30,6 @@ from cafe_norte.persistence.contracts import (
     TurnRecord,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-from cafe_norte.persistence.later import SummaryJobsLater
 
 
 class MemoryTransaction:
@@ -222,10 +218,6 @@ class MemoryEvents:
         self.usage = [u for u in self.usage if u.session_id != session_id]
         self.timings = [t for t in self.timings if t.session_id != session_id]
 
-    def last_seq(self, session_id: SessionId) -> int:
-        events = self._events.get(session_id, [])
-        return events[-1].seq if events else 0
-
     def all(self, session_id: SessionId) -> tuple[EventRecord, ...]:
         return tuple(self._events.get(session_id, []))
 
@@ -353,16 +345,6 @@ class MemoryLeases:
         self._leases[session_id] = lease
         return lease
 
-    async def renew(self, lease: Lease, ttl_seconds: int) -> Lease | None:
-        live = self._live(lease.session_id)
-        if live != lease:
-            return None
-        renewed = lease.model_copy(
-            update={"expires_at": self._clock() + timedelta(seconds=ttl_seconds)}
-        )
-        self._leases[lease.session_id] = renewed
-        return renewed
-
     async def release(self, lease: Lease) -> None:
         """Expire, never forget: the generation keeps growing across claims."""
         if self._leases.get(lease.session_id) == lease:
@@ -377,8 +359,7 @@ class MemoryLeases:
 
 
 class MemoryAdmission:
-    """Voice capacity for one process: a set of active session ids. Postgres makes it
-    cross-container; the spend reservation is recorded, not enforced, until pricing lands."""
+    """Voice capacity for one process. Reservations track spend without enforcing a EUR limit."""
 
     def __init__(self) -> None:
         self._active: dict[SessionId, float] = {}
@@ -398,10 +379,6 @@ class MemoryAdmission:
         left_over = len(self._active)
         self._active.clear()
         return left_over
-
-    @property
-    def active(self) -> frozenset[SessionId]:
-        return frozenset(self._active)
 
     def forget(self, session_id: SessionId) -> None:
         self._active.pop(session_id, None)
@@ -449,7 +426,6 @@ class MemoryStore:
         self.leases = MemoryLeases(clock, self.sessions)
         self.sessions.fence = self.leases.generation_is_live
         self.admission = MemoryAdmission()
-        self.summary_jobs = SummaryJobsLater()
         self.resume_tokens = MemoryResumeTokens()
         self.exports = MemoryExports()
         self._maintaining = False

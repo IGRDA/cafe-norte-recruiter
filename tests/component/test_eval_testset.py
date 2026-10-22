@@ -1,4 +1,4 @@
-"""The ragas testset's pure parts (D51): generated rows back to our chunk ids, a priced
+"""The ragas testset's pure parts: generated rows back to our chunk ids, a priced
 estimate before any spend, and the knowledge-base questions as a Langfuse dataset."""
 
 import math

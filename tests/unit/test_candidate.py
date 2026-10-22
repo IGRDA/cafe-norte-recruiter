@@ -76,7 +76,7 @@ def test_unknown_shifts_and_past_dates_are_refused() -> None:
 
 def test_a_start_day_the_candidate_did_not_say_is_refused_and_a_month_alone_is_kept() -> None:
     """Ignacio's call: "Desde enero del año que viene" was saved as 2027-01-01 and read back
-    as "viernes 1 de enero": a guessed day (D58). The month alone is what was said."""
+    as "viernes 1 de enero": a guessed day. The month alone is what was said."""
     guessed = validate_patch(
         CandidatePatch(earliest_start_date=date(2027, 1, 1)),
         CONFIG,
@@ -190,7 +190,7 @@ def test_hours_need_their_number_in_the_candidates_words() -> None:
     assert isinstance(said, Ok)
 
 
-# ---- evidence is the candidate's own words (D46) -------------------------------------------------
+# ---- evidence is the candidate's own words -------------------------------------------------
 
 SAID = (
     (TurnId("t1"), "Me llamo Lucía Marín."),

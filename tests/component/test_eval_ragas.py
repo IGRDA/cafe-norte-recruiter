@@ -1,5 +1,5 @@
 """Retrieval runs as ragas samples, scored by ragas' ID-based context precision and recall:
-offline, no model, next to our own recall@3 (D06)."""
+offline, no model, next to our own recall@3."""
 
 import json
 from pathlib import Path

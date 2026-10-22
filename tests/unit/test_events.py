@@ -123,7 +123,7 @@ def test_redact_leaves_ordinary_text_and_small_numbers_alone() -> None:
 @pytest.mark.parametrize(
     "text",
     [
-        '{"slot_id": "chamberi_barista_v1-2026-10-21-1030"}',  # KI-06: the id must stay legible
+        '{"slot_id": "chamberi_barista_v1-2026-10-21-1030"}',  # the id must stay legible
         "el 2026-10-21 a las 10:30",
     ],
 )

@@ -17,7 +17,7 @@ from cafe_norte.knowledge.contracts import (
 )
 
 RRF_K = 60
-# The relevance floor (D27): a chunk no query word occurs in, whose cosine is below this, is
+# The relevance floor: a chunk no query word occurs in, whose cosine is below this, is
 # noise. Chosen from evals/results/retrieval/: every answerable chunk without a lexical match
 # scored ≥ 0.40; the unsupported questions with no lexical match scored ≤ 0.37. Re-measure
 # when the embedding model changes.
@@ -25,7 +25,7 @@ DENSE_FLOOR = 0.40
 # Words nearly every chunk shares: the brand, the city and the role. The configuration already
 # names the store, so in a query they only pull the company and role sections up. The store's
 # own name stays: an address question needs it. Measured on the model's queries of the gpt-4.1
-# baseline: 30/32 answerable questions found, against 26 with its own topic filter (D54).
+# baseline: 30/32 answerable questions found, against 26 with its own topic filter.
 SHARED_WORDS = re.compile(r"\b(?:caf[eé]\s+norte|madrid|baristas?)\b", re.IGNORECASE)
 
 

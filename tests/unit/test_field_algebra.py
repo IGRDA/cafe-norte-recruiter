@@ -10,9 +10,8 @@ from cafe_norte.domain.contracts import (
     Evidence,
     FieldState,
     TurnId,
-    Unset,
 )
-from cafe_norte.domain.fields import capture, confirm, decline, is_settled, mark_unknown, value_of
+from cafe_norte.domain.fields import capture, confirm, decline, mark_unknown, value_of
 from cafe_norte.domain.result import Err, Ok
 from tests.support.strategies import confirmation_ids, evidence, field_states
 
@@ -65,8 +64,6 @@ def test_a_correction_after_confirmation_drops_the_confirmation(
 
 
 @given(field_states(values))
-def test_unknown_and_declined_are_settled_and_valueless(prior: FieldState[str]) -> None:
+def test_unknown_and_declined_clear_any_previous_value(prior: FieldState[str]) -> None:
     assert value_of(mark_unknown(prior, 2)) is None
     assert value_of(decline(prior, TurnId("t1"))) is None
-    assert is_settled(mark_unknown(prior, 2)) and is_settled(decline(prior, TurnId("t1")))
-    assert not is_settled(Unset())

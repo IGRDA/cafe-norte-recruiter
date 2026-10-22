@@ -68,8 +68,7 @@ def test_build_export_fills_every_section_from_the_snapshot() -> None:
 
 
 def test_each_confirmed_read_back_says_whether_it_was_heard_reviewed_or_waived() -> None:
-    """D39: a carry-on confirms a read-back the candidate did not hear to the end; the export
-    keeps it apart from one heard whole or gone over to the end."""
+    """The export distinguishes heard, reviewed and explicitly waived confirmations."""
     waived = BRIEF.model_copy(
         update={
             "fully_delivered": False,
@@ -270,7 +269,7 @@ def test_only_the_speech_kinds_nothing_measured_are_derived() -> None:
 
 
 def test_estimated_tokens_of_a_cut_generation_do_not_make_the_cost_partial() -> None:
-    """Inferred from characters, flagged on the record, but nothing is missing (D44)."""
+    """Inferred from characters, flagged on the record, but nothing is missing."""
     taken = snapshot().model_copy(
         update={"usage": (record("llm_tokens", "m:input", 1000, estimated=True),)}
     )

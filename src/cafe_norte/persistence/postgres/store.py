@@ -11,11 +11,9 @@ from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import (
     SNAPSHOT_TURNS,
     SessionSnapshot,
-    SummaryJobs,
     Transaction,
 )
 from cafe_norte.persistence.export import confirmations_from_events
-from cafe_norte.persistence.later import SummaryJobsLater
 from cafe_norte.persistence.migrate import apply_pending
 from cafe_norte.persistence.postgres.admission import PostgresAdmission
 from cafe_norte.persistence.postgres.calendar import PostgresCalendar
@@ -73,11 +71,10 @@ class PostgresStore:
         self.calendar = PostgresCalendar(connect)
         self.leases = PostgresLeases(connect)
         # The instance that holds a voice place. The hosted app runs with host networking, so
-        # the hostname is the VM's and survives a reset (D55).
+        # the hostname is the VM's and survives a reset.
         self.admission = PostgresAdmission(
             connect, ttl_seconds=admission_ttl_seconds, owner=instance or socket.gethostname()
         )
-        self.summary_jobs: SummaryJobs = SummaryJobsLater()
         self.resume_tokens = PostgresResumeTokens(connect)
         self.exports = PostgresExports(connect)
         self._open = False

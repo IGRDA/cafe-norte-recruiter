@@ -1,22 +1,14 @@
 """The export schema is generated from the Pydantic model, and the tool schemas from the args."""
 
-import json
-
 from cafe_norte.conversation.tools import ARGUMENT_MODELS, tool_schemas
 from cafe_norte.persistence.export import ExportDocument
 from tests.support import ROOT
 
 
-def test_export_schema_file_matches_the_model() -> None:
-    generated = ExportDocument.model_json_schema()
-    on_disk = json.loads((ROOT / "examples" / "session_export.schema.json").read_text())
-    assert on_disk == generated, "run `make export-schema`"
-
-
 def test_example_export_is_a_complete_s01_session() -> None:
-    """`make export-example` regenerates it; ids are random, so the check is on content."""
+    """Keep a previously serialized session readable as the export model evolves."""
     document = ExportDocument.model_validate_json(
-        (ROOT / "examples" / "session_export.example.json").read_text()
+        (ROOT / "tests" / "fixtures" / "session_export.json").read_text()
     )
     assert document.schema_version == "1"
     assert (document.session.lifecycle, document.session.outcome) == ("completed", "reserved")

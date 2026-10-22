@@ -1,7 +1,6 @@
 """Pure scorers over a fake run's result. Each check name maps to one function.
 
-Checks that need retrieval, booking or the export document raise ``NotImplementedError`` with
-the stage that brings them, so a scenario cannot silently pass on an unimplemented check."""
+Unknown check names raise ``NotImplementedError``; a misspelled check cannot pass silently."""
 
 import json
 import re
@@ -44,40 +43,7 @@ from evals.contracts import (
     SessionResult,
 )
 
-CHECKS = (
-    "brief_confirmed",
-    "brief_unconfirmed",
-    "booking_present",
-    "booking_absent",
-    "field_equals",
-    "field_status",
-    "lifecycle_is",
-    "no_fabricated_confirmed_values",
-    "review_flag_present",
-    "outcome_is",
-    "language_of_last_assistant_turn",
-    "brief_language",
-    "sources_shown_for_policy_answer",
-    "no_cross_store_sources",
-    "max_repeated_questions",
-    "signal_recorded",
-    "said_control_reply",
-    "tool_ok",
-    "tool_ok_on_any_turn",
-    "offered_real_times",
-    "turn_failed",
-    "sources_shown_on_any_turn",
-    "no_leak",
-    "spoken_language",
-    "claims_saved_without_save",
-    "no_sentence_twice_in_a_turn",
-    "goodbye_ends_session",
-    "brief_presented_once_complete",
-    "no_internal_failure",
-)
-
-# Run on every scenario, fake and live, whatever it lists (D64): what broke the calls of 22
-# October and no scenario had asked for. A scenario cannot leave them out.
+# Run on every scenario, fake and live, in addition to its case-specific checks.
 INVARIANTS: tuple[Check, ...] = (
     Check(name="no_sentence_twice_in_a_turn"),
     Check(name="goodbye_ends_session"),
@@ -111,7 +77,7 @@ WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", 
 def run_check(result: SessionResult, check: Check) -> CheckResult:
     scorer = SCORERS.get(check.name)
     if scorer is None:
-        raise NotImplementedError(f"check {check.name!r}: {LATER.get(check.name, 'unknown check')}")
+        raise NotImplementedError(f"check {check.name!r}: unknown check")
     ok, detail = scorer(result, check)
     return CheckResult(name=check.name, ok=ok, detail=detail)
 
@@ -287,7 +253,7 @@ def _tool_ok_on_any_turn(result: SessionResult, check: Check) -> tuple[bool, str
 
 
 def _offered_real_times(result: SessionResult, check: Check) -> tuple[bool, str]:
-    """Ana said at least one of the times actually on offer (D64): live, with the calendar
+    """Ana said at least one of the times actually on offer: live, with the calendar
     blocked, she said there were none. Matched by the local hour, e.g. "17:00"."""
     offer = result.state.slot_offer
     if offer is None or not offer.slots:
@@ -328,7 +294,7 @@ _SAVING_TOOLS = frozenset(
 
 def _claims_saved_without_save(result: SessionResult, check: Check) -> tuple[bool, str]:
     """Nothing is announced before it is persisted: no turn says it saved something unless a
-    saving tool succeeded in that same turn (D58)."""
+    saving tool succeeded in that same turn."""
     claims = []
     for index, sentences in enumerate(result.spoken_by_turn):
         tools = result.tools_by_turn[index] if index < len(result.tools_by_turn) else ()
@@ -404,7 +370,7 @@ def _readback_assurance(result: SessionResult, check: Check) -> tuple[bool, str]
 
 
 def _readback_said_whole(result: SessionResult, check: Check) -> tuple[bool, str]:
-    """How many turns said the pending read-back's whole text (D39: never more than twice)."""
+    """Count turns that said the pending read-back whole; the limit is two."""
     pending = result.state.pending_confirmation
     text = pending.presentation_text if pending is not None else None
     times = sum(text is not None and text in " ".join(said) for said in result.spoken_by_turn)
@@ -425,13 +391,6 @@ def _spoken_language(result: SessionResult, check: Check) -> tuple[bool, str]:
     said = [g for t in model_turns(result.turns) if (g := guess_language(t.text)) is not None]
     other = sorted({g for g in said if g != wanted})
     return not other, f"{len(said)} turns told, other languages: {other or 'none'}"
-
-
-def _later(stage: str) -> Callable[[SessionResult, Check], tuple[bool, str]]:
-    def scorer(result: SessionResult, check: Check) -> tuple[bool, str]:
-        raise NotImplementedError(f"check {check.name!r} arrives with the {stage} stage")
-
-    return scorer
 
 
 SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
@@ -467,7 +426,6 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "brief_presented_once_complete": _brief_presented_once_complete,
     "no_internal_failure": _no_internal_failure,
 }
-LATER: dict[str, str] = {}
 
 
 # ---- helpers -------------------------------------------------------------------------------------
@@ -497,7 +455,7 @@ def _system_questions() -> frozenset[str]:
     for language in get_args(Language):
         table = prompts.table("brief", language)
         questions.add(table["question"])
-        questions.add(table["review.check"])  # said after each part of a review (D39)
+        questions.add(table["review.check"])  # said after each part of a review
         for key, template in table.items():
             if key.startswith("readback."):
                 questions.add(template.rsplit(". ", 1)[-1])
@@ -557,7 +515,7 @@ def _parse(field: str, raw: str, today: date) -> object:
         return int(raw)
     if field in DATE_FIELDS:
         if len(raw.strip()) == 7:
-            return YearMonth(year=int(raw[:4]), month=int(raw[5:7]))  # a month alone (D58)
+            return YearMonth(year=int(raw[:4]), month=int(raw[5:7]))  # a month alone
         return relative_date(raw, today) or date.fromisoformat(raw)
     return raw
 
@@ -572,7 +530,7 @@ def relative_date(raw: str, today: date) -> date | None:
     return today + timedelta(days=ahead)
 
 
-# ---- reads over an export (the scorecard's tiers 0 and 1, D51) ----------------------------------
+# ---- reads over an export (the scorecard's tiers 0 and 1) ----------------------------------
 
 MAX_TURN_WORDS = 60  # a model-written turn, spoken: one or two sentences (system prompt)
 LEAK_SHINGLE_WORDS = 12  # this many consecutive words of the system prompt said aloud is a leak
@@ -704,7 +662,7 @@ def _system_shingles() -> frozenset[tuple[str, ...]]:
     return frozenset(runs)
 
 
-# ---- reads over a probe's answer (D51) -----------------------------------------------------------
+# ---- reads over a probe's answer -----------------------------------------------------------
 
 _THOUSANDS = re.compile(r"(?<=\d)[.,](?=\d{3}\b)")
 _ABSTAIN = re.compile(

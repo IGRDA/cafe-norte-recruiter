@@ -3,7 +3,7 @@ title: The hosted call of 21 October, replayed with a model that skips the confi
 config_id: chamberi_barista_v1
 language: es
 today: "2026-10-20"
-# What went wrong live (D35): the model copied the store's 35 hours into the record from
+# What went wrong live: the model copied the store's 35 hours into the record from
 # "por la mañana", answered "Sí, es correcto" without confirm_field, and the summary's yes
 # without confirm_brief. A plain yes is now resolved by the runtime, and a number the
 # candidate did not say is refused.

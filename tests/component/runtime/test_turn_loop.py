@@ -456,7 +456,7 @@ async def test_a_runaway_answer_is_cut_and_the_turn_still_finishes() -> None:
 
 
 async def test_the_tool_result_tells_the_model_what_was_already_said_this_turn() -> None:
-    """A lookup's round is answered next (D59): that round hears what was said with it."""
+    """A lookup's round is answered next: that round hears what was said with it."""
     h = Harness([[ModelText(text="¿Cómo te llamas? "), SEARCH, WANTS_TOOLS], says("")])
     await h.open_session()
     await h.run("Hola")
@@ -488,7 +488,7 @@ async def test_the_tool_result_names_only_the_next_question() -> None:
 
 
 async def test_nothing_is_spoken_after_the_first_question_of_a_turn() -> None:
-    """Spec: one main question at a time. The prompt asks for it; the runtime guarantees it."""
+    """One main question at a time. The prompt asks for it; the runtime guarantees it."""
     h = Harness(
         [
             says(
@@ -538,7 +538,7 @@ async def test_a_presentation_is_spoken_verbatim_before_tool_finished_and_marked
 
 
 async def test_a_presentation_is_spoken_in_full_even_after_the_model_asked_something() -> None:
-    """A read-back is authoritative: the words held with the call that presents it (D59) and
+    """A read-back is authoritative: the words held with the call that presents it and
     the next round's question are dropped, since the read-back asked its own."""
     h = Harness([[ModelText(text="¿Lo repaso? "), present_brief(), WANTS_TOOLS], says("¿Vale?")])
     await h.open_session()

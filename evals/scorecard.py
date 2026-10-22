@@ -1,11 +1,7 @@
-"""The scorecard: the few numbers that say whether a prompt or model change made Ana better
-(D51). Four tiers, cheapest first: deterministic without a reference, deterministic against
-one, a judge against one, a judge alone. Deterministic rows gate; judge rows report.
+"""Measure runs, QA probes and retrieval against the targets in SPECS.
 
-``scorecard`` is pure: scenario runs, QA probes and the retrieval report in, with whatever
-scores ragas gave them; one ``Metric`` per spec out, ``None`` where nothing measured it. A probe
-is a session too: the tier-0 rows read probes and scenario runs alike. Targets live here and
-in ``docs/architecture.md``."""
+Tiers 0–1 are deterministic gates, tiers 2–3 report judge scores. Missing evidence stays
+unmeasured, never a pass. This module owns the targets; reports derive their rows from them."""
 
 import json
 import statistics
@@ -78,7 +74,6 @@ SPECS: tuple[MetricSpec, ...] = (
     _spec("topic_adherence", 3, "Stays on topic (ragas DiscreteMetric)", 0.90, unit="score"),
     _spec("style", 3, "Style: tuteo, short, spoken (ragas DiscreteMetric)", 0.90, unit="score"),
 )
-SPEC_BY_ID = {s.id: s for s in SPECS}
 
 
 Reading = tuple[float | None, int | None, int, str]  # value, k, n, detail
@@ -147,7 +142,7 @@ def render_markdown(card: Scorecard) -> str:
         + (f" · {card.concurrency} sessions at a time" if card.concurrency > 1 else ""),
         "",
         "Tiers: 0 deterministic, 1 deterministic against a reference, 2 judge against a "
-        "reference, 3 judge alone. Gate rows fail the run on a miss; judge rows report (D51).",
+        "reference, 3 judge alone. Gate rows fail the run on a miss; judge rows report.",
         "",
         "| Tier | Metric | Value | n | Target | Δ baseline | Result |",
         "| --- | --- | --- | --- | --- | --- | --- |",

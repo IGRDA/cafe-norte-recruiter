@@ -162,8 +162,8 @@ async def fill_record(h: Harness) -> None:
 
 def with_slots_offered(*then: list[ModelEvent], date_preference: str | None = None) -> Harness:
     """Turn in-1 offers the slots, as the model does when the candidate asks for an interview;
-    the scripts after it are the model's next turns. This model never presents a slot itself
-    (KI-06): whatever is read back, the runtime read back."""
+        the scripts after it are the model's next turns. This model never presents a slot itself
+    : whatever is read back, the runtime read back."""
     return Harness(
         [[offer_call(date_preference), WANTS_TOOLS], says(""), *then],
         store=MemoryStore(clock=lambda: NOW),

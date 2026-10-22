@@ -1,4 +1,4 @@
-"""Tool arguments in the journal (KI-06, D44)."""
+"""Tool arguments in the journal."""
 
 import json
 

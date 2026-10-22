@@ -1,5 +1,5 @@
 """Where the store is: the hosted call's "¿dónde está el establecimiento?" must find the address
-section of the candidate's own store, however the place is asked for (D35)."""
+section of the candidate's own store, however the place is asked for."""
 
 from pathlib import Path
 

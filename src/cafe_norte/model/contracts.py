@@ -84,7 +84,7 @@ class Model(Protocol):
     ) -> AsyncGenerator[ModelEvent, None]: ...
 
 
-# ---- decision models (D52) -----------------------------------------------------------------------
+# ---- decision models -----------------------------------------------------------------------
 
 
 class ChoiceQuestion(Frozen):

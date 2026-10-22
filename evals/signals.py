@@ -1,12 +1,9 @@
-"""The signals suite: sentiment and reply language on synthetic candidate turns, offline.
+"""Compare sentiment and reply-language decisions on labelled synthetic turns.
 
-Four systems answer the same cases. ``regex`` is the runtime's ``explicit_controls`` (language
-only, D28). ``production`` is ``ModelSignalAnalyzer`` with the shipped classifier prompt
-(sentiment only, D30). ``llm`` is a chat model asked the two questions Jev is asked, as JSON,
-so Jev is compared with an LLM on the same task. ``jev`` is TypeSafe's decision model.
-
-Every design under test runs beside the turn, never before the model, so latency says how
-soon a verdict could act (cut a reply and switch language), not what a turn waits for."""
+Regex measures explicit language requests; production measures the shipped chat sentiment
+classifier; llm and jev answer the same choice questions. Dev cases may guide tuning;
+held-out cases only measure it. Probability calibration, latency and spend are reported
+alongside classification accuracy. No calls run without --yes except the regex baseline."""
 
 import argparse
 import asyncio
@@ -333,7 +330,7 @@ def signals_main(args: argparse.Namespace, env: Mapping[str, str] | None = None)
         if system in systems and not env.get(key)
     ]
     if missing:
-        print(f"{', '.join(missing)} is required for jev; see evals/README.md (signals).")
+        print(f"{', '.join(missing)} is required for jev; configure it in .env.")
         return 2
     report = asyncio.run(_run(systems, cases, repeat, args.signal_model, prices, env))
     print(render_markdown(report, cases).split("\n## ", 1)[0])

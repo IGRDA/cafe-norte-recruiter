@@ -94,7 +94,7 @@ def test_shipped_table_prices_every_provider_in_use() -> None:
         ("tts_characters", TTS_MODEL),
         ("media_participant_minutes", "daily"),
     }
-    # Free is a price (Jev's output tokens, D52); only output tokens may be free.
+    # Free is a price (Jev's output tokens); only output tokens may be free.
     assert all(p.eur_per_unit > 0 or p.unit_detail.endswith(":output") for p in table.prices)
     assert all(p.eur_per_unit >= 0 for p in table.prices)
 
@@ -146,7 +146,7 @@ def test_the_order_of_usage_changes_neither_the_total_nor_what_is_missing(
 
 def test_cached_input_is_its_own_record_and_not_counted_twice() -> None:
     """Live gpt-4.1 calls send ~5k input tokens, most of them cached at a quarter of the price;
-    priced at the full rate the export overstated them (D58)."""
+    priced at the full rate the export overstated them."""
     records = token_usage(SessionId("s"), None, "gpt-4.1", 5000, 40, estimated=False, cached=4608)
     assert {r.unit_detail: r.quantity for r in records} == {
         "gpt-4.1:input": 392,

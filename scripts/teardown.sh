@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Drain and destroy the demo: the VM, its address and friends first, then the images, then bootstrap.
+# Destroy the app and images, retaining bootstrap/state. Active calls are interrupted.
 # Usage: PROJECT_ID=cafe-norte-orbio BUCKET=cafe-norte-orbio-tfstate scripts/teardown.sh
 set -euo pipefail
 : "${PROJECT_ID:?set PROJECT_ID}"

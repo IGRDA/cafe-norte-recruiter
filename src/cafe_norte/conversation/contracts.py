@@ -65,8 +65,10 @@ class TurnStarted(Frozen):
 
 
 class AssistantText(Frozen):
-    """A sentence or clause ready for display and TTS. ``spoken_form`` has dates, times, money
-    and phone numbers normalized for speech; ``text`` keeps canonical values."""
+    """A sentence or clause for display (``text``) and TTS (``spoken_form``).
+
+    The runtime currently supplies the same canonical sentence for both.
+    """
 
     type: Literal["assistant_text"] = "assistant_text"
     text: str
@@ -76,7 +78,7 @@ class AssistantText(Frozen):
 class ToolStarted(Frozen):
     type: Literal["tool_started"] = "tool_started"
     name: str
-    arguments: str = ""  # the call's JSON, redacted then cut (D44); empty in older journals
+    arguments: str = ""  # the call's JSON, redacted then cut; empty in older journals
 
 
 class ToolFinished(Frozen):
@@ -96,7 +98,7 @@ class StateUpdated(Frozen):
     booking: Booking | None
     lifecycle: Lifecycle
     outcome: Outcome | None
-    language: Language | None = None  # None only in journals written before D53
+    language: Language | None = None  # None in older journals without a language field
 
     @property
     def ended(self) -> bool:
@@ -128,8 +130,10 @@ class SourcesShown(Frozen):
 
 
 class SignalRecorded(Frozen):
-    """The asynchronous classifier's verdict on one user turn, journaled after that turn
-    ended. Advisory: the reviewer panel and the export show it; it never scores anyone."""
+    """A classifier's verdict attached to one user turn; it may arrive after the turn ends.
+
+    Advisory: the reviewer panel and the export show it; it never scores anyone.
+    """
 
     type: Literal["signal_recorded"] = "signal_recorded"
     signal: Signal
@@ -169,14 +173,17 @@ RuntimeEvent = (
 
 
 class ConversationRuntime(Protocol):
-    """Owns history, prompt assembly, tool execution and cancellation for a session.
+    """Owns history, bounded model/tool execution and cancellation for both channels."""
 
-    ``run_turn`` is an async generator; closing it cancels in-flight model and tool work and
-    marks the turn interrupted. Mutations are serialized per session and require the current
-    ownership lease generation. A duplicate ``input_id`` yields a single ``TurnFailed`` with
-    ``conflict``. Nothing is announced before it is persisted."""
+    def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]:
+        """Persist input, apply controls, run tools, then announce committed state.
 
-    def run_turn(self, turn: TurnInput) -> AsyncIterator[RuntimeEvent]: ...
+        Turns serialize per session and fence writes with the current lease generation.
+        Duplicate input_id yields TurnFailed(conflict); retrying cannot repeat a write.
+        Closing the iterator cancels in-flight work and journals an interrupted turn.
+        Already committed changes survive cancellation. Voice acknowledges playback separately.
+        """
+        ...
 
     def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
         """Ana's opening: the fixed disclosure greeting, journaled like any turn, no model."""
@@ -185,7 +192,7 @@ class ConversationRuntime(Protocol):
     def resume_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
         """A private resume link reopened the session: a paused session becomes active, Ana
         says the fixed resume sentence and repeats a pending read-back; no model, nothing is
-        rebooked (D32)."""
+        rebooked."""
         ...
 
     async def delivered(self, turn_id: TurnId, *, text: str, complete: bool) -> None:
@@ -202,7 +209,7 @@ class ConversationRuntime(Protocol):
 
     async def record_usage(self, session_id: SessionId, usage: Sequence[UsageRecord]) -> None:
         """Usage measured outside a turn (a call's speech providers); a session already
-        ended stores its export again so the cost includes it (D44)."""
+        ended stores its export again so the cost includes it."""
         ...
 
     async def end(
@@ -229,7 +236,7 @@ class ToolOutcome(Frozen):
     events: tuple[StateUpdated | SourcesShown, ...] = ()
     spoken: str = ""  # text the runtime says verbatim (read-backs): shown == spoken == pending
     malformed: bool = False  # unknown tool or invalid arguments: spends the repair budget
-    idle: bool = False  # changed nothing: a done save repeated, or an answer not given yet (D44)
+    idle: bool = False  # changed nothing: a done save repeated, or an answer not given yet
 
 
 class ToolHandler(Protocol):
@@ -241,16 +248,16 @@ class SignalAnalysis(Frozen):
 
     signal: Signal | None
     usage: ModelUsage | None  # reported even when no signal came of it; None when it never came
-    model_id: str  # the configured classifier model, which prices the tokens (D36)
+    model_id: str  # the configured classifier model, which prices the tokens
 
 
 class SignalAnalyzer(Protocol):
-    """Asynchronous sentiment/intent classification of finalized text; results are advisory and
-    attached to their turn. ``None`` when there is no evidence-backed verdict. Explicit stop and
-    human requests have a synchronous path in ``signals.py`` and never wait for this.
-    ``ana_said`` is what Ana said just before the message, for an analyzer that reads it (D52).
-    ``switches_language``: its verdict can ask for the other language, so the runtime starts it
-    with the turn and waits for it, briefly, before Ana's first sentence (D53)."""
+    """Classify finalized text with evidence; return a verdict or none, plus usage.
+
+    Signals describe a message, never score a candidate. Explicit stop and human requests
+    are synchronous. When switches_language is true, the runtime starts analysis alongside
+    the turn and briefly waits before its first output. A late verdict applies only to the
+    immediately following turn; explicit language requests take precedence."""
 
     switches_language: bool
 

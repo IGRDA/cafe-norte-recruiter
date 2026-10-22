@@ -1,4 +1,4 @@
-"""The live scorecard (D51): every scenario with ``live_checks`` and every knowledge-base
+"""The live scorecard: every scenario with ``live_checks`` and every knowledge-base
 question as a probe, against one answering model; then ragas over both, the offline retrieval
 suite, and one scorecard with its delta against the committed baseline.
 
@@ -61,7 +61,7 @@ def rescore(
 ) -> int:
     """A recorded live scorecard scored again, free: the runs and probes come back from
     ``folder`` with their exports and the judges' scores, and every deterministic row is read
-    again. For a check that changed after a paid run (D51)."""
+    again. For a check that changed after a paid run."""
     (scenarios_dir,) = folder.glob("*-scenarios")
     written = ReportFile.model_validate_json((scenarios_dir / "report.json").read_text())
     exports = scenarios_dir / "exports"

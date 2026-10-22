@@ -6,7 +6,7 @@ never reaches a candidate, a log line or a trace by accident."""
 
 from typing import Literal
 
-# The ten languages Ana answers in (D63). ``TABLED`` are the two with reviewed word-for-word
+# The ten languages Ana answers in. ``TABLED`` are the two with reviewed word-for-word
 # texts and the only ones evaluated; the rest are wired and untested.
 Language = Literal["es", "en", "fr", "pt", "it", "de", "ro", "ar", "zh", "uk"]
 SWITCHABLE: tuple[Language, ...] = ("es", "en", "fr", "pt", "it", "de", "ro", "ar", "zh", "uk")

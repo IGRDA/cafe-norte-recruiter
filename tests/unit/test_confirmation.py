@@ -152,7 +152,7 @@ def test_a_patch_of_another_field_never_leaves_a_field_read_back_unanswerable(
     assert isinstance(answered, Ok) and answered.value.status == "confirmed"
 
 
-# ---- reviewing a read-back that was cut (D39) ----------------------------------------------
+# ---- reviewing a read-back that was cut ----------------------------------------------
 
 PARTS = 3
 

@@ -26,7 +26,7 @@ secret() {
 for NAME in $(curl -sf -H "$H" "$META/instance/attributes/secret_names"); do
   printf '%s=%s\n' "$NAME" "$(secret "$NAME")" >> "$ENV_FILE"
 done
-# Cloud SQL (D33): the Auth Proxy listens on localhost with this VM's service account identity;
+# Cloud SQL: the Auth Proxy listens on localhost with this VM's service account identity;
 # the app sees an ordinary Postgres URL. The password is the Terraform-generated secret.
 if [ -n "$DB_CONNECTION" ]; then
   DB_USER="$(curl -sf -H "$H" "$META/instance/attributes/db_user")"
@@ -60,10 +60,10 @@ if [ -n "$DB_CONNECTION" ]; then
   done
 fi
 # Host networking: the app binds 8080 on the VM's routable interface, which is what WebRTC
-# needs for ICE candidates (the reason this is a VM and not Cloud Run, D24).
+# needs for ICE candidates (the reason this is a VM and not Cloud Run).
 docker run -d --name app --restart=always --network host --env-file "$ENV_FILE" \
   -e PORT=8080 "$IMAGE"
-# One site block for every public name (D60): Caddy gets a certificate per name. The CLI's
+# One site block for every public name: Caddy gets a certificate per name. The CLI's
 # reverse-proxy takes a single --from, hence the two-line Caddyfile.
 mkdir -p /var/lib/caddy
 printf '%s {\n\treverse_proxy localhost:8080\n}\n' "$(echo "$PUBLIC_HOSTS" | sed 's/ /, /g')" \

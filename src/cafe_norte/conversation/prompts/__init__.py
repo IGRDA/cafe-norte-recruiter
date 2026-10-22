@@ -1,4 +1,4 @@
-"""Versioned prompt files. Bump ``PROMPT_VERSION`` whenever a file changes."""
+"""Versioned prompt files. Bump ``PROMPT_VERSION`` when model instructions or spoken text change."""
 
 from pathlib import Path
 
@@ -22,7 +22,7 @@ def use_worded(name: str, language: Language, text: str) -> None:
 
 def load(name: str, language: Language | None = None) -> str:
     """Read ``<name>.<language>.md`` for candidate-facing text, ``<name>.md`` otherwise. A
-    language without reviewed texts reads its worded copy, or English until it has one (D63)."""
+    language without reviewed texts reads its worded copy, or English until it has one."""
     if language is not None and language not in TABLED:
         worded = _WORDED.get((name, language))
         if worded is not None:
@@ -42,8 +42,8 @@ class LanguageInfo(BaseModel):
 
 
 def language_line(language: Language) -> str:
-    """The system message's closing line (D28): which language every reply is in. One template
-    for every language (D63), in English, naming the language natively too."""
+    """The system message's closing line: which language every reply is in. One template
+    for every language, in English, naming the language natively too."""
     info = languages()[language]
     return load("language").strip().format(english=info.english, native=info.native)
 

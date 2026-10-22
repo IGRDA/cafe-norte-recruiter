@@ -123,7 +123,7 @@ async def test_a_filler_is_spoken_only_while_a_tool_runs_long() -> None:
 async def test_the_filler_waits_while_a_sentence_is_still_playing() -> None:
     time = FakeTime()
     """The filler fills silence; while "Vale, lo miro." is still playing there is none, so it
-    is not queued behind it (D40)."""
+    is not queued behind it."""
     runtime = FakeRuntime(
         [
             [
@@ -314,8 +314,7 @@ def hanging(runtime: FakeRuntime, time: FakeTime) -> tuple[VoiceSession, list[st
 
 
 async def test_ana_hangs_up_two_seconds_after_her_goodbye_has_played() -> None:
-    """The hosted call: the page left the room before "¡Hasta pronto!" was heard. And after
-    D48 she left the instant it had played, which felt like a slam (D59)."""
+    """Play the whole goodbye, then allow a short silence before leaving the room."""
     time = FakeTime()
     runtime = FakeRuntime([[say("Gracias, Lucía."), say("¡Hasta pronto!"), ended(), finished()]])
     s, hung_up = hanging(runtime, time)
@@ -337,7 +336,7 @@ async def test_ana_hangs_up_two_seconds_after_her_goodbye_has_played() -> None:
 
 async def test_talking_over_the_goodbye_waits_for_the_words_then_leaves() -> None:
     """Live: "Ya está… pero no lo entiendo muy bien… cuelga" after the goodbye all failed on
-    an ended session; before that, talking over the goodbye hung up at once (D48). Now Ana
+    an ended session; before that, talking over the goodbye hung up at once. Now Ana
     waits for the candidate to finish, runs no turn on the ended session, and leaves."""
     time = FakeTime()
     runtime = FakeRuntime([[say("¡Hasta pronto!"), ended(), finished()]])
@@ -517,7 +516,7 @@ async def test_a_switch_announced_inside_the_turn_moves_recognition_before_ana_s
     assert recorder.spoken == ["Sure."]
 
 
-# ---- an answer cut by a pause (KI-07, D44) -------------------------------------------------------
+# ---- an answer cut by a pause -------------------------------------------------------
 
 
 def cut_answer(time: FakeTime) -> tuple[FakeRuntime, VoiceSession]:

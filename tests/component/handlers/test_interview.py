@@ -25,8 +25,7 @@ from tests.support.tools import SLOT, Interview, World, args, context
 
 
 async def test_slots_are_listed_before_the_brief_is_confirmed() -> None:
-    """D64: live, an unconfirmed brief blocked the calendar and Ana said there were no slots.
-    Listing never waits for the brief; reading a slot back still does, and says why."""
+    """Listing is always available; reading back a slot still requires the confirmed brief."""
     w = Interview()
     await w.open()
     await seed_calendar(w.store, CONFIGS, now=NOW)
@@ -49,7 +48,7 @@ async def test_slots_come_after_the_confirmed_brief_and_record_the_intent() -> N
     )
     assert outcome.ok and outcome.summary == "offered:3"
     # The model offers the times in its own words and chooses by number; it never sees an id
-    # it could miscopy (D56).
+    # it could miscopy.
     assert outcome.spoken == ""
     assert "2: miércoles 21 de octubre de 2026 a las 10:30" in outcome.model_text
     assert "slot_id" not in outcome.model_text and "choice" in outcome.model_text
@@ -120,7 +119,7 @@ async def test_a_wrong_choice_is_told_the_truth_not_to_list_again() -> None:
 
 
 async def test_the_offer_is_remembered_in_the_order_it_was_spoken() -> None:
-    """The runtime matches "el primero" or "el miércoles" against it (D41)."""
+    """The runtime matches "el primero" or "el miércoles" against it."""
     w = await (await Interview().ready()).offered()
     offer = (await w.current()).slot_offer
     assert offer is not None and offer.shortlist == ()

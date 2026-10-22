@@ -99,6 +99,18 @@ async def test_the_simulator_knows_today_so_a_relative_date_reads_back_right() -
     assert "reads back a detail or a summary" in system
 
 
+async def test_a_relative_date_fact_is_given_with_the_day_it_means() -> None:
+    """Knowing today was not enough: the model still said "lunes 23 de octubre" (a Friday)
+    for next Monday (S01 live, 22 October 2026)."""
+    model = FakeModel([said("Sí.")])
+    thursday = datetime(2026, 10, 22, 9, tzinfo=UTC)
+    persona = Persona(facts={"earliest_start_date": "next monday"})
+    await ModelCandidateSimulator(model, clock=lambda: thursday).reply(
+        persona, Cue(language="es", mood="neutral"), GREETING
+    )
+    assert "earliest_start_date: next monday (Monday 26 October 2026)" in model.calls[0][0].content
+
+
 async def test_a_simulator_that_says_nothing_stops_the_run() -> None:
     simulator = ModelCandidateSimulator(FakeModel([said("   ")]))
     with pytest.raises(SimulatorError):

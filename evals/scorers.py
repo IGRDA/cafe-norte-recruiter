@@ -369,11 +369,11 @@ def _parse(field: str, raw: str, today: date) -> object:
     if field in INT_FIELDS:
         return int(raw)
     if field in DATE_FIELDS:
-        return _relative_date(raw, today) or date.fromisoformat(raw)
+        return relative_date(raw, today) or date.fromisoformat(raw)
     return raw
 
 
-def _relative_date(raw: str, today: date) -> date | None:
+def relative_date(raw: str, today: date) -> date | None:
     """``next <weekday>``: the first such day after ``today`` (a Monday's next Monday is a
     week later), so a live check holds on whatever day it runs."""
     words = raw.strip().lower().split()

@@ -14,6 +14,7 @@ from cafe_norte.conversation import prompts
 from cafe_norte.errors import Language
 from cafe_norte.model.contracts import Model, ModelMessage, ModelText
 from evals.contracts import CandidateSimulator, Cue, Persona, Transcript
+from evals.scorers import relative_date
 
 
 def cue(persona: Persona, language: Language, transcript: Transcript) -> Cue:
@@ -116,7 +117,7 @@ class SimulatedCandidate:
 
 
 def _system(persona: Persona, now: datetime) -> str:
-    facts = "\n".join(f"- {field}: {value}" for field, value in persona.facts.items())
+    facts = "\n".join(f"- {field}: {_dated(value, now)}" for field, value in persona.facts.items())
     return _template().format(
         today=f"{now:%A} {now.day} {now:%B %Y}",
         facts=facts or "- nothing beyond your first name being private",
@@ -126,6 +127,12 @@ def _system(persona: Persona, now: datetime) -> str:
         if persona.mood == "frustrated"
         else "relaxed and cooperative",
     )
+
+
+def _dated(value: str, now: datetime) -> str:
+    """A relative date with the day it means: the model miscounts weekdays on its own."""
+    day = relative_date(value, now.date())
+    return value if day is None else f"{value} ({day:%A} {day.day} {day:%B %Y})"
 
 
 def _user(cue: Cue, transcript: Transcript) -> str:

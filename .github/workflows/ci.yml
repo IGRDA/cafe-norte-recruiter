@@ -26,6 +26,8 @@ jobs:
           enable-cache: true
       - run: make setup
       - run: make check
+        env:
+          HYPOTHESIS_PROFILE: ci
       - run: make evals ARGS="--suite scenarios --mode fake"  # same replay make check runs; printed as a table
 
   postgres:

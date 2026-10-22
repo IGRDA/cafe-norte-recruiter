@@ -2,10 +2,8 @@
 row unchanged. Offline; the SQL that carries the rows is exercised by the contract on Postgres."""
 
 import json
-from datetime import timedelta
 
 from hypothesis import given
-from hypothesis import strategies as st
 
 from cafe_norte.domain.contracts import (
     Booking,
@@ -16,74 +14,12 @@ from cafe_norte.domain.contracts import (
     SessionId,
     SessionState,
     SlotId,
-    TurnId,
 )
 from cafe_norte.observability.contracts import StageTiming, UsageRecord
 from cafe_norte.persistence.contracts import EventRecord, TurnRecord
 from cafe_norte.persistence.postgres import codecs
 from tests.support.builders import NOW
-
-text = st.text(min_size=1, max_size=20)
-instants = st.integers(min_value=0, max_value=10**7).map(lambda s: NOW + timedelta(seconds=s))
-
-turns = st.builds(
-    TurnRecord,
-    turn_id=text.map(TurnId),
-    session_id=text.map(SessionId),
-    input_id=text,
-    role=st.sampled_from(["user", "assistant"]),
-    channel=st.sampled_from(["voice", "text"]),
-    language=st.sampled_from(["es", "en"]),
-    text=st.text(max_size=40),
-    delivered_text=st.none() | st.text(max_size=40),
-    interrupted=st.booleans(),
-    started_at=instants,
-    finished_at=st.none() | instants,
-)
-events = st.builds(
-    EventRecord,
-    session_id=text.map(SessionId),
-    turn_id=st.none() | text.map(TurnId),
-    seq=st.integers(min_value=1, max_value=10**6),
-    kind=text,
-    payload_json=st.dictionaries(text, st.integers()).map(json.dumps),
-    at=instants,
-)
-slots = st.builds(
-    InterviewSlot,
-    slot_id=text.map(SlotId),
-    config_id=text.map(ConfigId),
-    starts_at_utc=instants,
-    duration_minutes=st.integers(min_value=1, max_value=120),
-    status=st.sampled_from(["available", "reserved"]),
-)
-bookings = st.builds(
-    Booking,
-    slot_id=text.map(SlotId),
-    config_id=text.map(ConfigId),
-    starts_at_utc=instants,
-    confirmation_id=text.map(ConfirmationId),
-    idempotency_key=text,
-    committed_at=instants,
-)
-usage = st.builds(
-    UsageRecord,
-    session_id=text.map(SessionId),
-    turn_id=st.none() | text.map(TurnId),
-    kind=st.sampled_from(["llm_tokens", "tts_characters", "stt_seconds"]),
-    quantity=st.floats(min_value=0, max_value=1e6, allow_nan=False),
-    unit_detail=text,
-    estimated=st.booleans(),
-)
-timings = st.builds(
-    StageTiming,
-    session_id=text.map(SessionId),
-    turn_id=text.map(TurnId),
-    stage=st.sampled_from(["llm_total", "tool", "text_total"]),
-    milliseconds=st.integers(min_value=0, max_value=10**6),
-    source=st.sampled_from(["server", "browser", "server_proxy"]),
-    tool_name=st.text(max_size=10),
-)
+from tests.support.strategies import bookings, events, slots, timings, turns, usage
 
 
 @given(turns)

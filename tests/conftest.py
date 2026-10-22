@@ -5,10 +5,18 @@ from collections.abc import AsyncIterator
 
 import psycopg
 import pytest
+from hypothesis import settings
 
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.postgres import PostgresStore
+
+# Property-test effort (D50): ``dev`` by default, ``ci`` in CI (more examples, the same ones
+# every run), ``deep`` for ``make quality``. No deadline: these are not timing tests.
+settings.register_profile("dev", max_examples=100, deadline=None)
+settings.register_profile("ci", max_examples=300, deadline=None, derandomize=True)
+settings.register_profile("deep", max_examples=2000, deadline=None)
+settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "dev"))
 
 # The store contract runs against every implementation. ``make check`` runs the memory
 # parameter (pytest's addopts deselects ``postgres``); ``make test-db`` runs the other.

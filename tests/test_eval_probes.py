@@ -6,7 +6,15 @@ from pathlib import Path
 import httpx
 import pytest
 from evals import scorecard_live
-from evals.contracts import AnswerJudge, Exchange, ProbeRecord, RetrievalCase, RunRecord, Step
+from evals.contracts import (
+    AnswerJudge,
+    Exchange,
+    ProbeRecord,
+    RetrievalCase,
+    RunRecord,
+    Scorecard,
+    Step,
+)
 from evals.live import HttpConversation, serve
 from evals.probes import probe
 from evals.ragas_bridge import (
@@ -109,6 +117,9 @@ def test_facts_ignore_case_accents_separators_and_accept_alternatives() -> None:
         ("Eso no lo sé, pero puedo pedir que alguien del equipo te lo cuente.", (), True),
         ("I don't have that information, sorry.", (), True),
         ("That's not something I know, but I can ask for you.", (), True),
+        ("I couldn't find information about bringing dogs to work.", (), True),
+        ("I don’t have information about the dress code for the party.", (), True),
+        ("No tengo información sobre el aparcamiento.", (), True),
         ("Hay parking gratuito para el equipo.", (), False),
         ("Lo anoto para que te respondan.", ("request_human_followup",), True),
     ],
@@ -217,6 +228,11 @@ def test_the_live_scorecard_runs_end_to_end_for_free(
     assert {p.name for p in (folder / "probe-exports").iterdir()} == {"R02.json", "R17.json"}
     assert '"export": null' in (folder / "probes.json").read_text()
     assert (tmp_path / "baselines" / "fake.json").exists()
+    first = Scorecard.model_validate_json((folder / "scorecard.json").read_text())
+    assert scorecard_live.rescore(folder, scenarios, None, save_baseline=False) == 1
+    again = Scorecard.model_validate_json((folder / "scorecard.json").read_text())
+    values = [(m.spec.id, m.value, m.k, m.n) for m in first.metrics]
+    assert [(m.spec.id, m.value, m.k, m.n) for m in again.metrics] == values  # free, the same
 
 
 async def test_an_empty_answer_is_not_judged_and_misses_its_facts() -> None:

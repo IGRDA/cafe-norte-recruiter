@@ -549,9 +549,11 @@ _THOUSANDS = re.compile(r"(?<=\d)[.,](?=\d{3}\b)")
 _ABSTAIN = re.compile(
     r"\bno (?:lo )?s[ée]\b|no tengo (?:esa |esta |ese |este )?(?:informaci|dato)|no dispongo"
     r"|no (?:te )?puedo (?:confirmar|decir)|no aparece|no consta"
-    r"|no es algo que sepa|no tengo esa respuesta"
-    r"|\bdon'?t know\b|\bdo not know\b|don'?t have (?:that|this|any) (?:information|detail)"
-    r"|not something i know|not sure|can'?t (?:confirm|tell)|\bno information\b",
+    r"|no es algo que sepa|no tengo esa respuesta|no tengo informaci|no he encontrado"
+    r"|\bdon'?t know\b|\bdo not know\b"
+    r"|don['’]?t have (?:that |this |any )?(?:information|detail)"
+    r"|couldn'?t find (?:any )?information|not something i know|not sure"
+    r"|can'?t (?:confirm|tell)|\bno information\b",
     re.IGNORECASE,
 )
 

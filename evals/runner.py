@@ -270,6 +270,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--save-baseline", action="store_true", help="scorecard: commit this run as the baseline"
     )
+    parser.add_argument(
+        "--rescore", default=None, help="scorecard: a recorded live results folder, scored again"
+    )
     live = parser.add_argument_group("live runs (paid; the estimate is printed first)")
     live.add_argument("--model", default=os.environ.get("CAFE_NORTE_MODEL") or DEFAULT_MODEL)
     live.add_argument("--simulator", default=DEFAULT_SIMULATOR)
@@ -442,6 +445,10 @@ def scorecard_main(args: argparse.Namespace) -> int:
     the numbers ``make check`` gates on. Live: the scenarios with ``live_checks`` and every
     knowledge-base question as a probe against ``--model``, judged by ragas (D51)."""
     retrieval = retrieval_report(args.retriever, ragas=True)
+    if args.rescore:
+        return scorecard_live.rescore(
+            Path(args.rescore), load_scenarios(), retrieval, save_baseline=args.save_baseline
+        )
     if args.mode == "live":
         scenarios = [s for s in load_scenarios(only=args.only) if s.live_checks]
         return scorecard_live.execute(

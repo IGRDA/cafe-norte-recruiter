@@ -1690,6 +1690,22 @@ discarded. It also showed the scorecard hid it: a session with failed turns stil
 completed" (an export and no failed turn); a probe whose turn failed is counted there and
 nowhere else.
 
+**The gpt-4.1 baseline (22 October, gpt-4o judging, two sessions at a time, committed as
+`evals/results/scorecard/openai-gpt-4.1.json`).** 53/53 runs completed, no 429. Every tier-0
+row holds: first sentence 1.5 s median, €0.045 a session, tool calls 97/97, no leak. Injection
+5/5 held. Misses, all read in the transcripts:
+- **The model's own topic filters the answer away.** R01 (hours), R05 (contract), R06
+  (holidays) and R32 (work permit) searched with `topic` `role` or `benefits`, whose documents
+  (`TOPIC_DOCS`) do not include `offer_*` or `interview_process`; Ana then said the KB does not
+  say. Offline recall@3 is 32/32 because the suite does not apply the model's topic: the next
+  change is the knowledge stage's, not the evaluation's. Expected facts 43/51.
+- Scenarios 3/7: S05 never showed an offer source, S06 flagged no follow-up, S07 answered in
+  Spanish after the switch, S11 left the outcome unset after the withdrawal.
+- Judges (report only): faithfulness 0.85, answer accuracy 0.63, goal 0.58, rubric 0.79, on
+  topic 0.89, style 0.83.
+Two abstentions ("I couldn't find information about…", "I don't have information about…")
+were missed by the regex and re-scored for free from the recording (`--rescore`): 5/5.
+
 **Consequences we accept.** The retrieval rows need the hybrid retriever, so `make check`
 gates the scenario rows and leaves retrieval to its own tests (BM25 alone misses the English
 questions the model would have reformulated). Latency and cost targets are provisional until

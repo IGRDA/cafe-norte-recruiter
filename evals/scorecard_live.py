@@ -17,6 +17,7 @@ from pathlib import Path
 from pydantic import TypeAdapter
 
 from cafe_norte.observability.cost import load_prices
+from cafe_norte.persistence.export import ExportDocument
 from evals.contracts import (
     ProbeRecord,
     Report,
@@ -38,6 +39,7 @@ from evals.live_runs import Planned, run_plan, write_results
 from evals.pool import CONCURRENCY
 from evals.probes import run_probes
 from evals.ragas_bridge import judge_from, judge_probes, judge_runs
+from evals.report import ReportFile
 from evals.scorecard import render_markdown, scorecard
 from evals.spend import estimate_scorecard
 
@@ -48,6 +50,56 @@ BASELINES = ROOT / "evals" / "results" / "scorecard"  # committed (.gitignore)
 def baseline_path(model: str) -> Path:
     """``openai/gpt-4o-mini`` → ``results/scorecard/openai-gpt-4o-mini.json``."""
     return BASELINES / f"{model.replace('/', '-')}.json"
+
+
+def rescore(
+    folder: Path,
+    scenarios: Sequence[Scenario],
+    retrieval: RetrievalReport | None,
+    *,
+    save_baseline: bool,
+) -> int:
+    """A recorded live scorecard scored again, free: the runs and probes come back from
+    ``folder`` with their exports and the judges' scores, and every deterministic row is read
+    again. For a check that changed after a paid run (D51)."""
+    (scenarios_dir,) = folder.glob("*-scenarios")
+    written = ReportFile.model_validate_json((scenarios_dir / "report.json").read_text())
+    exports = scenarios_dir / "exports"
+    runs = [_with_export(run, exports, f"{run.case_id}-{run.repetition}") for run in written.runs]
+    recorded_probes = TypeAdapter(list[ProbeRecord]).validate_json(
+        (folder / "probes.json").read_bytes()
+    )
+    probes = [
+        p.model_copy(update={"run": _with_export(p.run, folder / "probe-exports", p.case_id)})
+        for p in recorded_probes
+    ]
+    recorded = Scorecard.model_validate_json((folder / "scorecard.json").read_text())
+    target = baseline_path(recorded.model)
+    card = scorecard(
+        runs,
+        {s.id: s for s in scenarios},
+        probes=probes,
+        retrieval=retrieval,
+        model=recorded.model,
+        baseline=None if save_baseline else load_baseline(target),
+    ).model_copy(update={"concurrency": recorded.concurrency})
+    markdown = render_markdown(card)
+    print(markdown)
+    (folder / "scorecard.md").write_text(markdown, encoding="utf-8")
+    (folder / "scorecard.json").write_text(card.model_dump_json(indent=2) + "\n")
+    if save_baseline:
+        target.write_text(card.model_dump_json(indent=2) + "\n")
+        print(f"baseline -> {target}")
+    return 1 if card.gate_failures else 0
+
+
+def _with_export(run: RunRecord, directory: Path, stem: str) -> RunRecord:
+    return run.model_copy(update={"export": _export(directory, stem)})
+
+
+def _export(directory: Path, stem: str) -> ExportDocument | None:
+    path = directory / f"{stem}.json"
+    return ExportDocument.model_validate_json(path.read_text()) if path.exists() else None
 
 
 def load_baseline(path: Path) -> Scorecard | None:

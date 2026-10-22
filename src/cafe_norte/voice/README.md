@@ -22,7 +22,7 @@ the call ends (D35); everything Ana says is journaled. Timings are browser-obser
 where possible and labelled as proxies otherwise.
 
 Tests: `test_delivery.py` (pure, property-based), `test_voice_session.py` (fake runtime,
-recorder, fast timers), `test_metering.py` (pure), `test_bridge.py` (Pipecat frames in memory; the transcript tap through
+recorder, every timer on virtual time through the injected `sleep`, D50), `test_metering.py` (pure), `test_bridge.py` (Pipecat frames in memory; the transcript tap through
 the real user aggregator via `user_side`), `test_daily.py` (scripted
 transport), `test_api_voice.py` (fakes). The real providers are touched only by
 `make voice-listen` and `make voice-smoke`, both manual.

@@ -5,7 +5,7 @@ a stream of typed events for one call, with tool schemas passed as data. Adapter
 
 | File | Adapter | Status |
 | --- | --- | --- |
-| `fake.py` | `FakeModel`: scripted events, deterministic, used by every offline test and the CI evals; optional fallback script; `fail_next()` makes the next call raise as an outage would | done |
+| `fake.py` | `FakeModel`: scripted events, deterministic, used by every offline test and the CI evals; optional fallback script; `fail_next()` makes the next call raise as an outage would; a `policy` (messages and tools in, events out) for a model that must react to the prompt | done |
 | `chat_completions.py` | Streaming Chat Completions over HTTP (Groq); serial tool calls; usage; reasoning deltas dropped | done, tested against a scripted transport |
 | `select.py` | `model_from_env("groq/openai/gpt-oss-120b", env)`; `openai/<model>` with `OPENAI_API_KEY` as a local alternative | done |
 

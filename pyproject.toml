@@ -38,6 +38,7 @@ dev = [
     # ragas 0.4 imports langchain_community.chat_models.vertexai, gone in 0.4 (D43).
     "langchain-community>=0.3,<0.4",
     "langfuse>=3",
+    "mutmut>=3.3",
 ]
 
 [build-system]
@@ -77,9 +78,32 @@ ignore_missing_imports = true
 
 [tool.coverage.run]
 source = ["src/cafe_norte", "evals"]
+branch = true
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-# Floor over the whole package, stubs at 0% included; raise it as stages land (target 90).
-fail_under = 80
+# Lines and branches over the whole package, the Postgres adapters (covered by make test-db)
+# included; a ratchet: raise it when the measure rises, never lower it (D50).
+fail_under = 91
+
+[tool.mutmut]
+# make quality (D50): mutation testing of the small pure modules against the unit layer.
+# Not a gate: the scores are a ratchet recorded in tests/README.md.
+source_paths = ["src"]
+only_mutate = [
+    "src/cafe_norte/domain/lifecycle.py",
+    "src/cafe_norte/domain/fields.py",
+    "src/cafe_norte/domain/session_time.py",
+    "src/cafe_norte/domain/numbers.py",
+    "src/cafe_norte/domain/booking.py",
+    "src/cafe_norte/domain/confirmation.py",
+    "src/cafe_norte/domain/candidate.py",
+    "src/cafe_norte/domain/review.py",
+    "src/cafe_norte/conversation/slot_answer.py",
+    "src/cafe_norte/voice/delivery.py",
+    "src/cafe_norte/observability/redaction.py",
+    "src/cafe_norte/observability/cost.py",
+]
+tests_dir = ["tests/unit/"]
+also_copy = ["tests/", "evals/", "scripts/", "config/", "kb/", "examples/", "infra/", "web/", ".env.example"]

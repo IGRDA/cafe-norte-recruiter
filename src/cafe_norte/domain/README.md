@@ -33,7 +33,7 @@ decline      : FieldState[T] × TurnId         → Declined
 value_of     : FieldState[T]                  → T | None            (None unless Captured/Confirmed)
 ```
 
-`tests/test_field_algebra.py` pins these laws with property tests. The JSON export shape
+`tests/unit/test_field_algebra.py` pins these laws with property tests. The JSON export shape
 (`value`, `status`, `source_turn_id`, `evidence_text`) is the serialisation of this union, not a
 second model.
 

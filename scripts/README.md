@@ -11,4 +11,5 @@ Operational entry points. None is imported by `src/`.
 | `bootstrap.sh` | One-time: state bucket, Workload Identity Federation, migrate bootstrap state to GCS | gcloud ADC, terraform |
 | `set_secrets.py` | Upload provider keys to Secret Manager versions outside Terraform state | gcloud ADC |
 | `teardown.sh` | Drain sessions, then destroy the app stack; keeps state and backups until selected | gcloud ADC, terraform |
+| `quality_report.py` | `make quality`: tests, properties and machines per layer, coverage, the slowest tests and the mutation score, from `.quality/` and `mutants/` | the files `make quality` writes |
 | `init_test_db.sql` | Compose init: creates the test database | compose |

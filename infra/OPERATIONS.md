@@ -62,6 +62,11 @@ update the source, verification date and version together when refreshing prices
   and ordered `events` journal show what the candidate received.
 - Voice capacity is controlled by `CAFE_NORTE_MAX_VOICE_SESSIONS`. Startup releases that
   instance's abandoned admission rows; room expiry and admission TTL recover crashed calls.
+- Capacity is set in `app/variables.tf`: one `e2-standard-4` with six calls, 30 session starts
+  per IP an hour and ten database connections, sized for about ten testers with five to ten at
+  once. This is reasoned, not load-tested. The call cap counts every instance on the database,
+  so a second VM adds no calls unless the cap is raised. The ElevenLabs plan must allow as many
+  requests at once as there are calls. To scale back, set `e2-small`, 2, 9 and 5.
 - When an access code is set, [RequestLimits](../src/cafe_norte/api/limits.py) configures code
   attempts and session starts per IP, plus the daily session ceiling. It documents the
   environment overrides. Restarts clear per-IP counters; deleting sessions reduces the daily

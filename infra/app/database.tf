@@ -21,7 +21,7 @@ resource "google_sql_database_instance" "db" {
     tier              = var.db_tier
     edition           = "ENTERPRISE"
     availability_type = "ZONAL"
-    disk_type         = "PD_HDD" # two sessions at a time; nothing here needs an SSD
+    disk_type         = "PD_HDD" # a demo of about ten testers; nothing here needs an SSD
     disk_size         = 10
     disk_autoresize   = false
 

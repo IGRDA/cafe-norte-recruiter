@@ -19,7 +19,7 @@ variable "public_hostname" {
 variable "db_tier" {
   type        = string
   default     = "db-f1-micro"
-  description = "Shared-core Postgres 16: about 8 EUR a month; two voice sessions never need more."
+  description = "Shared-core Postgres 16: about 8 EUR a month; enough for a demo of about ten testers."
 }
 variable "db_name" {
   type    = string
@@ -60,8 +60,26 @@ variable "enable_database" {
 
 variable "machine_type" {
   type        = string
-  default     = "e2-small"
-  description = "One VM runs the app and Caddy; e2-small is enough for two voice sessions."
+  default     = "e2-standard-4"
+  description = "One VM runs the app and Caddy. e2-standard-4 (4 vCPU, 16 GB) carries max_voice_sessions calls beside the text chats; e2-small carries two calls."
+}
+
+variable "max_voice_sessions" {
+  type        = number
+  default     = 6
+  description = "CAFE_NORTE_MAX_VOICE_SESSIONS: simultaneous calls, counted across every instance on the database. Each call is a CPU-bound pipeline on this VM and one ElevenLabs request at a time, so keep it within both."
+}
+
+variable "session_starts_per_hour" {
+  type        = number
+  default     = 30
+  description = "CAFE_NORTE_SESSION_STARTS_PER_HOUR per client IP. Testers in one office share an IP; the daily session ceiling still bounds spend."
+}
+
+variable "db_pool_size" {
+  type        = number
+  default     = 10
+  description = "CAFE_NORTE_DB_POOL_SIZE: a turn, a stream poll and a heartbeat each need a connection. Ten stays well below db-f1-micro's connection limit."
 }
 
 variable "signal_model" {

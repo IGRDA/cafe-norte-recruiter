@@ -2351,7 +2351,8 @@ The relative wording matches D52 on dev and never switches falsely. **The gate f
 held-out**: three indirect cases, twice each, where the candidate says they cannot follow the
 session language and names no other ("Mi español es muy básico", "i dont understand english
 good"). With two languages that meant "the other one"; with ten it names no target, and Jev
-stays. Tuning the wording further against the held-out set would spend it, so the branch stops
-here, unmerged, for a decision: make "names none" mean the other tested language (a product
-rule, measured on a freshly generated held-out set); or ask D52's keep/switch question beside
-this one, keep/switch deciding *whether* and this one *which*; or accept the gap.
+stays. Tuning the wording further against the held-out set would spend it. The options were: make
+"names none" mean the other tested language (a product rule, measured on a fresh held-out
+set); ask D52's keep/switch question beside this one; or accept the gap. **Iñaki merged it on
+22 October 2026, accepting the gap**: no false switch on either set, and a candidate who names
+no language and is not understood can still ask for one by name, which the patterns catch.

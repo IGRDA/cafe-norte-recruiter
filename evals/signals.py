@@ -26,6 +26,7 @@ from cafe_norte.conversation.prompts import PROMPT_VERSION
 from cafe_norte.conversation.signals import (
     QUESTIONS,
     ModelSignalAnalyzer,
+    as_languages,
     chosen_language,
     decision_state,
     explicit_controls,
@@ -230,7 +231,7 @@ class JevClassifier:
             sentiment=sentiment.choice,
             sentiment_probabilities=sentiment.probabilities,
             reply_language=chosen_language(language.probabilities, case.session_language),
-            language_probabilities=dict(language.probabilities),
+            language_probabilities=as_languages(language.probabilities, case.session_language),
             milliseconds=_since(started),
             cost_eur=_eur(
                 self._prices,

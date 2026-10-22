@@ -463,6 +463,15 @@ def decision_state(language: Language, ana_said: str, candidate_said: str) -> di
     return {"session_language": language, "ana_said": ana_said, "candidate_said": candidate_said}
 
 
+def as_languages(probabilities: Mapping[str, float], current: Language) -> dict[str, float]:
+    """The answer per language: ``keep`` is staying in ``current``, so its probability is
+    ``current``'s (D63). What the page shows and the suite scores."""
+    folded = {k: p for k, p in probabilities.items() if k != "keep"}
+    if "keep" in probabilities:
+        folded[current] = folded.get(current, 0.0) + probabilities["keep"]
+    return folded
+
+
 def chosen_language(probabilities: Mapping[str, float], current: Language) -> Language:
     """The top language of the ``reply_language`` answer when it is not ``current`` and is at
     least ``SWITCH_THRESHOLD`` likely; ``current`` otherwise. ``other`` never switches (D63)."""
@@ -523,7 +532,7 @@ class DecisionSignalAnalyzer:
                 },
                 language={
                     option: p
-                    for option, p in languages.items()
+                    for option, p in as_languages(languages, language).items()
                     if option in SWITCHABLE or option == "other"
                 },
             ),

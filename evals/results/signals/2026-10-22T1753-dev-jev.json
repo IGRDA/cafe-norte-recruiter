@@ -1,0 +1,7335 @@
+{
+  "generated_at": "2026-10-22T17:53:23+00:00",
+  "cases": 122,
+  "repeat": 2,
+  "prompt_version": "ana_v24",
+  "systems": [
+    {
+      "system": "jev",
+      "model": "typesafe/jev-1.14",
+      "calls": 244,
+      "errors": {
+        "k": 0,
+        "n": 244
+      },
+      "sentiment": {
+        "accuracy": {
+          "k": 229,
+          "n": 244
+        },
+        "macro_f1": 0.9287279373642987,
+        "recall": {
+          "neutral": {
+            "k": 133,
+            "n": 144
+          },
+          "positive": {
+            "k": 26,
+            "n": 26
+          },
+          "frustrated": {
+            "k": 38,
+            "n": 40
+          },
+          "uncertain": {
+            "k": 32,
+            "n": 34
+          }
+        },
+        "precision": {
+          "neutral": {
+            "k": 133,
+            "n": 137
+          },
+          "positive": {
+            "k": 26,
+            "n": 36
+          },
+          "frustrated": {
+            "k": 38,
+            "n": 38
+          },
+          "uncertain": {
+            "k": 32,
+            "n": 33
+          }
+        },
+        "actionable_precision": {
+          "k": 70,
+          "n": 71
+        },
+        "actionable_recall": {
+          "k": 70,
+          "n": 74
+        },
+        "confusion": {
+          "neutral": {
+            "neutral": 133,
+            "positive": 10,
+            "frustrated": 0,
+            "uncertain": 1
+          },
+          "positive": {
+            "neutral": 0,
+            "positive": 26,
+            "frustrated": 0,
+            "uncertain": 0
+          },
+          "frustrated": {
+            "neutral": 2,
+            "positive": 0,
+            "frustrated": 38,
+            "uncertain": 0
+          },
+          "uncertain": {
+            "neutral": 2,
+            "positive": 0,
+            "frustrated": 0,
+            "uncertain": 32
+          }
+        },
+        "brier": 0.09592213114754097,
+        "sweep": [
+          {
+            "threshold": 0.5,
+            "caught": {
+              "k": 70,
+              "n": 74
+            },
+            "false_alarms": {
+              "k": 1,
+              "n": 170
+            }
+          },
+          {
+            "threshold": 0.7,
+            "caught": {
+              "k": 69,
+              "n": 74
+            },
+            "false_alarms": {
+              "k": 0,
+              "n": 170
+            }
+          },
+          {
+            "threshold": 0.8,
+            "caught": {
+              "k": 66,
+              "n": 74
+            },
+            "false_alarms": {
+              "k": 0,
+              "n": 170
+            }
+          },
+          {
+            "threshold": 0.9,
+            "caught": {
+              "k": 62,
+              "n": 74
+            },
+            "false_alarms": {
+              "k": 0,
+              "n": 170
+            }
+          },
+          {
+            "threshold": 0.95,
+            "caught": {
+              "k": 60,
+              "n": 74
+            },
+            "false_alarms": {
+              "k": 0,
+              "n": 170
+            }
+          }
+        ]
+      },
+      "language": {
+        "accuracy": {
+          "k": 233,
+          "n": 244
+        },
+        "false_switches": {
+          "k": 0,
+          "n": 190
+        },
+        "missed_requests": {
+          "k": 6,
+          "n": 38
+        },
+        "by_kind": {
+          "stay": {
+            "k": 146,
+            "n": 146
+          },
+          "explicit": {
+            "k": 21,
+            "n": 22
+          },
+          "indirect": {
+            "k": 11,
+            "n": 16
+          },
+          "written_other": {
+            "k": 11,
+            "n": 16
+          },
+          "mention": {
+            "k": 22,
+            "n": 22
+          },
+          "borrowed": {
+            "k": 22,
+            "n": 22
+          }
+        },
+        "brier": 0.027545491803278685,
+        "sweep": [
+          {
+            "threshold": 0.5,
+            "caught": {
+              "k": 36,
+              "n": 38
+            },
+            "false_alarms": {
+              "k": 0,
+              "n": 190
+            }
+          },
+          {
+            "threshold": 0.7,
+            "caught": {
+              "k": 32,
+              "n": 38
+            },
+            "false_alarms": {
+              "k": 0,
+              "n": 190
+            }
+          },
+          {
+            "threshold": 0.8,
+            "caught": {
+              "k": 30,
+              "n": 38
+            },
+            "false_alarms": {
+              "k": 0,
+              "n": 190
+            }
+          },
+          {
+            "threshold": 0.9,
+            "caught": {
+              "k": 28,
+              "n": 38
+            },
+            "false_alarms": {
+              "k": 0,
+              "n": 190
+            }
+          },
+          {
+            "threshold": 0.95,
+            "caught": {
+              "k": 25,
+              "n": 38
+            },
+            "false_alarms": {
+              "k": 0,
+              "n": 190
+            }
+          }
+        ]
+      },
+      "stable": {
+        "k": 118,
+        "n": 122
+      },
+      "p50_ms": 281,
+      "p95_ms": 480,
+      "eur_per_1000_turns": 0.028519774571923055
+    }
+  ],
+  "predictions": [
+    {
+      "case_id": "es-01",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 507,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-02",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 502,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-03",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 524,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-04",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 502,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-05",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 297,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-06",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 1035,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-07",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.85,
+        "positive": 0.14,
+        "frustrated": 0.0,
+        "uncertain": 0.01
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 273,
+      "cost_eur": 2.878760904397365e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-08",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 292,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-09",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 286,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-10",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 359,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-11",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.98,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.02
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 491,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-12",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.94,
+        "positive": 0.03,
+        "frustrated": 0.0,
+        "uncertain": 0.03
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 474,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-13",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 378,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-14",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.95,
+        "positive": 0.05,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 301,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-15",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 368,
+      "cost_eur": 2.9385793128004273e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-16",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 291,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-17",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.95,
+        "positive": 0.05,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 328,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-18",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.96,
+        "positive": 0.0,
+        "frustrated": 0.04,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 605,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-19",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 306,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-20",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.98,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.01
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 398,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-21",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.9400000000000001,
+        "positive": 0.03,
+        "frustrated": 0.0,
+        "uncertain": 0.03
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 315,
+      "cost_eur": 2.8226811465194942e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-22",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 254,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-23",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 298,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-24",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 265,
+      "cost_eur": 2.8862382054477477e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-25",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 276,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-26",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 269,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-27",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 268,
+      "cost_eur": 2.8824995549225564e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-28",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 281,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-29",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 360,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-30",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 270,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-31",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.01,
+        "frustrated": 0.99,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 283,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-32",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 265,
+      "cost_eur": 2.8824995549225564e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-33",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 329,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-34",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 257,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-35",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 280,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-36",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 306,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-37",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.73,
+        "positive": 0.0,
+        "frustrated": 0.27,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 286,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-38",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 251,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-39",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 480,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-40",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 435,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-41",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 328,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-42",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.99
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 319,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-43",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 254,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-44",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.98
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 272,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-45",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.06,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.94
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 1346,
+      "cost_eur": 2.8824995549225564e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-46",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.99
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 258,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-47",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.99
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 257,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-48",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.05,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.95
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 442,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-49",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.94,
+        "positive": 0.05,
+        "frustrated": 0.0,
+        "uncertain": 0.01
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.04,
+        "en": 0.96,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 279,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-50",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.02
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.04,
+        "en": 0.96,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 480,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-51",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.95,
+        "positive": 0.0,
+        "frustrated": 0.05,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.03,
+        "en": 0.97,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 277,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-52",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.89,
+        "positive": 0.05,
+        "frustrated": 0.03,
+        "uncertain": 0.03
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.05,
+        "en": 0.95,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 271,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-53",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.03
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.08,
+        "en": 0.92,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 377,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-54",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 251,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-55",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.29,
+        "en": 0.7,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.01
+      },
+      "milliseconds": 262,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-56",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.53,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.47
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.14,
+        "en": 0.86,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 253,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-57",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.75,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.24
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.01,
+        "en": 0.99,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 255,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-58",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.93,
+        "positive": 0.01,
+        "frustrated": 0.0,
+        "uncertain": 0.06
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.22,
+        "en": 0.78,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 273,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-59",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.69,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.31
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.04,
+        "en": 0.96,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 282,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-60",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.12,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.87
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.07,
+        "en": 0.93,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 265,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-61",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.28,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.72
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.15,
+        "en": 0.56,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.28
+      },
+      "milliseconds": 277,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-62",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.62,
+        "en": 0.38,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 249,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-63",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.2,
+        "en": 0.8,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 264,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-64",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.01,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.32,
+        "en": 0.68,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 268,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-65",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.24,
+        "en": 0.76,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 258,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-66",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.24,
+        "en": 0.76,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 286,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-67",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 296,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-68",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 269,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-69",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.93,
+        "positive": 0.06,
+        "frustrated": 0.0,
+        "uncertain": 0.01
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 301,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-70",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.03
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 269,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-71",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.98,
+        "positive": 0.02,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 285,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-72",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.87,
+        "positive": 0.11,
+        "frustrated": 0.02,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 264,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-73",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.89,
+        "positive": 0.0,
+        "frustrated": 0.11,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 253,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-74",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.03,
+        "positive": 0.97,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 246,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-75",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.07,
+        "positive": 0.93,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.98,
+        "en": 0.02,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 299,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-76",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.2,
+        "positive": 0.79,
+        "frustrated": 0.01,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 260,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-77",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 258,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-78",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.96,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.04
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.84,
+        "en": 0.15,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.01
+      },
+      "milliseconds": 244,
+      "cost_eur": 2.953533914901193e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-79",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.8,
+        "positive": 0.18,
+        "frustrated": 0.02,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 374,
+      "cost_eur": 2.8226811465194942e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-80",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 359,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-01",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 326,
+      "cost_eur": 2.8226811465194942e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-02",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 387,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-03",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.01,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 391,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-04",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 388,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-05",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.95,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.05
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 389,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-06",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.01
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 324,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-07",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.93,
+        "positive": 0.07,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 267,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-08",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.94,
+        "positive": 0.06,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 270,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-09",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.73,
+        "positive": 0.0,
+        "frustrated": 0.25,
+        "uncertain": 0.02
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 299,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-10",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 252,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-11",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 377,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-12",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 365,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-13",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 362,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-14",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 333,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-15",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 304,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-16",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.99,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 303,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-17",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 306,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-18",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 303,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-19",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 251,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-20",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 287,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-21",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 283,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-22",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 274,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-23",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.98
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 306,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-24",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.99
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 271,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-25",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 276,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-26",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.92,
+        "positive": 0.06,
+        "frustrated": 0.01,
+        "uncertain": 0.01
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.95,
+        "en": 0.05,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 287,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-27",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.92,
+        "positive": 0.01,
+        "frustrated": 0.01,
+        "uncertain": 0.06
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.97,
+        "en": 0.03,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 373,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-28",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.96,
+        "positive": 0.0,
+        "frustrated": 0.04,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.99,
+        "en": 0.01,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 363,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-29",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.14,
+        "positive": 0.0,
+        "frustrated": 0.79,
+        "uncertain": 0.07
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 358,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-30",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.91,
+        "positive": 0.0,
+        "frustrated": 0.05,
+        "uncertain": 0.04
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.44,
+        "en": 0.56,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 345,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-31",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.21,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.79
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.98,
+        "en": 0.02,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 281,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-32",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.65,
+        "en": 0.35,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 267,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-33",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.8,
+        "en": 0.2,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 281,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-34",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.74,
+        "en": 0.26,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 290,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-35",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.03
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 280,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-36",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 267,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-37",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.01,
+        "en": 0.99,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 1055,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-38",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.98,
+        "positive": 0.02,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 264,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-39",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.31,
+        "positive": 0.69,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.2,
+        "en": 0.79,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.01
+      },
+      "milliseconds": 251,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-40",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.77,
+        "positive": 0.23,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.07,
+        "en": 0.93,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 268,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-41",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.02,
+        "positive": 0.98,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.04,
+        "en": 0.96,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 362,
+      "cost_eur": 2.8226811465194942e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-42",
+      "system": "jev",
+      "repetition": 1,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 244,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-01",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 291,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-02",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 299,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-03",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 278,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-04",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 1586,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-05",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 253,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-06",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 279,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-07",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.84,
+        "positive": 0.15,
+        "frustrated": 0.0,
+        "uncertain": 0.01
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 258,
+      "cost_eur": 2.878760904397365e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-08",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 264,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-09",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 282,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-10",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 276,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-11",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.03
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 238,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-12",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.93,
+        "positive": 0.04,
+        "frustrated": 0.0,
+        "uncertain": 0.03
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 371,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-13",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 368,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-14",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.95,
+        "positive": 0.05,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 277,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-15",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 458,
+      "cost_eur": 2.9385793128004273e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-16",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 258,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-17",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.96,
+        "positive": 0.04,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 257,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-18",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.98,
+        "positive": 0.0,
+        "frustrated": 0.02,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 255,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-19",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 271,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-20",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.0,
+        "frustrated": 0.02,
+        "uncertain": 0.01
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 255,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-21",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.93,
+        "positive": 0.03,
+        "frustrated": 0.0,
+        "uncertain": 0.04
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.99,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.01
+      },
+      "milliseconds": 273,
+      "cost_eur": 2.8226811465194942e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-22",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 253,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-23",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.99,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 260,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-24",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 321,
+      "cost_eur": 2.8862382054477477e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-25",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 292,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-26",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 278,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-27",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 266,
+      "cost_eur": 2.8824995549225564e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-28",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 275,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-29",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.99,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 257,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-30",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 244,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-31",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.01,
+        "frustrated": 0.99,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 287,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-32",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 281,
+      "cost_eur": 2.8824995549225564e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-33",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 285,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-34",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 303,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-35",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 249,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-36",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 385,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-37",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.73,
+        "positive": 0.0,
+        "frustrated": 0.27,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 368,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-38",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 352,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-39",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 347,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-40",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 306,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-41",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 305,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-42",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.99
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 307,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-43",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 304,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-44",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.99
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 241,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-45",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.06,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.94
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 338,
+      "cost_eur": 2.8824995549225564e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-46",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.99
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 255,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-47",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.99
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 245,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-48",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.05,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.95
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 369,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-49",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.95,
+        "positive": 0.03,
+        "frustrated": 0.01,
+        "uncertain": 0.01
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.05,
+        "en": 0.95,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 364,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-50",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.02
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.04,
+        "en": 0.96,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 355,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-51",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.0,
+        "frustrated": 0.03,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.03,
+        "en": 0.97,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 313,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-52",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.89,
+        "positive": 0.05,
+        "frustrated": 0.02,
+        "uncertain": 0.04
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.04,
+        "en": 0.96,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 273,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-53",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.96,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.04
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.06,
+        "en": 0.94,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 278,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-54",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 266,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-55",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.31,
+        "en": 0.67,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.02
+      },
+      "milliseconds": 276,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-56",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.47,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.53
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.18,
+        "en": 0.8200000000000001,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 263,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-57",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.79,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.2
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.01,
+        "en": 0.99,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 253,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-58",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.92,
+        "positive": 0.01,
+        "frustrated": 0.0,
+        "uncertain": 0.07
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.4,
+        "en": 0.6,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 252,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-59",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.7,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.3
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.05,
+        "en": 0.95,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 296,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-60",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.11,
+        "positive": 0.0,
+        "frustrated": 0.01,
+        "uncertain": 0.88
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.05,
+        "en": 0.95,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 252,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-61",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.35,
+        "positive": 0.01,
+        "frustrated": 0.0,
+        "uncertain": 0.64
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.22,
+        "en": 0.59,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.19
+      },
+      "milliseconds": 262,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-62",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.64,
+        "en": 0.36,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 322,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-63",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.19,
+        "en": 0.81,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 264,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-64",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.01,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.28,
+        "en": 0.72,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 250,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-65",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.29,
+        "en": 0.71,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 330,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-66",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.24,
+        "en": 0.76,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 270,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-67",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.01
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 301,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-68",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 276,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-69",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.92,
+        "positive": 0.07,
+        "frustrated": 0.0,
+        "uncertain": 0.01
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 276,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-70",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.03
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 262,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-71",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.97,
+        "positive": 0.03,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 439,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-72",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.86,
+        "positive": 0.12,
+        "frustrated": 0.02,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 282,
+      "cost_eur": 2.8750222538721738e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-73",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.9,
+        "positive": 0.0,
+        "frustrated": 0.1,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 259,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-74",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.03,
+        "positive": 0.97,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 269,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-75",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.06,
+        "positive": 0.94,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.99,
+        "en": 0.01,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 246,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-76",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.24,
+        "positive": 0.75,
+        "frustrated": 0.01,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 341,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-77",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 781,
+      "cost_eur": 2.867544952821791e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-78",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.92,
+        "positive": 0.01,
+        "frustrated": 0.01,
+        "uncertain": 0.06
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.88,
+        "en": 0.11,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.01
+      },
+      "milliseconds": 290,
+      "cost_eur": 2.953533914901193e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-79",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.79,
+        "positive": 0.18,
+        "frustrated": 0.03,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 248,
+      "cost_eur": 2.8226811465194942e-05,
+      "error": null
+    },
+    {
+      "case_id": "es-80",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 311,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-01",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 312,
+      "cost_eur": 2.8226811465194942e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-02",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 283,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-03",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.01,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 263,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-04",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 288,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-05",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.94,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.06
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 248,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-06",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.01
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 247,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-07",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.91,
+        "positive": 0.09,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 244,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-08",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.94,
+        "positive": 0.06,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 296,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-09",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.72,
+        "positive": 0.0,
+        "frustrated": 0.26,
+        "uncertain": 0.02
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 257,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-10",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 277,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-11",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 283,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-12",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 275,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-13",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 307,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-14",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 295,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-15",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 1.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 281,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-16",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.99,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 269,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-17",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 267,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-18",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 271,
+      "cost_eur": 2.8638063022965996e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-19",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 250,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-20",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 273,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-21",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 1.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 265,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-22",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 304,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-23",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.02,
+        "uncertain": 0.97
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 275,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-24",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.01,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.99
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 303,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-25",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 1.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 252,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-26",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.92,
+        "positive": 0.06,
+        "frustrated": 0.01,
+        "uncertain": 0.01
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.95,
+        "en": 0.05,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 286,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-27",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.94,
+        "positive": 0.01,
+        "frustrated": 0.01,
+        "uncertain": 0.04
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.96,
+        "en": 0.04,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 261,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-28",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.96,
+        "positive": 0.0,
+        "frustrated": 0.04,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.97,
+        "en": 0.03,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 258,
+      "cost_eur": 2.8376357486202598e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-29",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "frustrated",
+      "sentiment_probabilities": {
+        "neutral": 0.13,
+        "positive": 0.0,
+        "frustrated": 0.8,
+        "uncertain": 0.07
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 1.0,
+        "en": 0.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 291,
+      "cost_eur": 2.871283603346982e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-30",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.91,
+        "positive": 0.0,
+        "frustrated": 0.06,
+        "uncertain": 0.03
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.42,
+        "en": 0.58,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 266,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-31",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "uncertain",
+      "sentiment_probabilities": {
+        "neutral": 0.18,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.8200000000000001
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.98,
+        "en": 0.02,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 982,
+      "cost_eur": 2.848851700195834e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-32",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.99,
+        "positive": 0.01,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.59,
+        "en": 0.41,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 260,
+      "cost_eur": 2.8525903507210253e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-33",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.78,
+        "en": 0.22,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 289,
+      "cost_eur": 2.830158447569877e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-34",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "es",
+      "language_probabilities": {
+        "es": 0.78,
+        "en": 0.22,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 248,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-35",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.98,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.02
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 254,
+      "cost_eur": 2.8451130496706427e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-36",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 263,
+      "cost_eur": 2.8413743991454514e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-37",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 266,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-38",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.98,
+        "positive": 0.02,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 373,
+      "cost_eur": 2.8600676517714083e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-39",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.24,
+        "positive": 0.76,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.21000000000000002,
+        "en": 0.79,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 289,
+      "cost_eur": 2.826419797044686e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-40",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 0.77,
+        "positive": 0.23,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.09,
+        "en": 0.91,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 249,
+      "cost_eur": 2.8338970980950685e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-41",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "positive",
+      "sentiment_probabilities": {
+        "neutral": 0.03,
+        "positive": 0.97,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.03,
+        "en": 0.97,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 352,
+      "cost_eur": 2.8226811465194942e-05,
+      "error": null
+    },
+    {
+      "case_id": "en-42",
+      "system": "jev",
+      "repetition": 2,
+      "sentiment": "neutral",
+      "sentiment_probabilities": {
+        "neutral": 1.0,
+        "positive": 0.0,
+        "frustrated": 0.0,
+        "uncertain": 0.0
+      },
+      "reply_language": "en",
+      "language_probabilities": {
+        "es": 0.0,
+        "en": 1.0,
+        "fr": 0.0,
+        "pt": 0.0,
+        "it": 0.0,
+        "de": 0.0,
+        "ro": 0.0,
+        "ar": 0.0,
+        "zh": 0.0,
+        "uk": 0.0,
+        "other": 0.0
+      },
+      "milliseconds": 259,
+      "cost_eur": 2.856329001246217e-05,
+      "error": null
+    }
+  ]
+}

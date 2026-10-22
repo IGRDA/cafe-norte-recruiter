@@ -11,6 +11,7 @@ from cafe_norte.conversation.signals import (
     SWITCH_THRESHOLD,
     Control,
     answer_to_readback,
+    as_languages,
     asks_for_a_language,
     asks_question,
     chosen_language,
@@ -344,7 +345,7 @@ def test_the_questions_offer_every_sentiment_and_every_language() -> None:
         "frustrated",
         "uncertain",
     }
-    assert set(QUESTIONS["reply_language"].criteria) == {*SWITCHABLE, "other"}
+    assert set(QUESTIONS["reply_language"].criteria) == {"keep", *SWITCHABLE, "other"}
     assert set(prompts.languages()) == set(SWITCHABLE)
 
 
@@ -428,3 +429,11 @@ def test_any_explicit_language_request_counts_not_only_spanish_and_english() -> 
     assert asks_for_a_language(explicit_controls("En francés, por favor."))
     assert asks_for_a_language(explicit_controls("In English, please."))
     assert not asks_for_a_language(explicit_controls("Quiero hablar con una persona."))
+
+
+def test_keep_is_the_session_language() -> None:
+    assert as_languages({"keep": 0.6, "es": 0.1, "en": 0.3}, "es") == pytest.approx(
+        {"es": 0.7, "en": 0.3}
+    )
+    assert chosen_language({"keep": 0.95, "fr": 0.05}, "es") == "es"
+    assert chosen_language({"keep": 0.2, "fr": 0.8}, "es") == "fr"

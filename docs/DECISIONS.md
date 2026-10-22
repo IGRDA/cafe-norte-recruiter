@@ -2299,11 +2299,14 @@ language" would be gone.
   suite, scenarios, live checks, voice). The other eight are *supported, untested*: wired end to
   end, covered by fake-based tests, labelled so in the README. No case set, no live check, no
   listening test is written for them until one is needed.
-- Jev's question is `reply_language`: the eleven options are the ten codes and `other`. The
-  runtime takes the top option; a switch happens when it is not the session language and its
-  probability is at least `SWITCH_THRESHOLD` (0.7, D52's number). `other` never switches. An
-  explicit request matched by the patterns (D28) still wins over the model. When, where and how
-  a switch applies is D53's, unchanged.
+- Jev's question is `reply_language`, asked relative to the session as D52 found Jev reads
+  better: `keep` (stay in the session language), one "switch to it" option per language, and
+  `other`. The runtime takes the top option; a switch happens when it is a language that is not
+  the session's and its probability is at least `SWITCH_THRESHOLD` (0.7, D52's number). `keep`,
+  the session's own code and `other` never switch. The page and the suite read `keep` as the
+  session language's probability (`as_languages`). An explicit request matched by the patterns
+  (D28, now for all ten) still wins over the model. When, where and how a switch applies is
+  D53's, unchanged.
 - The gate for the question: the es/en dev and held-out sets must keep D52's numbers (false
   switches 0/118, missed requests 0/36); one round of criteria wording is allowed, and the
   measured numbers are appended here before the branch merges.
@@ -2330,3 +2333,25 @@ language" would be gone.
 English template, not a reviewed text; the facts in it are the runtime's. The eight untested languages may be worse than the
 two tested ones, and nothing here measures by how much. `SignalProbabilities.language` is now
 keyed by language code, so exports written under D62 and D63 differ in those keys.
+
+**Measured (22 October 2026, Jev 1.14, 2 repetitions, the es/en sets of D52).**
+
+| Question | Set | Language acc. | False switches | Missed requests |
+| --- | --- | --- | --- | --- |
+| keep/switch (D52, baseline) | dev | 244/244 | 0/190 | 0/38 |
+| keep/switch (D52, baseline) | held-out | 166/166 | 0/118 | 0/36 |
+| one option per language (absolute) | dev | 233/244 | 0/190 | 6/38 |
+| one option per language (absolute) | held-out | 153/166 | 0/118 | 7/36 |
+| keep + a switch per language (shipped wording) | dev | 244/244 | 0/190 | 0/38 |
+| keep + a switch per language (shipped wording) | held-out | 160/166 | 0/118 | 6/36 |
+
+The absolute question spread its confidence: the right language usually came first at
+0.56–0.68, under the threshold, and lowering the threshold to 0.5 still missed 2/38 and 5/36.
+The relative wording matches D52 on dev and never switches falsely. **The gate fails on
+held-out**: three indirect cases, twice each, where the candidate says they cannot follow the
+session language and names no other ("Mi español es muy básico", "i dont understand english
+good"). With two languages that meant "the other one"; with ten it names no target, and Jev
+stays. Tuning the wording further against the held-out set would spend it, so the branch stops
+here, unmerged, for a decision: make "names none" mean the other tested language (a product
+rule, measured on a freshly generated held-out set); or ask D52's keep/switch question beside
+this one, keep/switch deciding *whether* and this one *which*; or accept the gap.

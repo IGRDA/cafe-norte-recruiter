@@ -6,10 +6,10 @@ One `key: sentence` per line; `#` lines and blank lines are ignored. `{value}` i
 intro: Here is what I have.
 question: Is all of that correct?
 name: Your name is {value}.
-interest.yes: You are interested in the role.
+interest.yes: You said you are interested in the role.
 interest.unsure: You are not sure whether you are interested.
 interest.no: You are not interested in the role.
-work_authorization.yes: You have permission to work.
+work_authorization.yes: You said you have permission to work.
 work_authorization.unsure: You are not sure whether you have permission to work.
 work_authorization.no: You do not have permission to work.
 availability: You can work {days}, on the {shifts} shift, about {hours} hours a week.

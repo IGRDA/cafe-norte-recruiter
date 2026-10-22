@@ -55,8 +55,9 @@ def sentences(text: str) -> list[str]:
 
 def test_the_brief_is_gone_over_in_short_parts_each_ending_with_the_check() -> None:
     assert review_parts(render_brief(LUCIA, CONFIG, "es"), "es") == (
-        "Te llamas Lucía Marín. Te interesa el puesto. ¿Está bien?",
-        "Tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, en turno de Mañana, "
+        "Te llamas Lucía Marín. Me has dicho que te interesa el puesto. ¿Está bien?",
+        "Me has dicho que tienes permiso de trabajo. Puedes trabajar lunes, martes y jueves, "
+        "en turno de Mañana, "
         "unas 30 horas a la semana. ¿Está bien?",
         "Podrías empezar el lunes 26 de octubre de 2026. Experiencia: dos años en una cafetería. "
         "¿Está bien?",

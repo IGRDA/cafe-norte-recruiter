@@ -6,10 +6,10 @@ One `key: sentence` per line; `#` lines and blank lines are ignored. `{value}` i
 intro: Te resumo lo que tengo.
 question: ¿Es todo correcto?
 name: Te llamas {value}.
-interest.yes: Te interesa el puesto.
+interest.yes: Me has dicho que te interesa el puesto.
 interest.unsure: No tienes claro si te interesa.
 interest.no: No te interesa el puesto.
-work_authorization.yes: Tienes permiso de trabajo.
+work_authorization.yes: Me has dicho que tienes permiso de trabajo.
 work_authorization.unsure: No tienes claro si tienes permiso de trabajo.
 work_authorization.no: No tienes permiso de trabajo.
 availability: Puedes trabajar {days}, en turno de {shifts}, unas {hours} horas a la semana.

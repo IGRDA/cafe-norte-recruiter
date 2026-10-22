@@ -2125,3 +2125,11 @@ D56–D58 and the feedback on them. One entry per fix, in the order they landed.
   `not_interested` is refused (`answer_first`) while the turn's own message asks something
   (`asks_question`, D58); `candidate_stop` still closes. Live, "No, muchas gracias. ¿Tienes
   alguna otra oferta?" got the goodbye (KI-20). S32 replays it.
+- **No review for a one-sentence read-back.** A cut date, phone or slot read-back has one part:
+  a yes says it again once, and the next answer confirms it; a carry-on waives it; no offer in
+  between. Live, a cut date took three yeses (cut, offer, part). The D39 matrix oracle and S08
+  follow. The review of the brief is unchanged.
+- **The summary states what was said.** "Me has dicho que te interesa el puesto." and "Me has
+  dicho que tienes permiso de trabajo." (and the English pair), so a short statement read aloud
+  cannot sound like the question it answers. Iñaki heard "te interesa el puesto" as Ana asking
+  again.

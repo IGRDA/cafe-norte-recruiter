@@ -35,7 +35,7 @@ async def test_a_switch_read_before_the_first_sentence_answers_in_the_new_langua
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.language == "en"
     system = h.model.calls[1][0].content
-    assert system.rstrip().endswith(prompts.load("language", "en").strip())
+    assert system.rstrip().endswith(prompts.language_line("en"))
 
 
 async def test_tool_calls_of_the_dropped_round_are_not_executed() -> None:

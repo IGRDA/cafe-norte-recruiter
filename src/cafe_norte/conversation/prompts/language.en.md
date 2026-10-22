@@ -1,1 +1,0 @@
-Conversation language: English. These instructions are in Spanish, but every sentence you write to the candidate is in English, including the first one of each turn. Translate the Spanish knowledge base snippets; never quote them in Spanish.

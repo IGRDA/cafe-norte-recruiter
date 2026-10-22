@@ -30,6 +30,13 @@ class LanguageInfo(BaseModel):
     rtl: bool
 
 
+def language_line(language: Language) -> str:
+    """The system message's closing line (D28): which language every reply is in. One template
+    for every language (D63), in English, naming the language natively too."""
+    info = languages()[language]
+    return load("language").strip().format(english=info.english, native=info.native)
+
+
 def languages() -> dict[Language, LanguageInfo]:
     """``languages.yaml``: what the prompt, the patterns and the page know about each one."""
     raw = yaml.safe_load((PROMPTS_DIR / "languages.yaml").read_text("utf-8"))

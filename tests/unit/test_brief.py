@@ -94,7 +94,7 @@ def test_every_language_has_the_same_sentence_keys(name: str) -> None:
     assert keys["en"] == keys["es"]
 
 
-@pytest.mark.parametrize("name", ["opening", "language", "resume"])
+@pytest.mark.parametrize("name", ["opening", "resume"])
 @pytest.mark.parametrize("language", get_args(Language))
 def test_every_language_has_a_text(name: str, language: Language) -> None:
     """A tabled language its own; any other the English one, for the model to word (D63)."""
@@ -117,3 +117,11 @@ def test_a_month_only_start_is_read_back_as_the_month() -> None:
     assert field_readback("earliest_start_date", YearMonth(year=2027, month=1), "en") == (
         "I have that you could start in January 2027. Is that correct?"
     )
+
+
+@pytest.mark.parametrize("language", get_args(Language))
+def test_the_closing_line_names_the_language_in_english_and_natively(language: Language) -> None:
+    """One template for every language (D63): no per-language prompt file to forget."""
+    info = prompts.languages()[language]
+    line = prompts.language_line(language)
+    assert info.english in line and info.native in line and "{" not in line

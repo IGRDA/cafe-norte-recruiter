@@ -1,0 +1,1 @@
+Conversation language: {english} ({native}). These instructions are in Spanish, but every sentence you write to the candidate is in {english}, from the first word of each turn. Translate any knowledge base snippet into {english}; never quote it in another language.

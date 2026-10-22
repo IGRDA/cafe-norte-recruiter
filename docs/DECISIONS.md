@@ -2267,9 +2267,11 @@ the numbers move per message shows what the runtime is reading and why it switch
   empty. Thresholds and decisions are unchanged.
 - `GET /api/runtime` says which classifier runs (`signals: off | labels | jev`), so the page
   can say "no classifier" instead of looking broken.
-- The page shows the latest message's bars (four tones, keep/switch) and a trend of
-  p(frustrated) and p(switch) over the last 12 messages, under the composer so it is visible on
-  a phone. Native `<meter>` elements: no inline style for the CSP, and screen readers read the
+- The page shows the latest message's bars (four tones, keep/switch) and two small line charts
+  over the last 12 messages, tone and p(switch), on one 0–1 axis with the runtime's thresholds
+  (0.5, 0.7) marked, under the composer so it is visible on a phone. The model is not named on
+  the page. The probabilities are shown as the classifier returns them; how well they are
+  calibrated is a measurement for `evals/signals`, not something the chart claims. Native `<meter>` elements: no inline style for the CSP, and screen readers read the
   values. Not a live region: it would talk over Ana.
 - Advisory, as D30 and D52: it describes the words of one message, never the person, and no
   decision reads it.

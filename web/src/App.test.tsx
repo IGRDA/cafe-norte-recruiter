@@ -1,5 +1,5 @@
 // The page rendered against fake ports: the API, the stream and the dialog are in-memory.
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { describe, expect, it, vi } from "vitest";
@@ -20,6 +20,13 @@ class FakeStream {
     const event: SessionEvent = { session_id: "s1", seq, turn_id: turnId, at: "2026-10-22T10:00:00Z", payload };
     act(() => this.listeners.get(payload.type)?.(new MessageEvent(payload.type, { data: JSON.stringify(event) })));
   }
+}
+
+/** "Conectada." renders before the effect that opens the stream runs: wait for both, or an
+ * event emitted on a slow machine reaches no listener. */
+async function opened(stream: FakeStream) {
+  await screen.findByText("Conectada.");
+  await waitFor(() => expect(stream.listeners.size).toBeGreaterThan(0));
 }
 
 function json(status: number, body: unknown = null): Response {
@@ -63,7 +70,7 @@ function setup({ needsCode = false, code = null as string | null } = {}) {
 describe("App", () => {
   it("opens a session, shows Ana's words from the stream and sends a turn", async () => {
     const { stream, posted } = setup();
-    await screen.findByText("Conectada.");
+    await opened(stream);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Ana · Café Norte Chamberí");
     stream.emit(1, { type: "turn_started", turn_id: "t1", language: "es", text: "" });
     stream.emit(2, { type: "assistant_text", text: "Hola, soy Ana.", spoken_form: "" });
@@ -97,7 +104,7 @@ describe("App", () => {
 
   it("answers a pending read-back with Sí", async () => {
     const { stream, posted } = setup();
-    await screen.findByText("Conectada.");
+    await opened(stream);
     stream.emit(1, pendingBrief(3));
     await userEvent.click(screen.getByRole("button", { name: "Sí" }));
     await waitFor(() =>
@@ -111,7 +118,7 @@ describe("App", () => {
 
   it("speaks the session's language: <html lang> follows a switch", async () => {
     const { stream } = setup();
-    await screen.findByText("Conectada.");
+    await opened(stream);
     expect(document.documentElement.lang).toBe("es");
     stream.emit(1, { ...pendingBrief(), language: "en" });
     expect(document.documentElement.lang).toBe("en");
@@ -119,7 +126,7 @@ describe("App", () => {
 
   it("shows the latest message's tone and language probabilities as they arrive", async () => {
     const { stream } = setup();
-    await screen.findByText("Conectada.");
+    await opened(stream);
     expect(screen.getByText("Aparecerán con tu primer mensaje.")).toBeInTheDocument();
     stream.emit(1, { type: "turn_started", turn_id: "t1", language: "es", text: "esto es lentísimo" });
     expect(screen.getByText("Leyendo tu último mensaje…")).toBeInTheDocument();
@@ -140,12 +147,15 @@ describe("App", () => {
     });
     expect(screen.getByRole("meter", { name: "frustrado" })).toHaveAttribute("value", "0.86");
     expect(screen.getByRole("meter", { name: "mantener" })).toHaveAttribute("value", "0.97");
-    expect(screen.getByText("86 %")).toBeInTheDocument();
+    const tone = screen.getByRole("table", { name: "Tono" }); // the chart's table view
+    expect(within(tone).getByRole("row", { name: "1 10 % 0 % 86 % 4 %" })).toBeInTheDocument();
+    expect(screen.getByText("frustrado 86 %")).toBeInTheDocument(); // the line's end label
+    expect(screen.queryByText(/Jev/)).not.toBeInTheDocument();
   });
 
   it("has no accessibility violations axe can find", async () => {
     const { container, stream } = setup();
-    await screen.findByText("Conectada.");
+    await opened(stream);
     stream.emit(1, pendingBrief(3));
     const results = await axe.run(container, { rules: { "color-contrast": { enabled: false } } });
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.html).join(" | ")}`)).toEqual([]);

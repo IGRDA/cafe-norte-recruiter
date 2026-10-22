@@ -635,10 +635,7 @@ export function signalStatus(state: State): "off" | "idle" | "waiting" | "ready"
   return state.signals.some((s) => s.turnId === state.lastUserTurn) ? "ready" : "waiting";
 }
 
-/** One value per recorded message, oldest first: p(frustrated) or p(switch). */
-export function signalTrend(state: State, option: "frustrated" | "switch"): number[] {
-  return state.signals.flatMap((s) => {
-    if (!s.probabilities) return [];
-    return [option === "switch" ? s.probabilities.language.switch : s.probabilities.sentiment.frustrated];
-  });
+/** The probabilities of every recorded message, oldest first (label-only verdicts have none). */
+export function signalSeries(state: State): NonNullable<SignalPoint["probabilities"]>[] {
+  return state.signals.flatMap((s) => (s.probabilities ? [s.probabilities] : []));
 }

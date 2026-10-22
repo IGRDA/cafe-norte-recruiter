@@ -12,7 +12,7 @@ export function Header({ state, dispatch }: Props) {
   return (
     <header>
       <h1 className="brand">
-        <img src="/logo-mark.svg" alt="" width="40" height="40" /> Ana · <span>{storeName(state)}</span>
+        <img src="/logo-mark.svg" alt="" width="48" height="48" /> Ana · <span>{storeName(state)}</span>
       </h1>
       <p className="notice">
         Demostración ficticia de selección. Usa datos inventados. Se guardan los textos y transcripciones; no se

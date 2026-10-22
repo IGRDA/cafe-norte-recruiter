@@ -84,7 +84,9 @@ locals {
     "CAFE_NORTE_SIGNAL_MODEL=${var.signal_model}", # empty: no analyzer
     "CAFE_NORTE_VOICE=pipecat",
     "ELEVENLABS_VOICE_ID=${var.elevenlabs_voice_id}",
-    "CAFE_NORTE_MAX_VOICE_SESSIONS=2",
+    "CAFE_NORTE_MAX_VOICE_SESSIONS=${var.max_voice_sessions}",
+    "CAFE_NORTE_SESSION_STARTS_PER_HOUR=${var.session_starts_per_hour}",
+    "CAFE_NORTE_DB_POOL_SIZE=${var.db_pool_size}",
     "CAFE_NORTE_ENVIRONMENT=production",
     "CAFE_NORTE_TRACE_CONTENT=on", # redacted words and tool arguments in traces; fictional data only
     "LANGFUSE_BASE_URL=${var.langfuse_base_url}",

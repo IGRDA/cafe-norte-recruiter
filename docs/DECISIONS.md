@@ -2085,3 +2085,10 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   late. The journal also shows why the brief counted as unheard: its turn was interrupted after
   three sentences, before Iñaki answered, by a sound that the old 0.2 s barge-in took as speech.
   That is D57.
+- **Cached input is counted and priced apart.** `ModelUsage.cached_input_tokens` is read from
+  OpenAI's `prompt_tokens_details.cached_tokens`. The usage records gain `<model>:input_cached`,
+  and `:input` then excludes it. The generation sends Langfuse's `input_cached_tokens` bucket,
+  since flat `usage_details` must not overlap. The price table (`2026-10-22.1`) prices cached input
+  for gpt-4.1 ($0.50 / 1M), gpt-4o and gpt-4o-mini at the prices its comments already recorded.
+  Live gpt-4.1 calls send about 5,000 input tokens, mostly the same system prompt and tools, so
+  the full-rate price overstated them. A provider that reports no cache sends no third record.

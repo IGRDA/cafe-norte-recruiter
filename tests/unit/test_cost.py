@@ -10,7 +10,13 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from cafe_norte.domain.contracts import SessionId, TurnId
-from cafe_norte.observability.contracts import Price, PriceTable, UsageKind, UsageRecord
+from cafe_norte.observability.contracts import (
+    Price,
+    PriceTable,
+    UsageKind,
+    UsageRecord,
+    token_usage,
+)
 from cafe_norte.observability.cost import estimate, load_prices
 from cafe_norte.voice.contracts import TTS_MODEL
 
@@ -136,3 +142,19 @@ def test_the_order_of_usage_changes_neither_the_total_nor_what_is_missing(
     assert math.isclose(a.marginal_eur, b.marginal_eur, rel_tol=1e-9, abs_tol=1e-9)
     assert sorted(a.missing_prices) == sorted(b.missing_prices)
     assert len(set(a.missing_prices)) == len(a.missing_prices)
+
+
+def test_cached_input_is_its_own_record_and_not_counted_twice() -> None:
+    """Live gpt-4.1 calls send ~5k input tokens, most of them cached at a quarter of the price;
+    priced at the full rate the export overstated them (D58)."""
+    records = token_usage(SessionId("s"), None, "gpt-4.1", 5000, 40, estimated=False, cached=4608)
+    assert {r.unit_detail: r.quantity for r in records} == {
+        "gpt-4.1:input": 392,
+        "gpt-4.1:input_cached": 4608,
+        "gpt-4.1:output": 40,
+    }
+    priced = estimate(SessionId("s"), records, load_prices())
+    assert not priced.missing_prices
+    plain = token_usage(SessionId("s"), None, "gpt-4.1", 5000, 40, estimated=False)
+    assert len(plain) == 2  # nothing cached: no third record
+    assert priced.marginal_eur < estimate(SessionId("s"), plain, load_prices()).marginal_eur

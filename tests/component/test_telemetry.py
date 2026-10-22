@@ -45,6 +45,7 @@ PRICES = PriceTable(
     prices=(
         Price(kind="llm_tokens", unit_detail="gpt-4o-mini:input", eur_per_unit=0.000001),
         Price(kind="llm_tokens", unit_detail="gpt-4o-mini:output", eur_per_unit=0.000004),
+        Price(kind="llm_tokens", unit_detail="gpt-4o-mini:input_cached", eur_per_unit=0.0000005),
     ),
 )
 
@@ -411,3 +412,26 @@ def test_a_cancelled_span_is_a_warning_and_the_cancellation_propagates() -> None
         raise asyncio.CancelledError
     attrs = attributes(traced.finished()["chat"])
     assert attrs["langfuse.observation.level"] == "WARNING"
+
+
+def test_cached_input_is_a_separate_usage_bucket_priced_apart() -> None:
+    """Langfuse buckets do not overlap: input excludes input_cached_tokens."""
+    traced = Traced()
+    with traced.turn() as root:
+        chat = root.child("chat", "generation")
+        chat.set_usage(
+            model_id="gpt-4o-mini", input_tokens=1000, output_tokens=500, cached_input_tokens=800
+        )
+        chat.end()
+    attrs = attributes(traced.finished()["chat"])
+    assert json.loads(str(attrs["langfuse.observation.usage_details"])) == {
+        "input": 200,
+        "input_cached_tokens": 800,
+        "output": 500,
+        "total": 1500,
+    }
+    cost = json.loads(str(attrs["langfuse.observation.cost_details"]))
+    assert set(cost) == {"input", "input_cached_tokens", "output", "total"}
+    assert cost["total"] == pytest.approx(
+        cost["input"] + cost["input_cached_tokens"] + cost["output"]
+    )

@@ -26,7 +26,9 @@ class NullSpan:
     def annotate(self, **metadata: SpanValue) -> None:
         pass
 
-    def set_usage(self, *, model_id: str, input_tokens: int, output_tokens: int) -> None:
+    def set_usage(
+        self, *, model_id: str, input_tokens: int, output_tokens: int, cached_input_tokens: int = 0
+    ) -> None:
         pass
 
     def set_content(self, *, input: str | None = None, output: str | None = None) -> None:
@@ -153,7 +155,9 @@ class _RecordingSpan(NullSpan):
     def annotate(self, **metadata: SpanValue) -> None:
         self._record.metadata.update(metadata)
 
-    def set_usage(self, *, model_id: str, input_tokens: int, output_tokens: int) -> None:
+    def set_usage(
+        self, *, model_id: str, input_tokens: int, output_tokens: int, cached_input_tokens: int = 0
+    ) -> None:
         self._record.usage = (model_id, input_tokens, output_tokens)
 
     def set_content(self, *, input: str | None = None, output: str | None = None) -> None:

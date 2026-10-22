@@ -194,35 +194,38 @@ class _OtelSpan:
     def annotate(self, **metadata: SpanValue) -> None:
         self._span.set_attributes(_metadata(metadata))
 
-    def set_usage(self, *, model_id: str, input_tokens: int, output_tokens: int) -> None:
+    def set_usage(
+        self, *, model_id: str, input_tokens: int, output_tokens: int, cached_input_tokens: int = 0
+    ) -> None:
         self._span.set_attribute(f"{_OBSERVATION}model.name", model_id)
+        # Langfuse's buckets do not overlap: OpenAI's prompt tokens include the cached ones, so
+        # "input" is what was not cached (D58).
+        buckets = {"input": input_tokens - cached_input_tokens}
+        if cached_input_tokens:
+            buckets["input_cached_tokens"] = cached_input_tokens
+        buckets["output"] = output_tokens
         self._span.set_attribute(
             f"{_OBSERVATION}usage_details",
-            json.dumps(
-                {
-                    "input": input_tokens,
-                    "output": output_tokens,
-                    "total": input_tokens + output_tokens,
-                }
-            ),
+            json.dumps({**buckets, "total": input_tokens + output_tokens}),
         )
         # Our own euros, from the table the export is priced with, so the two agree. Left out
         # when the model has no price: a missing cost is better than a wrong one.
+        directions = {"input": "input", "input_cached_tokens": "input_cached", "output": "output"}
         costs: dict[str, float] = {}
-        for direction, quantity in (("input", input_tokens), ("output", output_tokens)):
+        for bucket, quantity in buckets.items():
             record = UsageRecord(
                 session_id=self._session_id,
                 turn_id=None,
                 kind="llm_tokens",
                 quantity=quantity,
-                unit_detail=f"{model_id}:{direction}",
+                unit_detail=f"{model_id}:{directions[bucket]}",
                 estimated=False,
             )
             priced = estimate(self._session_id, [record], self._prices)
             if priced.missing_prices:
                 return
-            costs[direction] = priced.marginal_eur
-        costs["total"] = costs["input"] + costs["output"]
+            costs[bucket] = priced.marginal_eur
+        costs["total"] = sum(costs.values())
         self._span.set_attribute(f"{_OBSERVATION}cost_details", json.dumps(costs))
         self._span.set_attributes(
             _metadata({"cost_currency": "EUR", "price_table_version": self._prices.version})

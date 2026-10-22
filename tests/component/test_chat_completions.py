@@ -256,3 +256,17 @@ async def test_a_transport_timeout_is_a_timeout() -> None:
             deadline = datetime.now(UTC) + DEADLINE
             _ = [e async for e in model.stream((), (), deadline=deadline)]
     assert raised.value.code == "timeout"
+
+
+async def test_cached_input_tokens_are_read_from_the_usage_details() -> None:
+    """OpenAI reports the prompt cache inside prompt_tokens; ~5k of each call's tokens repeat."""
+    usage = {
+        "prompt_tokens": 5000,
+        "completion_tokens": 40,
+        "prompt_tokens_details": {"cached_tokens": 4608},
+    }
+    events, _ = await run(sse(finish("stop"), {"choices": [], "usage": usage, "model": "m"}))
+    assert (
+        ModelUsage(input_tokens=5000, output_tokens=40, cached_input_tokens=4608, model_id="m")
+        in events
+    )

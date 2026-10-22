@@ -221,6 +221,7 @@ class _Turn:
                 usage.input_tokens,
                 usage.output_tokens,
                 estimated=False,
+                cached=usage.cached_input_tokens,
             )
         )
 
@@ -891,6 +892,7 @@ class Runtime:
                             model_id=self._model.model_id,
                             input_tokens=event.input_tokens,
                             output_tokens=event.output_tokens,
+                            cached_input_tokens=event.cached_input_tokens,
                         )
             except ServiceError as error:
                 chat.fail(error.code)

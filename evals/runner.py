@@ -68,7 +68,7 @@ COMPARISON_CASES = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
 COMPARISON_RESULTS = ROOT / "evals" / "results" / "comparison"  # committed (.gitignore)
 COMPARISON_MODELS = ("openai/gpt-4.1", "openai/gpt-4o-mini")  # hosted and previous (D49)
 COMPARISON_REPEAT = 2
-SCORECARD_JUDGE = "openai/gpt-4o-mini"  # D51: the ragas judges' model
+SCORECARD_JUDGE = "openai/gpt-4o"  # D51: 18/18 on the calibration set; gpt-4o-mini wobbled on goals
 
 _FAKE_INDEX: dict[str, Index] = {}
 

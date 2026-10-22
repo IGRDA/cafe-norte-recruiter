@@ -18,7 +18,7 @@
 | Scenario integrity (S01–S22) against fakes | own runner, deterministic scorers | CI |
 | Scenario behaviour live, candidate simulated | own runner over the HTTP API + `ModelCandidateSimulator` worded from deterministic cues (D43) | local, paid, `--yes` |
 | Retrieval quality (41 questions, D51) | own scorers (recall@3, abstention, leakage) + ragas ID-based context precision/recall (`--ragas`, offline) | local, free |
-| Judges | ragas through the `AnswerJudge` port (`--judge openai/<model>`, `fake` or `off`; the scorecard defaults to `openai/gpt-4o-mini`) | local, optional, report only |
+| Judges | ragas through the `AnswerJudge` port (`--judge openai/<model>`, `fake` or `off`; the scorecard defaults to `openai/gpt-4o`) | local, optional, report only |
 | Model comparison (gpt-4.1 vs gpt-4o-mini by default, 24 runs) | own runner on one loopback server per model, same prompt/tools/KB | local, once, `--yes`; summary committed |
 | Voice latency | browser monotonic timings + server stage timings | hosted, by hand, ≥6 sessions |
 | Production traces | OpenTelemetry → Langfuse EU | always |
@@ -32,13 +32,13 @@ scorecard"`. Four tiers, cheapest first, like a test pyramid:
 | --- | --- | --- | --- |
 | 0 | Deterministic, no reference | valid export, turn length, first-sentence latency, cost, tool calls accepted, language kept, no leak | gate |
 | 1 | Deterministic, against a reference | recall@3, ragas ID precision/recall, no cross-store source, abstention, expected facts, ragas `ToolCallF1`, scenario trajectory, extraction, no fabrication, task success, injection held | gate |
-| 2 | Judge, against a reference | ragas `Faithfulness`, `FactualCorrectness`; the scenario's goal and rubric bullets as pass/fail ragas `DiscreteMetric` | report |
+| 2 | Judge, against a reference | ragas `Faithfulness`, `AnswerAccuracy`; the scenario's goal and rubric bullets as pass/fail ragas `DiscreteMetric` | report |
 | 3 | Judge alone | stays on topic, style (pass/fail ragas `DiscreteMetric`) | report |
 
 Answer-level rows come from QA probes: each of the 41 knowledge-base questions as the first
 line of its own live session, so an answer is scored apart from the interview around it.
 `make evals ARGS="--suite scorecard --mode live"` prints the estimate; `--yes` runs the
-scenarios with `live_checks`, the probes and the judges (`openai/gpt-4o-mini` by default).
+scenarios with `live_checks`, the probes and the judges (`openai/gpt-4o` by default).
 
 Each row carries k/n, its target (`docs/architecture.md`) and the delta against the committed
 baseline (`evals/results/scorecard/`). A row nothing measured says "not run" and neither passes
@@ -60,10 +60,11 @@ reported next to these, not instead of them.
 
 ## Judges
 
-ragas through the `AnswerJudge` port (D51): `Faithfulness` and `FactualCorrectness` on the QA
+ragas through the `AnswerJudge` port (D51): `Faithfulness` and `AnswerAccuracy` on the QA
 probes, and a pass/fail `DiscreteMetric` (`evals/prompts/criterion.md`) for staying on topic,
 the scenario's goal, style and each rubric bullet. Off for the scenario and comparison suites
-unless `--judge openai/<model>`; the live scorecard defaults to `openai/gpt-4o-mini`. A judge
+unless `--judge openai/<model>`; the live scorecard defaults to `openai/gpt-4o`, the model that agreed with every labelled case
+(`python -m evals.calibrate`). A judge
 that fails leaves no score and is named, never guessed. Using the answering model as judge is a
 known bias and is labelled in the report. Judge rows never pass or fail anything.
 

@@ -134,7 +134,7 @@ async def test_probes_get_tool_f1_always_and_judge_scores_only_with_a_judge() ->
     assert judged.scores == {
         "probe_tool_f1": 1.0,
         "faithfulness": 0.8,
-        "factual_correctness": 0.8,
+        "answer_accuracy": 0.8,
         "topic_adherence": 1.0,  # a criterion: held (score ≥ 0.5) or not
     }
     rows = {m.spec.id: m for m in scorecard([], {}, probes=[judged]).metrics}

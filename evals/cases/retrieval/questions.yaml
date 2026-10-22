@@ -5,7 +5,7 @@
 # is among the three returned chunks. Leakage cases expect no chunk from the other store.
 # expected_facts are what a probe's answer must contain, compared without case, accents or
 # thousands separators; "a|b" accepts either, so an English answer can hold a Spanish fact.
-# reference is the answer a good probe gives, for ragas' FactualCorrectness.
+# reference is the answer a good probe gives, for ragas' AnswerAccuracy.
 - id: R01
   question: ¿Cuántas horas a la semana son en Chamberí?
   config_id: chamberi_barista_v1

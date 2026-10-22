@@ -3,7 +3,7 @@
 Retrieval: the fixture's expected sections are chunk ids, so ragas' ID-based context
 precision and recall apply exactly, offline, with no model. Probes: ``ToolCallF1`` on the tool
 names a question's turn called, also offline. Judges: ``RagasJudge`` implements the
-``AnswerJudge`` port with ragas' ``Faithfulness``, ``FactualCorrectness`` and a pass/fail
+``AnswerJudge`` port with ragas' ``Faithfulness``, ``AnswerAccuracy`` and a pass/fail
 ``DiscreteMetric`` over an OpenAI model, which reads every criterion: staying on topic, the
 goal, the style and the rubric bullets. ragas' ``TopicAdherence`` and
 ``AgentGoalAccuracyWithReference`` misjudged plain Spanish exchanges on gpt-4o-mini and gpt-4o
@@ -12,6 +12,7 @@ seconds and only these need it. A judge that fails leaves no score, never a gues
 
 import asyncio
 import math
+import re
 import warnings
 from collections.abc import Awaitable, Mapping, Sequence
 from pathlib import Path
@@ -31,18 +32,24 @@ from evals.contracts import (
 )
 from evals.scorers import exchanges, model_turns
 
+_SENTENCE = re.compile(r"(?<=[.!?])\s+")
 JUDGE_SECONDS = 90.0  # one metric on one sample; past it the sample has no score
 CRITERION_PROMPT = Path(__file__).parent / "prompts" / "criterion.md"
-# The criteria, worded as the judge reads them best: violations it can quote (D51).
+# The fixed criteria. A wording is kept only when the judge agrees with every labelled case in
+# ``cases/judge/calibration.yaml`` (``python -m evals.calibrate``, D51).
 TOPIC = (
-    "Ana only talks about the barista job, the store, the candidate's details or the "
-    "interview, and politely declines or redirects anything else."
+    "Ana does not answer anything outside the barista job, the store, the candidate's details "
+    "and the interview: no jokes, opinions or unrelated tasks."
 )
 STYLE = (
-    "Ana never addresses the candidate formally (usted, le, su) and never writes markdown, "
-    "bullet points or notes in brackets."
+    "Ana speaks to the candidate informally, as is normal in Spain: tú forms such as te, tu, "
+    "puedes or ¿cómo te llamas? are correct. Fail only if Ana uses usted, le or su for the "
+    "candidate. English turns are correct."
 )
-GOAL = "This goal is achieved by the end of the conversation: {goal}"
+GOAL = (
+    "Every part of this goal is achieved by the end of the conversation, judged from what Ana "
+    "says and the tools she calls; one part that fails fails the whole: {goal}"
+)
 
 
 def to_ragas_samples(
@@ -125,8 +132,9 @@ async def judge_probes(
     probes: Sequence[ProbeRecord], cases: Sequence[RetrievalCase], judge: AnswerJudge | None
 ) -> list[ProbeRecord]:
     """Each probe with its scores: ``probe_tool_f1`` always (free); with a judge,
-    ``faithfulness`` (answerable, sources shown), ``factual_correctness`` (answerable) and
-    ``topic_adherence``. A broken probe gets none."""
+    ``faithfulness`` (answerable, sources shown), ``answer_accuracy`` (answerable) and
+    ``topic_adherence``. A broken probe gets none. The answer is judged without Ana's
+    follow-up question: a question is not a claim."""
     by_id = {c.id: c for c in cases}
     scored: list[ProbeRecord] = []
     for probe in probes:
@@ -139,13 +147,14 @@ async def judge_probes(
             "probe_tool_f1": await tool_call_f1(case.question, probe.answer, probe.tools)
         }
         if judge is not None and probe.answer.strip():  # no words, nothing to judge: facts miss it
-            if case.kind == "answerable" and probe.contexts:
+            said = claims(probe.answer)
+            if case.kind == "answerable" and probe.contexts and said:
                 scores["faithfulness"] = await _safely(
-                    judge.faithfulness(case.question, probe.answer, probe.contexts)
+                    judge.faithfulness(case.question, said, probe.contexts)
                 )
             if case.kind == "answerable" and case.reference:
-                scores["factual_correctness"] = await _safely(
-                    judge.factual_correctness(probe.answer, case.reference)
+                scores["answer_accuracy"] = await _safely(
+                    judge.answer_accuracy(case.question, said, case.reference)
                 )
             scores["topic_adherence"] = await _held(judge.holds(exchanges(export), TOPIC))
         scored.append(probe.model_copy(update={"scores": scores}))
@@ -190,6 +199,7 @@ class RagasJudge:
 
         self._selector = selector
         self._llm = llm_factory(model, client=AsyncOpenAI())
+        self.last_reason = ""
 
     @property
     def model_id(self) -> str:
@@ -203,13 +213,14 @@ class RagasJudge:
         )
         return _number(result.value)
 
-    async def factual_correctness(self, answer: str, reference: str) -> float:
-        """Precision: the answer's claims the reference supports. A short answer that leaves
-        a detail out is not wrong; the expected facts measure what it must hold."""
-        from ragas.metrics.collections import FactualCorrectness
+    async def answer_accuracy(self, question: str, answer: str, reference: str) -> float:
+        """NVIDIA's answer accuracy: 0, 0.5 or 1 from two ratings against the reference. Extra
+        details from the knowledge base are not counted against the answer, as
+        ``FactualCorrectness`` counted them (D51)."""
+        from ragas.metrics.collections import AnswerAccuracy
 
-        result = await FactualCorrectness(llm=self._llm, mode="precision").ascore(
-            response=answer, reference=reference
+        result = await AnswerAccuracy(llm=self._llm).ascore(
+            user_input=question, response=answer, reference=reference
         )
         return _number(result.value)
 
@@ -224,6 +235,7 @@ class RagasJudge:
         result = await metric.ascore(
             llm=self._llm, conversation=_render(exchanges), criterion=criterion
         )
+        self.last_reason = str(result.reason or "")  # for calibration's misses
         if result.value not in ("pass", "fail"):
             raise ValueError(f"criterion answered {result.value!r}")
         return bool(result.value == "pass")
@@ -243,11 +255,16 @@ class FakeAnswerJudge:
     async def faithfulness(self, question: str, answer: str, contexts: Sequence[str]) -> float:
         return self._score
 
-    async def factual_correctness(self, answer: str, reference: str) -> float:
+    async def answer_accuracy(self, question: str, answer: str, reference: str) -> float:
         return self._score
 
     async def holds(self, exchanges: Sequence[Exchange], criterion: str) -> bool:
         return self._score >= 0.5
+
+
+def claims(answer: str) -> str:
+    """The answer without its questions: Ana ends most turns asking the next thing."""
+    return " ".join(s for s in _SENTENCE.split(answer.strip()) if s and not s.endswith("?"))
 
 
 def judge_from(selector: str) -> AnswerJudge | None:

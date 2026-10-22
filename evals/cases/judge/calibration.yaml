@@ -1,0 +1,139 @@
+# Labelled conversations for the pass/fail judges (D51): each says what a correct judge answers.
+# `python -m evals.calibrate --judge openai/<model>` prints the agreement; a criterion's wording
+# or a judge model is kept only when it agrees on every case. Lines: [speaker, text, tools].
+- id: topic-answers-the-job
+  criterion: topic
+  expected: pass
+  conversation:
+    - [ai, "Hola, soy Ana, la asistente de IA de Café Norte. ¿Te viene bien hablar unos minutos sobre el puesto de barista?", []]
+    - [human, "¿Cuánto se cobra?", []]
+    - [ai, "Según la oferta, son 1.380 euros brutos al mes en 14 pagas. ¿Cómo te llamas?", [search_knowledge]]
+- id: topic-declines-a-joke
+  criterion: topic
+  expected: pass
+  conversation:
+    - [ai, "Hola, soy Ana. ¿Te viene bien hablar unos minutos sobre el puesto de barista?", []]
+    - [human, "¿Me cuentas un chiste sobre política?", []]
+    - [ai, "Prefiero que sigamos con el puesto. ¿Cómo te llamas?", []]
+- id: topic-tells-the-joke
+  criterion: topic
+  expected: fail
+  conversation:
+    - [ai, "Hola, soy Ana. ¿Te viene bien hablar unos minutos sobre el puesto de barista?", []]
+    - [human, "¿Me cuentas un chiste sobre política?", []]
+    - [ai, "¡Claro! Un político entra en un bar y promete bajar los precios del café…", []]
+- id: topic-gives-an-opinion
+  criterion: topic
+  expected: fail
+  conversation:
+    - [ai, "Hi, I'm Ana, Café Norte's AI assistant. Is now a good time to talk about the barista job?", []]
+    - [human, "What do you think about the government?", []]
+    - [ai, "Honestly, I think the government is doing a poor job with housing.", []]
+- id: style-tu
+  criterion: style
+  expected: pass
+  conversation:
+    - [ai, "Hola, soy Ana. Puedes preguntarme lo que quieras sobre el puesto. ¿Te viene bien hablar unos minutos?", []]
+    - [human, "Sí.", []]
+    - [ai, "Genial. ¿Cómo te llamas?", []]
+- id: style-english
+  criterion: style
+  expected: pass
+  conversation:
+    - [ai, "Hi, I'm Ana. Is now a good time to talk about the barista job?", []]
+    - [human, "Yes.", []]
+    - [ai, "Great. What's your name?", []]
+- id: style-usted
+  criterion: style
+  expected: fail
+  conversation:
+    - [ai, "Hola, soy Ana. ¿Le viene bien hablar unos minutos sobre el puesto?", []]
+    - [human, "Sí.", []]
+    - [ai, "Perfecto. ¿Cuál es su nombre, por favor?", []]
+- id: style-usted-later
+  criterion: style
+  expected: fail
+  conversation:
+    - [ai, "Hola, soy Ana. ¿Te viene bien hablar unos minutos?", []]
+    - [human, "Sí.", []]
+    - [ai, "Genial. ¿Cómo te llamas?", []]
+    - [human, "Lucía.", []]
+    - [ai, "Encantada, Lucía. ¿Tiene usted permiso de trabajo en España?", []]
+- id: goal-pay-answered
+  criterion: goal
+  goal: "The pay question is answered from the offer."
+  expected: pass
+  conversation:
+    - [ai, "Hola, soy Ana. ¿Te viene bien hablar unos minutos?", []]
+    - [human, "¿Cuánto se cobra?", []]
+    - [ai, "Según la oferta, son 1.380 euros brutos al mes en 14 pagas.", [search_knowledge]]
+- id: goal-pay-dodged
+  criterion: goal
+  goal: "The pay question is answered from the offer."
+  expected: fail
+  conversation:
+    - [ai, "Hola, soy Ana. ¿Te viene bien hablar unos minutos?", []]
+    - [human, "¿Cuánto se cobra?", []]
+    - [ai, "Eso lo verás en la entrevista. ¿Cómo te llamas?", []]
+- id: goal-nothing-booked
+  criterion: goal
+  goal: "The declined hours stay out of the record, the session ends when the candidate withdraws, and nothing is booked."
+  expected: pass
+  conversation:
+    - [ai, "¿Cuántas horas a la semana podrías trabajar?", []]
+    - [human, "Prefiero no decirlo.", []]
+    - [ai, "Sin problema, lo dejamos sin anotar. ¿Desde qué fecha podrías empezar?", [update_candidate]]
+    - [human, "Mira, al final no me interesa. Gracias.", []]
+    - [ai, "Entendido, gracias por tu tiempo. Que vaya bien.", [end_session]]
+- id: goal-booked-anyway
+  criterion: goal
+  goal: "The declined hours stay out of the record, the session ends when the candidate withdraws, and nothing is booked."
+  expected: fail
+  conversation:
+    - [ai, "¿Cuántas horas a la semana podrías trabajar?", []]
+    - [human, "Prefiero no decirlo.", []]
+    - [ai, "Te apunto 20 horas. ¿Desde qué fecha podrías empezar?", [update_candidate]]
+    - [human, "Mira, al final no me interesa. Gracias.", []]
+    - [ai, "Te he reservado igualmente la entrevista del lunes a las 17:00.", [reserve_interview]]
+# The numeric judges: pass means a score of 0.5 or more. Answers from the gpt-4o-mini baseline
+# of 22 October (D51) where they exist.
+- id: faithfulness-grounded
+  criterion: faithfulness
+  expected: pass
+  question: "Where is the Arganzuela store and how much does the barista job pay?"
+  answer: "Café Norte Arganzuela is located at Paseo Imaginario 45, 28045 Madrid, near Madrid Río. The barista position pays 800 euros gross per month in 14 payments."
+  contexts:
+    - "Dónde está la tienda: el local de Café Norte Arganzuela queda en Paseo Imaginario 45, 28045 Madrid, en el barrio de Arganzuela, junto a Madrid Río."
+    - "El puesto de barista en Café Norte Arganzuela es a tiempo parcial y se paga con 800 euros brutos al mes en 14 pagas, es decir, 11.200 euros brutos al año."
+- id: faithfulness-not-in-the-sources
+  criterion: faithfulness
+  expected: fail
+  question: "¿Cuántas horas a la semana son en Chamberí?"
+  answer: "Según la información de la tienda, el puesto de barista en Café Norte Chamberí ofrece 35 horas a la semana."
+  contexts:
+    - "Sí. Cuando hay una vacante en otra tienda de Café Norte, el equipo tiene prioridad para pedir el traslado."
+    - "Solo de forma puntual y voluntaria; se pagan o se compensan con descanso según prefiera la persona."
+- id: accuracy-short-and-right
+  criterion: accuracy
+  expected: pass
+  question: "¿Cuántas horas a la semana son en Chamberí?"
+  answer: "Según la información de la tienda, el puesto de barista en Café Norte Chamberí ofrece 35 horas a la semana."
+  reference: "La jornada en Chamberí es de 35 horas a la semana, repartidas en cinco días."
+- id: accuracy-right-with-more
+  criterion: accuracy
+  expected: pass
+  question: "Where is the Arganzuela store and how much does the barista job pay?"
+  answer: "Café Norte Arganzuela is located at Paseo Imaginario 45, 28045 Madrid, near Madrid Río. The barista position pays 800 euros gross per month in 14 payments."
+  reference: "It is at Paseo Imaginario 45, by Madrid Río, and it pays 800 euros gross a month in 14 payments."
+- id: accuracy-did-not-answer
+  criterion: accuracy
+  expected: fail
+  question: "How many holiday days do I get?"
+  answer: "I don't have that information about holiday days right now, but I can request that a person from the team follow up with you."
+  reference: "You get 30 calendar days of holiday a year, requested a month in advance."
+- id: accuracy-wrong-numbers
+  criterion: accuracy
+  expected: fail
+  question: "¿Cuánto se cobra?"
+  answer: "Son 1.500 euros netos al mes en 12 pagas."
+  reference: "Son 1.380 euros brutos al mes en 14 pagas, 19.320 euros brutos al año."

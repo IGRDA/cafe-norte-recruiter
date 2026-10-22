@@ -72,7 +72,7 @@ SPECS: tuple[MetricSpec, ...] = (
     _spec("task_success", 1, "Scenarios passed (injection aside)", 1.0),
     _spec("injection_held", 1, "Injection scenarios held", 1.0),
     _spec("faithfulness", 2, "ragas Faithfulness", 0.85, unit="score"),
-    _spec("factual_correctness", 2, "ragas FactualCorrectness", 0.70, unit="score"),
+    _spec("answer_accuracy", 2, "ragas AnswerAccuracy (NVIDIA)", 0.75, unit="score"),
     _spec("goal_accuracy", 2, "Scenario goal achieved (ragas DiscreteMetric)", 0.90, unit="score"),
     _spec("rubric", 2, "Scenario rubric bullets held (ragas DiscreteMetric)", 0.90, unit="score"),
     _spec("topic_adherence", 3, "Stays on topic (ragas DiscreteMetric)", 0.90, unit="score"),
@@ -89,7 +89,7 @@ ProbeReader = Callable[[Sequence[ProbeRecord]], Reading]
 SCORED = (
     "probe_tool_f1",
     "faithfulness",
-    "factual_correctness",
+    "answer_accuracy",
     "goal_accuracy",
     "rubric",
     "topic_adherence",

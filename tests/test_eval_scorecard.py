@@ -142,5 +142,5 @@ def test_the_cli_prints_the_scorecard_and_spends_nothing_live_without_yes(
     live = ["--suite", "scorecard", "--mode", "live", "--retriever", "lexical"]
     assert main(live) == 0
     out = capsys.readouterr().out
-    assert "estimated spend" in out and "probes, judge openai/gpt-4o-mini" in out
+    assert "estimated spend" in out and "probes, judge openai/gpt-4o" in out
     assert "Nothing was spent" in out

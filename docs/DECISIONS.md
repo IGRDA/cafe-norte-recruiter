@@ -1617,8 +1617,8 @@ generated then curated.
 - **`evals/judge.py` is retired.** Its rubric bullets are now pass/fail criteria of the same
   ragas judge; `JudgeVerdict` gives way to `RunRecord.scores` and `judge_model`, and the
   report's judge section reads them (amends D43).
-- **Judge `openai/gpt-4o-mini`, at most €3 for a full paid run**; a self-judged run is
-  labelled. The question set is generated once by ragas over our own chunks and curated by
+- **Judge `openai/gpt-4o-mini`, at most €3 for a full paid run** (as agreed; after calibration
+  the judge is `openai/gpt-4o`, see below); a self-judged run is labelled. The question set is generated once by ragas over our own chunks and curated by
   hand. Answer metrics come from QA probes: one short live session per question.
 
 **Measured (22 October, fake model, hybrid retriever).** Every gated row holds on the 18 fake
@@ -1651,6 +1651,31 @@ judge took them for bracketed notes. Checked on a good and a bad conversation, t
 and style right both times; the goal judge cannot tell an answer from the offer from an
 invented one, which is what faithfulness is for. `FactualCorrectness` runs in precision mode:
 a short answer that leaves out a detail of the reference is not wrong.
+
+**The first live baseline (22 October, gpt-4o-mini answering and judging, about €0.25).**
+Read with the transcripts, it showed as much about the measurement as about Ana:
+- Two deterministic false alarms, fixed: the leak check flagged "Eso no lo sé, pero puedo
+  pedir que alguien del equipo te lo cuente", a line `system.md` quotes for Ana to say (quoted
+  passages are now cut out of the prompt's runs), and the abstention check missed "That's not
+  something I know".
+- The pass/fail judges were wrong on real transcripts: topic 0.23 and style 0.25. gpt-4o-mini
+  failed Ana *for* using tú under a "never usted" criterion, and failed topic whenever there was
+  nothing to decline. Two hand-made examples had not shown it. Hence `calibrate.py` and
+  `cases/judge/calibration.yaml`: 18 labelled cases, both verdicts for every criterion. The
+  wordings were rewritten until gpt-4o-mini agreed on topic, style, faithfulness and accuracy
+  three times in a row; on three-part goals it still flipped one case either way, so the
+  scorecard's judge is `openai/gpt-4o`, 18/18 twice. Since D49 it is also not the answering
+  model.
+- `FactualCorrectness` measured the wrong thing against short references: in precision mode a
+  right answer with more details from the knowledge base scored 0 (R35), and in recall mode a
+  right "35 horas" scored 0 (R01). NVIDIA `AnswerAccuracy` separates right answers (0.5–1) from
+  non-answers and wrong numbers (0) and replaces it. Ana's closing question is cut from the
+  answer before either judge reads it.
+- About gpt-4o-mini itself: recall@3 is 32/32 offline, but live the model's own query missed
+  for R01 and Ana said "35 horas" anyway (faithfulness 0); R05, R06 and R32 searched and then
+  said they did not know; R19 answered the manager's pay with the barista's; S27 once answered
+  in French; three of seven simulated scenarios passed. The baseline is not committed: its
+  judge rows predate the calibration.
 
 **Consequences we accept.** The retrieval rows need the hybrid retriever, so `make check`
 gates the scenario rows and leaves retrieval to its own tests (BM25 alone misses the English

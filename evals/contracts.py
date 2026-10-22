@@ -417,6 +417,21 @@ class AnswerJudge(Protocol):
 
     async def faithfulness(self, question: str, answer: str, contexts: Sequence[str]) -> float: ...
 
-    async def factual_correctness(self, answer: str, reference: str) -> float: ...
+    async def answer_accuracy(self, question: str, answer: str, reference: str) -> float: ...
 
     async def holds(self, exchanges: Sequence[Exchange], criterion: str) -> bool: ...
+
+
+class CalibrationCase(Frozen):
+    """A labelled conversation for a pass/fail judge (``cases/judge/calibration.yaml``, D51):
+    what a correct judge answers for one of the fixed criteria."""
+
+    id: str
+    criterion: Literal["topic", "style", "goal", "faithfulness", "accuracy"]
+    expected: Literal["pass", "fail"]  # numeric metrics: pass is a score of 0.5 or more
+    goal: str = ""  # goal: the scenario's goal
+    conversation: tuple[Exchange, ...] = ()  # topic, style, goal
+    question: str = ""  # faithfulness, accuracy
+    answer: str = ""
+    contexts: tuple[str, ...] = ()  # faithfulness: the chunks shown
+    reference: str = ""  # accuracy

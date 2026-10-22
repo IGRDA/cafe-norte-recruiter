@@ -1,16 +1,14 @@
-"""Choosing a slot, resolved by the runtime (D41)."""
+"""Choosing a slot through the runtime (D41): the decision is ``slot_answer``'s and is pinned in
+``tests/unit/test_slot_answer.py``; these check that the runtime runs it, through the tools,
+the store and what the model is told."""
 
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import (
     AssistantText,
 )
-from cafe_norte.domain import confirmation
 from cafe_norte.domain.contracts import (
-    ConfirmationId,
-    FieldTarget,
     SlotId,
     SlotTarget,
-    TurnId,
 )
 from tests.support.builders import SESSION
 from tests.support.harness import (
@@ -65,38 +63,6 @@ async def test_another_choice_replaces_the_slot_read_back() -> None:
     assert await pending_slot(h) == WED_1030
 
 
-async def test_a_refusal_and_words_without_a_slot_are_left_to_the_model() -> None:
-    h = with_slots_offered(says("¿Qué día te vendría mejor?"), says("Está en Chamberí."))
-    await slots_offered(h)
-    assert tools_started(await h.run("No, ninguno me va bien.", "in-2")) == []
-    assert tools_started(await h.run("¿Dónde está la tienda?", "in-3")) == []
-    assert await pending_slot(h) is None
-
-
-async def test_before_any_offer_a_day_is_the_models() -> None:
-    h = Harness([says("¿Te gustaría tener una entrevista?")])
-    await h.open_session()
-    assert tools_started(await h.run("El viernes.")) == []
-
-
-async def test_a_pending_field_read_back_keeps_the_slot_matcher_out() -> None:
-    h = with_slots_offered(says("¿Es correcto el teléfono?"))
-    await slots_offered(h)
-    state = await h.store.sessions.get(SESSION)
-    assert state is not None
-    field = FieldTarget(field="contact_phone", revision=state.candidate.revision)
-    pending = confirmation.present(
-        state, field, "¿Es correcto?", TurnId("in-1"), ConfirmationId("phone")
-    )
-    async with h.store.transaction() as tx:
-        await h.store.sessions.save(
-            tx,
-            state.model_copy(update={"pending_confirmation": pending}),
-            expected_revision=state.candidate.revision,
-        )
-    assert tools_started(await h.run("El primero.", "in-2")) == []
-
-
 async def shortlist(h: Harness) -> tuple[SlotId, ...]:
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.slot_offer is not None
@@ -123,16 +89,6 @@ async def test_a_day_with_two_slots_asks_which_and_the_time_then_picks_one() -> 
     assert "viernes 23 de octubre de 2026 a las 17:00" in facts
     await h.run("A las diez y media.", "in-3")
     assert await pending_slot(h) == FRI_1030
-
-
-async def test_the_shortlist_narrows_an_answer_that_alone_would_be_ambiguous() -> None:
-    """Offered Tuesday 17:00, Wednesday 10:30 and 17:00: after "el miércoles", "a las cinco"
-    means Wednesday's, although Tuesday also has one at five."""
-    h = with_slots_offered(says("¿A qué hora?"), says(""))
-    await slots_offered(h)
-    await h.run("El miércoles.", "in-2")
-    await h.run("A las cinco.", "in-3")
-    assert await pending_slot(h) == SlotId("chamberi_barista_v1-2026-10-21-1700")
 
 
 async def test_a_day_not_offered_is_offered_again_for_that_day_by_the_runtime() -> None:
@@ -199,24 +155,6 @@ async def test_a_farewell_before_any_booking_is_the_models() -> None:
     await h.open_session()
     events = await h.run("Adiós.")
     assert tools_started(events) == [] and len(h.model.calls) == 1
-
-
-async def test_the_slot_restated_without_a_yes_is_not_a_booking() -> None:
-    h = with_slots_offered(says(""), says("¿Te la reservo, entonces?"))
-    await slots_offered(h)
-    await h.run("El primero.", "in-2")
-    events = await h.run("El martes a las cinco.", "in-3")
-    assert tools_started(events) == []  # the model's to read; it asks again here
-    assert await booking_of(h) is None and await pending_slot(h) == TUE_17
-
-
-async def test_a_yes_with_another_slot_reads_that_one_back_instead() -> None:
-    h = with_slots_offered(says(""), says(""))
-    await slots_offered(h)
-    await h.run("El primero.", "in-2")
-    events = await h.run("Sí, mejor el segundo.", "in-3")
-    assert tools_started(events) == ["present_confirmation"]
-    assert await booking_of(h) is None and await pending_slot(h) == WED_1030
 
 
 async def test_a_question_after_the_offer_is_answered_by_the_model() -> None:

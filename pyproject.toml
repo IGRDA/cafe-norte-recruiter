@@ -100,6 +100,7 @@ only_mutate = [
     "src/cafe_norte/domain/confirmation.py",
     "src/cafe_norte/domain/candidate.py",
     "src/cafe_norte/domain/review.py",
+    "src/cafe_norte/conversation/slot_answer.py",
     "src/cafe_norte/voice/delivery.py",
     "src/cafe_norte/observability/redaction.py",
     "src/cafe_norte/observability/cost.py",

@@ -14,7 +14,6 @@ from typing import Literal, TypeGuard
 from zoneinfo import ZoneInfo
 
 from cafe_norte.conversation import prompts
-from cafe_norte.conversation.brief import slot_time
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
@@ -36,8 +35,10 @@ from cafe_norte.conversation.prompt import (
     PromptHints,
     build_messages,
     clean_sentence,
+    conversation_tail,
     sentences,
     split_sentences,
+    tool_message,
 )
 from cafe_norte.conversation.readback import answer_call, current_saying
 from cafe_norte.conversation.registry import ToolRegistry
@@ -48,6 +49,7 @@ from cafe_norte.conversation.signals import (
     is_farewell,
     requested_language,
 )
+from cafe_norte.conversation.slot_answer import Shortlist, slot_answer
 from cafe_norte.domain.contracts import (
     ConfigId,
     InputId,
@@ -55,8 +57,6 @@ from cafe_norte.domain.contracts import (
     SessionState,
     Signal,
     SlotId,
-    SlotOffer,
-    SlotTarget,
     StoreConfiguration,
     TurnId,
 )
@@ -64,13 +64,6 @@ from cafe_norte.domain.lifecycle import TERMINAL, LifecycleEvent, is_terminal, t
 from cafe_norte.domain.result import Err
 from cafe_norte.domain.review import add_followup
 from cafe_norte.domain.session_time import active_increment
-from cafe_norte.domain.slot_choice import (
-    Ambiguous,
-    Chosen,
-    NoMatch,
-    choose_slot,
-    read_slot_words,
-)
 from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
 from cafe_norte.model.contracts import (
     Model,
@@ -142,30 +135,8 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-# What a generation's trace keeps of the conversation it saw (docs/architecture.md).
-_TRACE_CONTEXT_CHARACTERS = 1800
-
 # A generation with no usage report is estimated at this many characters per token (D44).
 CHARACTERS_PER_TOKEN = 4
-
-
-def conversation_tail(
-    messages: Sequence[ModelMessage], budget: int = _TRACE_CONTEXT_CHARACTERS
-) -> str:
-    """The latest messages the model saw, newest kept first within ``budget`` characters, one
-    per line. Without the system prompt: ``prompt_version`` already pins it. The newest message
-    is always kept; the adapter redacts and drops the lot unless content is on."""
-    lines: list[str] = []
-    used = 0
-    for message in reversed([m for m in messages if m.role != "system"]):
-        line = f"{message.role}: {message.content}" + "".join(
-            f" [call {call.name}]" for call in message.tool_calls
-        )
-        if lines and used + len(line) > budget:
-            break
-        lines.append(line)
-        used += len(line)
-    return "\n".join(reversed(lines))
 
 
 @dataclass
@@ -911,7 +882,7 @@ class Runtime:
             run.messages.append(
                 ModelMessage(
                     role="tool",
-                    content=_tool_message(run.outcome.model_text, run.spoken),
+                    content=tool_message(run.outcome.model_text, run.spoken),
                     tool_call_id=call.call_id,
                 )
             )
@@ -977,53 +948,23 @@ class Runtime:
         run.answered = run.outcome.model_text
 
     async def _slot_choice(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
-        """The candidate's answer to the slot offer, matched against it here (D41), so a model
-        that does not copy the slot id can no longer leave the choice looping. One slot that
-        fits is read back and several are kept as a shortlist for the model to ask about,
-        through the tools the model would call; words that fit nothing offered are offered
-        again, for the day they name. Anything that is not a choice is the model's."""
-        state = run.state
-        offer = _open_offer(run)
-        if offer is None:
-            return
-        configuration = self._configurations[state.config_id]
-        zone = ZoneInfo(configuration.timezone)
-        ids = [slot.slot_id for slot in offer.slots]
-        words = read_slot_words(run.input.text)
-        choice = choose_slot(
-            words,
-            [slot.starts_at_utc.astimezone(zone).replace(tzinfo=None) for slot in offer.slots],
-            today=self._clock().astimezone(zone).date(),
-            shortlist=tuple(i for i, slot_id in enumerate(ids) if slot_id in offer.shortlist),
+        """The candidate's answer to the slot offer, decided by ``slot_answer`` (D41) and run
+        here through the tools the model would call; a shortlist is saved and the model asks."""
+        answer = slot_answer(
+            run.state,
+            run.input.text,
+            by_button=run.input.ui_answer is not None,
+            turn_id=run.turn_id,
+            configuration=self._configurations[run.state.config_id],
+            now=self._clock(),
         )
-        arguments: dict[str, str]
-        match choice:
-            case Chosen(index=index) if _heard_read_back_of(run, ids[index]):
-                if answer_to_readback(words.rest) != "affirm":
-                    return  # the slot said again without a yes: the model's to read
-                name, arguments = "reserve_interview", {"slot_id": ids[index]}
-            case Chosen(index=index):
-                name, arguments = "present_confirmation", {"target": "slot", "slot_id": ids[index]}
-            case NoMatch(day=day):
-                intent = state.schedule_intent
-                name = "list_interview_slots"
-                arguments = {"evidence_text": intent.text if intent else run.input.text}
-                if day is not None:
-                    arguments["date_preference"] = day.isoformat()
-            case Ambiguous(indices=indices):
-                await self._save_shortlist(run, tuple(ids[i] for i in indices))
-                options = "; ".join(
-                    f"{i + 1}: "
-                    + slot_time(offer.slots[i].starts_at_utc, configuration, state.language)
-                    for i in indices
-                )
-                run.slot_choice = (
-                    f"The candidate's words fit more than one offered slot ({options}). Ask in "
-                    "one short sentence which of these they prefer; the system reads it back."
-                )
-                return
-            case _:
-                return  # NotAChoice: the words are the model's
+        if answer is None:
+            return
+        if isinstance(answer, Shortlist):
+            await self._save_shortlist(run, answer.slot_ids)
+            run.slot_choice = answer.note
+            return
+        name, arguments = answer
         async for event in self._runtime_call(run, name, arguments):
             yield event
         run.slot_choice = run.outcome.model_text
@@ -1141,44 +1082,6 @@ class Runtime:
         return event
 
 
-def _open_offer(run: _Turn) -> SlotOffer | None:
-    """The offer a spoken answer may choose from: there is one, nothing is booked, the session
-    is live, and no field or brief read-back is waiting for its own answer. A button press
-    answers a read-back, never an offer."""
-    state = run.state
-    offer = state.slot_offer
-    pending = state.pending_confirmation
-    waiting = (
-        pending is not None
-        and pending.status == "pending"
-        and not isinstance(pending.target, SlotTarget)
-    )
-    if (
-        run.input.ui_answer is not None
-        or offer is None
-        or not offer.slots
-        or state.booking is not None
-        or state.lifecycle != "active"
-        or waiting
-    ):
-        return None
-    return offer
-
-
-def _heard_read_back_of(run: _Turn, slot_id: SlotId) -> bool:
-    """That very slot was read back in an earlier turn and heard to the end: naming it again is
-    an answer to "¿Te la reservo?", not a new choice."""
-    pending = run.state.pending_confirmation
-    return (
-        pending is not None
-        and pending.status == "pending"
-        and isinstance(pending.target, SlotTarget)
-        and pending.target.slot_id == slot_id
-        and pending.fully_delivered
-        and pending.presented_turn_id != run.turn_id
-    )
-
-
 def _analysis_usage(run: _Turn, analysis: SignalAnalysis) -> tuple[UsageRecord, ...]:
     """The classifier's tokens, under the turn it classified."""
     usage = analysis.usage
@@ -1236,18 +1139,6 @@ def _resume(state: SessionState) -> list[str]:
 
 
 _NOT_FOUND = TurnFailed(turn_id=TurnId(""), code="not_found", message=MESSAGES["es"]["not_found"])
-
-
-def _tool_message(model_text: str, spoken: list[str]) -> str:
-    """The tool result plus what the candidate has already heard this turn, so the model
-    continues instead of asking again in other words."""
-    if not spoken:
-        return model_text
-    said = " ".join(spoken)
-    return (
-        f"{model_text} Already said to the candidate this turn: {said} "
-        "Do not repeat or rephrase it; continue, or reply with nothing if it is enough."
-    )
 
 
 def _control_reply(control: Literal["human", "time_cap", "goodbye"], language: Language) -> str:

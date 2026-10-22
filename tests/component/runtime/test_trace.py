@@ -2,9 +2,8 @@
 
 import json
 
-from cafe_norte.conversation.runtime import Limits, conversation_tail
+from cafe_norte.conversation.runtime import Limits
 from cafe_norte.model.contracts import (
-    ModelMessage,
     ModelText,
     ModelUsage,
     ToolCall,
@@ -150,23 +149,3 @@ async def test_a_generation_is_marked_when_its_first_output_arrives() -> None:
     await h.open_session()
     await h.run("Hola")
     assert h.telemetry.span("chat").first_output is True
-
-
-def message(role: str, content: str) -> ModelMessage:
-    return ModelMessage(role=role, content=content)
-
-
-def test_the_conversation_tail_keeps_the_latest_messages_within_its_budget() -> None:
-    messages = [
-        message("system", "x" * 5000),
-        message("user", "primero " + "a" * 50),
-        message("assistant", "segundo " + "b" * 50),
-        message("user", "tercero"),
-    ]
-    assert conversation_tail(messages, budget=40) == "user: tercero"
-    assert conversation_tail(messages, budget=10_000).splitlines()[0].startswith("user: primero")
-    assert "system" not in conversation_tail(messages, budget=10_000)
-
-
-def test_the_latest_message_is_kept_even_when_it_alone_exceeds_the_budget() -> None:
-    assert conversation_tail([message("user", "z" * 100)], budget=10) == "user: " + "z" * 100

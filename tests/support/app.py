@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import FastAPI
 
 from cafe_norte.api.access import AccessGate
+from cafe_norte.api.limits import RequestLimits
 from cafe_norte.conversation.contracts import SignalAnalyzer
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
@@ -74,6 +75,7 @@ def build_test_app(
     store: MemoryStore | None = None,
     estimate: Estimator | None = None,
     retriever: Retriever | None = None,
+    request_limits: RequestLimits | None = None,
 ) -> FastAPI:
     store = store if store is not None else MemoryStore()
     return create_app(
@@ -92,4 +94,5 @@ def build_test_app(
         rooms=rooms,
         voice=voice,
         estimate=estimate,
+        request_limits=request_limits,
     )

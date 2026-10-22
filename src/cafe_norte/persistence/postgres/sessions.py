@@ -108,3 +108,10 @@ class PostgresSessions:
                 (before, limit),
             )
         return tuple(SessionId(row["session_id"]) for row in rows)
+
+    async def count_created_since(self, since: datetime) -> int:
+        async with reading(self._connect) as conn:
+            row = await fetch_one(
+                conn, "select count(*) as n from sessions where created_at >= %s", (since,)
+            )
+        return 0 if row is None else int(row["n"])

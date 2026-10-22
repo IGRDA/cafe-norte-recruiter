@@ -180,6 +180,7 @@ export interface ErrorResponse {
     | "not_found"
     | "conflict"
     | "limit_exceeded"
+    | "rate_limited"
     | "session_ended"
     | "internal_error";
   message: string;
@@ -710,6 +711,7 @@ export interface TurnFailed {
     | "not_found"
     | "conflict"
     | "limit_exceeded"
+    | "rate_limited"
     | "session_ended"
     | "internal_error";
   message: string;

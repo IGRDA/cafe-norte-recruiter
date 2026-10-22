@@ -127,6 +127,9 @@ class MemorySessions:
         )
         return tuple(s.session_id for s in old[:limit])
 
+    async def count_created_since(self, since: datetime) -> int:
+        return sum(1 for s in self._states.values() if s.created_at >= since)
+
 
 class MemoryTurns:
     def __init__(self) -> None:

@@ -100,7 +100,8 @@ worker, so the balancer fronts HTTP only and each worker keeps its own address f
 ## 4. Candidate imports
 
 **Today.** No import. A candidate opens the page and starts a session; sessions are gated by an
-access code, three starts per access session per hour (`architecture.md`).
+access code, 15 code attempts per minute and 9 session starts per hour from one IP, and 150
+sessions a day in all (`architecture.md`, D65).
 
 **What breaks first.** Nothing is built to break. The first import would break the providers'
 quotas and a person's patience: a thousand calls started at once is a thousand simultaneous

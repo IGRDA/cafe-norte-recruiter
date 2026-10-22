@@ -424,6 +424,21 @@ async def test_expired_lists_the_oldest_sessions_first_up_to_the_limit(store: St
     assert await store.sessions.expired(NOW - timedelta(days=30), limit=10) == ()
 
 
+async def test_count_created_since_counts_the_sessions_started_after_the_instant(
+    store: Store,
+) -> None:
+    for session_id, hours in (("a", 30), ("b", 23), ("c", 1)):
+        await store.sessions.create(
+            session_state(SessionId(session_id)).model_copy(
+                update={"created_at": NOW - timedelta(hours=hours)}
+            ),
+            access_hash="",
+        )
+
+    assert await store.sessions.count_created_since(NOW - timedelta(hours=24)) == 2
+    assert await store.sessions.count_created_since(NOW) == 0
+
+
 async def test_delete_removes_the_session_and_everything_that_belongs_to_it(store: Store) -> None:
     await created(store)
     await store.calendar.seed(

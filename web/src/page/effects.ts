@@ -52,7 +52,10 @@ export function createRunner(ports: Ports, dispatch: Dispatch): Runner {
         return;
       case "check-code": {
         const reply = await api.access({ code: effect.code }).catch(() => null);
-        dispatch(reply?.ok ? { type: "access-granted" } : { type: "access-refused" });
+        // A wrong code says so in the page's words; too many attempts, in the server's.
+        if (reply?.ok) dispatch({ type: "access-granted" });
+        else if (reply?.status === 429) dispatch({ type: "access-refused", message: reply.message });
+        else dispatch({ type: "access-refused" });
         return;
       }
       case "create-session": {
@@ -61,6 +64,8 @@ export function createRunner(ports: Ports, dispatch: Dispatch): Runner {
           .catch(() => null);
         if (reply?.ok) dispatch({ type: "session-opened", body: reply.body });
         else if (reply?.status === 401) dispatch({ type: "session-needs-code" });
+        else if (reply?.status === 429 || reply?.status === 503)
+          dispatch({ type: "session-failed", message: reply.message });
         else dispatch({ type: "session-failed" });
         return;
       }

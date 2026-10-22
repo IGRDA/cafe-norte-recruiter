@@ -30,11 +30,13 @@ async def test_an_idle_round_before_anything_was_said_still_lets_the_model_answe
     assert len(h.model.calls) == 4
 
 
-async def test_a_round_that_saved_something_after_the_question_goes_on() -> None:
+async def test_a_round_whose_saves_committed_and_question_was_said_is_the_last() -> None:
+    """D44 ran one more round after a save; since D59 the question held with the save is said
+    once it commits, and nothing is left for another round."""
     h = Harness([[ModelText(text="¿Tienes permiso?"), name_call(), WANTS_TOOLS], says("")])
     await h.open_session()
     await h.run("Soy Lucía.")
-    assert len(h.model.calls) == 2
+    assert len(h.model.calls) == 1
 
 
 async def test_a_tool_whose_call_changed_nothing_is_offered_again_only_next_turn() -> None:

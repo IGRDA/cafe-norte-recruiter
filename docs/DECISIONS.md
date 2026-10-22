@@ -2140,3 +2140,17 @@ D56–D58 and the feedback on them. One entry per fix, in the order they landed.
   revision, and the review in parts works on the short text. The first presentation, and one
   where everything changed, are the whole brief. Live, the full summary was read twice in a row
   (KI-21).
+- **Hold, then say.** The model may write its next sentence in the same reply as a tool call.
+  The runtime holds a round's sentences unspoken until its stream ends: with no call they are
+  said then; with calls they are said after every call of the round succeeded, and dropped
+  (`held_dropped`) when one was refused, so a question asked on a failed save is never heard.
+  "Nothing announced before it is persisted" stays in code. A round whose calls were all
+  writes, committed, and whose held question was said, is the turn's last (`round_settled`):
+  the second round of D44's loop is gone on a data turn. A round with a lookup
+  (`search_knowledge`, `list_interview_slots`) is still answered next, since its result is
+  something to say. The tool messages are built after the held words, so "already said this
+  turn" stays true. Cost: a plain answer's first word waits for the end of its stream; the
+  estimate was about 0.3 s against about 0.7 s saved on a data turn. D49 named this lever and
+  left it for measurement; Langfuse's `first_output_ms` and turn latency before and after this
+  deploy are the check, and the numbers go here once read.
+- Prompt `ana_v22`.

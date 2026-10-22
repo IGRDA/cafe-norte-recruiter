@@ -46,6 +46,12 @@ from tests.support.harness import (
 )
 from tests.support.time import settle
 
+SEARCH = ToolCall(
+    call_id="k1",
+    name="search_knowledge",
+    arguments_json=json.dumps({"question": "¿Dónde estáis?", "queries": ["dirección del local"]}),
+)
+
 
 async def test_the_candidate_state_is_committed_before_the_state_update_is_yielded() -> None:
     h = Harness([[name_call(), WANTS_TOOLS], says("Hola.")])
@@ -450,7 +456,8 @@ async def test_a_runaway_answer_is_cut_and_the_turn_still_finishes() -> None:
 
 
 async def test_the_tool_result_tells_the_model_what_was_already_said_this_turn() -> None:
-    h = Harness([[ModelText(text="¿Cómo te llamas? "), name_call(), WANTS_TOOLS], says("")])
+    """A lookup's round is answered next (D59): that round hears what was said with it."""
+    h = Harness([[ModelText(text="¿Cómo te llamas? "), SEARCH, WANTS_TOOLS], says("")])
     await h.open_session()
     await h.run("Hola")
     tool_message = h.model.calls[1][-1]
@@ -531,15 +538,15 @@ async def test_a_presentation_is_spoken_verbatim_before_tool_finished_and_marked
 
 
 async def test_a_presentation_is_spoken_in_full_even_after_the_model_asked_something() -> None:
-    """The one-question rule bounds the model's own text; a read-back is authoritative."""
+    """A read-back is authoritative: the words held with the call that presents it (D59) and
+    the next round's question are dropped, since the read-back asked its own."""
     h = Harness([[ModelText(text="¿Lo repaso? "), present_brief(), WANTS_TOOLS], says("¿Vale?")])
     await h.open_session()
     await fill_record(h)
     events = await h.run("ya está")
     spoken = [e.text for e in events if isinstance(e, AssistantText)]
-    assert spoken[0] == "¿Lo repaso?"
-    assert "Te resumo lo que tengo." in spoken and spoken[-1] == "¿Es todo correcto?"
-    assert "¿Vale?" not in spoken
+    assert spoken[0] == "Te resumo lo que tengo." and spoken[-1] == "¿Es todo correcto?"
+    assert "¿Lo repaso?" not in spoken and "¿Vale?" not in spoken
 
 
 async def test_a_turn_on_an_ended_session_fails_with_session_ended_and_persists_nothing() -> None:

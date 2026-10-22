@@ -159,6 +159,7 @@ EventName = Literal[
     "answer_cut",
     "language_switched",
     "sentiment_in_turn",
+    "held_dropped",
 ]
 
 

@@ -1,8 +1,7 @@
 """``VoiceSession``: the voice logic with no Pipecat in sight. A fake runtime yields scripted
-events; a recorder stands in for TTS; a controllable clock drives the idle timers."""
+events; a recorder stands in for TTS; virtual time (``FakeTime``) drives every timer."""
 
 import asyncio
-from datetime import UTC, datetime, timedelta
 
 from cafe_norte.conversation.contracts import (
     StateUpdated,
@@ -14,6 +13,7 @@ from cafe_norte.domain.contracts import CandidateRecord, Lifecycle, TurnId
 from cafe_norte.errors import Language
 from cafe_norte.voice.session import VoiceSession
 from tests.support.builders import SID
+from tests.support.time import FakeTime, settle
 from tests.support.voice import TEXTS, FakeRuntime, Recorder, finished, say, session
 
 
@@ -34,6 +34,7 @@ async def test_a_final_transcript_runs_a_voice_turn_and_speaks_each_sentence() -
 
 
 async def test_an_interruption_cancels_the_turn_and_reports_what_was_heard() -> None:
+    time = FakeTime()
     runtime = FakeRuntime(
         [
             [
@@ -44,11 +45,12 @@ async def test_an_interruption_cancels_the_turn_and_reports_what_was_heard() -> 
             ]
         ],
         slow=True,
+        sleep=time.sleep,
     )
     recorder = Recorder()
-    s = session(runtime, recorder)
+    s = session(runtime, recorder, time=time)
     await s.transcript("ya está")
-    await asyncio.sleep(0.015)  # first sentence out, the rest still streaming
+    await time.advance(0.015)  # first sentence out, the rest still streaming
     await s.played_one()
     await s.interrupted()
     await s.wait()
@@ -77,7 +79,7 @@ async def test_an_interruption_while_a_sentence_is_being_spoken_closes_the_runti
         language="es",
     )
     await s.transcript("ya está")
-    await asyncio.sleep(0.01)
+    await settle()  # the first sentence is with TTS, which has not finished it
     await s.interrupted()
     assert runtime.closed == 1  # closed now, not whenever the generator is collected
 
@@ -94,6 +96,7 @@ async def test_the_opening_is_spoken_once_on_join_and_a_second_join_is_silent() 
 
 
 async def test_a_filler_is_spoken_only_while_a_tool_runs_long() -> None:
+    time = FakeTime()
     runtime = FakeRuntime(
         [
             [
@@ -104,11 +107,13 @@ async def test_a_filler_is_spoken_only_while_a_tool_runs_long() -> None:
             ]
         ],
         slow=True,
+        sleep=time.sleep,
     )
     recorder = Recorder()
-    s = session(runtime, recorder)
+    s = session(runtime, recorder, time=time)
     s.filler_after_seconds = 0.0  # a tool that takes any time at all triggers the filler
     await s.transcript("sí me interesa")
+    await time.advance(1)  # every scripted event has come
     await s.wait()
     assert recorder.spoken[0] == "Un momento."
     assert recorder.spoken[-1] == "¿Y tu nombre?"
@@ -116,6 +121,7 @@ async def test_a_filler_is_spoken_only_while_a_tool_runs_long() -> None:
 
 
 async def test_the_filler_waits_while_a_sentence_is_still_playing() -> None:
+    time = FakeTime()
     """The filler fills silence; while "Vale, lo miro." is still playing there is none, so it
     is not queued behind it (D40)."""
     runtime = FakeRuntime(
@@ -129,11 +135,13 @@ async def test_the_filler_waits_while_a_sentence_is_still_playing() -> None:
             ]
         ],
         slow=True,
+        sleep=time.sleep,
     )
     recorder = Recorder()
-    s = session(runtime, recorder)
+    s = session(runtime, recorder, time=time)
     s.filler_after_seconds = 0.0
     await s.transcript("¿Dónde está el local?")
+    await time.advance(1)  # every scripted event has come
     await s.wait()
     assert "Un momento." not in recorder.spoken
     assert runtime.asides == []
@@ -147,15 +155,18 @@ async def test_the_opening_is_spoken_in_the_session_language() -> None:
 
 
 async def test_the_filler_follows_a_language_switched_in_the_turn() -> None:
+    time = FakeTime()
     runtime = FakeRuntime(
         [[ToolStarted(name="update_candidate"), say("What is your name?"), finished()]],
         slow=True,
+        sleep=time.sleep,
         language="en",
     )
     recorder = Recorder()
-    s = session(runtime, recorder)  # opened in Spanish; the runtime switched this turn
+    s = session(runtime, recorder, time=time)  # opened in Spanish; the runtime switched this turn
     s.filler_after_seconds = 0.0
     await s.transcript("Can we continue in English?")
+    await time.advance(1)  # every scripted event has come
     await s.wait()
     assert recorder.spoken[0] == "One moment."
 
@@ -163,15 +174,21 @@ async def test_the_filler_follows_a_language_switched_in_the_turn() -> None:
 async def test_silence_prompts_once_and_never_pauses_a_live_call() -> None:
     """S18 (silence): one prompt and the state untouched. The hosted call of 21 October: the
     session went "paused" while the candidate was still talking."""
+    time = FakeTime()
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.02)
+    s = session(runtime, recorder, time=time)
     await s.transcript("hola")
     await s.wait()
     await s.played_one()  # listening starts the idle clock
-    await asyncio.sleep(0.03)
+
+    await time.advance(7.9)
+    assert "¿Sigues ahí?" not in recorder.spoken
+    await time.advance(0.1)
     assert recorder.spoken[-1] == "¿Sigues ahí?"
-    await asyncio.sleep(0.06)
+    await s.played_one()
+    await time.advance(60)
+
     assert recorder.spoken.count("¿Sigues ahí?") == 1
     assert runtime.ended == []
     assert recorder.status[-1] != "paused"
@@ -180,45 +197,56 @@ async def test_silence_prompts_once_and_never_pauses_a_live_call() -> None:
 
 async def test_any_heard_speech_resets_the_silence_clock() -> None:
     """A soft "sí" that VAD misses still reaches STT: it is not silence."""
+    time = FakeTime()
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.03)
+    s = session(runtime, recorder, time=time)
     await s.transcript("hola")
     await s.wait()
     await s.played_one()
-    await asyncio.sleep(0.02)
+
+    await time.advance(5)
     await s.heard_speech()
-    await asyncio.sleep(0.02)  # 0.04 since listening, 0.02 since speech: no prompt yet
+    await time.advance(5)  # 10 s since listening, 5 s since speech: no prompt yet
     assert "¿Sigues ahí?" not in recorder.spoken
+    await time.advance(3)  # 8 s since speech
+
+    assert recorder.spoken.count("¿Sigues ahí?") == 1
     await s.close()
 
 
 async def test_speech_that_comes_to_nothing_still_earns_one_prompt_later() -> None:
     """A cough starts the aggregator's turn and no transcript follows: the clock restarts."""
+    time = FakeTime()
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.03)
+    s = session(runtime, recorder, time=time)
     await s.transcript("hola")
     await s.wait()
     await s.played_one()
+
     await s.interrupted()
-    await asyncio.sleep(0.06)
+    await time.advance(20)
+
     assert recorder.spoken.count("¿Sigues ahí?") == 1
     await s.close()
 
 
 async def test_speech_after_the_prompt_does_not_earn_a_second_one() -> None:
     """One prompt per candidate turn: speech that does not become a turn earns no other."""
+    time = FakeTime()
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.02)
+    s = session(runtime, recorder, time=time)
     await s.transcript("hola")
     await s.wait()
     await s.played_one()
-    await asyncio.sleep(0.03)  # the prompt is said
+    await time.advance(8)  # the prompt is said
+
     await s.heard_speech()
     await s.interrupted()
-    await asyncio.sleep(0.05)
+    await time.advance(20)
+
     assert recorder.spoken.count("¿Sigues ahí?") == 1
     await s.close()
 
@@ -226,19 +254,22 @@ async def test_speech_after_the_prompt_does_not_earn_a_second_one() -> None:
 async def test_a_new_turn_earns_a_new_prompt_even_when_its_apology_is_cut() -> None:
     """The prompt of one period does not carry over: the candidate answered, the turn failed,
     they spoke over the apology and went quiet. Silence is prompted again."""
+    time = FakeTime()
     failed = TurnFailed(turn_id=TurnId("t1"), code="timeout", message="La operación tardó.")
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()], [failed]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.02)
+    s = session(runtime, recorder, time=time)
     await s.transcript("hola")
     await s.wait()
     await s.played_one()
-    await asyncio.sleep(0.03)  # first period: the prompt is said
+    await time.advance(8)  # first period: the prompt is said
     await s.played_one()
+
     await s.transcript("Lucía")  # a new turn, which fails: the apology is said at once
     await s.wait()
     await s.interrupted()  # the candidate speaks over the apology, then nothing follows
-    await asyncio.sleep(0.04)
+    await time.advance(8)
+
     assert recorder.spoken.count("¿Sigues ahí?") == 2
     await s.close()
 
@@ -319,13 +350,16 @@ async def test_a_session_still_open_keeps_listening() -> None:
 
 async def test_the_silence_prompt_is_a_journaled_turn() -> None:
     """The hosted call: "¿Sigues ahí?" was heard but never appeared in the transcript."""
+    time = FakeTime()
     runtime = FakeRuntime([[say("¿Cómo te llamas?"), finished()]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.01)
+    s = session(runtime, recorder, time=time)
     await s.transcript("hola")
     await s.wait()
     await s.played_one()
-    await asyncio.sleep(0.03)
+
+    await time.advance(8)
+
     assert runtime.said == ["¿Sigues ahí?"]
     assert recorder.spoken[-1] == "¿Sigues ahí?"
     await s.close()
@@ -367,17 +401,20 @@ async def test_the_apology_is_said_when_the_queued_sentences_have_played() -> No
 
 
 async def test_the_silence_clock_starts_when_the_apology_has_played() -> None:
+    time = FakeTime()
     runtime = failed_after_two_sentences()
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.02)
+    s = session(runtime, recorder, time=time)
     await s.transcript("Está todo bien.")
     await s.wait()
     await s.played_one()
     await s.played_one()  # the summary has played; the apology is now playing
-    await asyncio.sleep(0.04)
+
+    await time.advance(20)
     assert "¿Sigues ahí?" not in recorder.spoken  # silence is only what the candidate can hear
     await s.played_one()  # the apology has played
-    await asyncio.sleep(0.04)
+    await time.advance(8)
+
     assert recorder.spoken.count("¿Sigues ahí?") == 1
     await s.close()
 
@@ -396,14 +433,17 @@ async def test_an_interruption_drops_the_apology_still_owed() -> None:
 
 
 async def test_a_failed_turn_with_nothing_queued_apologises_at_once() -> None:
+    time = FakeTime()
     failed = TurnFailed(turn_id=TurnId("t1"), code="timeout", message="La operación tardó.")
     runtime = FakeRuntime([[failed]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.02)
+    s = session(runtime, recorder, time=time)
     await s.transcript("De lunes a viernes")
     await s.wait()
     assert runtime.said == [APOLOGY]
-    await asyncio.sleep(0.04)
+
+    await time.advance(20)
+
     assert "¿Sigues ahí?" not in recorder.spoken  # the apology is still playing
     await s.close()
 
@@ -430,59 +470,66 @@ async def test_a_language_switch_is_reported_once_so_recognition_follows_it() ->
 # ---- an answer cut by a pause (KI-07, D44) -------------------------------------------------------
 
 
-def cut_answer(now: list[datetime]) -> tuple[FakeRuntime, VoiceSession]:
-    runtime = FakeRuntime([[say("¿Y qué día?"), finished()], [say("Perfecto."), finished()]])
-    runtime.slow = True
-    s = VoiceSession(
-        runtime,
-        SID,
-        speak=Recorder().speak,
-        on_status=lambda _status: None,
-        texts=TEXTS,
-        language="es",
-        clock=lambda: now[0],
+def cut_answer(time: FakeTime) -> tuple[FakeRuntime, VoiceSession]:
+    """Ana's answers stream 0.01 s apart, so a test can cut one before any of it is said."""
+    runtime = FakeRuntime(
+        [[say("¿Y qué día?"), finished()], [say("Perfecto."), finished()]],
+        slow=True,
+        sleep=time.sleep,
     )
-    return runtime, s
+    return runtime, session(runtime, Recorder(), time=time)
+
+
+async def answered(s: VoiceSession, time: FakeTime) -> None:
+    """The running turn streams to its end."""
+    await time.advance(1)
+    await s.wait()
 
 
 async def test_a_pause_longer_than_the_join_window_starts_a_new_answer() -> None:
-    now = [datetime(2026, 10, 20, tzinfo=UTC)]
-    runtime, s = cut_answer(now)
+    time = FakeTime()
+    runtime, s = cut_answer(time)
     await s.transcript("El lunes,")
     await s.interrupted()
-    now[0] += timedelta(seconds=VoiceSession.join_window_seconds + 0.1)
+
+    await time.advance(VoiceSession.join_window_seconds + 0.1)
     await s.transcript("uno, de, dos de noviembre.")
-    await s.wait()
+    await answered(s, time)
+
     assert runtime.turns[-1].text == "uno, de, dos de noviembre."
     await s.close()
 
 
 async def test_an_answer_that_was_heard_is_not_joined_to_the_next_words() -> None:
-    now = [datetime(2026, 10, 20, tzinfo=UTC)]
-    runtime, s = cut_answer(now)
+    time = FakeTime()
+    runtime, s = cut_answer(time)
     await s.transcript("El lunes,")
-    await asyncio.sleep(0.03)  # "¿Y qué día?" was said
+    await time.advance(0.03)  # "¿Y qué día?" was said
     await s.played_one()  # and heard
+
     await s.interrupted()
     await s.transcript("el dos de noviembre.")
-    await s.wait()
+    await answered(s, time)
+
     assert runtime.turns[-1].text == "el dos de noviembre."
     await s.close()
 
 
 async def test_a_cut_part_is_joined_once() -> None:
-    now = [datetime(2026, 10, 20, tzinfo=UTC)]
-    runtime, s = cut_answer(now)
+    time = FakeTime()
+    runtime, s = cut_answer(time)
     runtime.scripts.append([say("Vale."), finished()])
     await s.transcript("El lunes,")
-    await asyncio.sleep(0.005)  # the turn has started; nothing of it was said yet
+    await settle()  # the turn has started; nothing of it was said yet
+
     await s.interrupted()
     await s.transcript("uno, de, dos de noviembre.")
-    await s.wait()
+    await answered(s, time)
     await s.played_one()
     await s.played_one()
     await s.transcript("Sí.")
-    await s.wait()
+    await answered(s, time)
+
     assert [t.text for t in runtime.turns] == [
         "El lunes,",
         "El lunes, uno, de, dos de noviembre.",

@@ -31,6 +31,9 @@ beside their port in `src/` (`model/fake.py`, `persistence/memory.py`, `knowledg
 - **Assert what can be observed.** Returned values, reads through the `Store` contract, HTTP
   responses, events parsed as models. Not private attributes, not substrings of JSON; a call
   count only when the count is the behaviour (a retry budget).
+- **No wall clock.** Code that waits takes a clock and a `sleep`; tests pass a `FakeTime` and
+  `advance` it, so a silence prompt at 8 s is tested at 8 s and costs nothing. A real timeout
+  bound (`asyncio.timeout` in the runtime) is tested with a model that never answers.
 - **Red, then green.** A new behaviour or a fix starts with a test seen failing. A refactor of
   tests keeps the collected test names identical.
 

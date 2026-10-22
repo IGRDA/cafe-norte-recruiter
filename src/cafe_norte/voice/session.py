@@ -73,6 +73,7 @@ class VoiceSession:
         texts: Mapping[Language, VoiceTexts],
         language: Language,
         clock: Callable[[], datetime] | None = None,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         idle_prompt_seconds: float = 8.0,
         on_language: Callable[[Language], None] | None = None,
         on_hang_up: Callable[[], Awaitable[None]] | None = None,
@@ -84,6 +85,7 @@ class VoiceSession:
         self._texts_by_language = texts
         self._language = language  # follows each turn, so a switch changes the next filler
         self._clock = clock or _utcnow
+        self._sleep = sleep  # every timer waits through it, so tests run on virtual time (D50)
         self._idle_prompt_seconds = idle_prompt_seconds
         self._on_language = on_language
         self._on_hang_up = on_hang_up
@@ -328,7 +330,7 @@ class VoiceSession:
         while True:
             await self._quiet.wait()
             voiced = self._voiced
-            await asyncio.sleep(seconds)
+            await self._sleep(seconds)
             if self._quiet.is_set() and self._voiced == voiced:
                 return
 

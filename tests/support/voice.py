@@ -2,8 +2,7 @@
 standing in for TTS, and a session built with short timers."""
 
 import asyncio
-from collections.abc import AsyncGenerator, AsyncIterator, Sequence
-from datetime import UTC, datetime
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Sequence
 from typing import Literal
 
 from cafe_norte.conversation.contracts import (
@@ -19,6 +18,7 @@ from cafe_norte.observability.contracts import UsageRecord
 from cafe_norte.voice.contracts import VoiceTexts
 from cafe_norte.voice.session import VoiceSession
 from tests.support.builders import SID
+from tests.support.time import FakeTime
 
 TEXTS: dict[Language, VoiceTexts] = {
     "es": VoiceTexts(
@@ -46,8 +46,14 @@ def finished(turn: str = "t1") -> TurnFinished:
 
 class FakeRuntime:
     def __init__(
-        self, scripts: list[list[RuntimeEvent]], *, slow: bool = False, language: Language = "es"
+        self,
+        scripts: list[list[RuntimeEvent]],
+        *,
+        slow: bool = False,
+        language: Language = "es",
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
+        """``slow`` puts 0.01 s of ``sleep`` before each scripted event."""
         self.scripts = scripts
         self.language = language
         self.turns: list[TurnInput] = []
@@ -57,6 +63,7 @@ class FakeRuntime:
         self.asides: list[tuple[TurnId, str]] = []
         self.closed = 0
         self.slow = slow
+        self._sleep = sleep
         self.usage: list[UsageRecord] = []
 
     async def run_turn(self, turn: TurnInput) -> AsyncGenerator[RuntimeEvent, None]:
@@ -66,7 +73,7 @@ class FakeRuntime:
             yield TurnStarted(turn_id=TurnId("t1"), language=self.language, text=turn.text)
             for event in events:
                 if self.slow:
-                    await asyncio.sleep(0.01)
+                    await self._sleep(0.01)
                 yield event
         finally:
             self.closed += 1
@@ -103,8 +110,15 @@ class Recorder:
 
 
 def session(
-    runtime: FakeRuntime, recorder: Recorder, language: Language = "es", **limits: float
+    runtime: FakeRuntime,
+    recorder: Recorder,
+    language: Language = "es",
+    *,
+    time: FakeTime | None = None,
+    **limits: float,
 ) -> VoiceSession:
+    """A session on virtual time: its timers fire only when the test advances ``time``."""
+    time = time or FakeTime()
     return VoiceSession(
         runtime,
         SID,
@@ -112,6 +126,7 @@ def session(
         on_status=recorder.status.append,
         texts=TEXTS,
         language=language,
-        clock=lambda: datetime(2026, 10, 20, tzinfo=UTC),
+        clock=time.now,
+        sleep=time.sleep,
         idle_prompt_seconds=limits.get("prompt", 8.0),
     )

@@ -75,8 +75,9 @@ def turn(text: str, input_id: str = "in-1") -> TurnInput:
 
 
 class SlowFirst(FakeModel):
-    """The first ``slow_calls`` model calls say nothing for a second, as a slow provider does;
-    nothing of them is consumed, so the retry replays the same script."""
+    """The first ``slow_calls`` model calls never say anything, as a stalled provider does,
+    until the runtime's first-output bound gives up on them; nothing of them is consumed, so
+    the retry replays the same script."""
 
     def __init__(self, scripts: Sequence[Sequence[ModelEvent]], slow_calls: int) -> None:
         super().__init__(scripts)
@@ -89,7 +90,7 @@ class SlowFirst(FakeModel):
         self.attempts += 1
         if self.slow_left:
             self.slow_left -= 1
-            await asyncio.sleep(1)
+            await asyncio.Event().wait()  # cancelled by the bound
         async for event in super().stream(messages, tools, deadline=deadline):
             yield event
 

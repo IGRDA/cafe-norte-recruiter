@@ -118,9 +118,17 @@ async def test_a_verdict_is_journaled_against_its_source_turn() -> None:
 
 
 async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() -> None:
-    class Slow:
+    class Gated:
+        """Turn 1's verdict waits until the test lets it through; later ones are immediate."""
+
+        def __init__(self) -> None:
+            self.release = asyncio.Event()
+            self.calls = 0
+
         async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis:
-            await asyncio.sleep(0.05)
+            self.calls += 1
+            if self.calls == 1:
+                await self.release.wait()
             signal = Signal(
                 turn_id=turn_id,
                 sentiment="frustrated",
@@ -131,10 +139,12 @@ async def test_a_verdict_that_arrives_after_the_next_turn_started_is_not_used() 
             )
             return SignalAnalysis(signal=signal, usage=None, model_id="slow")
 
-    h = Harness([says("Uno."), says("Dos."), says("Tres.")], signals=Slow())
+    gated = Gated()
+    h = Harness([says("Uno."), says("Dos."), says("Tres.")], signals=gated)
     await h.open_session()
     await h.run("Esto va lento.", "in-1")
     await h.run("Me llamo Ane.", "in-2")  # turn 1's verdict is not in yet
+    gated.release.set()
     await h.runtime.settle()
     await h.run("Vale.", "in-3")  # turn 2's verdict is fresh
     sentiments = [session_facts(call)["candidate_sentiment"] for call in h.model.calls]

@@ -44,6 +44,7 @@ from tests.support.harness import (
     turn,
     voice_run,
 )
+from tests.support.time import settle
 
 
 async def test_the_candidate_state_is_committed_before_the_state_update_is_yielded() -> None:
@@ -281,7 +282,7 @@ async def test_cancelling_a_turn_inside_a_model_call_journals_it_as_interrupted(
             pass
 
     task = asyncio.create_task(consume())
-    await asyncio.sleep(0.1)  # the model has said nothing yet
+    await settle()  # the model is called and has said nothing yet
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task

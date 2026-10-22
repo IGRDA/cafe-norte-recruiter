@@ -7,7 +7,6 @@ suite, and the marker comes off in the same commit as the fix. KI-03, KI-04 and 
 regression guards.
 """
 
-import asyncio
 import json
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -35,6 +34,7 @@ from tests.support.harness import (
     turn,
     with_slots_offered,
 )
+from tests.support.time import FakeTime
 from tests.support.voice import FakeRuntime, Recorder, finished, say, session
 
 
@@ -49,15 +49,16 @@ def test_ki01_everyday_ways_of_saying_it_is_all_correct_are_a_plain_yes(text: st
 async def test_ki03_the_candidate_starting_to_speak_restarts_the_silence_clock() -> None:
     """Live: Aggregator 'User started speaking' at 16:06:46.7, '¿Sigues ahí?' at 16:06:50.1.
     In the pipeline the start of speech reaches the session as an interruption."""
+    time = FakeTime()
     runtime = FakeRuntime([[say("¿Tienes permiso de trabajo?"), finished()]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.05)
+    s = session(runtime, recorder, time=time)
     await s.transcript("Sí, me interesa.")
     await s.wait()
     await s.played_one()  # the question has played: the silence clock starts
-    await asyncio.sleep(0.03)
+    await time.advance(5)
     await s.interrupted()  # the candidate starts answering
-    await asyncio.sleep(0.03)  # 0.06 since the question, 0.03 since the speech
+    await time.advance(5)  # 10 s since the question, 5 s since the speech
     assert "¿Sigues ahí?" not in recorder.spoken
     await s.close()
 
@@ -69,14 +70,15 @@ async def test_ki04_after_a_failed_turn_the_silence_prompt_is_said_once() -> Non
     failed = TurnFailed(turn_id=TurnId("t1"), code="limit_exceeded", message="Límite.")
     runtime = FakeRuntime([[say("Te resumo lo que tengo."), say("¿Es todo correcto?"), failed]])
     recorder = Recorder()
-    s = session(runtime, recorder, prompt=0.02)
+    time = FakeTime()
+    s = session(runtime, recorder, time=time)
     await s.transcript("Está todo bien.")
     await s.wait()
-    await asyncio.sleep(0.03)  # the summary is still playing: no silence to prompt about
+    await time.advance(20)  # the summary is still playing: no silence to prompt about
     await s.played_one()
     await s.played_one()  # the summary's two sentences finish playing
     await s.played_one()  # and then the apology
-    await asyncio.sleep(0.04)
+    await time.advance(30)
     assert recorder.spoken.count("¿Sigues ahí?") == 1
     await s.close()
 
@@ -159,13 +161,18 @@ async def test_ki07_an_answer_cut_by_a_pause_reaches_the_model_whole() -> None:
     """Live: "El lunes," (seq 53) and "uno, de, dos de noviembre." (54) became two turns 4 s
     apart; the second cancelled the first before Ana said anything, and the model only ever
     read the second half as the answer."""
-    runtime = FakeRuntime([[say("¿Y qué día?"), finished()], [say("Perfecto."), finished()]])
-    runtime.slow = True
+    time = FakeTime()
+    runtime = FakeRuntime(
+        [[say("¿Y qué día?"), finished()], [say("Perfecto."), finished()]],
+        slow=True,
+        sleep=time.sleep,
+    )
     recorder = Recorder()
-    s = session(runtime, recorder)
+    s = session(runtime, recorder, time=time)
     await s.transcript("El lunes,")
     await s.interrupted()  # the candidate goes on before any of Ana's answer was said
     await s.transcript("uno, de, dos de noviembre.")
+    await time.advance(1)
     await s.wait()
     assert runtime.turns[-1].text == "El lunes, uno, de, dos de noviembre."
     await s.close()

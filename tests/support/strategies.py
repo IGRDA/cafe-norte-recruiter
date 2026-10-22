@@ -117,7 +117,7 @@ def patches(draw: st.DrawFn) -> CandidatePatch:
             values[name] = draw(FIELD_VALUES[name])
         else:
             (declined if kind == "declined" else unknown).add(name)
-    note = draw(st.none() | text)
+    note = draw(st.none() | text.filter(str.strip))
     return CandidatePatch.model_validate(
         {**values, "declined": declined, "unknown": unknown, "note": note}
     )

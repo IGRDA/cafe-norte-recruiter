@@ -46,6 +46,7 @@ from cafe_norte.conversation.signals import (
     answer_to_readback,
     explicit_controls,
     fresh_sentiment,
+    fresh_switch,
     is_farewell,
     requested_language,
 )
@@ -157,6 +158,7 @@ class _Turn:
     round_idle: bool = False  # every call of the latest model round changed nothing (D44)
     withheld: set[str] = field(default_factory=set)  # tools not offered again this turn (D44)
     previous_end: datetime | None = None  # when Ana last finished, for the gap before this turn
+    ana_before: str = ""  # what Ana said last before this turn, for the signal analyzer (D52)
     recorded: bool = False  # the user turn is stored, so an interruption has a turn to close
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
     outcome: ToolOutcome = field(
@@ -515,10 +517,17 @@ class Runtime:
 
     async def _turn(self, run: _Turn) -> AsyncGenerator[RuntimeEvent, None]:
         # An explicit language request applies to this very turn: saved with the user turn,
-        # before the model is called, so the record, the prompt and the reply all agree.
+        # before the model is called, so the record, the prompt and the reply all agree. With
+        # none, a switch the analyzer read in the previous turn applies now, the same way (D52).
         previous = run.state
         controls = explicit_controls(run.input.text)
         language = requested_language(controls, previous.language)
+        if not controls & {"switch_es", "switch_en"}:
+            suggested = fresh_switch(
+                self._latest_signal.get(run.session_id),
+                self._last_user_turn.get(run.session_id),
+            )
+            language = suggested or language
         run.state = previous.model_copy(update={"language": language})
         if previous.lifecycle == "paused":  # the candidate is back: the session is live again
             resumed = transition(run.state, "resume")
@@ -573,6 +582,9 @@ class Runtime:
             history = await self._store.turns.recent(run.session_id, HISTORY_TURNS + 1)
             if len(history) > 1:
                 run.previous_end = history[-2].finished_at
+            run.ana_before = next(
+                (t.text for t in reversed(history[:-1]) if t.role == "assistant"), ""
+            )
             configuration = self._configurations[run.state.config_id]
             today = self._clock().astimezone(ZoneInfo(configuration.timezone)).date()
             run.messages = list(
@@ -698,7 +710,9 @@ class Runtime:
 
         async def analyze() -> None:
             try:
-                analysis = await analyzer.analyze(run.turn_id, run.input.text, run.state.language)
+                analysis = await analyzer.analyze(
+                    run.turn_id, run.input.text, run.state.language, ana_said=run.ana_before
+                )
                 if analysis.usage is not None:
                     await self._record(_analysis_usage(run, analysis))
                 signal = analysis.signal

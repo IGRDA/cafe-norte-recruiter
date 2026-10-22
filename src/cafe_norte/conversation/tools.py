@@ -40,7 +40,7 @@ class UpdateCandidateArgs(Args):
 class SearchKnowledgeArgs(Args):
     """The candidate's words for the record and the model's self-contained Spanish queries
     for the index (English questions are reformulated here). No topic: a model-chosen topic
-    hid answers its documents did not include (D52)."""
+    hid answers its documents did not include (D53)."""
 
     question: str = Field(min_length=1, max_length=500)
     queries: tuple[str, ...] = Field(min_length=1, max_length=3)

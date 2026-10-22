@@ -17,6 +17,7 @@ evals/results/*
 !evals/results/retrieval/
 !evals/results/comparison/
 !evals/results/scorecard/
+!evals/results/signals/
 kb/index/
 infra/**/.terraform/
 *.tfstate

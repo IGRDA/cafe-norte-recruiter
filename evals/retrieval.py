@@ -90,7 +90,7 @@ def write_report(report: RetrievalReport, directory: Path) -> Path:
     return path
 
 
-# ---- the model's own queries, replayed (D52) -----------------------------------------------------
+# ---- the model's own queries, replayed (D53) -----------------------------------------------------
 
 
 def recorded_queries(exports: Path) -> dict[str, tuple[tuple[str, ...], ...]]:

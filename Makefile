@@ -2,7 +2,7 @@ INFRA_APP := infra/app
 INFRA_BOOTSTRAP := infra/bootstrap
 
 .PHONY: setup check lint typecheck test test-unit test-component test-http test-e2e quality test-db db-up db-down run migrate build-index export-schema export-example \
-        evals evals-retrieval compare smoke voice-listen voice-smoke infra-check infra-init infra-plan infra-apply
+        evals evals-retrieval compare evals-signals smoke voice-listen voice-smoke infra-check infra-init infra-plan infra-apply
 
 # Locked install with every extra; CI and local use the same command.
 setup:
@@ -71,6 +71,10 @@ evals-retrieval:
 
 compare:
 	set -a; [ -f .env ] && . ./.env; set +a; uv run python -m evals.run --suite comparison $(ARGS)
+
+# Offline experiment: sentiment and reply language, regex vs classifier vs LLM vs Jev.
+evals-signals:
+	set -a; [ -f .env ] && . ./.env; set +a; uv run python -m evals.run --suite signals $(ARGS)
 
 smoke:
 	uv run python scripts/smoke.py $${SMOKE_URL:-http://localhost:8000}

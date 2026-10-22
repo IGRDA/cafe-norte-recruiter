@@ -28,7 +28,7 @@ from cafe_norte.conversation.contracts import ConversationRuntime, SignalAnalyze
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
-from cafe_norte.conversation.signals import ModelSignalAnalyzer
+from cafe_norte.conversation.signals import DecisionSignalAnalyzer, ModelSignalAnalyzer
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import ConfigId, SessionId, StoreConfiguration
 from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
@@ -38,7 +38,7 @@ from cafe_norte.knowledge.index import lexical_index, load_index
 from cafe_norte.knowledge.loader import load_documents
 from cafe_norte.model.contracts import Model, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
-from cafe_norte.model.select import model_from_env
+from cafe_norte.model.select import decision_model_from_env, model_from_env
 from cafe_norte.observability.contracts import Estimator, ProcessVersions, Telemetry, stamp
 from cafe_norte.observability.cost import estimate as price_usage
 from cafe_norte.observability.cost import load_prices
@@ -168,9 +168,14 @@ def _model(env: Mapping[str, str]) -> Model:
 
 def _signals(env: Mapping[str, str]) -> SignalAnalyzer | None:
     """The asynchronous classifier is opt-in: ``CAFE_NORTE_SIGNAL_MODEL`` names a small model
-    (same selector format as ``CAFE_NORTE_MODEL``); unset, no turn pays for a second call."""
+    (same selector format as ``CAFE_NORTE_MODEL``), or ``openrouter/<decision model>`` for Jev
+    with ``OPENROUTER_API_KEY`` (D52); unset, no turn pays for a second call."""
     selector = env.get("CAFE_NORTE_SIGNAL_MODEL", "")
-    return ModelSignalAnalyzer(model_from_env(selector, env)) if selector else None
+    if not selector:
+        return None
+    if selector.startswith("openrouter/"):
+        return DecisionSignalAnalyzer(decision_model_from_env(selector, env))
+    return ModelSignalAnalyzer(model_from_env(selector, env))
 
 
 def create_default_app(

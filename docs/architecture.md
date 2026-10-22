@@ -10,6 +10,7 @@ the defaults in `.env.example`; decisions are cited by number from `DECISIONS.md
 | Port (module) | Contract |
 | --- | --- |
 | `Model.stream(messages, tools, *, deadline)` (`model`) | Async stream of `ModelText`, fully assembled `ToolCall`s, optional `ModelUsage`, one `ModelFinished`; malformed or late output raises `ModelError` with a stable code; provider-side tools never enabled |
+| `DecisionModel.decide(state, questions, *, deadline)` (`model`) | One `Decision`: a choice and a probability per option for every `ChoiceQuestion`, the tokens it cost; an answer outside the criteria or a failed call raises `ModelError` with a stable code (D52) |
 | `ConversationRuntime.run_turn(TurnInput)` (`conversation`) | Async generator of `RuntimeEvent`; serialized per session; requires the current lease generation; persists before `StateUpdated`; closing it cancels work and marks the turn interrupted; duplicate `input_id` → `TurnFailed(conflict)` |
 | `ToolRegistry.dispatch(ToolCall, ToolContext)` | Allowlist of ten names; arguments validated against the Pydantic model; one repair per turn; context injected by the server |
 | `Retriever.retrieve(RetrievalQuery)` (`knowledge`) | Filters by `config_id`, `kb_version` and optional `doc_ids` before ranking; BM25 + dense fused by RRF among allowed chunks; at most three; may return none |
@@ -76,19 +77,21 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | A generation with no usage report (barge-in, answer cut, silent or failed attempt) | estimated at 4 characters per token, from the messages and tools sent and the text streamed; marked `estimated` (D44) |
 | Recent turns in the prompt | 20 |
 | Knowledge chunk | one `## ` section, at most 90 words |
-| Chunks per `search_knowledge` call | 3; RRF k = 60; 1–3 phrasings per call; every document of the session's configuration, no topic filter (D52) |
-| Words removed from a query before ranking | "Café Norte", "Madrid", "barista(s)": every document shares them; the store's name stays (D52) |
+| Chunks per `search_knowledge` call | 3; RRF k = 60; 1–3 phrasings per call; every document of the session's configuration, no topic filter (D53) |
+| Words removed from a query before ranking | "Café Norte", "Madrid", "barista(s)": every document shares them; the store's name stays (D53) |
 | Relevance floor | a chunk with BM25 = 0 needs cosine ≥ 0.40 (D27, re-measured when the embedding model changes) |
 | Query embeddings in flight | 2 per process |
 | `search_knowledge` tool time | target ≤ 300 ms after warm-up; measured per call in `timings` (`stage: tool`) |
 | Searches per turn | bounded by the 4 tool rounds; the tool text allows one retry |
 | Turns read into one export snapshot | 10 000 (the whole transcript; the session cap keeps it far below) |
 | Tool arguments from the model | 16 KiB |
+| `update_candidate` note | 1–300 characters after trimming; longer goes back to the model as a repairable error |
 | SSE heartbeat while idle | 15 s |
 | Request body | 64 KiB, then 413 `limit_exceeded` (D38) |
 | Clarification attempts before `unknown` | 2 (model-judged, D19) |
 | Malformed-call repairs per turn | 1; a second malformed call ends the turn with `invalid_response` (D37) |
 | Signal classifier | opt-in (`CAFE_NORTE_SIGNAL_MODEL`), one call per user turn, after the turn, 5 s deadline |
+| Decision-model analyzer (Jev) | a soft sentiment at p ≥ 0.5, a language switch at p ≥ 0.7, applied at the next turn's start; one retry after 2 s on a 429 or 5xx, inside the 5 s deadline (D52) |
 | Signal freshness | the previous user turn only; `frustrated`/`uncertain` reach the prompt, others never |
 | Live eval: candidate lines per run | 24 (`MAX_LIVE_TURNS`); a run stops earlier when the session leaves `active` (D43) |
 | Live eval: wait for one turn's end | 90 s, then the turn is reported `no_turn_end` (D43) |
@@ -100,7 +103,8 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Scorecard judge | 90 s per metric per sample (`JUDGE_SECONDS`), then no score; estimate 8 000 + 1 500 tokens a probe and 60 000 + 2 000 a scenario, deliberately high (D51) |
 | Leak check | 12 consecutive words of `system.md` in one assistant turn, or a tool, chunk or configuration id, `ana_vN`, a key shape, raw JSON (D51) |
 | Live eval: spend estimate assumptions | 14 candidate turns a run; per turn 12 000 input + 200 output tokens for the answering model and 1 200 + 60 for the simulator; 60 000 + 2 000 per run for the judges (D51); deliberately high, priced with `prices/v1.yaml` (D43) |
-| Negation window for explicit requests | 3 words before the match, within one clause |
+| Signals eval (offline experiment) | one call per case and system, 10 s each (`CALL_SECONDS`), 4 in flight per system, 2 repetitions by default; Jev retried once after 2 s on a 429 or 5xx |
+| Negation window for explicit requests | 3 words before the match, within one clause; 6 for a language request turned down (D52) |
 | Follow-up flags | at most one per turn |
 | LLM first output | 6 s per round, one retry of a silent round, then `timeout` (D35) |
 | External tool | 10 s |
@@ -131,6 +135,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Destination | Data |
 | --- | --- |
 | Browser | Own session only: transcript, brief, confirmations, sources (title › section › excerpt), reviewer panel, the JSON export |
+| OpenRouter / TypeSafe (only with `CAFE_NORTE_SIGNAL_MODEL=openrouter/…`) | Each candidate message, Ana's sentence before it and the session language (US-hosted; on in the hosted demo, whose data is fictional; off for real applicants) |
 | Model provider (OpenAI in the hosted demo, Groq or OpenAI locally) | System prompt, configuration facts, candidate state, recent turns, tool calls and results (US-hosted) |
 | Deepgram / ElevenLabs / Daily | Audio and text of the voice session; no raw audio stored by us |
 | Postgres | Everything the export contains; access codes and tokens only as hashes |

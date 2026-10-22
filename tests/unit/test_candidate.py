@@ -3,7 +3,9 @@
 from datetime import date
 from typing import get_args
 
+import pytest
 from hypothesis import assume, given
+from pydantic import ValidationError
 
 from cafe_norte.domain.candidate import (
     apply_patch,
@@ -35,6 +37,12 @@ EVIDENCE = Evidence(source_turn_id=TurnId("t1"), text="me llamo Lucía")
 def test_a_valid_patch_passes_unchanged() -> None:
     patch = CandidatePatch(name="Lucía", hours_per_week=30)
     assert validate_patch(patch, CONFIG, TODAY, evidence_text="Lucía, 30 horas") == Ok(patch)
+
+
+@pytest.mark.parametrize("note", ["", "   ", "x" * 301])
+def test_a_note_is_never_blank_or_longer_than_300_characters(note: str) -> None:
+    with pytest.raises(ValidationError):
+        CandidatePatch(note=note)
 
 
 def test_phones_are_normalized_to_e164_or_refused() -> None:

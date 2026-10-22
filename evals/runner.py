@@ -57,6 +57,7 @@ from evals.retrieval import load_cases, recorded_queries, replay, run_retrieval,
 from evals.scorecard import render_markdown as render_scorecard
 from evals.scorecard import scorecard
 from evals.scorers import run_check
+from evals.signals import CASE_SETS, DEFAULT_SIGNAL_MODEL, SYSTEMS, signals_main
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIOS_DIR = ROOT / "evals" / "cases" / "scenarios"
@@ -251,12 +252,14 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
     parser = argparse.ArgumentParser(prog="evals")
     parser.add_argument(
         "--suite",
-        choices=["scenarios", "retrieval", "comparison", "scorecard"],
+        choices=["scenarios", "retrieval", "comparison", "scorecard", "signals"],
         default="scenarios",
     )
     parser.add_argument("--mode", choices=["fake", "live"], default="fake")
     parser.add_argument("--only", nargs="*", default=[])
-    parser.add_argument("--repeat", type=int, default=None, help="scenarios 1, comparison 2")
+    parser.add_argument(
+        "--repeat", type=int, default=None, help="scenarios 1, comparison and signals 2"
+    )
     parser.add_argument("--models", nargs="*", default=[])
     parser.add_argument(
         "--judge",
@@ -275,6 +278,13 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
     )
     parser.add_argument(
         "--replay", default=None, help="retrieval: a recorded scorecard's probe queries, rerun"
+    )
+    parser.add_argument("--systems", nargs="*", choices=SYSTEMS, default=list(SYSTEMS))
+    parser.add_argument("--cases", choices=list(CASE_SETS), default="dev", help="signals")
+    parser.add_argument(
+        "--signal-model",
+        default=os.environ.get("CAFE_NORTE_SIGNAL_MODEL") or DEFAULT_SIGNAL_MODEL,
+        help="signals: the production and llm systems' model",
     )
     live = parser.add_argument_group("live runs (paid; the estimate is printed first)")
     live.add_argument("--model", default=os.environ.get("CAFE_NORTE_MODEL") or DEFAULT_MODEL)
@@ -305,6 +315,8 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
         return live_main(args)
     if args.suite == "comparison":
         return comparison_main(args, committed=committed)
+    if args.suite == "signals":
+        return signals_main(args)
     if args.suite != "scenarios" or args.mode != "fake":
         print(f"{args.suite} in {args.mode} mode is not available yet (later stage).")
         return 2
@@ -431,7 +443,7 @@ def _retriever(mode: str) -> HybridRetriever:
 
 
 def replay_main(mode: str, folder: Path) -> int:
-    """The model's recorded queries of a live scorecard through today's retriever (D52)."""
+    """The model's recorded queries of a live scorecard through today's retriever (D53)."""
     retriever = _retriever(mode)
     configurations = load_configurations(CONFIG_DIR)
     recorded = recorded_queries(folder / "probe-exports")

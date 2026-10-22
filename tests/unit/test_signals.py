@@ -6,6 +6,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from cafe_norte.conversation.signals import (
+    QUESTIONS,
     Control,
     answer_to_readback,
     explicit_controls,
@@ -87,6 +88,11 @@ def test_explicit_requests_for_spanish(text: str) -> None:
         "I studied English at school.",
         "Hablo inglés y francés.",
         "I worked in an English-speaking café.",
+        "Do I need to speak Spanish for this job?",
+        "¿Hace falta hablar inglés?",
+        "No need to switch to Spanish, English is fine.",
+        "No hace falta que me hables en inglés, entiendo bien.",
+        "I don't speak Spanish.",
         "Okay",
         "Sí, me viene bien el turno de closing.",
         "",
@@ -310,3 +316,13 @@ def test_a_farewell_is_seen_in_both_languages(text: str) -> None:
 )
 def test_a_farewell_with_anything_still_to_do_is_not_one(text: str) -> None:
     assert not is_farewell(text)
+
+
+def test_the_questions_offer_every_sentiment_and_keep_or_switch() -> None:
+    assert set(QUESTIONS["sentiment"].criteria) == {
+        "neutral",
+        "positive",
+        "frustrated",
+        "uncertain",
+    }
+    assert set(QUESTIONS["language"].criteria) == {"keep", "switch"}

@@ -81,3 +81,42 @@ class Model(Protocol):
         *,
         deadline: datetime,
     ) -> AsyncGenerator[ModelEvent, None]: ...
+
+
+# ---- decision models (D52) -----------------------------------------------------------------------
+
+
+class ChoiceQuestion(Frozen):
+    """One typed question for a decision model: ``criteria`` maps each option to what it
+    means, and the model answers with one option and a probability for each."""
+
+    instructions: str
+    criteria: dict[str, str]
+
+
+class ChoiceAnswer(Frozen):
+    choice: str  # always one of the question's options; the adapter checks
+    probabilities: dict[str, float] = {}
+
+
+class Decision(Frozen):
+    answers: dict[str, ChoiceAnswer]  # one per question asked
+    model_id: str  # the dated version that answered
+    input_tokens: int
+    output_tokens: int
+
+
+class DecisionModel(Protocol):
+    """A model that answers typed questions about a state with probabilities and no text
+    (TypeSafe's Jev). Raises ``ModelError`` with a stable code, as ``Model`` does."""
+
+    @property
+    def model_id(self) -> str: ...
+
+    async def decide(
+        self,
+        state: dict[str, str],
+        questions: dict[str, ChoiceQuestion],
+        *,
+        deadline: datetime,
+    ) -> Decision: ...

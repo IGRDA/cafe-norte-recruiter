@@ -1,0 +1,28 @@
+# The two choice questions Jev answers about one candidate message (D52). The state it reads:
+# session_language (es is Spanish, en is English), ana_said, candidate_said. Each question
+# has instructions and one criterion per option; Jev returns a probability for each option.
+# Measured with evals/signals.py: change a word here and run the suite on both case sets.
+sentiment:
+  instructions: >-
+    The tone of candidate_said, the job candidate's latest message to Ana, a recruiting
+    assistant. Judge the words only, never the person.
+  criteria:
+    neutral: Plain answers, questions, refusals or goodbyes, including a plain no.
+    positive: Clear enthusiasm or thanks.
+    frustrated: Annoyance, impatience, sarcasm, or feeling misunderstood or made to repeat.
+    uncertain: Hesitation, doubt or confusion about what to answer.
+# Relative to the session, not "es"/"en": a decision about the conversation, which Jev reads
+# better (indirect requests went from 8/38 missed to 0/38 on the dev set).
+language:
+  instructions: >-
+    Whether Ana should keep session_language for her next reply or switch to the other
+    language (es is Spanish, en is English), from candidate_said.
+  criteria:
+    keep: >-
+      An ordinary reply in session_language; or names a language without asking to leave
+      session_language (asks if it is needed for the job, says they studied it); or turns down
+      a switch; or uses a borrowed word or two from the other language.
+    switch: >-
+      Asks to continue in the other language; or says the candidate cannot speak, understand
+      or follow session_language well, or only speaks the other language; or is written
+      entirely in the other language.

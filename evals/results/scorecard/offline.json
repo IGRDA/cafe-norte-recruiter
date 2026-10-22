@@ -1,6 +1,6 @@
 {
   "model": "fake",
-  "prompt_version": "ana_v18",
+  "prompt_version": "ana_v19",
   "kb_version": "2",
   "concurrency": 1,
   "metrics": [

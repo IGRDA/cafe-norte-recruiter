@@ -37,6 +37,16 @@ prices:
     unit_detail: "gpt-4.1:output"
     usd_per_unit: 0.000008
     source: https://developers.openai.com/api/docs/pricing
+  # https://openrouter.ai/typesafe/jev-1.14 : $0.042 / 1M input tokens, output free (verified
+  # 2026-10-22). The optional signal analyzer (D52); OpenRouter adds no fee on top.
+  - kind: llm_tokens
+    unit_detail: "typesafe/jev-1.14:input"
+    usd_per_unit: 0.000000042
+    source: https://openrouter.ai/typesafe/jev-1.14
+  - kind: llm_tokens
+    unit_detail: "typesafe/jev-1.14:output"
+    usd_per_unit: 0
+    source: https://openrouter.ai/typesafe/jev-1.14
   # https://developers.openai.com/api/docs/models/text-embedding-3-small : $0.02 / 1M tokens
   # (verified 2026-10-22). Evaluation only: ragas' testset generation and judges (D51).
   - kind: llm_tokens

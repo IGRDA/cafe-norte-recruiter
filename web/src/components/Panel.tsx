@@ -33,7 +33,7 @@ export function Panel({ state, dispatch }: Props) {
   const booking = state.candidate?.booking;
   const href = exportHref(state);
   return (
-    <aside className="panel">
+    <aside className="panel" aria-label="Ficha y revisión">
       <h2>Ficha del candidato</h2>
       <Rows rows={candidateRows(state.candidate)} />
       <h2>Confirmación</h2>

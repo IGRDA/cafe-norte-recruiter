@@ -304,12 +304,14 @@ export function reduce(state: State, action: Action, exec: Exec): State {
       const text = state.draft.trim();
       if (state.page !== "active" || state.sending || !text || !state.sessionId) return state;
       exec({ type: "post-turn", sessionId: state.sessionId, text });
-      return { ...state, sending: true, error: null };
+      // "Sent" is said now: the stream can finish the turn before the POST's reply arrives.
+      return { ...state, sending: true, error: null, status: "Enviado…" };
     }
     case "turn-accepted":
-      return { ...state, sending: false, draft: "", status: isLive(state) ? "Enviado…" : state.status };
+      if (isLive(state)) exec({ type: "focus", target: "text" });
+      return { ...state, sending: false, draft: "" };
     case "turn-rejected":
-      return { ...state, sending: false, error: action.message };
+      return yourTurn({ ...state, sending: false, error: action.message });
 
     // Confirmation: the card's Sí / No, an explicit answer at the revision on screen. The server
     // runs it through the same rules as a spoken answer; the stream shows the result.
@@ -324,12 +326,12 @@ export function reduce(state: State, action: Action, exec: Exec): State {
         answer: action.answer,
         revision: update.revision,
       });
-      return { ...state, answering: true, error: null };
+      return { ...state, answering: true, error: null, status: "Enviado…" };
     }
     case "answer-accepted":
-      return isLive(state) ? { ...state, status: "Enviado…" } : state;
+      return state;
     case "answer-rejected":
-      return { ...state, answering: false, error: action.message };
+      return yourTurn({ ...state, answering: false, error: action.message });
 
     // Voice
     case "talk-pressed":

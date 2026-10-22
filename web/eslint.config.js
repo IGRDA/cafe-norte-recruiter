@@ -11,6 +11,10 @@ export default tseslint.config(
     extends: [js.configs.recommended, ...tseslint.configs.recommended, jsxA11y.flatConfigs.recommended],
     languageOptions: { globals: globals.browser },
     plugins: { "react-hooks": reactHooks },
-    rules: { ...reactHooks.configs.recommended.rules },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      // A scrolling region must be reachable by keyboard; the transcript is a log that scrolls.
+      "jsx-a11y/no-noninteractive-tabindex": ["error", { roles: ["tabpanel", "log"], tags: [], allowExpressionValues: true }],
+    },
   },
 );

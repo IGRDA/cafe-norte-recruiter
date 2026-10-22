@@ -249,9 +249,10 @@ describe("turns", () => {
     const sent = run(typed, { type: "text-submitted" }, { type: "text-submitted" });
     expect(sent.effects).toEqual([{ type: "post-turn", sessionId: "s1", text: "Me llamo Ana" }]);
     expect(canSend(sent.state)).toBe(false);
-    const accepted = run(sent.state, { type: "turn-accepted" }).state;
-    expect(accepted.draft).toBe("");
-    expect(canSend(accepted)).toBe(true);
+    const accepted = run(sent.state, { type: "turn-accepted" });
+    expect(accepted.state.draft).toBe("");
+    expect(canSend(accepted.state)).toBe(true);
+    expect(accepted.effects).toEqual([{ type: "focus", target: "text" }]); // Enviar may have taken it
   });
 
   it("a rejected turn keeps the draft and shows why", () => {
@@ -259,6 +260,17 @@ describe("turns", () => {
     const { state } = run(typed, { type: "turn-rejected", message: "Sin conexión con el servidor." });
     expect(state.draft).toBe("Hola");
     expect(state.error).toBe("Sin conexión con el servidor.");
+  });
+
+  it("a turn the stream finished before the POST replied stays 'Tu turno.'", () => {
+    const sent = run(active(), { type: "draft-changed", text: "Hola" }, { type: "text-submitted" }).state;
+    expect(sent.status).toBe("Enviado…");
+    const { state } = run(
+      sent,
+      event({ type: "turn_finished", turn_id: "t1", interrupted: false, usage: [], timings: [] }),
+      { type: "turn-accepted" },
+    );
+    expect(state.status).toBe("Tu turno.");
   });
 
   it("sends nothing empty", () => {

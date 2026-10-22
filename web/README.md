@@ -55,3 +55,17 @@ The reviewer panel is a collapsible block: the versions (configuration, model, p
 knowledge base, schema, commit) from the create reply or the snapshot, then one collapsed entry
 per turn with its tool calls with their redacted arguments (D44) and outcomes, retrieval
 excerpts, timings and usage; never hidden reasoning.
+
+## Accessibility (WCAG 2.2 AA)
+
+- Landmarks: one `main`, the header, the conversation `section` and the `aside`, each labelled;
+  one `h1`. `<html lang>` follows the session's language, which can switch mid-session (D53).
+- The transcript is a `log`: new bubbles are announced politely. It follows the newest words
+  unless the reader scrolled up, and is reachable by keyboard since it scrolls.
+- Errors are `role="alert"`; the status line is `aria-live="polite"`. Focus goes to the access
+  field when it appears and back to the message box after a send.
+- Contrast: every text pair ≥ 4.5:1 (lowest: `--muted` on the user bubble, 5.9:1); field
+  borders `--field` ≥ 3:1. A 3 px `:focus-visible` outline in `--accent`; buttons and fields
+  are at least 44 px tall. Emoji on **Hablar** / **Parar** are hidden from screen readers.
+- `App.test.tsx` runs axe on the rendered page (contrast is checked by hand: jsdom cannot
+  compute it); ESLint runs `jsx-a11y`.

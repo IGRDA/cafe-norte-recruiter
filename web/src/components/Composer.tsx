@@ -40,7 +40,7 @@ export function Composer({ state, dispatch }: Props) {
           title="Voz alojada: Daily + Deepgram + ElevenLabs"
           onClick={() => dispatch({ type: "talk-pressed" })}
         >
-          {pressed ? "⏹ Parar" : "🎙 Hablar"}
+          <span aria-hidden="true">{pressed ? "⏹" : "🎙"}</span> {pressed ? "Parar" : "Hablar"}
         </button>
       )}
     </form>

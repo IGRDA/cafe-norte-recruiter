@@ -109,6 +109,14 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Sí" })).toBeDisabled();
   });
 
+  it("speaks the session's language: <html lang> follows a switch", async () => {
+    const { stream } = setup();
+    await screen.findByText("Conectada.");
+    expect(document.documentElement.lang).toBe("es");
+    stream.emit(1, { ...pendingBrief(), language: "en" });
+    expect(document.documentElement.lang).toBe("en");
+  });
+
   it("has no accessibility violations axe can find", async () => {
     const { container, stream } = setup();
     await screen.findByText("Conectada.");

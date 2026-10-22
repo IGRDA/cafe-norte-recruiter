@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Composer } from "./components/Composer";
 import { Header } from "./components/Header";
 import { Panel } from "./components/Panel";
@@ -13,11 +14,15 @@ interface Props {
 
 export function App({ requested, ports }: Props) {
   const [state, dispatch] = usePage(requested, ports);
+  // Screen readers pronounce the page in the session's language, which can switch (D53).
+  useEffect(() => {
+    document.documentElement.lang = state.language;
+  }, [state.language]);
   return (
     <main id="app">
       <Header state={state} dispatch={dispatch} />
       <section className="layout">
-        <div className="conversation">
+        <section className="conversation" aria-label="Conversación con Ana">
           <Transcript bubbles={state.transcript} />
           <Composer state={state} dispatch={dispatch} />
           {state.error && (
@@ -25,7 +30,7 @@ export function App({ requested, ports }: Props) {
               {state.error}
             </p>
           )}
-        </div>
+        </section>
         <Panel state={state} dispatch={dispatch} />
       </section>
     </main>

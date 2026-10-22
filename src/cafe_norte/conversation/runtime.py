@@ -1074,7 +1074,7 @@ class Runtime:
             yield event
         if name == "list_interview_slots" and run.outcome.ok:
             # "El martes 27 a las diez": the day is offered now, and the same words may pick
-            # its slot. Once: a second miss is the model's (D55).
+            # its slot. Once: a second miss is the model's (D56).
             again = slot_answer(
                 run.state,
                 run.input.text,

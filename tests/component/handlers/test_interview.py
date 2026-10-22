@@ -39,7 +39,7 @@ async def test_slots_come_after_the_confirmed_brief_and_record_the_intent() -> N
     )
     assert outcome.ok and outcome.summary == "offered:3"
     # The model offers the times in its own words and chooses by number; it never sees an id
-    # it could miscopy (D55).
+    # it could miscopy (D56).
     assert outcome.spoken == ""
     assert "2: miércoles 21 de octubre de 2026 a las 10:30" in outcome.model_text
     assert "slot_id" not in outcome.model_text and "choice" in outcome.model_text

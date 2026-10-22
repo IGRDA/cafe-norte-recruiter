@@ -132,7 +132,7 @@ def offer_facts(
     state: SessionState, configuration: StoreConfiguration
 ) -> list[dict[str, object]] | None:
     """The interview times on offer, by number, in the store's local time: the model offers
-    them in its own words and chooses by number, never by an id it could miscopy (D55)."""
+    them in its own words and chooses by number, never by an id it could miscopy (D56)."""
     offer = state.slot_offer
     settled = state.brief_confirmed_revision == state.candidate.revision
     if offer is None or not offer.slots or state.booking is not None or not settled:

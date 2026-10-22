@@ -56,7 +56,7 @@ class ListInterviewSlotsArgs(Args):
 class PresentConfirmationArgs(Args):
     """A slot is named by its number in ``interview_slots`` (``choice``); an id is still
     accepted. ``evidence_text`` is the candidate's words asking for the interview, needed while
-    the session has none (D55)."""
+    the session has none (D56)."""
 
     target: Literal["field", "brief", "slot"]
     field: CandidateFieldName | None = None

@@ -1,5 +1,6 @@
 """``PostgresStore``: the pool, the transaction boundary, readiness and the one-read snapshot."""
 
+import socket
 from collections.abc import AsyncIterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import datetime
@@ -55,6 +56,7 @@ class PostgresStore:
         statement_seconds: float = 3.0,
         lock_seconds: float = 2.0,
         admission_ttl_seconds: float = 600.0,
+        instance: str | None = None,
     ) -> None:
         self._dsn = dsn
         self._pool = make_pool(
@@ -70,7 +72,11 @@ class PostgresStore:
         self.events = PostgresEvents(connect, poll_seconds=poll_seconds)
         self.calendar = PostgresCalendar(connect)
         self.leases = PostgresLeases(connect)
-        self.admission = PostgresAdmission(connect, ttl_seconds=admission_ttl_seconds)
+        # The instance that holds a voice place. The hosted app runs with host networking, so
+        # the hostname is the VM's and survives a reset (D55).
+        self.admission = PostgresAdmission(
+            connect, ttl_seconds=admission_ttl_seconds, owner=instance or socket.gethostname()
+        )
         self.summary_jobs: SummaryJobs = SummaryJobsLater()
         self.resume_tokens = PostgresResumeTokens(connect)
         self.exports = PostgresExports(connect)

@@ -80,7 +80,7 @@ def test_a_tool_result_says_what_was_already_said_this_turn_so_the_model_goes_on
 
 
 def test_the_offer_is_in_the_facts_by_number_and_time_never_by_id() -> None:
-    """The model offers the times itself and picks one by number (D55)."""
+    """The model offers the times itself and picks one by number (D56)."""
     slots = tuple(
         OfferedSlot(slot_id=s.slot_id, starts_at_utc=s.starts_at_utc)
         for s in interview_slots(CONFIG, after=NOW)[:2]

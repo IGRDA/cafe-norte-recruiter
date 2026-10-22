@@ -6,7 +6,7 @@ today: "2026-10-20"
 # What went wrong live: to "¿Te gustaría hacer una entrevista?" the candidate said "Sí", and
 # the model answered "te digo los huecos" four times without calling list_interview_slots;
 # no time was ever said. The times are now on offer with the confirmed brief and in the facts
-# (D55): line 7 has no question; line 8's model says the times itself, with no tool; line 9
+# (D56): line 7 has no question; line 8's model says the times itself, with no tool; line 9
 # picks the last one, which the model reads back by its number (the runtime matches only once
 # the candidate has asked); line 10's yes books it.
 scripted_turns:

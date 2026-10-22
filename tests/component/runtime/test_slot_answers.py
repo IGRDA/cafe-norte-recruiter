@@ -97,7 +97,7 @@ async def test_a_day_not_offered_is_offered_again_for_that_day_by_the_runtime() 
     events = await h.run("¿Y el viernes?", "in-2")
     assert tools_started(events) == ["list_interview_slots"]
     assert await offered_ids(h) == [FRI_1030, FRI_17]
-    # The model says the new times in its own words; the runtime says no list (D55).
+    # The model says the new times in its own words; the runtime says no list (D56).
     assert not [e for e in events if isinstance(e, AssistantText)]
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.schedule_intent is not None

@@ -93,7 +93,7 @@ def test_a_day_not_offered_offers_again_for_that_day_with_the_original_words() -
 
 
 def test_before_the_candidate_asks_for_an_interview_nothing_is_decided() -> None:
-    """The offer is made with the brief, before any time was said (D55): live, "La última."
+    """The offer is made with the brief, before any time was said (D56): live, "La última."
     to another question booked a time the candidate never heard. The first choice is the
     model's, with the candidate's words."""
     assert answer(offered(schedule_intent=None), "La última.") is None
@@ -102,7 +102,7 @@ def test_before_the_candidate_asks_for_an_interview_nothing_is_decided() -> None
 
 def test_words_that_name_no_day_are_the_models_which_has_the_options() -> None:
     """A time or a month with nothing on offer is not offered again: the same list said
-    again is the loop of 22 October. The model says what there is (D55)."""
+    again is the loop of 22 October. The model says what there is (D56)."""
     assert answer(offered(), "A las ocho.") is None
     assert answer(offered(), "El martes de noviembre.") is None
 

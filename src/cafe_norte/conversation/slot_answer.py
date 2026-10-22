@@ -42,7 +42,7 @@ def slot_answer(
     offered are offered again for that day. ``None``: no open offer or no request for the
     interview yet, words that are not a
     choice, or words that name no day (a time, a month with nothing free): the model has the
-    options in its facts and says what there is, so the same list is never said again (D55)."""
+    options in its facts and says what there is, so the same list is never said again (D56)."""
     offer = open_offer(state, by_button=by_button)
     intent = state.schedule_intent
     if offer is None or intent is None:
@@ -88,7 +88,7 @@ def open_offer(state: SessionState, *, by_button: bool) -> SlotOffer | None:
     is live, and no field or brief read-back is waiting for its own answer. A button press
     answers a read-back, never an offer. ``slot_answer`` also waits for the candidate to have
     asked for the interview: the offer is made with the brief, before Ana has said a time, and
-    "la última" then means nothing yet (D55)."""
+    "la última" then means nothing yet (D56)."""
     offer = state.slot_offer
     pending = state.pending_confirmation
     waiting = (

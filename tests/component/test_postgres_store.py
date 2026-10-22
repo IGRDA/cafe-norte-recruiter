@@ -36,6 +36,7 @@ async def test_open_applies_the_migrations_once_and_is_idempotent(empty_database
         "0001_initial.sql",
         "0002_leases_admission_resume.sql",
         "0003_exports_and_cascades.sql",
+        "0004_admission_owner.sql",
     ]
 
 
@@ -98,3 +99,24 @@ async def test_an_admission_older_than_its_ttl_no_longer_counts(empty_database: 
     await asyncio.sleep(0.01)
     assert await store.admission.acquire(SessionId("s2"), max_active=1, reserve_eur=0.5)
     await store.close()
+
+
+async def test_a_restart_releases_only_its_own_instances_places(empty_database: str) -> None:
+    """Rows carry the instance that acquired them: another container's live calls keep their
+    places when this one restarts."""
+    here = PostgresStore(empty_database, instance="vm-a")
+    there = PostgresStore(empty_database, instance="vm-b")
+    await here.open()
+    await there.open()
+    for session_id in ("s1", "s2"):
+        await here.sessions.create(
+            STATE.model_copy(update={"session_id": SessionId(session_id)}), access_hash=""
+        )
+    assert await here.admission.acquire(SessionId("s1"), max_active=2, reserve_eur=0.5)
+    assert await there.admission.acquire(SessionId("s2"), max_active=2, reserve_eur=0.5)
+
+    assert await here.admission.release_left_over() == 1
+
+    assert not await there.admission.acquire(SessionId("s1"), max_active=1, reserve_eur=0.5)
+    await here.close()
+    await there.close()

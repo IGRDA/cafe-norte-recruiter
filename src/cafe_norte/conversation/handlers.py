@@ -608,7 +608,7 @@ class _ConfirmHandler(_Handler):
             brief_revision = resolved.target.revision
             if state.booking is None:
                 # The first times are on offer with the brief: the model sees them and offers
-                # them itself, so no tool call stands between a yes and the times (D55).
+                # them itself, so no tool call stands between a yes and the times (D56).
                 offer = _offer((await self._free_slots(state, context))[:OFFERED_SLOTS])
         new_state = state.model_copy(
             update={
@@ -725,7 +725,7 @@ class ListInterviewSlotsHandler(_InterviewHandler):
     """``list_interview_slots``: other times, for the day the candidate asks. Their words
     asking for an interview are saved as the explicit intent to schedule, in the same save that
     replaces the offer. The model gets the times by number and offers them in its own words
-    (D55); a day with nothing free is said plainly, never covered by the first times."""
+    (D56); a day with nothing free is said plainly, never covered by the first times."""
 
     async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
         assert isinstance(arguments, ListInterviewSlotsArgs)

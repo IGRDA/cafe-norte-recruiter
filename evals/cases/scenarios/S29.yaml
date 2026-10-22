@@ -6,7 +6,7 @@ today: "2026-10-20"
 # What went wrong live: the model invented slot ids ("2026-10-24T17:00:00",
 # "slot-2026-10-27T10:30"), each refusal said "Offer fresh slots", and the runtime said the
 # whole list four times; "el martes de noviembre" offered Tuesday 27 October, and "el martes
-# veintisiete a las diez" listed again although that slot existed. Now (D55): line 8 names a
+# veintisiete a las diez" listed again although that slot existed. Now (D56): line 8 names a
 # month with nothing free; the model's invented id is refused with the options it has, and
 # nothing is said for it; line 9 names a day and a time not on offer, so the model looks that
 # day up and reads its first slot back by number, with no list said; line 10's yes books it.

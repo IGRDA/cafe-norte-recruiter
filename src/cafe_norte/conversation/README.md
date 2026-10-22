@@ -34,7 +34,7 @@ the confirmed brief the next step is to invite questions, then the interview.
 ## The interview
 
 The confirmed brief puts the first three free slots of this store on offer (`slot_offer`), and
-the facts show them by number (`interview_slots`, D55). After the questions, Ana asks about an
+the facts show them by number (`interview_slots`, D56). After the questions, Ana asks about an
 interview and, on a yes, says those times herself, in her own words; no tool call stands
 between the yes and the times. `list_interview_slots(evidence_text, date_preference)` is for
 another day: it replaces the offer, says plainly when that day has nothing free, and saves the

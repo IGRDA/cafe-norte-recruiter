@@ -26,8 +26,8 @@ the session never paused during the call; no model round timed out.
 | KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | `test_ki07_…` | **fixed (D44)** |
 | KI-08 | Wasted model rounds add latency | Low | `test_ki08_…` (two) | **fixed (D44)** |
 | KI-09 | A mention or a refusal of a language switches it; a frustrated request does not | Medium | `test_ki09_…` (four), the signals suite | **fixed (D52)** |
-| KI-10 | No interview time is ever said: the model promises them and calls no tool | High | S28 | **fixed (D55)** |
-| KI-11 | An invented slot id makes the whole list be said again, up to four times | High | S29, `test_a_wrong_choice_…` | **fixed (D55)** |
+| KI-10 | No interview time is ever said: the model promises them and calls no tool | High | S28 | **fixed (D56)** |
+| KI-11 | An invented slot id makes the whole list be said again, up to four times | High | S29, `test_a_wrong_choice_…` | **fixed (D56)** |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -194,7 +194,7 @@ the session never paused during the call; no model round timed out.
   call. The candidate ends up with a follow-up request instead of a booking.
 - **Cause.** The times existed only behind `list_interview_slots`, which the model had to
   remember to call; the runtime's slot matcher works only once an offer exists.
-- **Fixed (D55).** The confirmed brief puts the first three slots on offer, and the facts show
+- **Fixed (D56).** The confirmed brief puts the first three slots on offer, and the facts show
   them by number. The model says them without a tool. S28 replays the call with a model that
   never lists.
 
@@ -215,7 +215,7 @@ the session never paused during the call; no model round timed out.
   - The refusal told it to list again.
   - The runtime spoke every list.
   - The matcher threw the month away and searched only the offer.
-- **Fixed (D55).**
+- **Fixed (D56).**
   - Choice by number.
   - Refusals that name the options.
   - The list said by the model, not the runtime.

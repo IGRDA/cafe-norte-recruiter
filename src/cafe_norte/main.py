@@ -5,6 +5,7 @@ in-memory store, a canned retriever and voice off. Nothing else in the package r
 ``os.environ``."""
 
 import asyncio
+import logging
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
@@ -73,6 +74,8 @@ STATUS: dict[ErrorCode, int] = {
     "internal_error": 500,
 }
 
+log = logging.getLogger(__name__)
+
 
 def create_app(
     *,
@@ -94,7 +97,8 @@ def create_app(
     estimate: Estimator | None = None,
     flush: Callable[[], None] | None = None,
 ) -> FastAPI:
-    """Build from typed collaborators. Lifespan: open the store (migrations), seed the
+    """Build from typed collaborators. Lifespan: open the store (migrations), release the voice
+    places a previous process left held, seed the
     simulated calendar when ``seed`` is set, ``warm_up`` (the embedding model) before the first
     request, cancel in-flight turns on
     shutdown. Later stages add lease renewal and the summary worker."""
@@ -103,6 +107,10 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await store.open()
+        # A restart ended the previous process's calls without releasing their voice places;
+        # without this the next calls are refused as busy until the rows age out (D55).
+        if left_over := await store.admission.release_left_over():
+            log.info("admission: released %d voice places held before the restart", left_over)
         if seed:
             await seed_calendar(store, configurations, now=datetime.now(UTC))
         if warm_up is not None:

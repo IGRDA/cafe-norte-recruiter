@@ -394,6 +394,11 @@ class MemoryAdmission:
     async def release(self, session_id: SessionId, *, actual_eur: float) -> None:
         self._active.pop(session_id, None)
 
+    async def release_left_over(self) -> int:
+        left_over = len(self._active)
+        self._active.clear()
+        return left_over
+
     @property
     def active(self) -> frozenset[SessionId]:
         return frozenset(self._active)

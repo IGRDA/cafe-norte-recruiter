@@ -307,3 +307,19 @@ def test_a_declined_fact_is_not_supplied() -> None:
     extraction = extraction_accuracy(persona, result().state)
     assert extraction.supplied == 4
     assert extraction.correct == 0
+
+
+def test_claims_saved_without_save_finds_a_save_said_with_nothing_saved() -> None:
+    """Ignacio's call: "Guardo que puedes trabajar los fines de semana." in a turn with no tool
+    call; the save came a turn later (D58)."""
+    said = ("Guardo que puedes trabajar los fines de semana.", "¿Quieres que lo deje anotado?")
+    check = Check(name="claims_saved_without_save")
+    early = result(spoken_by_turn=((), said)).model_copy(update={"tools_by_turn": ((), ())})
+    verdict = run_check(early, check)
+    assert not verdict.ok and "Guardo que" in verdict.detail
+    saved = early.model_copy(update={"tools_by_turn": ((), (("update_candidate", True),))})
+    assert run_check(saved, check).ok
+    refused = early.model_copy(update={"tools_by_turn": ((), (("update_candidate", False),))})
+    assert not run_check(refused, check).ok
+    asked = result(spoken_by_turn=(("¿Quieres que lo deje anotado?",),))
+    assert run_check(asked, check).ok  # an offer to save is not a claim

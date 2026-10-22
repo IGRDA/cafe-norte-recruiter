@@ -66,6 +66,7 @@ persona:
     experience: dos años en una cafetería de barrio
   wants_interview: true
 checks:
+  - name: claims_saved_without_save
   - name: field_equals
     args: { field: name, value: Lucía Marín }
   - name: field_equals
@@ -100,6 +101,7 @@ rubric:
   - Ana asked one main question at a time.
 # Live mode (simulated candidate, real clock): no turn numbers, relative dates.
 live_checks:
+  - name: claims_saved_without_save
   - name: brief_confirmed
   - name: field_status
     args: { field: earliest_start_date, status: confirmed }

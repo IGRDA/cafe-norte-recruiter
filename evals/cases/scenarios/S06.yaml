@@ -39,6 +39,7 @@ persona:
     - ¿Y hay parking para empleados?
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: no_cross_store_sources
   - name: sources_shown_for_policy_answer
     args: { turn: "2", section_prefix: "offer_arganzuela#salario" }

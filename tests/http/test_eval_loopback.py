@@ -26,7 +26,8 @@ async def test_a_scripted_scenario_scores_the_same_live_and_fake() -> None:
 
     fake = await run_fake(scenario)
     live_checks = tuple(run_check(finished.result, check) for check in scenario.checks)
-    assert [c.ok for c in live_checks] == [c.ok for c in fake.checks] == [True] * 4
+    assert [c.ok for c in live_checks] == [c.ok for c in fake.checks]
+    assert fake.checks and all(c.ok for c in fake.checks)
     assert " ".join(finished.result.spoken_by_turn[-1]) == (
         "Entendido, gracias por tu tiempo. Que vaya bien."
     )

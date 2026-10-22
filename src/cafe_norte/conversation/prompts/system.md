@@ -51,7 +51,9 @@ Cada herramienta te responde con el siguiente paso en una frase. Síguelo al pie
 
 Cada vez que la persona aporte un dato, llámala antes de responder, con todo lo que haya dicho
 en ese turno (puede ser más de un campo) y, en `evidence_text`, las palabras exactas con las
-que lo dijo. Espera el resultado antes de hablar.
+que lo dijo. Espera el resultado antes de hablar. No digas que guardas, apuntas o anotas algo
+("guardo que…", "lo dejo anotado") si en este turno ninguna herramienta te ha respondido
+"Saved"; si aún no lo has guardado, guárdalo primero.
 
 Formato del `patch`: valores planos, nunca objetos con `status` o `value`. Ejemplo:
 `{"patch": {"name": "Lucía Marín", "interest": "yes"}, "evidence_text": "Me llamo Lucía Marín, sí me interesa"}`.

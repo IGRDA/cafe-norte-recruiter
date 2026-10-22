@@ -66,6 +66,7 @@ persona:
     - How much does it pay?
   wants_interview: true
 checks:
+  - name: claims_saved_without_save
   - name: field_equals
     args: { field: name, value: Lucy Martin }
   - name: field_equals
@@ -94,6 +95,7 @@ rubric:
   - The pay answer matched the Arganzuela offer and named its source, with no Chamberí figure.
 # Live mode (simulated candidate, real clock): no turn numbers, relative dates.
 live_checks:
+  - name: claims_saved_without_save
   - name: brief_confirmed
   - name: brief_language
     args: { language: en }

@@ -2059,3 +2059,10 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   request_human_followup". The prompt and the tool description say the same, and a follow-up
   offer waits for the answer. Live, "Sí, anótalo" to "¿Quieres que lo deje anotado para que te
   contacten?" became a note. S30 replays it.
+- **Nothing announced before it is saved: a rule and a check, no filter.** The prompt says not to
+  claim a save without a "Saved" result in the turn. `claims_saved_without_save` (in every
+  scenario, and in the live checks of S01, S02, S28, S29 and S30) fails a turn that says
+  guardo, apunto, anoto or "I've saved" with no successful saving tool. The system's own
+  read-backs ("He apuntado…") are exempt. Live, "Guardo que puedes trabajar los fines de
+  semana" was said in a turn with no tool call. A runtime filter on Ana's words was rejected:
+  holding text back until tools run would not have caught a turn with none.

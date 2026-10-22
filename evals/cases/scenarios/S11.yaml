@@ -55,6 +55,7 @@ persona:
     - hours_per_week
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: field_status
     args: { field: hours_per_week, status: declined }
   - name: field_status

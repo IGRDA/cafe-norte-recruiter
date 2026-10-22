@@ -66,6 +66,7 @@ persona:
     experience: dos años en una cafetería de barrio
   wants_interview: true
 checks:
+  - name: claims_saved_without_save
   - name: field_equals
     args: { field: work_authorization, value: unsure }
   - name: review_flag_present

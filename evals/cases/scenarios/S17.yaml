@@ -44,6 +44,7 @@ persona:
     name: Lucía Marín
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: tool_ok
     args: { turn: "2", tool: reserve_interview, ok: "false" }
   - name: turn_failed

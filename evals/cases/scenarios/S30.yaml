@@ -69,11 +69,13 @@ persona:
     experience: dos años en una cafetería de barrio
   wants_interview: true
 checks:
+  - name: claims_saved_without_save
   - name: tool_ok
     args: { turn: "8", tool: request_human_followup, ok: "true" }
   - name: review_flag_present
     args: { kind: human_followup }
 live_candidate: scripted
 live_checks:
+  - name: claims_saved_without_save
   - name: review_flag_present
     args: { kind: human_followup }

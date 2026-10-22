@@ -29,6 +29,7 @@ persona:
     name: Lucía Marín
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: spoken_language
     args: { language: es }
   - name: sources_shown_for_policy_answer

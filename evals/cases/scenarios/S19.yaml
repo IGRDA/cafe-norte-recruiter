@@ -72,6 +72,7 @@ persona:
     experience: ocho años en bares
   wants_interview: true
 checks:
+  - name: claims_saved_without_save
   - name: field_equals
     args: { field: hours_per_week, value: "35" }
   - name: field_status

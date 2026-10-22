@@ -73,6 +73,7 @@ persona:
     experience: dos años en una cafetería de barrio
   wants_interview: true
 checks:
+  - name: claims_saved_without_save
   - name: tool_ok
     args: { turn: "8", tool: present_confirmation, ok: "false" }
   - name: tool_ok
@@ -88,6 +89,7 @@ checks:
     args: { max: "1" }
 live_candidate: scripted
 live_checks:
+  - name: claims_saved_without_save
   - name: booking_present
   - name: max_repeated_questions
     args: { max: "1" }

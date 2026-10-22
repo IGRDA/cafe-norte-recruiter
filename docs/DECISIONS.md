@@ -2276,3 +2276,54 @@ the numbers move per message shows what the runtime is reading and why it switch
   decision reads it.
 
 **Consequences.** The SSE event and the export carry a few more numbers per message.
+
+## D63 · One language question over all languages; Ana answers in any of ten, tested in two
+
+_Added 22 October 2026. Amends D52 (the question) and D28 (one prompt per language); keeps
+D53 (when a switch applies) and D47 (one voice)._
+
+**Context.** Jev's language question was "keep or switch", relative to a two-language session.
+Iñaki wants the decision to be *which language*, one probability per language with the top one
+taken, so the demo answers in any language the classifier can name, with one system prompt
+instead of per-language prompt files. The page shows the probabilities. Multilingual models
+make the extra languages close to free; what they do not make free is testing them.
+
+**Options.** (a) Keep keep/switch and add languages one at a time with reviewed texts. (b) One
+question with a language per option, es/en tested, the rest wired and untested. (c) Free-text
+language detection in the chat model's prompt: not measurable, and D28's "the runtime owns the
+language" would be gone.
+
+**Decisions.**
+- `Language` is one of `SWITCHABLE = es, en, fr, pt, it, de, ro, ar, zh, uk`. `TABLED = es, en`
+  are the languages with reviewed word-for-word texts and the only ones evaluated (signals
+  suite, scenarios, live checks, voice). The other eight are *supported, untested*: wired end to
+  end, covered by fake-based tests, labelled so in the README. No case set, no live check, no
+  listening test is written for them until one is needed.
+- Jev's question is `reply_language`: the eleven options are the ten codes and `other`. The
+  runtime takes the top option; a switch happens when it is not the session language and its
+  probability is at least `SWITCH_THRESHOLD` (0.7, D52's number). `other` never switches. An
+  explicit request matched by the patterns (D28) still wins over the model. When, where and how
+  a switch applies is D53's, unchanged.
+- The gate for the question: the es/en dev and held-out sets must keep D52's numbers (false
+  switches 0/118, missed requests 0/36); one round of criteria wording is allowed, and the
+  measured numbers are appended here before the branch merges.
+- One prompt. `language.md` is a template with the language's native name, appended last as
+  before; `language.es.md` and `language.en.md` are gone, and `system.md` names no language.
+  Native names, English names and text direction live in `prompts/languages.yaml`.
+- Fixed sentences (opening, resume, brief, read-backs, control replies) in a tabled language
+  come from its table, as before. In another language the runtime takes the English sentence
+  and asks the model to say it in the session language (`Wording` port, one short call, no
+  tools), journals what came back and says that. The facts stay the runtime's: a wording that
+  drops a digit run or a capitalised token of the source, fails, or takes more than 2 s is
+  replaced by the English sentence. Error messages in HTTP bodies and the voice fillers fall
+  back to English. Number words (`spelled`, slot answers by word) stay es/en; digits work in
+  every language.
+- Voice: recognition follows the session language (Deepgram nova-3 has all ten). The voice is
+  the one Spanish voice with its current tuning (D47): a Spanish bar, a Spanish accent.
+- The page: the chooser lists the ten by native name, `<html lang>` follows and Arabic sets
+  `dir="rtl"`; the strip shows the top three language probabilities and "otros".
+
+**Consequences we accept.** A read-back in French is the model's wording of a checked
+English sentence, not a reviewed text. The eight untested languages may be worse than the
+two tested ones, and nothing here measures by how much. `SignalProbabilities.language` is now
+keyed by language code, so exports written under D62 and D63 differ in those keys.

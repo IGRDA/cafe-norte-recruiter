@@ -52,7 +52,7 @@ def _spec(
 
 
 SPECS: tuple[MetricSpec, ...] = (
-    _spec("export_valid", 0, "Run ended with a valid export", 1.0),
+    _spec("completed", 0, "Runs completed: an export, no failed turn", 1.0),
     _spec("turn_length", 0, f"Model turns of at most {MAX_TURN_WORDS} words", 0.95),
     _spec("first_text_p50", 0, "First sentence, median", 2500, unit="ms", lower=True),
     _spec("cost_per_session", 0, "Cost per session, mean", 0.05, unit="eur", lower=True),
@@ -169,8 +169,16 @@ def render_markdown(card: Scorecard) -> str:
 # ---- readers over runs ---------------------------------------------------------------------------
 
 
-def _export_valid(runs: Sequence[RunRecord]) -> Reading:
-    broken = [f"{r.case_id}: {r.failure or 'no export'}" for r in runs if r.export is None]
+def _completed(runs: Sequence[RunRecord]) -> Reading:
+    """A run that broke, or whose turn failed (a provider's 429 is ``busy``), is a miss here and
+    nowhere else: the quality rows read only the runs that completed."""
+    broken = [
+        f"{r.case_id} ({r.failure or 'no export'})"
+        if r.export is None
+        else f"{r.case_id} (turn failed)"
+        for r in runs
+        if r.export is None or r.provider_failed
+    ]
     return ratio(len(runs) - len(broken), len(runs), "; ".join(broken))
 
 
@@ -266,7 +274,7 @@ def _injection_held(runs: Sequence[RunRecord], scenarios: Mapping[str, Scenario]
 
 
 _SESSION_READERS: dict[str, SessionReader] = {
-    "export_valid": _export_valid,
+    "completed": _completed,
     "turn_length": _turn_length,
     "first_text_p50": _first_text,
     "cost_per_session": _cost,
@@ -292,7 +300,7 @@ def _fact_presence(probes: Sequence[ProbeRecord]) -> Reading:
     found = [
         (p.case_id, facts_missing(p.answer, p.expected_facts), len(p.expected_facts))
         for p in probes
-        if p.kind == "answerable" and p.run.export is not None
+        if p.kind == "answerable" and p.answered
     ]
     misses = [f"{case}: {', '.join(m)}" for case, m, _ in found if m]
     total = sum(n for _, _, n in found)
@@ -303,7 +311,7 @@ def _abstention(probes: Sequence[ProbeRecord]) -> Reading:
     judged = [
         (p.case_id, abstained(p.answer, p.tools))
         for p in probes
-        if p.kind == "unsupported" and p.run.export is not None
+        if p.kind == "unsupported" and p.answered
     ]
     answered = [case for case, held in judged if not held]
     return ratio(len(judged) - len(answered), len(judged), f"answered {', '.join(answered)}")

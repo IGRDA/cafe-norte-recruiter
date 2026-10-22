@@ -2,12 +2,13 @@
   "model": "fake",
   "prompt_version": "ana_v17",
   "kb_version": "2",
+  "concurrency": 1,
   "metrics": [
     {
       "spec": {
-        "id": "export_valid",
+        "id": "completed",
         "tier": 0,
-        "name": "Run ended with a valid export",
+        "name": "Runs completed: an export, no failed turn",
         "unit": "ratio",
         "target": 1.0,
         "higher_is_better": true,
@@ -17,7 +18,7 @@
       "k": 23,
       "n": 23,
       "detail": "",
-      "baseline": 1.0
+      "baseline": null
     },
     {
       "spec": {
@@ -305,7 +306,7 @@
       "k": 5,
       "n": 5,
       "detail": "failed ",
-      "baseline": null
+      "baseline": 1.0
     },
     {
       "spec": {
@@ -325,11 +326,11 @@
     },
     {
       "spec": {
-        "id": "factual_correctness",
+        "id": "answer_accuracy",
         "tier": 2,
-        "name": "ragas FactualCorrectness",
+        "name": "ragas AnswerAccuracy (NVIDIA)",
         "unit": "score",
-        "target": 0.7,
+        "target": 0.75,
         "higher_is_better": true,
         "gate": false
       },

@@ -1589,7 +1589,7 @@ generated then curated.
 
 **Decisions.**
 - **One scorecard, 25 rows, four tiers** (`evals/scorecard.py`), cheapest first: 0,
-  deterministic with no reference (valid export, turn length, first-sentence latency, cost,
+  deterministic with no reference (runs completed, turn length, first-sentence latency, cost,
   tool calls accepted, language kept, no leak); 1, deterministic against a reference
   (recall@3, ragas ID-based precision and recall, no cross-store source, abstention, expected
   facts in the answer, ragas `ToolCallF1`, scenario trajectory, extraction, no fabricated
@@ -1679,10 +1679,16 @@ Read with the transcripts, it showed as much about the measurement as about Ana:
 
 **Concurrency (owner's call).** The first baseline ran every session one after the other,
 a rule from the Groq free tier (8 000 tokens a minute). Now the phases (scenarios, probes,
-judges) still run in order, and inside each up to four sessions or judged runs run at once
+judges) still run in order, and inside each up to two sessions or judged runs run at once
 (`evals/pool.py`, `--concurrency`). A session's own turns stay in order. The scorecard states
 the concurrency, because its latency row is measured under that load. This also applies to
-the scenario and comparison suites.
+the scenario and comparison suites. Four was tried first, on the gpt-4.1 baseline: each model
+round sends about 10 000 tokens and gpt-4.1 answers in about a second, so four sessions passed
+the organisation's 450 000 tokens a minute and 39 turns failed with 429 (`busy`). That run was
+discarded. It also showed the scorecard hid it: a session with failed turns still exports, so
+"valid export" read 53/53 while 30 probes had no answer. The first row is now "runs
+completed" (an export and no failed turn); a probe whose turn failed is counted there and
+nowhere else.
 
 **Consequences we accept.** The retrieval rows need the hybrid retriever, so `make check`
 gates the scenario rows and leaves retrieval to its own tests (BM25 alone misses the English

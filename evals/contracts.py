@@ -405,6 +405,12 @@ class ProbeRecord(Frozen):
     tools: tuple[str, ...] = ()  # the turn's tool calls, journal order
     scores: dict[str, float | None] = {}  # scorecard row id -> ragas score; None: none came
 
+    @property
+    def answered(self) -> bool:
+        """The question's turn completed: no broken session, no failed turn. Only these are
+        read for quality; the others are the completion row's misses."""
+        return self.run.export is not None and not self.run.provider_failed
+
 
 Exchange = tuple[Literal["human", "ai"], str, tuple[str, ...]]  # speaker, text, tools it called
 

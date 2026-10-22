@@ -30,7 +30,7 @@ scorecard"`. Four tiers, cheapest first, like a test pyramid:
 
 | Tier | Kind | Rows | Decides |
 | --- | --- | --- | --- |
-| 0 | Deterministic, no reference | valid export, turn length, first-sentence latency, cost, tool calls accepted, language kept, no leak | gate |
+| 0 | Deterministic, no reference | runs completed, turn length, first-sentence latency, cost, tool calls accepted, language kept, no leak | gate |
 | 1 | Deterministic, against a reference | recall@3, ragas ID precision/recall, no cross-store source, abstention, expected facts, ragas `ToolCallF1`, scenario trajectory, extraction, no fabrication, task success, injection held | gate |
 | 2 | Judge, against a reference | ragas `Faithfulness`, `AnswerAccuracy`; the scenario's goal and rubric bullets as pass/fail ragas `DiscreteMetric` | report |
 | 3 | Judge alone | stays on topic, style (pass/fail ragas `DiscreteMetric`) | report |

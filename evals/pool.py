@@ -5,7 +5,10 @@ one after the other; inside a phase, independent sessions and judge calls run at
 import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 
-CONCURRENCY = 4  # sessions or judge calls in flight; well inside OpenAI's rate limits
+# Sessions or judged runs in flight. Each model round sends about 10 000 tokens and gpt-4.1
+# answers in about a second: four sessions at once passed its 450 000 tokens a minute on this
+# organisation and 39 turns failed with 429 (D51). Raise it only for a model with more room.
+CONCURRENCY = 2
 
 
 async def bounded[T, R](

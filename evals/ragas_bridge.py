@@ -139,12 +139,14 @@ async def judge_probes(
     """Each probe with its scores: ``probe_tool_f1`` always (free); with a judge,
     ``faithfulness`` (answerable, sources shown), ``answer_accuracy`` (answerable) and
     ``topic_adherence``. A broken probe gets none. The answer is judged without Ana's
-    follow-up question: a question is not a claim. ``concurrency`` probes at a time."""
+    follow-up question: a question is not a claim. A probe whose turn failed gets none: it
+    is a miss of the completion row, not of the answer's quality. ``concurrency`` probes at a
+    time."""
     by_id = {c.id: c for c in cases}
 
     async def one(probe: ProbeRecord) -> ProbeRecord:
         export = probe.run.export
-        if export is None:
+        if export is None or not probe.answered:
             return probe
         case = by_id[probe.case_id]
         scores: dict[str, float | None] = {

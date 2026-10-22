@@ -94,7 +94,7 @@ async def test_a_probe_records_the_answer_its_sources_and_the_tools_it_called() 
     rows = {m.spec.id: m for m in card.metrics}
     assert (rows["fact_presence"].k, rows["fact_presence"].n) == (2, 2)
     assert rows["cross_store_free"].ok is False
-    assert rows["export_valid"].n == 1
+    assert rows["completed"].n == 1
 
 
 def test_facts_ignore_case_accents_separators_and_accept_alternatives() -> None:
@@ -209,7 +209,7 @@ def test_the_live_scorecard_runs_end_to_end_for_free(
     )
     out = capsys.readouterr().out
     assert code == 1  # the fake model books nothing: task success misses, and says so
-    assert "| 0 | Run ended with a valid export | 3/3 (100%)" in out
+    assert "| 0 | Runs completed: an export, no failed turn | 3/3 (100%)" in out
     (folder,) = tmp_path.glob("*-scorecard")
     written = {p.name for p in folder.iterdir()}
     assert {"scorecard.md", "scorecard.json", "probes.json", "probe-exports"} <= written
@@ -227,3 +227,16 @@ async def test_an_empty_answer_is_not_judged_and_misses_its_facts() -> None:
         m for m in scorecard([], {}, probes=[judged]).metrics if m.spec.id == "fact_presence"
     )
     assert (row.k, row.n) == (0, 2)
+
+
+async def test_a_failed_turn_is_a_completion_miss_not_a_quality_one() -> None:
+    record = await asked("")
+    failed = record.model_copy(
+        update={"run": record.run.model_copy(update={"provider_failed": True})}
+    )
+    assert not failed.answered
+    (judged,) = await judge_probes([failed], [case()], FakeAnswerJudge())
+    assert judged.scores == {}
+    rows = {m.spec.id: m for m in scorecard([], {}, probes=[judged]).metrics}
+    assert rows["completed"].ok is False and rows["completed"].detail == "R02 (turn failed)"
+    assert rows["fact_presence"].value is None

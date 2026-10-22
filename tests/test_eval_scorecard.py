@@ -17,7 +17,7 @@ async def test_every_fake_scenario_holds_the_gated_rows() -> None:
     assert not card.gate_failures, render_markdown(card)
     measured = {m.spec.id for m in card.metrics if m.value is not None}
     assert {
-        "export_valid",
+        "completed",
         "turn_length",
         "tool_calls_accepted",
         "language_kept",
@@ -55,9 +55,9 @@ async def test_the_baseline_gives_each_row_its_delta() -> None:
     before = scorecard([record], {"S03": scenario})
     broken = record.model_copy(update={"export": None, "failure": "no_turn_end"})
     after = scorecard([record, broken], {"S03": scenario}, baseline=before)
-    (row,) = [m for m in after.metrics if m.spec.id == "export_valid"]
+    (row,) = [m for m in after.metrics if m.spec.id == "completed"]
     assert (row.k, row.n, row.baseline) == (1, 2, 1.0)
-    assert "-50 pt" in render_markdown(after) and "S03: no_turn_end" in row.detail
+    assert "-50 pt" in render_markdown(after) and "S03 (no_turn_end)" in row.detail
 
 
 async def test_judge_rows_report_and_never_gate() -> None:
@@ -138,7 +138,7 @@ def test_the_cli_prints_the_scorecard_and_spends_nothing_live_without_yes(
 ) -> None:
     main(["--suite", "scorecard", "--retriever", "lexical", "--only", "S03"])
     out = capsys.readouterr().out
-    assert "| 0 | Run ended with a valid export | 1/1 (100%)" in out
+    assert "| 0 | Runs completed: an export, no failed turn | 1/1 (100%)" in out
     live = ["--suite", "scorecard", "--mode", "live", "--retriever", "lexical"]
     assert main(live) == 0
     out = capsys.readouterr().out

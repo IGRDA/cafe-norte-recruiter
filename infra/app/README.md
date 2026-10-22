@@ -3,8 +3,8 @@
 Everything the running demo needs. The image is an input (`image_digest`), so a deployment is a
 Terraform change plus an instance reset, and cannot drift from infrastructure state. Secrets
 exist by name; their versions come from `scripts/set_secrets.py`. Runtime configuration that is
-not a secret is plain env in instance metadata (`plain_env` in `main.tf`): model, voice mode,
-voice id, voice session cap, Langfuse host and environment, and trace content (`on`, D42; `off`
+not a secret is plain env in instance metadata (`plain_env` in `main.tf`): model, signal
+analyzer (Jev, D52), voice mode, voice id, voice session cap, Langfuse host and environment, and trace content (`on`, D42; `off`
 before any real applicant). Every key there must exist in `.env.example`
 (`tests/unit/test_infra_settings.py`), so a misspelling cannot silently drop a setting.
 
@@ -30,6 +30,7 @@ ephemeral `random_password` written only through write-only arguments, to the us
 `db_password_version` to rotate it. Needs Terraform 1.11 or later.
 
 Variables: `project_id`, `region`, `service_name`, `image_digest`, `machine_type`, `model`,
+`signal_model` (default `openrouter/typesafe/jev-1.14`; empty turns the analyzer off),
 `elevenlabs_voice_id`, `demo_end_date`, `enable_database` (default true), `db_tier`,
 `db_name`, `db_user`, `db_password_version`.
 Outputs: `service_url`, `instance`, `artifact_repository`, `runtime_service_account`,

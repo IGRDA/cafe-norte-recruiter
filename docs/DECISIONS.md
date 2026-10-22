@@ -1682,6 +1682,7 @@ request on `heldout`, so the analyzer port now passes it.
 **Consequences we accept.** One candidate turn passes in the old language before the switch,
 and in voice that turn is also transcribed in the old language. The candidate's message, Ana's
 sentence and the session language go to OpenRouter and TypeSafe (US-hosted, an alpha endpoint
-with no published retention period), so it stays off for real applicants until that is
-settled. The labels are synthetic: a held-out set written by another model, but no real
+with no published retention period). It is on in the hosted demo, whose data is fictional
+(as for trace content, D42), so the behaviour can be tried from the public URL; it stays off
+for real applicants until retention is settled. The labels are synthetic: a held-out set written by another model, but no real
 transcripts. Sentiment is still advisory and never a hiring input.

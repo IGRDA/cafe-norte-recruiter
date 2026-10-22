@@ -120,7 +120,8 @@ would otherwise write by hand, at the price of a second place where state lives.
 
 **Today.** Three jobs run inside the app process. The export stored when a session closes
 (D34), the hourly retention purge at 100 sessions a round (D34) and the signal classifier after
-each turn, with a 5 s deadline, where a late verdict is no signal (D30). The narrative summary
+each turn, with a 5 s deadline, where a late verdict is no signal (D30); in the hosted demo it is
+Jev, which also reads a language switch for the next turn (D52). The narrative summary
 is `skipped`: the deterministic brief is the deliverable (D34).
 
 **What breaks first.** Work that dies with its process. A crash between the commit that ends a

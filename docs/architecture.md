@@ -129,7 +129,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Destination | Data |
 | --- | --- |
 | Browser | Own session only: transcript, brief, confirmations, sources (title › section › excerpt), reviewer panel, the JSON export |
-| OpenRouter / TypeSafe (only with `CAFE_NORTE_SIGNAL_MODEL=openrouter/…`) | Each candidate message, Ana's sentence before it and the session language (US-hosted; off in the hosted demo) |
+| OpenRouter / TypeSafe (only with `CAFE_NORTE_SIGNAL_MODEL=openrouter/…`) | Each candidate message, Ana's sentence before it and the session language (US-hosted; on in the hosted demo, whose data is fictional; off for real applicants) |
 | Model provider (OpenAI in the hosted demo, Groq or OpenAI locally) | System prompt, configuration facts, candidate state, recent turns, tool calls and results (US-hosted) |
 | Deepgram / ElevenLabs / Daily | Audio and text of the voice session; no raw audio stored by us |
 | Postgres | Everything the export contains; access codes and tokens only as hashes |

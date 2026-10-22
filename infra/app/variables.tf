@@ -59,6 +59,12 @@ variable "machine_type" {
   description = "One VM runs the app and Caddy; e2-small is enough for two voice sessions."
 }
 
+variable "signal_model" {
+  type        = string
+  default     = "openrouter/typesafe/jev-1.14"
+  description = "CAFE_NORTE_SIGNAL_MODEL for the hosted demo: Jev reads sentiment and the language switch beside the turn (D52); fictional data only. Empty turns the analyzer off."
+}
+
 variable "langfuse_base_url" {
   type        = string
   default     = "https://cloud.langfuse.com"

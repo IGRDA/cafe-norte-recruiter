@@ -20,7 +20,15 @@ locals {
     "CAFE_NORTE_COOKIE_SECRET",
     "LANGFUSE_PUBLIC_KEY", # tracing (D36); empty until set_secrets.py --only writes a version
     "LANGFUSE_SECRET_KEY",
+    "OPENROUTER_API_KEY", # Jev signal analyzer (D52); a version must exist before it is enabled
   ]
+}
+
+# OPENROUTER_API_KEY was created with its first version before Terraform knew it, so the first
+# deploy with the analyzer on found a key (an analyzer without one refuses to start, D52).
+import {
+  to = google_secret_manager_secret.keys["OPENROUTER_API_KEY"]
+  id = "projects/${var.project_id}/secrets/OPENROUTER_API_KEY"
 }
 
 resource "google_artifact_registry_repository" "app" {
@@ -70,6 +78,7 @@ locals {
   plain_env = join("\n", [
     "CAFE_NORTE_ENV=demo",
     "CAFE_NORTE_MODEL=${var.model}",
+    "CAFE_NORTE_SIGNAL_MODEL=${var.signal_model}", # empty: no analyzer (D30, D52)
     "CAFE_NORTE_VOICE=pipecat",
     "ELEVENLABS_VOICE_ID=${var.elevenlabs_voice_id}",
     "CAFE_NORTE_MAX_VOICE_SESSIONS=2",

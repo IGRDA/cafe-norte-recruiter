@@ -28,8 +28,9 @@ Every section has the same four parts: **Today** (built, with numbers), **What b
 **Today.** Two voice sessions per container, counted in Postgres rows and not in memory (D32);
 a third gets `busy`. One `e2-small` VM runs the app, Caddy and the Cloud SQL Auth Proxy (D24,
 D33). A container holds five database connections, and each open event stream polls every
-200 ms (D31). Groq's free tier allows 8k tokens a minute, which is why the hosted model is
-`gpt-4o-mini` (D23).
+200 ms (D31). Groq's free tier allows 8k tokens a minute, which is why the hosted model is on
+OpenAI (D23): `gpt-4.1` since D49, for its first-token latency. Each voice pipeline also runs the
+smart-turn model on the CPU, about 35 ms per utterance on a laptop (D49).
 
 **What breaks first.** Reasoned, not measured: the CPU of the voice pipelines on a shared-core
 VM (each call runs VAD, the transport and the runtime's loop in one process), then the provider

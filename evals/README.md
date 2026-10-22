@@ -17,7 +17,7 @@ make evals ARGS="--suite scenarios --mode live --only S01 --model fake --simulat
 make evals-retrieval ARGS="--retriever hybrid"   # lexical: BM25 only, no extra
 make evals-retrieval ARGS="--retriever lexical --ragas"   # adds ragas' ID-based metrics, offline
 make compare                                   # 6 cases x 2 models x 2 runs: prints the estimate only
-make compare ARGS="--yes"                      # spends; default models openai/gpt-4o-mini openai/gpt-4o
+make compare ARGS="--yes"                      # spends; default models openai/gpt-4.1 openai/gpt-4o-mini
 make compare ARGS="--models fake --repeat 1 --simulator fake --max-turns 2 --yes"  # free dry run
 uv run python -m evals.run --list
 ```

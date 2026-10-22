@@ -1,7 +1,7 @@
 # `voice`: Pipecat as the shell, not the brain
 
-`Daily in → Deepgram → SpeechTap → user aggregator → InboundBridge → ElevenLabs → Daily out → PlaybackTap`.
-Pipecat 1.13's `LLMUserAggregator` owns VAD, turn end, segment joining and interruptions and
+`Daily in → Deepgram → SpeechTap → user aggregator → InboundBridge → ElevenLabs (HTTP) → Daily out → PlaybackTap`.
+Pipecat 1.13's `LLMUserAggregator` owns VAD, turn end (the bundled smart-turn v3 model, D49), segment joining and interruptions and
 emits the finished user message; everything voice *decides* lives in `VoiceSession`, plain
 Python with no Pipecat import (D22).
 
@@ -10,9 +10,9 @@ Python with no Pipecat import (D22).
 | `contracts.py` | `Room`, `VoiceStatus`, `VoiceMode`, `VoiceTexts`, `VoiceTiming`, `room_expiry`, ports `RoomProvisioner`, `VoiceSessionController` |
 | `delivery.py` | Pure ledger: sentences sent to TTS, sentences finished playing, `heard`, `readback_heard` |
 | `metering.py` | Pure `SpeechMeter`: Deepgram's audio seconds, ElevenLabs' characters and each participant's minutes in the room, as measured, turned into `UsageRecord`s (D44) |
-| `session.py` | `VoiceSession`: transcript → runtime turn, sentences → `speak` and the ledger, playback → `delivered(complete=True)`, interruption → cancel and `delivered(heard, complete=False)`, a turn cut before any of its answer was heard joined to the next transcript within 5 s (KI-07, D44), opening on join, filler while a tool runs long (journaled with `aside`), one silence prompt per candidate turn and the apology after a failed turn (both spoken through the runtime's journaled `say`), speech (an interruption or any raw transcript) restarts the silence clock, nothing system-said jumps the audio queue: every sentence goes through `_voice` into the ledger, and the apology, the silence prompt and the filler wait until what was sent has played (D40), `close` pauses the session once, a language change reported so STT follows; each in the language of the latest turn (D28, D35) |
+| `session.py` | `VoiceSession`: transcript → runtime turn, sentences → `speak` and the ledger, playback → `delivered(complete=True)`, interruption → cancel and `delivered(heard, complete=False)`, a turn cut before any of its answer was heard joined to the next transcript within 5 s (KI-07, D44), opening on join, filler while a tool runs long (journaled with `aside`), one silence prompt per candidate turn and the apology after a failed turn (both spoken through the runtime's journaled `say`), speech (an interruption or any raw transcript) restarts the silence clock, nothing system-said jumps the audio queue: every sentence goes through `_voice` into the ledger, and the apology, the silence prompt and the filler wait until what was sent has played (D40), `close` pauses the session once, a language change reported so STT follows, a terminal state ends the call once its goodbye has played or was talked over (`on_hang_up`, D48); each in the language of the latest turn (D28, D35) |
 | `bridge.py` | `SpeechTap` (before the aggregator, which consumes transcripts), `InboundBridge` (before TTS) and `PlaybackTap` (after the output transport): frames in, session methods out; `UsageObserver` reads the providers' usage reports into the meter, each counted on its first push only (D44) |
-| `pipeline.py` | `user_side` (tap, aggregator, bridge: one assembly for the pipeline and its tests), `pipeline_params` (usage metrics on), the meter fed by the room's joins and leaves and recorded through `record_usage` once the pipeline has ended (D44), `PipecatVoiceController`: one pipeline task per session, join wait, stop, status, timing observations |
+| `pipeline.py` | `user_side` (tap, aggregator, bridge: one assembly for the pipeline and its tests), `pipeline_params` (usage metrics on), `tts_settings` (ElevenLabs v4 Turbo over HTTP, one aiohttp session per call, D48), the meter fed by the room's joins and leaves and recorded through `record_usage` once the pipeline has ended (D44), `PipecatVoiceController`: one pipeline task per session, join wait, stop, status, timing observations |
 | `daily.py` | Private expiring rooms and two scoped tokens over Daily REST |
 | `fake.py` | `FakeRooms`, `FakeVoiceController` for the API tests |
 

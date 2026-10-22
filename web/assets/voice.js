@@ -2,6 +2,8 @@
 // run on the server (D01). The page only carries audio and reports timings. app.js uses three
 // calls: start(), stop() and closing(); everything else arrives through the callbacks.
 
+const GOODBYE_TIMEOUT_MS = 20000; // Ana's goodbye is one or two sentences
+
 export function createVoice({ onStatus, onError, startVoice, postTiming }) {
   let call = null;
   let audio = null;
@@ -65,6 +67,15 @@ export function createVoice({ onStatus, onError, startVoice, postTiming }) {
     }
   }
 
+  // The session ended: Ana says goodbye and leaves the room herself once it has played, so the
+  // page waits for her and only leaves on its own if she never does.
+  async function closing() {
+    if (!call) return;
+    const left = new Promise((resolve) => call.on("participant-left", (event) => event.participant?.local || resolve()));
+    await Promise.race([left, new Promise((resolve) => setTimeout(resolve, GOODBYE_TIMEOUT_MS))]);
+    await stop();
+  }
+
   async function stop() {
     if (call) {
       await call.leave().catch(() => {});
@@ -77,5 +88,5 @@ export function createVoice({ onStatus, onError, startVoice, postTiming }) {
     }
   }
 
-  return { start, stop, closing: stop };
+  return { start, stop, closing };
 }

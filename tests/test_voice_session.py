@@ -9,6 +9,7 @@ from typing import Literal
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
+    StateUpdated,
     ToolFinished,
     ToolStarted,
     TurnFailed,
@@ -16,7 +17,7 @@ from cafe_norte.conversation.contracts import (
     TurnInput,
     TurnStarted,
 )
-from cafe_norte.domain.contracts import SessionId, TurnId
+from cafe_norte.domain.contracts import CandidateRecord, Lifecycle, SessionId, TurnId
 from cafe_norte.errors import Language
 from cafe_norte.observability.contracts import UsageRecord
 from cafe_norte.voice.contracts import VoiceTexts
@@ -353,6 +354,72 @@ async def test_the_call_ending_pauses_the_session_once() -> None:
     await s.close()
     await s.close()
     assert runtime.ended == ["shutdown"]
+
+
+def ended(lifecycle: Lifecycle = "completed") -> StateUpdated:
+    return StateUpdated(
+        revision=1,
+        candidate=CandidateRecord(),
+        pending_confirmation=None,
+        booking=None,
+        lifecycle=lifecycle,
+        outcome="reserved" if lifecycle == "completed" else None,
+    )
+
+
+def hanging(runtime: FakeRuntime) -> tuple[VoiceSession, list[str]]:
+    """A session whose hang-ups are counted."""
+    hung_up: list[str] = []
+
+    async def hang_up() -> None:
+        hung_up.append("bye")
+
+    s = VoiceSession(
+        runtime,
+        SID,
+        speak=Recorder().speak,
+        on_status=lambda _status: None,
+        texts=TEXTS,
+        language="es",
+        on_hang_up=hang_up,
+    )
+    return s, hung_up
+
+
+async def test_ana_hangs_up_once_her_goodbye_has_played() -> None:
+    """The hosted call: the page left the room before "¡Hasta pronto!" was heard."""
+    runtime = FakeRuntime([[say("Gracias, Lucía."), say("¡Hasta pronto!"), ended(), finished()]])
+    s, hung_up = hanging(runtime)
+    await s.transcript("nada más, gracias")
+    await s.wait()
+    await s.played_one()
+    assert hung_up == []  # the goodbye is still playing
+    await s.played_one()
+    assert hung_up == ["bye"]
+    assert runtime.acks == [(TurnId("t1"), "Gracias, Lucía. ¡Hasta pronto!", True)]
+    await s.played_one()  # a late playback report hangs up nothing twice
+    assert hung_up == ["bye"]
+    await s.close()
+
+
+async def test_talking_over_the_goodbye_still_hangs_up() -> None:
+    runtime = FakeRuntime([[say("¡Hasta pronto!"), ended(), finished()]])
+    s, hung_up = hanging(runtime)
+    await s.transcript("adiós")
+    await s.wait()
+    await s.interrupted()
+    assert hung_up == ["bye"]
+    await s.close()
+
+
+async def test_a_session_still_open_keeps_listening() -> None:
+    runtime = FakeRuntime([[say("¿Qué días puedes?"), ended("active"), finished()]])
+    s, hung_up = hanging(runtime)
+    await s.transcript("hola")
+    await s.wait()
+    await s.played_one()
+    assert hung_up == [] and s.status == "listening"
+    await s.close()
 
 
 async def test_the_silence_prompt_is_a_journaled_turn() -> None:

@@ -38,7 +38,7 @@ stores, the pay, the candidates. No real hiring decision is made or suggested.
   lines, a reviewer panel on the page, and the versions of configuration, prompt, knowledge
   base, schema, model and commit on every session (D36, D42).
 - **Hosted** on one Compute Engine VM behind a shared access code, with Cloud SQL through the
-  Auth Proxy, all in Terraform (D23, D24, D33). The hosted model is `openai/gpt-4o-mini`.
+  Auth Proxy, all in Terraform (D23, D24, D33). The hosted model is `openai/gpt-4.1` (D49).
 
 ## What is simulated or still open
 
@@ -69,7 +69,7 @@ make voice-smoke  # hosted voice from the laptop (paid; the three voice keys in 
 With no `.env`, the model is a fake that answers every turn with one fixed sentence, the store
 is in memory, retrieval is lexical and voice is off: no credentials, no Docker, no network
 after installation. To talk to Ana for real, copy `.env.example` to `.env` and set
-`CAFE_NORTE_MODEL=openai/gpt-4o-mini` with `OPENAI_API_KEY` (or
+`CAFE_NORTE_MODEL=openai/gpt-4.1` with `OPENAI_API_KEY` (or
 `CAFE_NORTE_MODEL=groq/openai/gpt-oss-120b` with `GROQ_API_KEY`; Groq's free tier caps tokens per
 day). For voice add `DAILY_API_KEY`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY` and
 `ELEVENLABS_VOICE_ID` and run `make voice-smoke`, then press **Hablar**. Set

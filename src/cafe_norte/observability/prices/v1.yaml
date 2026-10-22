@@ -1,6 +1,6 @@
 # Provider prices in USD, converted to EUR at load time (D36). A price is data, not code:
 # change this file, bump `version`, update `verified_on`. Re-verify before every release.
-version: "2026-10-21"
+version: "2026-10-22"
 verified_on: 2026-10-21
 # ECB euro reference rate of 21 October 2026, USD per 1 EUR.
 usd_per_eur: 1.1234
@@ -26,6 +26,17 @@ prices:
     unit_detail: "gpt-4o:output"
     usd_per_unit: 0.00001
     source: https://developers.openai.com/api/docs/models/gpt-4o
+  # https://developers.openai.com/api/docs/pricing : gpt-4.1, standard tier: $2 / 1M in, $8 / 1M out
+  # (verified 2026-10-22). The voice model since D49; cached input ($0.50 / 1M) is priced at the
+  # full rate, as for gpt-4o-mini.
+  - kind: llm_tokens
+    unit_detail: "gpt-4.1:input"
+    usd_per_unit: 0.000002
+    source: https://developers.openai.com/api/docs/pricing
+  - kind: llm_tokens
+    unit_detail: "gpt-4.1:output"
+    usd_per_unit: 0.000008
+    source: https://developers.openai.com/api/docs/pricing
   # Deepgram nova-3 streaming, monolingual (D35: STT runs in the session language).
   # List price $0.0077 / min. The page shows a limited-time $0.0048 / min; we keep the list
   # price so the estimate stays conservative when the promotion ends.
@@ -33,6 +44,12 @@ prices:
     unit_detail: nova-3
     usd_per_unit: 0.000128333
     source: https://deepgram.com/pricing
+  # ElevenLabs v4 Turbo, the voice since D48, pay as you go: $0.04 / 1,000 characters
+  # (verified 2026-10-22). Flash stays priced for the exports made before the switch.
+  - kind: tts_characters
+    unit_detail: eleven_v4_turbo
+    usd_per_unit: 0.00004
+    source: https://elevenlabs.io/pricing/api
   # ElevenLabs Flash / Turbo, pay as you go: $0.04 / 1,000 characters.
   - kind: tts_characters
     unit_detail: eleven_flash_v2_5

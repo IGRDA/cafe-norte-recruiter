@@ -8,7 +8,7 @@ from cafe_norte.observability.contracts import ProcessVersions, Telemetry
 from cafe_norte.observability.fakes import RecordingTelemetry
 from cafe_norte.persistence.export import ExportDocument
 from cafe_norte.voice.contracts import STT_MODEL, TTS_MODEL
-from cafe_norte.voice.pipeline import stt_settings
+from cafe_norte.voice.pipeline import stt_settings, tts_settings
 from tests.support import CONFIG_DIR, ROOT
 from tests.test_api_tracer import OPENING_EVENTS, create_session, read_turn
 
@@ -30,6 +30,8 @@ def test_without_hosted_voice_the_stamp_names_no_voice_provider() -> None:
 
 def test_the_pipeline_runs_the_models_the_stamp_names() -> None:
     assert stt_settings("es").model == STT_MODEL
+    assert tts_settings("voice-1").model == TTS_MODEL
+    assert tts_settings("voice-1").voice == "voice-1"
 
 
 def test_the_default_app_traces_turns_prices_the_export_and_flushes_on_shutdown(

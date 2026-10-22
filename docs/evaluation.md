@@ -19,7 +19,7 @@
 | Scenario behaviour live, candidate simulated | own runner over the HTTP API + `ModelCandidateSimulator` worded from deterministic cues (D43) | local, paid, `--yes` |
 | Retrieval quality (24 questions) | own scorers (recall@3, abstention, leakage) + ragas ID-based context precision/recall (`--ragas`, offline) | local, free |
 | Rubric judge | `evals/judge.py` through the `Model` port (`--judge provider/model`) | local, optional |
-| Model comparison (gpt-4o-mini vs gpt-4o by default, 24 runs) | own runner on one loopback server per model, same prompt/tools/KB | local, once, `--yes`; summary committed |
+| Model comparison (gpt-4.1 vs gpt-4o-mini by default, 24 runs) | own runner on one loopback server per model, same prompt/tools/KB | local, once, `--yes`; summary committed |
 | Voice latency | browser monotonic timings + server stage timings | hosted, by hand, ≥6 sessions |
 | Production traces | OpenTelemetry → Langfuse EU | always |
 

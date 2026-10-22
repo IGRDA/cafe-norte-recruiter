@@ -66,10 +66,12 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Coverage floor | 80% of the package |
 | Voice: filler while a tool runs | after 1.5 s in which the candidate heard nothing (D40) |
 | Voice: bot join timeout | 15 s |
-| Voice: user speech timeout before a turn ends | 1.0 s; a transcript can start a turn when VAD misses it (D35) |
+| Voice: end of the candidate's turn | when the smart-turn model hears a finished sentence (0.2 s of VAD silence, then the final transcript); 2.0 s of silence when it sounds unfinished (D49). A transcript can start a turn when VAD misses it (D35) |
 | Voice: a cut answer joined to the next words | when none of the cut turn's answer was heard (the filler aside) and the next transcript comes within 5 s of it (D44) |
 | Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
 | Voice: room expiry | session cap + 120 s, ejection at expiry |
+| Voice: speech synthesis | ElevenLabs `eleven_v4_turbo` over HTTP, one request per sentence; stability 0.4, similarity 0.8, style 0.2 (D48) |
+| Voice: hang-up after the session ends | Ana leaves once everything sent has played, or at once if the candidate talks over the goodbye; the page leaves on its own after 20 s (D48) |
 | Model rate-limit retry | once, after the provider's hint, at most 8 s |
 | A generation with no usage report (barge-in, answer cut, silent or failed attempt) | estimated at 4 characters per token, from the messages and tools sent and the text streamed; marked `estimated` (D44) |
 | Recent turns in the prompt | 20 |

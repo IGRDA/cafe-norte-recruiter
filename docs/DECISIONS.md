@@ -1470,3 +1470,104 @@ after the switch.
 
 **Consequences we accept.** Ana speaks English with a Spanish accent. That fits a Spanish
 employer.
+
+---
+
+## D48 · ElevenLabs v4 Turbo over HTTP; Ana hangs up after her goodbye
+
+_Added 22 October 2026, after the first browser calls with the D47 voice._
+
+**Context.** Two complaints from the first hosted calls. Ana's intonation changed between
+sentences and between messages: a full stop or a question mark sounded like a new call. And
+the call ended before her goodbye was heard. The page left the room as soon as the session's
+state became terminal, and that state arrives before the goodbye's audio has played.
+
+**Decisions.**
+- **The voice model is `eleven_v4_turbo`, over HTTP.** Chosen by listening to the same two
+  messages in Flash v2.5, Turbo v2.5, Multilingual v2, v3 Conversational and v4 Turbo, with
+  several stability and speed settings (one request per sentence, as the app sends them). v4
+  Turbo was the only model whose intonation stayed the same across sentences and messages.
+  Settings: stability 0.4, similarity 0.8, style 0.2. Lower stability sounded less read, and v4
+  ignores `speed` (measured: the same 2.0 s for one sentence at 0.8, 1.0 and 1.2).
+- **HTTP, not WebSocket.** ElevenLabs' `multi-stream-input` WebSocket rejects v4 (HTTP 400), so
+  the pipeline runs Pipecat's `ElevenLabsHttpTTSService`, one request per sentence, with one
+  aiohttp session per call. The bridge, the session and the delivery ledger do not change.
+  Each sentence is still its own utterance with its own `TTSStoppedFrame` and word timings
+  from the `with-timestamps` endpoint. Barge-in still cancels the request in flight: measured
+  offline, no audio after the `InterruptionFrame`.
+- **Ana hangs up.** `VoiceSession` notes a terminal `StateUpdated`. Once everything sent has
+  played, or as soon as the candidate talks over the goodbye, it calls `on_hang_up`, which ends
+  the pipeline gracefully (`PipelineTask.end`). The page no longer leaves on the terminal
+  state. It waits for Ana to leave the room, or 20 s.
+
+**Measured.** Time to first audio, median of six sentences over HTTP: v4 Turbo 185 ms, Flash
+v2.5 195 ms. Today's Flash over WebSocket was about 145 ms, so the switch costs about 40 ms
+per sentence. Plain v4 and v3 were about 660 ms and were rejected. Price: v4 Turbo is $0.04
+per 1,000 characters, the same as Flash.
+
+**Rejected.**
+- One ElevenLabs context per reply, so prosody would carry across sentences. On Flash it
+  sounded worse than separate sentences. In Pipecat's sentence mode, a sentence also waits
+  for the next one before it is spoken.
+- `previous_text` continuity on v4 (Pipecat sends it within one reply turn). It sounded no
+  better than separate sentences and would need that reply-turn change.
+- Flash, Turbo v2.5 or Multilingual v2 with higher stability or speed: faster, but the
+  intonation still changed at punctuation and between messages.
+
+**Consequences we accept.** About 40 ms more before each sentence, and an HTTP request per
+sentence instead of one open socket. v4 speaks more slowly than Flash, and no setting changes
+that. A candidate who talks over the goodbye ends the call; they can resume with the private
+link.
+
+---
+
+## D49 · gpt-4.1 for its first token; the end of a turn is heard, not timed
+
+_Added 22 October 2026, from the Langfuse traces of a local voice call and a live comparison._
+
+**Context.** After D48, the time from the end of the candidate's answer to Ana's first word was
+about 4 s. The traces of a 16-turn local call put the server's part at 0.9–5.1 s per turn. Our
+code before the model took 1–44 ms and the tools 0–17 ms. The rest was gpt-4o-mini waiting
+for its first token: 0.6–4.8 s in round 1 (usually a tool call) and 0.55–1.0 s in round 2,
+where Ana's words are written. Two rounds ran in 11 of the 16 turns. Outside the traces, the
+turn also waited a fixed 1.0 s of silence (D35) and about 0.2 s of TTS.
+
+**Decisions.**
+- **The model is `openai/gpt-4.1`** (hosted default and `.env.example`). Chosen with the
+  comparison suite, one repetition of the six cases per candidate, the same prompt, tools,
+  KB and simulator:
+
+  | Model | Cases passed | Facts | First token p50 / p90 / max | Rounds a run | € a run |
+  | --- | --- | --- | --- | --- | --- |
+  | gpt-4o-mini (9 runs) | 2/9 | 35/51 | 1030 / 2336 / 5417 ms | ~37 | ~0.07 |
+  | **gpt-4.1** | 3/6 | 33/34 | **706 / 903 / 1212 ms** | ~25 | 0.21 |
+  | gpt-5.4-mini (`reasoning_effort: none`) | 3/6 | 33/34 | 754 / 971 / 2009 ms | ~26 | 0.09 |
+  | gpt-5.4 (`reasoning_effort: none`) | 2/6 | 32/34 | 969 / 1230 / 2486 ms | ~24 | 0.26 |
+
+  gpt-4.1 was the fastest and the steadiest, and it tied for the best quality. It also needs a
+  third fewer rounds than gpt-4o-mini, so the gain per turn is larger than per round. Price:
+  $2 / 1M input and $8 / 1M output tokens.
+- **The end of a turn is heard.** The stop strategy is Pipecat's `TurnAnalyzerUserTurnStopStrategy`
+  with the bundled smart-turn v3 model (ONNX on the CPU, about 35 ms per utterance, 0.15 s to
+  load per call; no extra dependency). A turn that sounds finished ends after 0.2 s of VAD
+  silence and the final transcript. One that sounds unfinished waits up to 2.0 s for more
+  words, so D35's "Tengo dudas sobre… dónde…" stays one turn.
+
+**Rejected.**
+- gpt-5.4-mini: as good as gpt-4.1 at less than half the cost, but slower at the tail (2.0 s
+  max), and Chat Completions only allows tools with `reasoning_effort: none`, which needs an
+  adapter option nothing else uses.
+- One model round instead of two (Ana's words in the tool-call round, spoken after the save
+  commits). It would save another 0.6–1.0 s on most turns, but it changes the "nothing announced
+  before it is persisted" path. Measured first; it stays the next lever.
+
+**Not solved by the model.** Three checks failed for every candidate: C2
+`sources_shown_on_any_turn`, C3 `brief_language` / `language_of_last_assistant_turn`, and C6
+`review_flag_present`. Because they fail the same way on four models, they point at the prompt,
+the runtime or the cases. They are follow-ups.
+
+**Consequences we accept.** About three times gpt-4o-mini's cost per conversation (about €0.21
+instead of €0.07). The comparison is one repetition per case: representative, not
+significant. Smart turn adds CPU on the shared-core VM per call. A finished sentence ends the
+turn sooner, so a candidate who pauses after a complete sentence and then goes on starts a new
+turn.

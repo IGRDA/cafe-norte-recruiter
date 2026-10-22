@@ -13,6 +13,9 @@ from pathlib import Path
 import httpx
 from dotenv import dotenv_values
 
+from cafe_norte.voice.contracts import TTS_MODEL
+from cafe_norte.voice.pipeline import tts_settings
+
 # ElevenLabs premade multilingual voices commonly used for Spanish; override with --voices.
 CANDIDATES = {
     "laura": "FGY2WhTYpPnrIDTdsKH5",
@@ -43,12 +46,19 @@ def main(argv: list[str] | None = None) -> int:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     names = {v: k for k, v in CANDIDATES.items()}
+    # The model and voice settings the app speaks with, so what is heard here is what a call hears.
+    spoken = tts_settings("")
+    settings = {
+        "stability": spoken.stability,
+        "similarity_boost": spoken.similarity_boost,
+        "style": spoken.style,
+    }
     with httpx.Client(timeout=60, headers={"xi-api-key": key}) as client:
         for voice_id in args.voices:
             for lang, text in SCRIPTS.items():
                 response = client.post(
                     f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
-                    json={"text": text, "model_id": "eleven_flash_v2_5"},
+                    json={"text": text, "model_id": TTS_MODEL, "voice_settings": settings},
                     headers={"Accept": "audio/mpeg"},
                 )
                 label = names.get(voice_id, voice_id)

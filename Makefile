@@ -18,8 +18,9 @@ preview:
 
 # The gate before a merge (D64): the offline checks, the Postgres suite, then live on the
 # configured model with the behavioural invariants: Spanish and English to the end, a goodbye
-# with the summary pending, a switch to German (about €0.4; the estimate is printed first).
-PREFLIGHT_LIVE := S01 S02 S33 S34
+# with the summary pending, a switch to German, the calendar with the summary unconfirmed
+# (about €0.5; the estimate is printed first).
+PREFLIGHT_LIVE := S01 S02 S33 S34 S35
 preflight: check test-db
 	$(MAKE) evals ARGS="--suite scenarios --mode live --only $(PREFLIGHT_LIVE) --yes"
 

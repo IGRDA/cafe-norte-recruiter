@@ -195,6 +195,19 @@ def _brief_confirmed(state: SessionState) -> bool:
     return state.brief_confirmed_revision == state.candidate.revision
 
 
+def _confirm_brief_first(state: SessionState) -> str:
+    """What to do when a slot is chosen before the brief is confirmed (D64): one step, not a
+    wall. The slots stay on offer; the reservation records the brief it belongs to."""
+    if _brief_on_the_table(state):
+        return (
+            "The summary is not confirmed yet and the reservation needs it. Keep the time they "
+            "chose, ask in one short sentence whether the summary you read is right, and on "
+            "their yes call confirm_brief(answer=affirm); then read the time back."
+        )
+    stays = "The reservation needs the confirmed summary; the time they chose stays."
+    return f"{stays} {NEXT_STEP['brief']}"
+
+
 def _brief_on_the_table(state: SessionState) -> bool:
     """The brief was read and its answer is still awaited."""
     pending = state.pending_confirmation
@@ -510,8 +523,7 @@ class PresentConfirmationHandler(_Handler):
         elif arguments.target == "slot":
             if not _brief_confirmed(state):
                 return self._refuse(
-                    "slot_not_offerable:brief_not_confirmed",
-                    f"Slots come after the confirmed brief. {NEXT_STEP['brief']}",
+                    "slot_not_offerable:brief_not_confirmed", _confirm_brief_first(state)
                 )
             if state.schedule_intent is None and arguments.evidence_text is None:
                 return self._refuse(
@@ -786,10 +798,8 @@ class ListInterviewSlotsHandler(_InterviewHandler):
         state = await self._state(context)
         if state is None:
             return self._refuse("not_found", "Session not found.")
-        if not _brief_confirmed(state):
-            return self._refuse(
-                "brief_not_confirmed", f"Slots come after the confirmed brief. {NEXT_STEP['brief']}"
-            )
+        # The calendar is always open to a candidate who asks (D64): live, an unconfirmed brief
+        # blocked the slots and Ana said there were none. Booking still needs the confirmed brief.
         if state.booking is not None:
             return self._refuse(
                 "already_booked",

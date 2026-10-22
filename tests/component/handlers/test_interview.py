@@ -24,13 +24,23 @@ from tests.support.builders import CONFIGS, NOW, SID, full_record
 from tests.support.tools import SLOT, Interview, World, args, context
 
 
-async def test_slots_come_after_the_confirmed_brief_and_record_the_intent() -> None:
+async def test_slots_are_listed_before_the_brief_is_confirmed() -> None:
+    """D64: live, an unconfirmed brief blocked the calendar and Ana said there were no slots.
+    Listing never waits for the brief; reading a slot back still does, and says why."""
     w = Interview()
     await w.open()
     await seed_calendar(w.store, CONFIGS, now=NOW)
     early = await w.slots(context(), args("list_interview_slots", evidence_text="Sí, quiero."))
-    assert not early.ok and early.summary == "brief_not_confirmed"
-    assert (await w.current()).schedule_intent is None
+    assert early.ok and early.summary == "offered:3"
+    chosen = await w.present(context("t1"), args("present_confirmation", target="slot", choice=1))
+    assert not chosen.ok and chosen.summary == "slot_not_offerable:brief_not_confirmed"
+    assert "summary" in chosen.model_text and "stays" in chosen.model_text
+
+
+async def test_slots_come_after_the_confirmed_brief_and_record_the_intent() -> None:
+    w = Interview()
+    await w.open()
+    await seed_calendar(w.store, CONFIGS, now=NOW)
     await w.present(context("t1"), args("present_confirmation", target="brief"))
     await w.deliver()
     await w.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))

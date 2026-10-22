@@ -2384,6 +2384,12 @@ in then_say" (#48, 356b4b4)._
   language; the session language is only what Ana answers in, still decided by the
   highest-probability language (D63). D35 kept the session language because `multi` heard a
   short "sí" as "C"; checked again with Iñaki's voice before merging.
+- The calendar is always open (from Iñaki's preview call, the same evening): a "sí" said over
+  the summary still earns D39's offer, so the summary can stay unconfirmed, and the slots were
+  then blocked until it was; Ana said there were none. `list_interview_slots` and the offered
+  times no longer wait for the summary. Reading a slot back and reserving it still do (the
+  reservation records the summary revision it belongs to), and the refusal says the one step:
+  ask whether the summary is right, keep the time they chose. S35 replays it. Prompt `ana_v26`.
 - Before a merge: `make preflight` (checks, the Postgres suite, live scenarios with behavioural
   invariants) and Iñaki's call on `make preview` (the branch as production runs it: Postgres,
   real model, Jev, voice).

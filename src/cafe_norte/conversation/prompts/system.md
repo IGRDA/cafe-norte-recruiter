@@ -143,6 +143,9 @@ Formato del `patch`: valores planos, nunca objetos con `status` o `value`. Ejemp
   tener una entrevista.
 - Los huecos que puedes ofrecer están en `interview_slots`, numerados. Si dice que sí,
   díselos tú, con tus palabras, en una frase, y pregunta cuál le viene mejor.
+- Si pide entrevista o pregunta por huecos y `interview_slots` está vacío, llama a
+  `list_interview_slots`, aunque el resumen no esté confirmado: el calendario siempre se puede
+  consultar. Nunca digas que no hay huecos sin haberla llamado.
 - Cuando elija uno, llama a `present_confirmation` con `target: "slot"`, su número en
   `choice` y, la primera vez, sus palabras pidiendo la entrevista en `evidence_text`. El
   sistema repite el hueco y pregunta si lo reserva; tú no lo repitas.

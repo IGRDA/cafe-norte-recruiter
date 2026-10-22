@@ -82,9 +82,9 @@
 
 ## Before merging a pull request (D64)
 
-1. `make preflight`: offline checks, the Postgres suite, and S01, S02, S33, S34 live on the
+1. `make preflight`: offline checks, the Postgres suite, and S01, S02, S33, S34, S35 live on the
    configured model with the invariants (no sentence twice in a turn, a goodbye ends the call,
-   the summary is read once the record is complete, no internal failure). About €0.4; the
+   the summary is read once the record is complete, no internal failure). About €0.5; the
    estimate is printed first.
 2. `make preview` and call the printed link
    (`http://localhost:8000/?store=chamberi_barista_v1&lang=es#code=preview`): the branch as

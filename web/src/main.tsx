@@ -1,6 +1,7 @@
 // Entry: read the address once, wire the browser into the effect runner's ports, render.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { asLanguage } from "./api/client";
 import { App } from "./App";
 import "./app.css";
 import type { Ports } from "./page/effects";
@@ -13,7 +14,7 @@ const params = new URLSearchParams(location.search);
 const fragment = new URLSearchParams(location.hash.slice(1));
 const requested = {
   store: params.get("store"),
-  language: params.get("lang") === "en" ? ("en" as const) : ("es" as const),
+  language: asLanguage(params.get("lang")),
   resumeToken: fragment.get("resume"),
   code: fragment.get("code"),
 };

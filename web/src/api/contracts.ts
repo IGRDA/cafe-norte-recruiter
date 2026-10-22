@@ -14,6 +14,7 @@ export interface BrowserContracts {
   ConfirmationAnswer: ConfirmationAnswer;
   VoiceTimingReport: VoiceTimingReport;
   RuntimeInfo: RuntimeInfo;
+  LanguageOption: LanguageOption;
   ConfigurationSummary: ConfigurationSummary;
   CreateSessionResponse: CreateSessionResponse;
   ResumeResponse: ResumeResponse;
@@ -83,9 +84,22 @@ export interface VoiceTimingReport {
 export interface RuntimeInfo {
   voice: "off" | "pipecat";
   signals: "off" | "labels" | "jev";
+  languages: LanguageOption[];
   config_ids: string[];
   access_required: boolean;
   commit_sha: string;
+}
+/**
+ * A language Ana answers in, as the page lists it (D63).
+ *
+ * This interface was referenced by `BrowserContracts`'s JSON-Schema
+ * via the `definition` "LanguageOption".
+ */
+export interface LanguageOption {
+  code: "es" | "en" | "fr" | "pt" | "it" | "de" | "ro" | "ar" | "zh" | "uk";
+  native: string;
+  rtl: boolean;
+  tested: boolean;
 }
 /**
  * This interface was referenced by `BrowserContracts`'s JSON-Schema

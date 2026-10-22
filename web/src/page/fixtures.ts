@@ -1,5 +1,5 @@
 // Test builders for contract values; only what a reducer test needs to vary is a parameter.
-import type { ConfigurationSummary, SessionEvent, Signal, StateUpdated, VersionStamp } from "../api/contracts";
+import type { ConfigurationSummary, LanguageOption, SessionEvent, Signal, StateUpdated, VersionStamp } from "../api/contracts";
 import { initial, reduce, type Action, type Effect, type State } from "./reducer";
 
 export const STORE: ConfigurationSummary = {
@@ -9,6 +9,13 @@ export const STORE: ConfigurationSummary = {
   hours_per_week: 20,
   languages: ["es", "en"],
 };
+
+export const LANGUAGES: LanguageOption[] = [
+  { code: "es", native: "español", rtl: false, tested: true },
+  { code: "en", native: "English", rtl: false, tested: true },
+  { code: "fr", native: "français", rtl: false, tested: false },
+  { code: "ar", native: "العربية", rtl: true, tested: false },
+];
 
 export const VERSIONS: VersionStamp = {
   config_id: "chamberi",
@@ -35,6 +42,7 @@ export function booted(store: string | null = "chamberi"): State {
     type: "booted",
     voiceOffered: true,
     signalsMode: "jev",
+    languages: LANGUAGES,
     stores: [STORE],
   }).state;
 }
@@ -115,7 +123,7 @@ export function signal(turnId: string, frustrated: number, switching = 0.1, over
         evidence_text: "",
         probabilities: {
           sentiment: { neutral: 1 - frustrated, positive: 0, frustrated, uncertain: 0 },
-          language: { keep: 1 - switching, switch: switching },
+          language: { es: 1 - switching, en: switching },
         },
         ...overrides,
       },

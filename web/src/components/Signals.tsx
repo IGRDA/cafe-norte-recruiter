@@ -1,4 +1,4 @@
-import type { SignalPoint } from "../page/reducer";
+import type { LanguageBar, SignalPoint } from "../page/reducer";
 
 // What the classifier read in the latest message (D62): tone and language probabilities. Advisory and about the words, never about the person.
 // Not a live region: it changes every message and must not talk over Ana.
@@ -13,6 +13,7 @@ const TONES = [
 interface Props {
   status: "off" | "idle" | "waiting" | "ready";
   latest: SignalPoint | null;
+  languages: (probabilities: Record<string, number>) => LanguageBar[];
 }
 
 function percent(p: number): string {
@@ -29,7 +30,7 @@ function Bar({ label, value, chosen }: { label: string; value: number; chosen: b
   );
 }
 
-export function Signals({ status, latest }: Props) {
+export function Signals({ status, latest, languages }: Props) {
   const note =
     status === "off"
       ? "Ningún clasificador lee los mensajes en esta demo."
@@ -55,8 +56,14 @@ export function Signals({ status, latest }: Props) {
           </div>
           <div className="group">
             <span className="group-label">Idioma</span>
-            <Bar label="mantener" value={probabilities.language.keep ?? 0} chosen={!latest.switchTo} />
-            <Bar label="cambiar" value={probabilities.language.switch ?? 0} chosen={latest.switchTo !== null} />
+            {languages(probabilities.language).map((bar, i) => (
+              <Bar
+                key={bar.code}
+                label={bar.label}
+                value={bar.value}
+                chosen={latest.switchTo ? bar.code === latest.switchTo : i === 0 && bar.code !== "rest"}
+              />
+            ))}
           </div>
         </div>
       )}

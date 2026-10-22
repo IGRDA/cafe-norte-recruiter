@@ -2,7 +2,7 @@
 // The page's rules, without a browser: each case is (state, actions) → (state, effects).
 import { describe, expect, it } from "vitest";
 import type { SessionState } from "../api/contracts";
-import { active, booted, event, pendingBrief, run, signal, STORE, stateUpdated, userTurn, VERSIONS } from "./fixtures";
+import { active, booted, event, LANGUAGES, pendingBrief, run, signal, STORE, stateUpdated, userTurn, VERSIONS } from "./fixtures";
 import {
   canAnswer,
   canDelete,
@@ -11,6 +11,8 @@ import {
   canTalk,
   exportHref,
   initial,
+  isRtl,
+  languageBars,
   latestSignal,
   MAX_REVIEW_ENTRIES,
   MAX_SIGNAL_POINTS,
@@ -26,6 +28,7 @@ describe("boot", () => {
       type: "booted",
       voiceOffered: false,
       signalsMode: "off",
+      languages: [],
       stores: [STORE],
     });
     expect(state.page).toBe("loading");
@@ -44,6 +47,7 @@ describe("boot", () => {
       type: "booted",
       voiceOffered: false,
       signalsMode: "off",
+      languages: [],
       stores: [],
     });
     expect(state.page).toBe("failed");
@@ -56,6 +60,7 @@ describe("boot", () => {
       type: "booted",
       voiceOffered: false,
       signalsMode: "off",
+      languages: [],
       stores: [STORE],
     });
     expect(effects).toEqual([{ type: "clear-fragment" }, { type: "resume", token: "tok" }]);
@@ -66,6 +71,7 @@ describe("boot", () => {
       type: "booted",
       voiceOffered: false,
       signalsMode: "off",
+      languages: [],
       stores: [STORE],
     }).state;
     const { state, effects } = run(start, { type: "resume-failed" });
@@ -78,6 +84,7 @@ describe("boot", () => {
       type: "booted",
       voiceOffered: false,
       signalsMode: "off",
+      languages: [],
       stores: [STORE],
     }).state;
     const resumed = run(resuming, { type: "resumed", sessionId: "s9" });
@@ -137,6 +144,7 @@ describe("access link (#code=)", () => {
       type: "booted",
       voiceOffered: false,
       signalsMode: "off",
+      languages: [],
       stores: [STORE],
     });
 
@@ -449,5 +457,25 @@ describe("signals (D62)", () => {
 
   it("says when no classifier runs", () => {
     expect(signalStatus({ ...active(), signalsMode: "off" })).toBe("off");
+  });
+});
+
+describe("languages (D63)", () => {
+  it("shows the three likeliest languages by their own names, then the rest as otros", () => {
+    const bars = languageBars(active(), { es: 0.05, fr: 0.8, en: 0.1, other: 0.03, de: 0.02 });
+    expect(bars.map((b) => b.label)).toEqual(["français", "English", "español", "otros"]);
+    expect(bars[3].value).toBeCloseTo(0.05);
+  });
+
+  it("drops otros when the rest is nothing, and calls the unlisted option otro", () => {
+    const bars = languageBars(active(), { other: 0.9, es: 0.1 });
+    expect(bars.map((b) => b.label)).toEqual(["otro", "español"]);
+  });
+
+  it("reads right to left only in a language that does", () => {
+    expect(isRtl(active())).toBe(false);
+    const arabic = run(active(), event({ ...stateUpdated(), language: "ar" })).state;
+    expect(isRtl(arabic)).toBe(true);
+    expect(LANGUAGES.find((l) => l.code === "ar")?.rtl).toBe(true);
   });
 });

@@ -3,6 +3,12 @@ import { startLabel, storeName, type Action, type State } from "../page/reducer"
 import { AccessForm } from "./AccessForm";
 import { ResumeLink } from "./ResumeLink";
 
+// Before the server lists the languages (or if it cannot), the two tested ones.
+const FALLBACK = [
+  { code: "es", native: "español" },
+  { code: "en", native: "English" },
+] as const;
+
 interface Props {
   state: State;
   dispatch: (action: Action) => void;
@@ -43,8 +49,11 @@ export function Header({ state, dispatch }: Props) {
           value={state.chooser.language}
           onChange={(event) => dispatch({ type: "chooser-changed", language: event.target.value as Language })}
         >
-          <option value="es">Español</option>
-          <option value="en">English</option>
+          {(state.languages.length ? state.languages : FALLBACK).map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.native}
+            </option>
+          ))}
         </select>
         <button type="submit">{startLabel(state)}</button>
       </form>

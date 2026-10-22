@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from cafe_norte.errors import SWITCHABLE
 from cafe_norte.main import _process_versions, create_default_app
 from cafe_norte.observability.contracts import ProcessVersions, Telemetry
 from cafe_norte.observability.fakes import RecordingTelemetry
@@ -70,3 +71,13 @@ def test_an_unbuilt_page_leaves_the_api_serving(
         assert client.get("/api/runtime").status_code == 200
         assert client.get("/").status_code == 404
     assert "make web-build" in caplog.text
+
+
+def test_the_runtime_lists_the_ten_languages_with_spanish_and_english_tested() -> None:
+    """The page's chooser comes from here (D63); only es and en are evaluated."""
+    env = {"CAFE_NORTE_CONFIG_DIR": str(CONFIG_DIR), "CAFE_NORTE_WEB_DIR": str(ROOT / "web")}
+    with TestClient(create_default_app(env)) as client:
+        languages = client.get("/api/runtime").json()["languages"]
+    assert [lang["code"] for lang in languages] == list(SWITCHABLE)
+    assert {lang["code"] for lang in languages if lang["tested"]} == {"es", "en"}
+    assert [lang["code"] for lang in languages if lang["rtl"]] == ["ar"]

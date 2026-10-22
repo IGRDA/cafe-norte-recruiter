@@ -42,7 +42,7 @@ actions; they never fetch and hold no logic in `useEffect`. The runner only does
 | `src/api/client.ts` | `fetch` wrappers per endpoint, and the SSE event names, checked against the payload union |
 | `src/api/contracts.ts` | Generated from `contracts.schema.json` (`browser_schema()` in `api/contracts.py`); do not edit |
 | `src/voice.ts` | Hosted voice, offered when `GET /api/runtime` says `pipecat`: joins the session's Daily room with `daily-js` 0.94.0 (audio only, mic only after **Hablar**), plays Ana's track, posts `connected` and `first_audio` timings. `start`, `stop`, `closing` (wait for Ana to leave after her goodbye, at most 20 s, D48). Loaded as its own chunk on the first **Hablar** |
-| `src/components/` | `Header` (logo, store, chooser, status, resume link, access form), `Transcript`, `Composer` (Enviar, Hablar), `Signals` (the classifier's tone and language probabilities for the latest message as native meters, from `latestSignal` and `signalStatus`, D62), `Panel` (candidate card, confirmation with Sí / No, booking, sources, reviewer panel, export, Terminar, Borrar) |
+| `src/components/` | `Header` (logo, store, chooser, status, resume link, access form), `Transcript`, `Composer` (Enviar, Hablar), `Signals` (the classifier's tone probabilities and the three likeliest reply languages plus "otros" for the latest message, as native meters, from `latestSignal`, `signalStatus` and `languageBars`, D62, D63), `Panel` (candidate card, confirmation with Sí / No, booking, sources, reviewer panel, export, Terminar, Borrar) |
 | `src/app.css` | Compact responsive layout, readable contrast, visible errors |
 | `public/logo-mark.svg` | The Café Norte mark (headset and bean) for the header and the favicon; the full logo with the wordmark is `docs/assets/logo.svg`, used by the README |
 
@@ -59,7 +59,9 @@ excerpts, timings and usage; never hidden reasoning.
 ## Accessibility (WCAG 2.2 AA)
 
 - Landmarks: one `main`, the header, the conversation `section` and the `aside`, each labelled;
-  one `h1`. `<html lang>` follows the session's language, which can switch mid-session (D53).
+  one `h1`. `<html lang>` follows the session's language, which can switch mid-session (D53),
+  and `<html dir>` is `rtl` for Arabic (D63). The chooser lists the languages `GET /api/runtime`
+  returns, by their own names.
 - The transcript is a `log`: new bubbles are announced politely. It follows the newest words
   unless the reader scrolled up, and is reachable by keyboard since it scrolls.
 - Errors are `role="alert"`; the status line is `aria-live="polite"`. Focus goes to the access

@@ -11,18 +11,33 @@ sentiment:
     positive: Clear enthusiasm or thanks.
     frustrated: Annoyance, impatience, sarcasm, or feeling misunderstood or made to repeat.
     uncertain: Hesitation, doubt or confusion about what to answer.
-# Relative to the session, not "es"/"en": a decision about the conversation, which Jev reads
-# better (indirect requests went from 8/38 missed to 0/38 on the dev set).
-language:
+# Which language Ana should write her next reply in (D63), asked relative to the session as
+# D52 found Jev reads better: `keep` is the ordinary answer and stays in session_language; a
+# language option is a switch to it. The runtime takes the top option; a language that is not
+# the session's switches at p >= 0.7; keep, the session's own code and `other` never switch.
+reply_language:
   instructions: >-
-    Whether Ana should keep session_language for her next reply or switch to the other
-    language (es is Spanish, en is English), from candidate_said.
+    Whether Ana should keep session_language for her next reply or switch to another
+    language, and which one, from candidate_said.
   criteria:
     keep: >-
       An ordinary reply in session_language; or names a language without asking to leave
       session_language (asks if it is needed for the job, says they studied it); or turns down
-      a switch; or uses a borrowed word or two from the other language.
-    switch: >-
-      Asks to continue in the other language; or says the candidate cannot speak, understand
-      or follow session_language well, or only speaks the other language; or is written
-      entirely in the other language.
+      a switch; or uses a borrowed word or two from another language.
+    es: >-
+      Switch to Spanish (español): asks to continue in Spanish; or says they cannot speak,
+      understand or follow session_language well and Spanish is theirs; or is written entirely
+      in Spanish while session_language is not Spanish.
+    en: >-
+      Switch to English: asks to continue in English; or says they cannot speak, understand or
+      follow session_language well (and no other language is named); or is written entirely in
+      English while session_language is not English.
+    fr: Switch to French (français), asked for, needed, or written entirely in it.
+    pt: Switch to Portuguese (português), asked for, needed, or written entirely in it.
+    it: Switch to Italian (italiano), asked for, needed, or written entirely in it.
+    de: Switch to German (Deutsch), asked for, needed, or written entirely in it.
+    ro: Switch to Romanian (română), asked for, needed, or written entirely in it.
+    ar: Switch to Arabic (العربية), asked for, needed, or written entirely in it.
+    zh: Switch to Chinese (中文), asked for, needed, or written entirely in it.
+    uk: Switch to Ukrainian (українська), asked for, needed, or written entirely in it.
+    other: Switch to a language not listed.

@@ -62,7 +62,7 @@ def system_message(
             "shifts": [
                 {
                     "id": s.shift_id,
-                    "label": s.label[state.language],
+                    "label": s.label_in(state.language),
                     "hours": f"{s.starts}-{s.ends}",
                 }
                 for s in configuration.shifts
@@ -87,7 +87,7 @@ def system_message(
         + "\n\n## Datos de esta sesión (JSON)\n"
         + json.dumps(facts, ensure_ascii=False, default=str)
         + "\n\n"
-        + prompts.load("language", state.language).strip()  # last, where it weighs most
+        + prompts.language_line(state.language)  # last, where it weighs most
     )
     return ModelMessage(role="system", content=content)
 

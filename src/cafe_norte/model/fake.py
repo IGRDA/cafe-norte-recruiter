@@ -82,13 +82,17 @@ class FakeModel:
         return tuple(self._tools)
 
 
+DecisionReply = Decision | ModelError | Callable[[dict[str, str]], Decision]
+
+
 class FakeDecisionModel:
-    """Replays scripted decisions in order; a ``ModelError`` in the script is raised instead.
-    Records every state it was asked about."""
+    """Replays scripted decisions in order; a ``ModelError`` in the script is raised instead,
+    and a callable is answered from the state it is asked about (a verdict relative to the
+    session language). Records every state it was asked about."""
 
     model_id = "fake-decision"
 
-    def __init__(self, replies: Sequence[Decision | ModelError], *, delay_seconds: float = 0):
+    def __init__(self, replies: Sequence[DecisionReply], *, delay_seconds: float = 0):
         self._replies = list(replies)
         self._delay = delay_seconds
         self.states: list[dict[str, str]] = []
@@ -108,4 +112,4 @@ class FakeDecisionModel:
         reply = self._replies.pop(0)
         if isinstance(reply, ModelError):
             raise reply
-        return reply
+        return reply if isinstance(reply, Decision) else reply(state)

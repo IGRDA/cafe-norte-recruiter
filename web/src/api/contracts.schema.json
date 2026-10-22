@@ -23,6 +23,9 @@
     "RuntimeInfo": {
       "$ref": "#/$defs/RuntimeInfo"
     },
+    "LanguageOption": {
+      "$ref": "#/$defs/LanguageOption"
+    },
     "ConfigurationSummary": {
       "$ref": "#/$defs/ConfigurationSummary"
     },
@@ -56,6 +59,7 @@
     "ConfirmationAnswer",
     "VoiceTimingReport",
     "RuntimeInfo",
+    "LanguageOption",
     "ConfigurationSummary",
     "CreateSessionResponse",
     "ResumeResponse",
@@ -653,12 +657,28 @@
         "languages": {
           "default": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "items": {
             "enum": [
               "es",
-              "en"
+              "en",
+              "fr",
+              "pt",
+              "it",
+              "de",
+              "ro",
+              "ar",
+              "zh",
+              "uk"
             ],
             "type": "string"
           },
@@ -988,7 +1008,15 @@
         "language": {
           "enum": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "type": "string"
         },
@@ -1129,6 +1157,44 @@
         "revision"
       ],
       "title": "FieldTarget",
+      "type": "object"
+    },
+    "LanguageOption": {
+      "additionalProperties": false,
+      "description": "A language Ana answers in, as the page lists it (D63).",
+      "properties": {
+        "code": {
+          "enum": [
+            "es",
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
+          ],
+          "type": "string"
+        },
+        "native": {
+          "type": "string"
+        },
+        "rtl": {
+          "type": "boolean"
+        },
+        "tested": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "native",
+        "rtl",
+        "tested"
+      ],
+      "title": "LanguageOption",
       "type": "object"
     },
     "OfferedSlot": {
@@ -1292,6 +1358,12 @@
           ],
           "type": "string"
         },
+        "languages": {
+          "items": {
+            "$ref": "#/$defs/LanguageOption"
+          },
+          "type": "array"
+        },
         "config_ids": {
           "items": {
             "type": "string"
@@ -1308,6 +1380,7 @@
       "required": [
         "voice",
         "signals",
+        "languages",
         "config_ids",
         "access_required",
         "commit_sha"
@@ -1433,7 +1506,15 @@
         "language": {
           "enum": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "type": "string"
         },
@@ -1632,7 +1713,15 @@
             {
               "enum": [
                 "es",
-                "en"
+                "en",
+                "fr",
+                "pt",
+                "it",
+                "de",
+                "ro",
+                "ar",
+                "zh",
+                "uk"
               ],
               "type": "string"
             },
@@ -1689,12 +1778,6 @@
         "language": {
           "additionalProperties": {
             "type": "number"
-          },
-          "propertyNames": {
-            "enum": [
-              "keep",
-              "switch"
-            ]
           },
           "type": "object"
         }
@@ -1940,7 +2023,15 @@
             {
               "enum": [
                 "es",
-                "en"
+                "en",
+                "fr",
+                "pt",
+                "it",
+                "de",
+                "ro",
+                "ar",
+                "zh",
+                "uk"
               ],
               "type": "string"
             },
@@ -2137,7 +2228,15 @@
         "language": {
           "enum": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "type": "string"
         },
@@ -2237,7 +2336,15 @@
         "language": {
           "enum": [
             "es",
-            "en"
+            "en",
+            "fr",
+            "pt",
+            "it",
+            "de",
+            "ro",
+            "ar",
+            "zh",
+            "uk"
           ],
           "type": "string"
         },

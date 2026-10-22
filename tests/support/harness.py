@@ -211,24 +211,28 @@ def decision_analyzer(
     *p_switch: float, delay: float = 0, sentiment: str = "neutral"
 ) -> DecisionSignalAnalyzer:
     """A decision model that answers each turn with this sentiment (neutral unless said), and
-    this probability of a switch."""
+    this probability of answering in the other of Spanish and English, read from the session
+    language it is asked about."""
+
+    def verdict(p: float) -> Callable[[dict[str, str]], Decision]:
+        def answer(state: dict[str, str]) -> Decision:
+            current = state["session_language"]
+            other = "en" if current == "es" else "es"
+            return Decision(
+                answers={
+                    "sentiment": ChoiceAnswer(choice=sentiment, probabilities={sentiment: 1}),
+                    "reply_language": ChoiceAnswer(
+                        choice=other if p >= 0.5 else current,
+                        probabilities={current: 1 - p, other: p},
+                    ),
+                },
+                model_id="fake-decision",
+                input_tokens=300,
+                output_tokens=0,
+            )
+
+        return answer
+
     return DecisionSignalAnalyzer(
-        FakeDecisionModel(
-            [
-                Decision(
-                    answers={
-                        "sentiment": ChoiceAnswer(choice=sentiment, probabilities={sentiment: 1}),
-                        "language": ChoiceAnswer(
-                            choice="switch" if p >= 0.5 else "keep",
-                            probabilities={"keep": 1 - p, "switch": p},
-                        ),
-                    },
-                    model_id="fake-decision",
-                    input_tokens=300,
-                    output_tokens=0,
-                )
-                for p in p_switch
-            ],
-            delay_seconds=delay,
-        )
+        FakeDecisionModel([verdict(p) for p in p_switch], delay_seconds=delay)
     )

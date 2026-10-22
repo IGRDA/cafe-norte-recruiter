@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from cafe_norte.api.access import AccessGate, gate_from_env
 from cafe_norte.api.boundary import HttpBoundary
-from cafe_norte.api.contracts import ErrorResponse, SignalsMode
+from cafe_norte.api.contracts import ErrorResponse, LanguageOption, SignalsMode
 from cafe_norte.api.routes import TurnTasks, build_router
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import ConversationRuntime, SignalAnalyzer
@@ -30,9 +30,10 @@ from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.conversation.signals import DecisionSignalAnalyzer, ModelSignalAnalyzer
+from cafe_norte.conversation.wording import Wording
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import ConfigId, SessionId, StoreConfiguration
-from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
+from cafe_norte.errors import MESSAGES, TABLED, ErrorCode, Language, ServiceError
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.knowledge.hybrid import HybridRetriever
 from cafe_norte.knowledge.index import lexical_index, load_index
@@ -89,6 +90,7 @@ def create_app(
     web_dir: Path | None = None,
     voice_mode: VoiceMode = "off",
     signals_mode: SignalsMode = "off",
+    languages: tuple[LanguageOption, ...] = (),
     max_voice_sessions: int = 2,
     session_seconds: float = 480.0,
     warm_up: Callable[[], Awaitable[None]] | None = None,
@@ -144,6 +146,7 @@ def create_app(
             tasks=tasks,
             voice_mode=voice_mode,
             signals_mode=signals_mode,
+            languages=languages,
             max_voice_sessions=max_voice_sessions,
             session_seconds=session_seconds,
             estimate=estimate,
@@ -193,6 +196,14 @@ def _signals(env: Mapping[str, str]) -> tuple[SignalAnalyzer | None, SignalsMode
     return ModelSignalAnalyzer(model_from_env(selector, env)), "labels"
 
 
+def _languages() -> tuple[LanguageOption, ...]:
+    """The page's list of languages, from ``prompts/languages.yaml`` (D63)."""
+    return tuple(
+        LanguageOption(code=code, native=info.native, rtl=info.rtl, tested=code in TABLED)
+        for code, info in prompts.languages().items()
+    )
+
+
 def create_default_app(
     env: Mapping[str, str] | None = None,
     *,
@@ -220,6 +231,7 @@ def create_default_app(
         store=store,
         configurations=configurations,
         signals=signals,
+        wording=None if model.model_id == "fake" else Wording(model),
         limits=Limits(
             llm_first_output_seconds=float(env.get("CAFE_NORTE_LLM_FIRST_OUTPUT_SECONDS", "6")),
             tool_seconds=float(env.get("CAFE_NORTE_TOOL_SECONDS", "10")),
@@ -243,6 +255,7 @@ def create_default_app(
         web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web/dist")),  # `npm run build` (D61)
         voice_mode=voice_mode,
         signals_mode=signals_mode,
+        languages=_languages(),
         rooms=rooms,
         voice=voice,
         max_voice_sessions=int(env.get("CAFE_NORTE_MAX_VOICE_SESSIONS", "2")),

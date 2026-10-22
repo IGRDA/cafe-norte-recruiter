@@ -65,13 +65,13 @@ def test_only_selects_cases_and_rejects_unknown_ids() -> None:
 # ---- the systems ---------------------------------------------------------------------------------
 
 
-def decided(sentiment: str, move: str, p_switch: float) -> Decision:
+def decided(sentiment: str, language: str, p: float) -> Decision:
+    """Jev's verdict on a Spanish-session case: ``language`` at ``p``, Spanish the rest."""
+    probabilities = {"es": 1 - p, language: p} if language != "es" else {"es": p}
     return Decision(
         answers={
             "sentiment": ChoiceAnswer(choice=sentiment, probabilities={sentiment: 0.85}),
-            "language": ChoiceAnswer(
-                choice=move, probabilities={"keep": 1 - p_switch, "switch": p_switch}
-            ),
+            "reply_language": ChoiceAnswer(choice=language, probabilities=probabilities),
         },
         model_id="typesafe/jev-1.14-20261014",
         input_tokens=300,
@@ -80,7 +80,7 @@ def decided(sentiment: str, move: str, p_switch: float) -> Decision:
 
 
 async def test_jev_answers_both_questions_with_probabilities_in_languages() -> None:
-    model = FakeDecisionModel([decided("frustrated", "switch", 0.92)])
+    model = FakeDecisionModel([decided("frustrated", "en", 0.92)])
     model.model_id = "typesafe/jev-1.14"
     found = await JevClassifier(model, PRICES).classify(signal_case(), 1)
     assert (found.sentiment, found.reply_language, found.error) == ("frustrated", "en", None)
@@ -118,7 +118,7 @@ def reply(text: str) -> FakeModel:
 
 
 async def test_the_llm_system_parses_a_fenced_answer_and_prices_it() -> None:
-    model = reply('```json\n{"sentiment": "uncertain", "language": "switch"}\n```')
+    model = reply('```json\n{"sentiment": "uncertain", "reply_language": "en"}\n```')
     found = await LlmClassifier(model, PRICES).classify(signal_case(), 1)
     assert (found.sentiment, found.reply_language, found.error) == ("uncertain", "en", None)
     assert found.cost_eur is not None and found.cost_eur > 0

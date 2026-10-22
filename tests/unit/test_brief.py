@@ -8,7 +8,7 @@ import pytest
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.brief import field_readback, render_brief
 from cafe_norte.domain.contracts import YearMonth
-from cafe_norte.errors import Language
+from cafe_norte.errors import TABLED, Language
 from tests.support.builders import CONFIG, record
 
 
@@ -90,13 +90,14 @@ def test_the_brief_and_read_backs_in_english_use_the_english_labels_and_date() -
 
 @pytest.mark.parametrize("name", ["brief", "voice", "controls"])
 def test_every_language_has_the_same_sentence_keys(name: str) -> None:
-    keys = {language: set(prompts.table(name, language)) for language in get_args(Language)}
+    keys = {language: set(prompts.table(name, language)) for language in TABLED}
     assert keys["en"] == keys["es"]
 
 
-@pytest.mark.parametrize("name", ["opening", "language", "resume"])
+@pytest.mark.parametrize("name", ["opening", "resume"])
 @pytest.mark.parametrize("language", get_args(Language))
-def test_every_language_has_its_own_text(name: str, language: Language) -> None:
+def test_every_language_has_a_text(name: str, language: Language) -> None:
+    """A tabled language its own; any other the English one, for the model to word (D63)."""
     assert prompts.load(name, language).strip()
 
 
@@ -116,3 +117,11 @@ def test_a_month_only_start_is_read_back_as_the_month() -> None:
     assert field_readback("earliest_start_date", YearMonth(year=2027, month=1), "en") == (
         "I have that you could start in January 2027. Is that correct?"
     )
+
+
+@pytest.mark.parametrize("language", get_args(Language))
+def test_the_closing_line_names_the_language_in_english_and_natively(language: Language) -> None:
+    """One template for every language (D63): no per-language prompt file to forget."""
+    info = prompts.languages()[language]
+    line = prompts.language_line(language)
+    assert info.english in line and info.native in line and "{" not in line

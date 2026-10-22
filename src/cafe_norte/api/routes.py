@@ -17,6 +17,7 @@ from cafe_norte.api.contracts import (
     ConfirmationAnswer,
     CreateSessionRequest,
     CreateSessionResponse,
+    LanguageOption,
     ResumeRequest,
     ResumeResponse,
     RuntimeInfo,
@@ -75,6 +76,7 @@ def build_router(
     tasks: TurnTasks,
     voice_mode: VoiceMode = "off",
     signals_mode: SignalsMode = "off",
+    languages: tuple[LanguageOption, ...] = (),
     max_voice_sessions: int = 2,
     session_seconds: float = 480.0,
     estimate: Estimator | None = None,
@@ -104,6 +106,7 @@ def build_router(
         return RuntimeInfo(
             voice=voice_mode,
             signals=signals_mode,
+            languages=languages,
             config_ids=tuple(configurations),
             access_required=gate.requires_code,
             commit_sha=versions.commit_sha,

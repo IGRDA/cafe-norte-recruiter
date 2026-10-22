@@ -35,7 +35,7 @@ async def test_an_explicit_language_request_is_saved_before_the_model_answers_it
     assert (user.language, assistant.language) == ("en", "en")
     system = h.model.calls[0][0].content
     assert '"language": "en"' in system
-    assert system.endswith(prompts.load("language", "en").strip())  # the last word is English
+    assert system.endswith(prompts.language_line("en"))  # the last word is English
 
 
 async def test_a_borrowed_word_does_not_switch_the_language() -> None:

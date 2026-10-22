@@ -5,6 +5,7 @@
 import type {
   ConfigurationSummary,
   CreateSessionResponse,
+  LanguageOption,
   SessionEvent,
   RuntimeInfo,
   SessionSnapshotResponse,
@@ -66,6 +67,7 @@ export interface State {
   requested: { store: string | null; language: Language; resumeToken: string | null; code: string | null };
   voiceOffered: boolean;
   signalsMode: SignalsMode;
+  languages: LanguageOption[]; // the chooser's list, from GET /api/runtime (D63)
   stores: ConfigurationSummary[];
   chooser: { store: string; language: Language };
   sessionId: string | null;
@@ -100,6 +102,7 @@ export function initial(requested: State["requested"]): State {
     requested,
     voiceOffered: false,
     signalsMode: "off",
+    languages: [],
     stores: [],
     chooser: { store: requested.store ?? "", language: requested.language },
     sessionId: null,
@@ -127,7 +130,13 @@ export function initial(requested: State["requested"]): State {
 
 export type Action =
   // Boot
-  | { type: "booted"; voiceOffered: boolean; signalsMode: SignalsMode; stores: ConfigurationSummary[] }
+  | {
+      type: "booted";
+      voiceOffered: boolean;
+      signalsMode: SignalsMode;
+      languages: LanguageOption[];
+      stores: ConfigurationSummary[];
+    }
   // Access
   | { type: "code-submitted"; code: string }
   | { type: "access-granted" }
@@ -212,6 +221,7 @@ export function reduce(state: State, action: Action, exec: Exec): State {
         ...state,
         voiceOffered: action.voiceOffered,
         signalsMode: action.signalsMode,
+        languages: action.languages,
         stores: action.stores,
         chooser: { ...state.chooser, store: state.chooser.store || action.stores[0]?.config_id || "" },
       };
@@ -633,4 +643,25 @@ export function signalStatus(state: State): "off" | "idle" | "waiting" | "ready"
   if (state.signalsMode === "off") return "off";
   if (!state.lastUserTurn) return "idle";
   return state.signals.some((s) => s.turnId === state.lastUserTurn) ? "ready" : "waiting";
+}
+
+/** The session's language reads right to left (Arabic). */
+export function isRtl(state: State): boolean {
+  return state.languages.some((l) => l.code === state.language && l.rtl);
+}
+
+export interface LanguageBar {
+  code: string;
+  label: string;
+  value: number;
+}
+
+/** The three likeliest languages, then everything else as "otros" (hidden when it is 0). */
+export function languageBars(state: State, probabilities: Record<string, number>): LanguageBar[] {
+  const name = (code: string) =>
+    code === "other" ? "otro" : (state.languages.find((l) => l.code === code)?.native ?? code);
+  const sorted = Object.entries(probabilities).sort(([, a], [, b]) => b - a);
+  const top = sorted.slice(0, 3).map(([code, value]) => ({ code, label: name(code), value }));
+  const rest = sorted.slice(3).reduce((sum, [, value]) => sum + value, 0);
+  return rest >= 0.005 ? [...top, { code: "rest", label: "otros", value: rest }] : top;
 }

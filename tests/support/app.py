@@ -9,7 +9,8 @@ from cafe_norte.api.access import AccessGate
 from cafe_norte.conversation.contracts import SignalAnalyzer
 from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
-from cafe_norte.conversation.runtime import Limits, Runtime
+from cafe_norte.conversation.runtime import Limits, Runtime, _utcnow
+from cafe_norte.conversation.wording import Wording
 from cafe_norte.domain.contracts import SessionId
 from cafe_norte.knowledge.contracts import Retriever
 from cafe_norte.knowledge.fake import FakeRetriever
@@ -40,6 +41,7 @@ def build_runtime(
     clock: Callable[[], datetime] | None = None,
     on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
     retriever: Retriever | None = None,
+    wording: Wording | None = None,
 ) -> Runtime:
     """The real runtime and handlers over ``store``, the real configuration and no knowledge
     unless a ``retriever`` is given."""
@@ -57,7 +59,8 @@ def build_runtime(
         telemetry=telemetry or NullTelemetry(),
         owner=owner,
         on_closed=on_closed,
-        **({"clock": clock} if clock is not None else {}),
+        clock=clock or _utcnow,
+        wording=wording,
     )
 
 

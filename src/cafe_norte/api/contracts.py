@@ -15,7 +15,7 @@ from cafe_norte.domain.contracts import (
     SessionState,
     TurnId,
 )
-from cafe_norte.errors import ErrorCode, Language
+from cafe_norte.errors import SWITCHABLE, ErrorCode, Language
 from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.voice.contracts import VoiceMode, VoiceStatus
@@ -37,7 +37,16 @@ class ConfigurationSummary(Frozen):
     store_name: str
     city: str
     hours_per_week: int
-    languages: tuple[Language, ...] = ("es", "en")
+    languages: tuple[Language, ...] = SWITCHABLE
+
+
+class LanguageOption(Frozen):
+    """A language Ana answers in, as the page lists it (D63)."""
+
+    code: Language
+    native: str  # the name in the language itself, for the chooser and the strip
+    rtl: bool  # Arabic: the page sets dir="rtl"
+    tested: bool  # Spanish and English; the rest are supported, untested
 
 
 class RuntimeInfo(Frozen):
@@ -46,6 +55,7 @@ class RuntimeInfo(Frozen):
 
     voice: VoiceMode
     signals: SignalsMode  # which classifier reads each message; the page says when none does
+    languages: tuple[LanguageOption, ...]  # the chooser's list, in this order
     config_ids: tuple[ConfigId, ...]
     access_required: bool
     commit_sha: str
@@ -144,6 +154,7 @@ BROWSER_REQUESTS: tuple[type[BaseModel], ...] = (
 )
 BROWSER_RESPONSES: tuple[type[BaseModel], ...] = (
     RuntimeInfo,
+    LanguageOption,
     ConfigurationSummary,
     CreateSessionResponse,
     ResumeResponse,

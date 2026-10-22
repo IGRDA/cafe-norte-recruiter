@@ -12,6 +12,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
+from typing import get_args
 
 import aiohttp
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
@@ -74,9 +75,9 @@ CANDIDATE_JOIN_SECONDS = 30.0
 UNFINISHED_TURN_SILENCE_SECONDS = 2.0
 FINISHED_TURN_SILENCE_SECONDS = 0.5
 BARGE_IN_WORDS = 2
+# Recognition follows the session language (D63); the voice is the one Spanish voice (D47).
 STT_LANGUAGES: dict[Language, PipecatLanguage] = {
-    "es": PipecatLanguage.ES,
-    "en": PipecatLanguage.EN,
+    code: PipecatLanguage(code) for code in get_args(Language)
 }
 
 

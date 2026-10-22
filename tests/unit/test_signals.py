@@ -5,18 +5,23 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from cafe_norte.conversation import prompts
 from cafe_norte.conversation.signals import (
     QUESTIONS,
+    SWITCH_THRESHOLD,
     Control,
     answer_to_readback,
+    as_languages,
+    asks_for_a_language,
     asks_question,
+    chosen_language,
     explicit_controls,
     fresh_sentiment,
     is_farewell,
     requested_language,
 )
 from cafe_norte.domain.contracts import Sentiment, Signal, TurnId
-from cafe_norte.errors import Language
+from cafe_norte.errors import SWITCHABLE, Language
 
 HUMAN: frozenset[Control] = frozenset({"human"})
 STOP: frozenset[Control] = frozenset({"stop"})
@@ -333,14 +338,56 @@ def test_a_farewell_with_anything_still_to_do_is_not_one(text: str) -> None:
     assert not is_farewell(text)
 
 
-def test_the_questions_offer_every_sentiment_and_keep_or_switch() -> None:
+def test_the_questions_offer_every_sentiment_and_every_language() -> None:
     assert set(QUESTIONS["sentiment"].criteria) == {
         "neutral",
         "positive",
         "frustrated",
         "uncertain",
     }
-    assert set(QUESTIONS["language"].criteria) == {"keep", "switch"}
+    assert set(QUESTIONS["reply_language"].criteria) == {"keep", *SWITCHABLE, "other"}
+    assert set(prompts.languages()) == set(SWITCHABLE)
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("¿Podemos hablar en francés?", {"switch_fr"}),
+        ("In French, please.", {"switch_fr"}),
+        ("Puedes hablar portugués", {"switch_pt"}),
+        ("Could we speak German?", {"switch_de"}),
+        ("Háblame en italiano", {"switch_it"}),
+        ("en rumano, por favor", {"switch_ro"}),
+        ("Ucraniano, please", {"switch_uk"}),
+        ("I studied French at school.", set()),  # a mention, not a request
+        ("Do I need to speak Portuguese?", set()),
+        ("No hace falta que me hables en francés.", set()),  # turned down
+    ],
+)
+def test_explicit_requests_for_the_other_languages(text: str, expected: set[Control]) -> None:
+    assert explicit_controls(text) == expected
+
+
+@given(
+    st.dictionaries(st.sampled_from([*SWITCHABLE, "other"]), st.floats(0, 1), max_size=11),
+    st.sampled_from(SWITCHABLE),
+)
+def test_chosen_language_switches_only_to_a_likely_other_language(
+    probabilities: dict[str, float], current: Language
+) -> None:
+    chosen = chosen_language(probabilities, current)
+    assert chosen in SWITCHABLE
+    if chosen != current:
+        assert probabilities[chosen] >= SWITCH_THRESHOLD
+        assert all(probabilities.get(c, 0.0) <= probabilities[chosen] for c in SWITCHABLE)
+
+
+def test_chosen_language_examples() -> None:
+    assert chosen_language({"es": 0.2, "fr": 0.8}, "es") == "fr"
+    assert chosen_language({"es": 0.4, "fr": 0.6}, "es") == "es"  # under the threshold
+    assert chosen_language({"es": 0.9}, "es") == "es"
+    assert chosen_language({"other": 1.0}, "en") == "en"  # unlisted: keep
+    assert chosen_language({}, "en") == "en"
 
 
 @pytest.mark.parametrize(
@@ -374,3 +421,19 @@ def test_an_answer_is_not_a_question(text: str) -> None:
 )
 def test_asking_to_be_contacted_is_a_request_for_a_person(text: str) -> None:
     assert "human" in explicit_controls(text)
+
+
+def test_any_explicit_language_request_counts_not_only_spanish_and_english() -> None:
+    """The runtime skips the analyzer's suggestion when the candidate asked for a language
+    themselves; before D63 only es/en requests did, so "en francés" lost to a stale verdict."""
+    assert asks_for_a_language(explicit_controls("En francés, por favor."))
+    assert asks_for_a_language(explicit_controls("In English, please."))
+    assert not asks_for_a_language(explicit_controls("Quiero hablar con una persona."))
+
+
+def test_keep_is_the_session_language() -> None:
+    assert as_languages({"keep": 0.6, "es": 0.1, "en": 0.3}, "es") == pytest.approx(
+        {"es": 0.7, "en": 0.3}
+    )
+    assert chosen_language({"keep": 0.95, "fr": 0.05}, "es") == "es"
+    assert chosen_language({"keep": 0.2, "fr": 0.8}, "es") == "fr"

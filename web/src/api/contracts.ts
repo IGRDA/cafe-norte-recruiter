@@ -14,6 +14,7 @@ export interface BrowserContracts {
   ConfirmationAnswer: ConfirmationAnswer;
   VoiceTimingReport: VoiceTimingReport;
   RuntimeInfo: RuntimeInfo;
+  LanguageOption: LanguageOption;
   ConfigurationSummary: ConfigurationSummary;
   CreateSessionResponse: CreateSessionResponse;
   ResumeResponse: ResumeResponse;
@@ -36,7 +37,7 @@ export interface AccessRequest {
  */
 export interface CreateSessionRequest {
   config_id: string;
-  language: "es" | "en";
+  language: "es" | "en" | "fr" | "pt" | "it" | "de" | "ro" | "ar" | "zh" | "uk";
   channel: "voice" | "text";
 }
 /**
@@ -83,9 +84,22 @@ export interface VoiceTimingReport {
 export interface RuntimeInfo {
   voice: "off" | "pipecat";
   signals: "off" | "labels" | "jev";
+  languages: LanguageOption[];
   config_ids: string[];
   access_required: boolean;
   commit_sha: string;
+}
+/**
+ * A language Ana answers in, as the page lists it (D63).
+ *
+ * This interface was referenced by `BrowserContracts`'s JSON-Schema
+ * via the `definition` "LanguageOption".
+ */
+export interface LanguageOption {
+  code: "es" | "en" | "fr" | "pt" | "it" | "de" | "ro" | "ar" | "zh" | "uk";
+  native: string;
+  rtl: boolean;
+  tested: boolean;
 }
 /**
  * This interface was referenced by `BrowserContracts`'s JSON-Schema
@@ -96,7 +110,7 @@ export interface ConfigurationSummary {
   store_name: string;
   city: string;
   hours_per_week: number;
-  languages: ("es" | "en")[];
+  languages: ("es" | "en" | "fr" | "pt" | "it" | "de" | "ro" | "ar" | "zh" | "uk")[];
 }
 /**
  * This interface was referenced by `BrowserContracts`'s JSON-Schema
@@ -204,7 +218,7 @@ export interface SessionEvent {
 export interface TurnStarted {
   type: "turn_started";
   turn_id: string;
-  language: "es" | "en";
+  language: "es" | "en" | "fr" | "pt" | "it" | "de" | "ro" | "ar" | "zh" | "uk";
   text: string;
 }
 /**
@@ -252,7 +266,7 @@ export interface StateUpdated {
   booking: Booking | null;
   lifecycle: "active" | "paused" | "completed" | "stopped" | "abandoned" | "failed";
   outcome: ("reserved" | "brief_only" | "not_interested" | "human_followup_requested" | "incomplete") | null;
-  language: ("es" | "en") | null;
+  language: ("es" | "en" | "fr" | "pt" | "it" | "de" | "ro" | "ar" | "zh" | "uk") | null;
 }
 /**
  * Server-held candidate facts. The language is a session preference (``SessionState``),
@@ -613,7 +627,7 @@ export interface Signal {
   sentiment: "neutral" | "positive" | "frustrated" | "uncertain";
   explicit_human_request: boolean;
   explicit_stop: boolean;
-  language_switch_to: ("es" | "en") | null;
+  language_switch_to: ("es" | "en" | "fr" | "pt" | "it" | "de" | "ro" | "ar" | "zh" | "uk") | null;
   evidence_text: string;
   probabilities: SignalProbabilities | null;
 }
@@ -732,7 +746,7 @@ export interface SessionState {
   session_id: string;
   config_id: string;
   config_version: string;
-  language: "es" | "en";
+  language: "es" | "en" | "fr" | "pt" | "it" | "de" | "ro" | "ar" | "zh" | "uk";
   channel: "voice" | "text";
   created_at: string;
   lifecycle: "active" | "paused" | "completed" | "stopped" | "abandoned" | "failed";
@@ -819,7 +833,7 @@ export interface TurnRecord {
   input_id: string;
   role: "user" | "assistant";
   channel: "voice" | "text";
-  language: "es" | "en";
+  language: "es" | "en" | "fr" | "pt" | "it" | "de" | "ro" | "ar" | "zh" | "uk";
   text: string;
   delivered_text: string | null;
   interrupted: boolean;

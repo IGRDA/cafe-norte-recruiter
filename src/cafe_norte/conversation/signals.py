@@ -4,12 +4,13 @@
 the model in the same turn, for stop and human requests and for explicit language requests.
 ``ModelSignalAnalyzer`` is the soft path: a small classifier call after the turn, whose
 sentiment shapes the next response only (``fresh_sentiment``). ``DecisionSignalAnalyzer`` is
-the same port over a decision model (Jev, D52): sentiment and a language switch with
-probabilities, the switch applied at the start of the next turn (``fresh_switch``)."""
+the same port over a decision model (Jev, D52): sentiment and the language to answer in,
+with probabilities (D63), the switch applied at the start of the next turn (``fresh_switch``)."""
 
 import asyncio
 import logging
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Literal, get_args
 
@@ -20,7 +21,7 @@ from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import SignalAnalysis
 from cafe_norte.domain.contracts import Sentiment, Signal, SignalProbabilities, TurnId
 from cafe_norte.domain.numbers import plain
-from cafe_norte.errors import Language, ServiceError
+from cafe_norte.errors import SWITCHABLE, Language, ServiceError
 from cafe_norte.model.contracts import (
     ChoiceAnswer,
     ChoiceQuestion,
@@ -31,7 +32,11 @@ from cafe_norte.model.contracts import (
     ModelUsage,
 )
 
-Control = Literal["stop", "human", "switch_es", "switch_en"]
+Control = Literal[
+    "stop", "human",
+    "switch_es", "switch_en", "switch_fr", "switch_pt", "switch_it", "switch_de", "switch_ro",
+    "switch_ar", "switch_zh", "switch_uk",
+]  # fmt: skip
 
 log = logging.getLogger(__name__)
 
@@ -116,7 +121,32 @@ _SWITCHES: tuple[tuple[Control, re.Pattern[str]], ...] = (
 # A language request turned down ("no need to switch to Spanish", "no hace falta que me hables
 # en inglés"): a negation up to this many words before the match, within its clause.
 _LANGUAGE_NEGATION_WINDOW = 6
-_SWITCH_TO: dict[Control, Language] = {"switch_es": "es", "switch_en": "en"}
+_SWITCH_TO: dict[Control, Language] = {f"switch_{code}": code for code in SWITCHABLE}  # type: ignore[misc]
+
+
+def _other_switches() -> tuple[tuple[Control, re.Pattern[str]], ...]:
+    """The same request shapes for the other languages, from their names in
+    ``languages.yaml`` (D63): "en francés", "in French, please", "puedes hablar portugués".
+    Spanish and English keep their tuned patterns above (KI-09)."""
+    found: list[tuple[Control, re.Pattern[str]]] = []
+    for code, info in prompts.languages().items():
+        if code in ("es", "en"):
+            continue
+        names = "(?:" + "|".join(re.escape(plain(n)) for n in info.names) + r")(?![\w-])"
+        control: Control = f"switch_{code}"  # type: ignore[assignment]
+        found.append(
+            (
+                control,
+                re.compile(
+                    rf"\b(?:(?:in|into|to|en) {names}|{_SPEAK} {names}|{_HABLAR} {names}"
+                    rf"|hablame (?:en )?{names}|{names},? (?:please|por favor))"
+                ),
+            )
+        )
+    return tuple(found)
+
+
+_SWITCHES = (*_SWITCHES, *_other_switches())
 
 
 def explicit_controls(text: str) -> frozenset[Control]:
@@ -139,8 +169,13 @@ def explicit_controls(text: str) -> frozenset[Control]:
     return frozenset(found)
 
 
+def asks_for_a_language(controls: frozenset[Control]) -> bool:
+    """An explicit request for any language, even an ambiguous one (two at once)."""
+    return any(c in _SWITCH_TO for c in controls)
+
+
 def requested_language(controls: frozenset[Control], current: Language) -> Language:
-    """The language asked for when exactly one switch was requested; ``current`` otherwise."""
+    """The language asked for when exactly one was requested; ``current`` otherwise."""
     asked = {_SWITCH_TO[c] for c in controls if c in _SWITCH_TO}
     return asked.pop() if len(asked) == 1 else current
 
@@ -410,9 +445,8 @@ SOFT_SENTIMENTS: frozenset[Sentiment] = frozenset({"frustrated", "uncertain"})
 
 # Thresholds from the signals suite (docs/architecture.md): no false alarm on either case set.
 SENTIMENT_THRESHOLD = 0.5  # p(frustrated) or p(uncertain) to report it
-SWITCH_THRESHOLD = 0.7  # p(switch) to suggest the other language
+SWITCH_THRESHOLD = 0.7  # p(top language) to answer in it when it is not the session's
 SENTIMENTS: tuple[Sentiment, ...] = get_args(Sentiment)
-LanguageMove = Literal["keep", "switch"]
 
 
 def load_questions() -> dict[str, ChoiceQuestion]:
@@ -429,10 +463,22 @@ def decision_state(language: Language, ana_said: str, candidate_said: str) -> di
     return {"session_language": language, "ana_said": ana_said, "candidate_said": candidate_said}
 
 
-def reply_language(language: Language, move: LanguageMove) -> Language:
-    if move == "keep":
-        return language
-    return "en" if language == "es" else "es"
+def as_languages(probabilities: Mapping[str, float], current: Language) -> dict[str, float]:
+    """The answer per language: ``keep`` is staying in ``current``, so its probability is
+    ``current``'s (D63). What the page shows and the suite scores."""
+    folded = {k: p for k, p in probabilities.items() if k != "keep"}
+    if "keep" in probabilities:
+        folded[current] = folded.get(current, 0.0) + probabilities["keep"]
+    return folded
+
+
+def chosen_language(probabilities: Mapping[str, float], current: Language) -> Language:
+    """The top language of the ``reply_language`` answer when it is not ``current`` and is at
+    least ``SWITCH_THRESHOLD`` likely; ``current`` otherwise. ``other`` never switches (D63)."""
+    best = max(SWITCHABLE, key=lambda code: probabilities.get(code, 0.0))
+    if best == current or probabilities.get(best, 0.0) < SWITCH_THRESHOLD:
+        return current
+    return best
 
 
 class DecisionSignalAnalyzer:
@@ -466,11 +512,11 @@ class DecisionSignalAnalyzer:
             model_id=decision.model_id,
         )
         sentiment = _decided_sentiment(decision.answers["sentiment"])
-        switch = decision.answers["language"].probabilities.get("switch", 0.0)
+        languages = decision.answers["reply_language"].probabilities
         controls = explicit_controls(text)
         asked = requested_language(controls, language)
-        if asked == language and switch >= SWITCH_THRESHOLD:
-            asked = reply_language(language, "switch")
+        if asked == language:
+            asked = chosen_language(languages, language)
         signal = Signal(
             turn_id=turn_id,
             sentiment=sentiment,
@@ -486,8 +532,8 @@ class DecisionSignalAnalyzer:
                 },
                 language={
                     option: p
-                    for option, p in decision.answers["language"].probabilities.items()
-                    if option in ("keep", "switch")
+                    for option, p in as_languages(languages, language).items()
+                    if option in SWITCHABLE or option == "other"
                 },
             ),
         )

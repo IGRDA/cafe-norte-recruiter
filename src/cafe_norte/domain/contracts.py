@@ -346,7 +346,7 @@ class SignalProbabilities(Frozen):
     Advisory: the verdict in ``Signal`` is what the runtime acts on."""
 
     sentiment: dict[Sentiment, float]
-    language: dict[Literal["keep", "switch"], float]
+    language: dict[str, float]  # one per language code Ana can answer in, plus "other" (D63)
 
 
 class Signal(Frozen):
@@ -370,6 +370,11 @@ class ShiftDefinition(Frozen):
     starts: str  # "HH:MM" local
     ends: str
     days: frozenset[Weekday]
+
+    def label_in(self, language: Language) -> str:
+        """The label in ``language``; English for a language the configuration has none in
+        (D63: the model words the rest of the sentence)."""
+        return self.label.get(language) or self.label["en"]
 
 
 class StoreConfiguration(Frozen):

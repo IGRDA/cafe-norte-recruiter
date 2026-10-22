@@ -57,19 +57,15 @@ fake_script:
       args: { evidence_text: "Sí, quiero entrevista." }
     - say: ""
   - []
-  # The yes cut the slot read-back (D39): the runtime routes it to the one offer, which the
-  # model makes in its own words; the model still tries to book, and is refused.
-  - - tool: reserve_interview
-      args: { slot_id: chamberi_barista_v1-2026-10-20-1700 }
-    - say: "Perdona, me has contestado antes de acabar. ¿Te la repaso o seguimos?"
-  # Going over it: the runtime says the one part, word for word.
-  - - say: ""
-  # Heard to the end: "Sí, confirmo." is not a plain yes, so the model books it, and closes.
-  - - tool: reserve_interview
-      args: { slot_id: chamberi_barista_v1-2026-10-20-1700 }
-    - tool: end_session
+  # The yes cut the slot read-back: one sentence has no offer and no parts, so the runtime
+  # says it again once; what the model adds is dropped, the question being asked (D59).
+  - - say: "Perdona, me has contestado antes de acabar."
+  # Heard to the end this time: the plain yes books it through the runtime; the model says so.
+  - - say: "Reservada la entrevista el martes 20 de octubre a las 17:00; es una reserva simulada, sin cita real."
+  # "Sí, confirmo." with the booking made: the model closes.
+  - - tool: end_session
       args: { reason: candidate_done }
-    - say: "Reservada la entrevista el martes 20 de octubre a las 17:00; es una reserva simulada, sin cita real. Hasta pronto, Lucía."
+    - say: "Hasta pronto, Lucía."
 persona:
   facts:
     name: Lucía Marín
@@ -85,11 +81,9 @@ checks:
   - name: tool_ok
     args: { turn: "9", tool: review_readback, ok: "true" }
   - name: tool_ok
-    args: { turn: "9", tool: reserve_interview, ok: "false" }
+    args: { turn: "10", tool: reserve_interview, ok: "true" }
   - name: tool_ok
-    args: { turn: "10", tool: review_readback, ok: "true" }
-  - name: tool_ok
-    args: { turn: "11", tool: reserve_interview, ok: "true" }
+    args: { turn: "11", tool: end_session, ok: "true" }
   - name: booking_present
   - name: lifecycle_is
     args: { lifecycle: completed }
@@ -97,5 +91,5 @@ checks:
     args: { outcome: reserved }
   - name: no_fabricated_confirmed_values
 rubric:
-  - After the interruption Ana did not treat the yes as a booking; she offered once, in her own words, to go over it or carry on.
+  - After the interruption Ana did not treat the yes as a booking; she said the slot again once and asked.
   - The booking was made only after the slot had been heard to the end, never by re-reading the whole read-back.

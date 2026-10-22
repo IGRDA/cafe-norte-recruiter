@@ -102,6 +102,7 @@ def advance_review(
     the review, "carry on" waives it. One step per answer, one answer per turn.
 
     | now | affirm | skip |
+    | said, not heard, one part | that part, said again | waived |
     | said, not heard | offered | offered (no skip before the offer) |
     | offered | first part | waived |
     | part, not the last (heard or cut by the yes) | next part | waived |
@@ -121,6 +122,12 @@ def advance_review(
     stage = pending.review
     if stage is not None and stage.turn_id == turn_id:
         return Err("same_turn")
+    if stage is None and parts == 1:
+        # One sentence has nothing to go over in parts: a yes says it again once, a carry-on
+        # waives it; no offer in between (D59: a cut date took three yeses).
+        if answer == "affirm":
+            return Ok(_say_part(pending, ReviewInParts(part=0, parts=1, turn_id=turn_id)))
+        return Ok(pending.model_copy(update={"review": ReviewWaived(turn_id=turn_id)}))
     if isinstance(stage, ReviewOffered) and answer == "affirm":
         return Ok(_say_part(pending, ReviewInParts(part=0, parts=parts, turn_id=turn_id)))
     if isinstance(stage, ReviewInParts) and stage.part < stage.parts - 1 and answer == "affirm":

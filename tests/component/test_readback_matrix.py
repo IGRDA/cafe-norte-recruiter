@@ -143,9 +143,11 @@ def expected(kind: Kind, cut: bool, reply: Reply, follow: FollowUp) -> Outcome:
         return "rejected"  # a no rejects a read-back, heard or not; a slot's no is the model's
     if reply == "correction" or not cut:
         return "heard"  # the corrected read-back is said again whole and heard
+    one_part = len(review_parts(READ_BACK[kind], "es")) == 1
     if reply == "unrelated":  # presented again: straight to its first part, heard
-        one_part = len(review_parts(READ_BACK[kind], "es")) == 1
         return "reviewed" if follow == "go_over" or one_part else "waived"
+    if one_part:  # no offer (D59): only a carry-on waives it; a yes says it again once and
+        return "waived" if reply == "carry_on" else "reviewed"  # the next answer confirms it
     return "reviewed" if follow == "go_over" else "waived"
 
 

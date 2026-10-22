@@ -1,7 +1,10 @@
 # Tests
 
 `make check` runs Ruff, strict mypy and the offline suite: no network, no Postgres, no
-credentials. `make test-db` runs the `postgres`-marked tests against the compose database; CI
+credentials. "No network" is enforced: an autouse fixture (`tests/support/offline.py`) refuses
+any connection or name lookup off the machine, so a test that reaches out fails with
+`NetworkBlocked`; only `live`-marked tests are exempt. Coverage counts lines and branches, with a
+floor that only goes up (`pyproject.toml`). `make test-db` runs the `postgres`-marked tests against the compose database; CI
 runs both. `live`-marked tests are paid and manual (`evals/`).
 
 ## The pyramid (D50)

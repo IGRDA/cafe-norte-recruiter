@@ -1,6 +1,9 @@
 """Shared fixtures. Postgres fixtures skip unless CAFE_NORTE_TEST_DATABASE_URL is set."""
 
 import os
+
+# Before anything imports ragas: its analytics would phone home from the offline suite.
+os.environ.setdefault("RAGAS_DO_NOT_TRACK", "true")
 from collections.abc import AsyncIterator
 
 import psycopg
@@ -10,6 +13,7 @@ from hypothesis import settings
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.postgres import PostgresStore
+from tests.support.offline import block_network
 
 # Property-test effort (D50): ``dev`` by default, ``ci`` in CI (more examples, the same ones
 # every run), ``deep`` for ``make quality``. No deadline: these are not timing tests.
@@ -17,6 +21,14 @@ settings.register_profile("dev", max_examples=50, deadline=None)
 settings.register_profile("ci", max_examples=300, deadline=None, derandomize=True)
 settings.register_profile("deep", max_examples=2000, deadline=None)
 settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "dev"))
+
+
+@pytest.fixture(autouse=True)
+def no_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test but a ``live`` one runs with the network guard on."""
+    if not request.node.get_closest_marker("live"):
+        block_network(monkeypatch)
+
 
 # The store contract runs against every implementation. ``make check`` runs the memory
 # parameter (pytest's addopts deselects ``postgres``); ``make test-db`` runs the other.

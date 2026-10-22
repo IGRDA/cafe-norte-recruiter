@@ -11,6 +11,7 @@ test (`test_no_test_module_imports_another`) holds the rule.
 | `harness.py` | `Harness` (runtime + memory store + scripted model), `says`, `name_call`, `turn`, `DATE_CALL`, `present_brief`, `offer_call`, the slot ids, `fill_record`, `with_slots_offered`, `slots_offered`, `SlowFirst` |
 | `http.py` | `create_session`, `read_turn` (one turn of SSE), the scripted tracer turns |
 | `tools.py` | `context`, `args`: calling a tool handler directly |
+| `offline.py` | `block_network`, `NetworkBlocked`: the guard every offline test runs under |
 | `time.py` | `FakeTime` (one virtual instant for `now` and `sleep`; `advance` wakes what falls due), `settle` |
 | `voice.py` | `FakeRuntime`, `Recorder`, `session(...)`: `VoiceSession` without Pipecat, on a `FakeTime` |
 

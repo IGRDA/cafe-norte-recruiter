@@ -77,9 +77,11 @@ ignore_missing_imports = true
 
 [tool.coverage.run]
 source = ["src/cafe_norte", "evals"]
+branch = true
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-# Floor over the whole package, stubs at 0% included; raise it as stages land (target 90).
-fail_under = 80
+# Lines and branches over the whole package, the Postgres adapters (covered by make test-db)
+# included; a ratchet: raise it when the measure rises, never lower it (D50).
+fail_under = 91

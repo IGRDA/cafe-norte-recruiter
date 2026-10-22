@@ -10,4 +10,3 @@
 | `known-issues.md` | Problems seen in real calls, with evidence, cause, reproduction, the fix and its status (fixed, partly fixed or open) |
 | `production.md` | Production discussion (spec §17): today, what breaks first, next step and trade-off for each pressure, citing decisions |
 | `evaluation-report.md` | Not written yet: the measured results, after the live evaluation runs |
-| `audio/` | Script of the spoken scaffold walkthrough; the recording is attached to the scaffold PR |

@@ -1402,7 +1402,8 @@ other. Keeping a mode nobody verifies costs a test matrix and a page surface for
 
 **Consequences we accept.** There is no free local voice: speaking to Ana locally needs the
 Daily, Deepgram and ElevenLabs keys (`make voice-smoke`, `.env.example`). The text channel is
-unchanged and remains the offline path; CI never needed browser speech.
+unchanged and remains the offline path; CI never needed browser speech. The startup hint for
+`browser` was removed later; it is now refused like any unknown mode.
 
 ---
 

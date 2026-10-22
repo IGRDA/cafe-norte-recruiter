@@ -1,4 +1,4 @@
-"""QA probes (D48): one question, one session, the answer and its sources recorded; the
+"""QA probes (D51): one question, one session, the answer and its sources recorded; the
 deterministic reads over it; ragas' ToolCallF1 offline; the judges behind their port."""
 
 from pathlib import Path

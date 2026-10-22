@@ -1,4 +1,4 @@
-"""Everything ragas measures for us (D43, D48).
+"""Everything ragas measures for us (D43, D51).
 
 Retrieval: the fixture's expected sections are chunk ids, so ragas' ID-based context
 precision and recall apply exactly, offline, with no model. Probes: ``ToolCallF1`` on the tool
@@ -7,7 +7,7 @@ names a question's turn called, also offline. Judges: ``RagasJudge`` implements 
 ``DiscreteMetric`` over an OpenAI model, which reads every criterion: staying on topic, the
 goal, the style and the rubric bullets. ragas' ``TopicAdherence`` and
 ``AgentGoalAccuracyWithReference`` misjudged plain Spanish exchanges on gpt-4o-mini and gpt-4o
-(D48). ``FakeAnswerJudge`` stands in, free. ragas is imported where it is used: it takes
+(D51). ``FakeAnswerJudge`` stands in, free. ragas is imported where it is used: it takes
 seconds and only these need it. A judge that fails leaves no score, never a guessed one."""
 
 import asyncio
@@ -33,7 +33,7 @@ from evals.scorers import exchanges, model_turns
 
 JUDGE_SECONDS = 90.0  # one metric on one sample; past it the sample has no score
 CRITERION_PROMPT = Path(__file__).parent / "prompts" / "criterion.md"
-# The criteria, worded as the judge reads them best: violations it can quote (D48).
+# The criteria, worded as the judge reads them best: violations it can quote (D51).
 TOPIC = (
     "Ana only talks about the barista job, the store, the candidate's details or the "
     "interview, and politely declines or redirects anything else."

@@ -1,4 +1,4 @@
-"""The live scorecard (D48): every scenario with ``live_checks`` and every knowledge-base
+"""The live scorecard (D51): every scenario with ``live_checks`` and every knowledge-base
 question as a probe, against one answering model; then ragas over both, the offline retrieval
 suite, and one scorecard with its delta against the committed baseline.
 

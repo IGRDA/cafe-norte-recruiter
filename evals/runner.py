@@ -68,7 +68,7 @@ COMPARISON_CASES = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
 COMPARISON_RESULTS = ROOT / "evals" / "results" / "comparison"  # committed (.gitignore)
 COMPARISON_MODELS = ("openai/gpt-4.1", "openai/gpt-4o-mini")  # hosted and previous (D49)
 COMPARISON_REPEAT = 2
-SCORECARD_JUDGE = "openai/gpt-4o-mini"  # D48: the ragas judges' model
+SCORECARD_JUDGE = "openai/gpt-4o-mini"  # D51: the ragas judges' model
 
 _FAKE_INDEX: dict[str, Index] = {}
 
@@ -436,7 +436,7 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = F
 def scorecard_main(args: argparse.Namespace) -> int:
     """Fake: tiers 0 and 1 over every fake scenario and the retrieval fixture, free and offline,
     the numbers ``make check`` gates on. Live: the scenarios with ``live_checks`` and every
-    knowledge-base question as a probe against ``--model``, judged by ragas (D48)."""
+    knowledge-base question as a probe against ``--model``, judged by ragas (D51)."""
     retrieval = retrieval_report(args.retriever, ragas=True)
     if args.mode == "live":
         scenarios = [s for s in load_scenarios(only=args.only) if s.live_checks]

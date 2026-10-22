@@ -38,7 +38,7 @@ prices:
     usd_per_unit: 0.000008
     source: https://developers.openai.com/api/docs/pricing
   # https://developers.openai.com/api/docs/models/text-embedding-3-small : $0.02 / 1M tokens
-  # (verified 2026-10-22). Evaluation only: ragas' testset generation and judges (D48).
+  # (verified 2026-10-22). Evaluation only: ragas' testset generation and judges (D51).
   - kind: llm_tokens
     unit_detail: "text-embedding-3-small:input"
     usd_per_unit: 0.00000002

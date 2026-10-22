@@ -60,7 +60,7 @@ class Score(Frozen):
         return f"{shown} (n={self.n}{f', {self.missing} unscored' if self.missing else ''})"
 
 
-JUDGED = ("goal_accuracy", "rubric", "style", "topic_adherence")  # D48, report only
+JUDGED = ("goal_accuracy", "rubric", "style", "topic_adherence")  # D51, report only
 
 
 class ModelSummary(Frozen):
@@ -239,7 +239,7 @@ def _judge_section(runs: Sequence[RunRecord], summary: Summary) -> list[str]:
     return [
         "## Judges",
         "",
-        f"A secondary signal, never pass/fail (D06, D48); ragas over `{', '.join(judges)}`. "
+        f"A secondary signal, never pass/fail (D06, D51); ragas over `{', '.join(judges)}`. "
         "Each a mean of pass (1) or fail (0) per run; the rubric, the share of its bullets held.",
         "",
         "| Model | Goal achieved | Rubric bullets | Style | On topic "

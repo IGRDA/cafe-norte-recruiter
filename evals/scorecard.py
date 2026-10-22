@@ -1,5 +1,5 @@
 """The scorecard: the few numbers that say whether a prompt or model change made Ana better
-(D48). Four tiers, cheapest first: deterministic without a reference, deterministic against
+(D51). Four tiers, cheapest first: deterministic without a reference, deterministic against
 one, a judge against one, a judge alone. Deterministic rows gate; judge rows report.
 
 ``scorecard`` is pure: scenario runs, QA probes and the retrieval report in, with whatever
@@ -146,7 +146,7 @@ def render_markdown(card: Scorecard) -> str:
         f"KB `{card.kb_version or '?'}`",
         "",
         "Tiers: 0 deterministic, 1 deterministic against a reference, 2 judge against a "
-        "reference, 3 judge alone. Gate rows fail the run on a miss; judge rows report (D48).",
+        "reference, 3 judge alone. Gate rows fail the run on a miss; judge rows report (D51).",
         "",
         "| Tier | Metric | Value | n | Target | Δ baseline | Result |",
         "| --- | --- | --- | --- | --- | --- | --- |",

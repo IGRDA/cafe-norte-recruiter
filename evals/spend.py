@@ -17,7 +17,7 @@ from cafe_norte.observability.cost import estimate
 EXPECTED_TURNS = 14  # candidate lines in a full interview with a brief and a booking
 ANSWER_TOKENS_PER_TURN = (12_000, 200)  # (input, output) for the answering model
 SIMULATOR_TOKENS_PER_TURN = (1_200, 60)
-# The scorecard's ragas judges (D48): a probe is about six calls (faithfulness, factual
+# The scorecard's ragas judges (D51): a probe is about six calls (faithfulness, factual
 # correctness, topic adherence); a scenario about nine over its whole transcript (topic
 # adherence, goal, style, rubric bullets).
 JUDGE_TOKENS_PER_PROBE = (8_000, 1_500)
@@ -93,7 +93,7 @@ def estimate_scorecard(
 
 
 def estimate_calls(calls: Sequence[Calls], prices: PriceTable, *, runs: int, basis: str) -> Spend:
-    """Spend for model calls counted up front (testset generation, probes, judges, D48)."""
+    """Spend for model calls counted up front (testset generation, probes, judges, D51)."""
     usage = [u for selector, tokens, count in calls for u in _tokens(selector, tokens, count)]
     return _priced(usage, prices, runs=runs, basis=basis)
 

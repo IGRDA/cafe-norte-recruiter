@@ -21,7 +21,7 @@ from evals.contracts import ProbeRecord, Report, RetrievalCase, RunRecord
 from evals.scorers import abstained, facts_missing
 
 PREFIX = "cafe-norte"
-RAG_DATASET = f"{PREFIX}-rag"  # the knowledge-base questions, probed one session each (D48)
+RAG_DATASET = f"{PREFIX}-rag"  # the knowledge-base questions, probed one session each (D51)
 
 
 class Frozen(BaseModel):
@@ -128,7 +128,7 @@ def sync_rag_dataset(cases: Sequence[RetrievalCase], sink: ExperimentSink) -> No
 
 def probe_run(probes: Sequence[ProbeRecord], model: str) -> ExperimentRun:
     """The probes of one scorecard as one experiment run on ``cafe-norte-rag``: the answer as
-    output, the deterministic reads and ragas' scores as scores (D48)."""
+    output, the deterministic reads and ragas' scores as scores (D51)."""
     stamp = next((p.run.versions for p in probes if p.run.versions is not None), None)
     prompt = stamp.prompt_version if stamp else "unknown"
     rows: list[ExperimentRow] = []

@@ -1,4 +1,4 @@
-"""The scorecard (D48): tiers 0 and 1 are deterministic and gate; every fake scenario holds
+"""The scorecard (D51): tiers 0 and 1 are deterministic and gate; every fake scenario holds
 them, so a prompt or runtime change that breaks one fails ``make check`` with the row named."""
 
 import pytest

@@ -411,7 +411,7 @@ def relative_date(raw: str, today: date) -> date | None:
     return today + timedelta(days=ahead)
 
 
-# ---- reads over an export (the scorecard's tiers 0 and 1, D48) ----------------------------------
+# ---- reads over an export (the scorecard's tiers 0 and 1, D51) ----------------------------------
 
 MAX_TURN_WORDS = 60  # a model-written turn, spoken: one or two sentences (system prompt)
 LEAK_SHINGLE_WORDS = 12  # this many consecutive words of the system prompt said aloud is a leak
@@ -536,7 +536,7 @@ def _system_shingles() -> frozenset[tuple[str, ...]]:
     return frozenset(tuple(said[i : i + n]) for i in range(len(said) - n + 1))
 
 
-# ---- reads over a probe's answer (D48) -----------------------------------------------------------
+# ---- reads over a probe's answer (D51) -----------------------------------------------------------
 
 _THOUSANDS = re.compile(r"(?<=\d)[.,](?=\d{3}\b)")
 _ABSTAIN = re.compile(

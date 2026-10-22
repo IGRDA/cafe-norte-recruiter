@@ -1574,7 +1574,7 @@ turn.
 
 ---
 
-## D48 · One scorecard in four tiers; ragas measures answers, tools and goals
+## D51 · One scorecard in four tiers; ragas measures answers, tools and goals
 
 _Added 22 October 2026, the evaluation stage._
 

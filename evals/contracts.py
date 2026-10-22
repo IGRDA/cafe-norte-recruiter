@@ -82,7 +82,7 @@ class Fault(Frozen):
 class ReferenceTools(Frozen):
     """The tool trajectory a scenario expects, read from the journal (model and runtime calls
     alike): ``in_order`` appears as a subsequence, ``anywhere`` at least once, ``never`` not at
-    all. Only what every good run must do; a run may call more (D48)."""
+    all. Only what every good run must do; a run may call more (D51)."""
 
     in_order: tuple[ToolName, ...] = ()
     anywhere: tuple[ToolName, ...] = ()
@@ -104,7 +104,7 @@ class Scenario(Frozen):
     checks: tuple[Check, ...]
     live_checks: tuple[Check, ...] = ()  # live mode: no turn numbers; empty = not run live
     rubric: tuple[str, ...] = ()
-    goal: str = ""  # one sentence: what a good run achieves, for the goal judge (D48)
+    goal: str = ""  # one sentence: what a good run achieves, for the goal judge (D51)
     reference_tools: ReferenceTools | None = None
     injection: bool = False  # the lines attack the rules; scored apart from task success
     # live: who speaks for the candidate; ``scripted`` says ``scripted_turns`` whatever Ana says
@@ -165,12 +165,12 @@ class RetrievalCase(Frozen):
     kind: Literal["answerable", "unsupported", "leakage"]
     expected_sections: tuple[str, ...] = ()
     expected_facts: tuple[str, ...] = ()
-    reference: str = ""  # answerable: the answer a good probe gives, from the sections (D48)
+    reference: str = ""  # answerable: the answer a good probe gives, from the sections (D51)
     origin: Literal["hand", "ragas"] = "hand"  # ragas: generated, then kept by a person
 
 
 class TestsetCandidate(Frozen):
-    """One question ragas generated, before a person keeps, edits or drops it (D48)."""
+    """One question ragas generated, before a person keeps, edits or drops it (D51)."""
 
     __test__ = False  # not a pytest class
 
@@ -282,7 +282,7 @@ class RunRecord(Frozen):
     lines: int = 0  # candidate lines said
     hit_turn_cap: bool = False
     cost_is_partial: bool = True
-    scores: dict[str, float | None] = {}  # scorecard row id -> ragas score; None: none came (D48)
+    scores: dict[str, float | None] = {}  # scorecard row id -> ragas score; None: none came (D51)
     judge_model: str = ""  # who gave ``scores``; the answering model judging itself is labelled
 
     @property
@@ -344,7 +344,7 @@ Unit = Literal["ratio", "ms", "eur", "score"]
 
 
 class MetricSpec(Frozen):
-    """One scorecard row (D48). Tier 0: deterministic, no reference; 1: deterministic against a
+    """One scorecard row (D51). Tier 0: deterministic, no reference; 1: deterministic against a
     reference; 2: a judge against a reference; 3: a judge alone. A ``gate`` row with a value
     that misses its target fails the run; the others report."""
 
@@ -389,7 +389,7 @@ Kind = Literal["answerable", "unsupported", "leakage"]
 
 
 class ProbeRecord(Frozen):
-    """One knowledge-base question asked live as the first line of its own session (D48): what
+    """One knowledge-base question asked live as the first line of its own session (D51): what
     Ana answered, the chunks shown for it and the tools the turn called. ``run`` is the session
     as any live run records it, so the tier-0 rows read probes and scenarios alike."""
 
@@ -409,7 +409,7 @@ Exchange = tuple[Literal["human", "ai"], str, tuple[str, ...]]  # speaker, text,
 
 
 class AnswerJudge(Protocol):
-    """The tier 2 and 3 judges (D48): ragas over an LLM, or a fake. A judge that cannot answer
+    """The tier 2 and 3 judges (D51): ragas over an LLM, or a fake. A judge that cannot answer
     raises; the caller records no score, never a guessed one."""
 
     @property

@@ -1072,6 +1072,20 @@ class Runtime:
         name, arguments = answer
         async for event in self._runtime_call(run, name, arguments):
             yield event
+        if name == "list_interview_slots" and run.outcome.ok:
+            # "El martes 27 a las diez": the day is offered now, and the same words may pick
+            # its slot. Once: a second miss is the model's (D55).
+            again = slot_answer(
+                run.state,
+                run.input.text,
+                by_button=False,
+                turn_id=run.turn_id,
+                configuration=self._configurations[run.state.config_id],
+                now=self._clock(),
+            )
+            if isinstance(again, tuple) and again[0] == "present_confirmation":
+                async for event in self._runtime_call(run, *again):
+                    yield event
         run.slot_choice = run.outcome.model_text
 
     async def _save_shortlist(self, run: _Turn, shortlist: tuple[SlotId, ...]) -> None:

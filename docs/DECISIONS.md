@@ -1902,3 +1902,61 @@ question names the barista; the model always searches in Spanish.
 **Consequences we accept.** The topic's precision is gone: a question can now bring back a
 chunk of any document of the store. Thirty-two recorded questions are a small sample; the next
 live scorecard is the check.
+
+## D55 · Facts for the runtime, words for the model: the interview times are on offer with the brief
+
+_Added 22 October 2026, after three hosted voice calls of the same day (Langfuse, `production`,
+10:19, 11:30 and 13:01 UTC; gpt-4.1, `ana_v17` and `ana_v19`)._
+
+**Context.** In the 13:01 call the candidate said "Sí" to "¿Te gustaría hacer una
+entrevista?" and the model answered "te digo los huecos" four times without calling
+`list_interview_slots`; no time was ever said (KI-10). In the 11:30 call the model invented
+slot ids twice (`2026-10-24T17:00:00`, `slot-2026-10-27T10:30`): it never sees an id after the
+turn that listed it, because history keeps only spoken text. Each refusal said "Offer fresh
+slots with list_interview_slots", and the runtime said the whole list four times, once in the
+same reply as "¿Te la reservo?" (KI-11). "El martes de noviembre" offered Tuesday 27 October,
+because the month was thrown away. Both failures come from the same place: the times existed
+only behind a tool the model had to remember, and tool results gave orders instead of facts.
+
+**Decisions.**
+- **The principle.** The runtime owns the facts and the rules: it validates, persists, and
+  shows the model the true state. The model owns the words: offers, empathy, the order of
+  things. Only read-backs of saved values are said word for word, since what is said must
+  match what is stored. A tool result says what happened, not "reply with nothing" or "list
+  again".
+- **The offer is made with the brief.** A confirmed brief puts the first three free slots on
+  offer (`slot_offer`), and the facts show them by number and local time (`interview_slots`),
+  never by id. The model says them itself when the candidate wants an interview.
+- **A slot is chosen by number.** `present_confirmation(target=slot, choice=n)`; an id still
+  works. The candidate's words asking for the interview come with the first choice
+  (`evidence_text`), so the explicit intent of D29 is still their words.
+- **`list_interview_slots` is for another day.** It replaces the offer and returns the times as
+  text; nothing is spoken for it. A day with nothing free is said plainly ("No free slot on
+  …"), no longer covered silently by the first three.
+- **A refusal names the options.** An invented id or a number not on offer gets "That time is
+  not available. The times on offer are: 1 …; 2 …" plus "offer the other times, or call
+  list_interview_slots for another day".
+- **The matcher (D41) waits for the request, keeps the month and stops re-listing.** It acts
+  only once the candidate has asked for an interview (`schedule_intent`): the offer exists
+  before Ana has said a time, and a live run booked a "la última" the candidate said to another
+  question. Words that name a day not on offer offer that day, and when the same words name its slot ("el viernes 23 a las diez y
+  media") the runtime reads it back in that turn. Words that name no day (a time not offered,
+  a month with nothing free) are the model's, which has the options.
+- Prompt `ana_v20`; the spoken offer (`render_slot_offer`, `slots.*`) is gone.
+
+**Replaces** the spoken offer of D29 and D41's `NoMatch` with no day, which listed the same
+slots again.
+
+**Rejected.**
+- A fixed runtime question "¿Te gustaría hacer una entrevista?" with the yes routed to the tool.
+  It is controlled, but scripted, and one more place for a loop.
+- Replaying tool calls and results in history so the model sees the ids. It costs tokens on
+  every call, and an id can still be miscopied.
+- Choosing by date and time as tool arguments. The matcher plus `date_preference` already
+  cover "el martes 27 a las diez".
+
+**Consequences we accept.**
+- The model words the offer, so it may shorten "miércoles 21 de octubre de 2026 a las 17:00".
+  The read-back that follows is still exact.
+- An offer made with the brief can go stale during a long questions phase. A past or taken slot
+  is refused at the read-back with the remaining options.

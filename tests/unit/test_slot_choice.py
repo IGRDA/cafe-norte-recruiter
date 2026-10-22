@@ -283,6 +283,13 @@ def test_a_day_beyond_the_horizon_is_no_match_without_a_day() -> None:
     assert choose("el 15", OFFER) == NoMatch(day=None)
 
 
+def test_a_month_is_kept_so_a_weekday_of_another_month_names_no_day() -> None:
+    """ "El martes de noviembre" once offered Tuesday 27 October: the month was thrown away."""
+    assert read_slot_words("el martes de noviembre").months == frozenset({11})
+    assert choose("el martes de noviembre", OFFER) == NoMatch(day=None)
+    assert choose("el sábado 24 de octubre", OFFER) == NoMatch(day=date(2026, 10, 24))
+
+
 @pytest.mark.parametrize(
     "text",
     [

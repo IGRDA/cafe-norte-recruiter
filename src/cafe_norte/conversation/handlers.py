@@ -16,7 +16,6 @@ from cafe_norte.conversation.brief import (
     ReadbackField,
     field_readback,
     render_brief,
-    render_slot_offer,
     slot_readback,
     slot_time,
 )
@@ -27,7 +26,7 @@ from cafe_norte.conversation.contracts import (
     ToolHandler,
     ToolOutcome,
 )
-from cafe_norte.conversation.prompt import HISTORY_TURNS
+from cafe_norte.conversation.prompt import HISTORY_TURNS, offer_facts
 from cafe_norte.conversation.readback import (
     CONFIRM_TOOL,
     current_saying,
@@ -80,7 +79,7 @@ from cafe_norte.domain.contracts import (
 from cafe_norte.domain.lifecycle import LifecycleEvent, transition
 from cafe_norte.domain.result import Err, Ok
 from cafe_norte.domain.review import add_followup, has_followup
-from cafe_norte.errors import Language, ServiceError
+from cafe_norte.errors import ServiceError
 from cafe_norte.knowledge.contracts import RetrievalQuery, RetrievedChunk, Retriever
 from cafe_norte.persistence.contracts import Store
 
@@ -93,9 +92,11 @@ NEXT_STEP = {
     "role or the store; answer with search_knowledge, then ask whether they would like an "
     "interview.",
     "interview": "Now ask, in one short sentence, whether they would like an interview.",
-    "end": "If they want an interview call list_interview_slots with their words; otherwise "
-    "call end_session(reason=candidate_done).",
-    "slots": "Offer fresh slots with list_interview_slots.",
+    "end": "If they want an interview, offer the times in interview_slots and read back their "
+    "choice with present_confirmation(target=slot, choice=n); otherwise call "
+    "end_session(reason=candidate_done).",
+    "slots": "Offer the other times in interview_slots, or call list_interview_slots for "
+    "another day.",
     "booked": "The interview is reserved. Call end_session(reason=candidate_done).",
     "goodbye": "Session ended. Say goodbye in one short sentence.",
 }
@@ -161,9 +162,29 @@ class _Handler:
     def _refuse(summary: str, model_text: str, *, idle: bool = False) -> ToolOutcome:
         return ToolOutcome(ok=False, model_text=model_text, summary=summary, idle=idle)
 
+    async def _free_slots(
+        self, state: SessionState, context: ToolContext
+    ) -> tuple[InterviewSlot, ...]:
+        """The store's free slots from now, earliest first, as far as an offer looks."""
+        return await self._store.calendar.available(
+            state.config_id, after=context.now, limit=OFFER_WINDOW
+        )
+
 
 def _brief_confirmed(state: SessionState) -> bool:
     return state.brief_confirmed_revision == state.candidate.revision
+
+
+def _offer(slots: tuple[InterviewSlot, ...]) -> SlotOffer:
+    return SlotOffer(
+        slots=tuple(OfferedSlot(slot_id=s.slot_id, starts_at_utc=s.starts_at_utc) for s in slots)
+    )
+
+
+def options(state: SessionState, configuration: StoreConfiguration) -> str:
+    """The times on offer by number, as the facts show them: never an id."""
+    listed = offer_facts(state, configuration) or []
+    return "; ".join(f"{item['n']}: {item['when']}" for item in listed) or "none"
 
 
 def _without_known_values(patch: CandidatePatch, candidate: CandidateRecord) -> CandidatePatch:
@@ -448,24 +469,49 @@ class PresentConfirmationHandler(_Handler):
                 state.candidate, configuration, state.language, followup=has_followup(state)
             )
         elif arguments.target == "slot":
-            if arguments.slot_id is None:
-                return self._refuse("slot_id_missing", "Name the slot_id the candidate chose.")
-            if not _brief_confirmed(state) or state.schedule_intent is None:
+            if not _brief_confirmed(state):
                 return self._refuse(
-                    "slot_not_offerable:no_offer",
-                    "Offer slots with list_interview_slots after the confirmed brief first.",
+                    "slot_not_offerable:brief_not_confirmed",
+                    f"Slots come after the confirmed brief. {NEXT_STEP['brief']}",
                 )
-            slot = await self._store.calendar.get(arguments.slot_id)
+            if state.schedule_intent is None and arguments.evidence_text is None:
+                return self._refuse(
+                    "slot_not_offerable:no_intent",
+                    "Pass the candidate's words asking for the interview in evidence_text.",
+                )
+            available = f"The times on offer are: {options(state, configuration)}."
+            slot_id = arguments.slot_id
+            if arguments.choice is not None:
+                offer = state.slot_offer
+                if offer is None or arguments.choice > len(offer.slots):
+                    return self._refuse(
+                        "slot_not_offerable:no_option",
+                        f"There is no option {arguments.choice}. {available} {NEXT_STEP['slots']}",
+                    )
+                slot_id = offer.slots[arguments.choice - 1].slot_id
+            if slot_id is None:
+                return self._refuse(
+                    "slot_choice_missing", f"Name the choice the candidate made. {available}"
+                )
+            slot = await self._store.calendar.get(slot_id)
             refusal = (
                 "slot_unavailable" if slot is None else slot_offerable(state, slot, now=context.now)
             )
             if slot is None or refusal is not None:
                 return self._refuse(
                     f"slot_not_offerable:{refusal}",
-                    f"That slot cannot be offered ({refusal}). {NEXT_STEP['slots']}",
+                    f"That time is not available ({refusal}). {available} {NEXT_STEP['slots']}",
                 )
             target = SlotTarget(slot_id=slot.slot_id, brief_revision=revision)
             text = slot_readback(slot, configuration, state.language)
+            if state.schedule_intent is None and arguments.evidence_text is not None:
+                state = state.model_copy(
+                    update={
+                        "schedule_intent": Evidence(
+                            source_turn_id=context.turn_id, text=arguments.evidence_text
+                        )
+                    }
+                )
         elif arguments.target == "field" and arguments.field in READBACK_FIELDS:
             field_name: ReadbackField = arguments.field
             value = fields.value_of(getattr(state.candidate, field_name))
@@ -557,13 +603,19 @@ class _ConfirmHandler(_Handler):
                 data[resolved.target.field] = confirmed.value.model_dump()
                 candidate = type(candidate).model_validate(data)
         brief_revision = state.brief_confirmed_revision
+        offer = state.slot_offer
         if resolved.status == "confirmed" and isinstance(resolved.target, BriefTarget):
             brief_revision = resolved.target.revision
+            if state.booking is None:
+                # The first times are on offer with the brief: the model sees them and offers
+                # them itself, so no tool call stands between a yes and the times (D55).
+                offer = _offer((await self._free_slots(state, context))[:OFFERED_SLOTS])
         new_state = state.model_copy(
             update={
                 "pending_confirmation": resolved,
                 "candidate": candidate,
                 "brief_confirmed_revision": brief_revision,
+                "slot_offer": offer,
             }
         )
         await self._save(context, new_state, expected_revision=state.candidate.revision)
@@ -668,20 +720,12 @@ class _InterviewHandler(_Handler):
         super().__init__(store=store)
         self._configurations = configurations
 
-    @staticmethod
-    def _listed(
-        slots: tuple[InterviewSlot, ...], configuration: StoreConfiguration, language: Language
-    ) -> str:
-        return "; ".join(
-            f"{n}: slot_id={s.slot_id} ({slot_time(s.starts_at_utc, configuration, language)})"
-            for n, s in enumerate(slots, start=1)
-        )
-
 
 class ListInterviewSlotsHandler(_InterviewHandler):
-    """``list_interview_slots``: the candidate's words asking for an interview are saved as the
-    explicit intent to schedule, in the same save that offers the slots. The runtime speaks the
-    offer; the model is told the ids in the same order so "the first one" can be resolved."""
+    """``list_interview_slots``: other times, for the day the candidate asks. Their words
+    asking for an interview are saved as the explicit intent to schedule, in the same save that
+    replaces the offer. The model gets the times by number and offers them in its own words
+    (D55); a day with nothing free is said plainly, never covered by the first times."""
 
     async def __call__(self, context: ToolContext, arguments: BaseModel) -> ToolOutcome:
         assert isinstance(arguments, ListInterviewSlotsArgs)
@@ -698,43 +742,37 @@ class ListInterviewSlotsHandler(_InterviewHandler):
                 "An interview is already reserved. Say so; a change is a request_human_followup.",
             )
         configuration = self._configurations[state.config_id]
-        window = await self._store.calendar.available(
-            state.config_id, after=context.now, limit=OFFER_WINDOW
-        )
-        preferred = tuple(
-            s for s in window if _local_date(s, configuration) == arguments.date_preference
-        )
+        day = arguments.date_preference
+        window = await self._free_slots(state, context)
+        preferred = tuple(s for s in window if _local_date(s, configuration) == day)
         slots = (preferred or window)[:OFFERED_SLOTS]
+        none_on_day = day is not None and not preferred
         # The first words asking for an interview stay its evidence when the offer is made
         # again for another day.
         intent = state.schedule_intent or Evidence(
             source_turn_id=context.turn_id, text=arguments.evidence_text
         )
-        offer = SlotOffer(
-            slots=tuple(
-                OfferedSlot(slot_id=s.slot_id, starts_at_utc=s.starts_at_utc) for s in slots
-            )
+        new_state = state.model_copy(
+            update={"schedule_intent": intent, "slot_offer": _offer(slots)}
         )
-        new_state = state.model_copy(update={"schedule_intent": intent, "slot_offer": offer})
         await self._save(context, new_state, expected_revision=state.candidate.revision)
         if not slots:
             step = (
-                "No slot is free. The sentence was already spoken; offer that a person follows "
-                "up and, if accepted, call request_human_followup."
+                "No slot is free. Say so, offer that a person follows up and, if accepted, call "
+                "request_human_followup."
             )
         else:
-            listed = self._listed(slots, configuration, state.language)
+            missed = f"No free slot on {day}. " if none_on_day else ""
             step = (
-                f"Offered, in this order: {listed}. The offer was already spoken; reply with "
-                "nothing and wait. When the candidate picks one, call "
-                "present_confirmation(target=slot, slot_id=...)."
+                f"{missed}The times on offer are: {options(new_state, configuration)}. Offer "
+                "them in your own words and ask which suits them; when they choose, call "
+                "present_confirmation(target=slot, choice=n)."
             )
         return ToolOutcome(
             ok=True,
             model_text=step,
-            summary=f"offered:{len(slots)}",
+            summary=f"offered:{len(slots)}" + (":none_on_day" if none_on_day else ""),
             events=(self._updated(new_state),),
-            spoken=render_slot_offer(slots, configuration, state.language),
         )
 
 

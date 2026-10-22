@@ -54,9 +54,15 @@ class ListInterviewSlotsArgs(Args):
 
 
 class PresentConfirmationArgs(Args):
+    """A slot is named by its number in ``interview_slots`` (``choice``); an id is still
+    accepted. ``evidence_text`` is the candidate's words asking for the interview, needed while
+    the session has none (D55)."""
+
     target: Literal["field", "brief", "slot"]
     field: CandidateFieldName | None = None
+    choice: int | None = Field(default=None, ge=1, le=9)
     slot_id: SlotId | None = None
+    evidence_text: str | None = Field(default=None, min_length=1, max_length=500)
 
 
 class ConfirmFieldArgs(Args):
@@ -109,10 +115,12 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "`question` is what the candidate said; `queries` are one to three self-contained Spanish "
     "phrasings of it with the key words (two when the question is vague or in English); "
     "The store's documents are searched; nothing else narrows them.",
-    "list_interview_slots": "Call when the candidate says they want an interview, with their "
-    "exact words in evidence_text. The system speaks the available slots for you.",
+    "list_interview_slots": "Look for other interview times, for the day the candidate asks "
+    "(date_preference), with their exact words in evidence_text. The times you may offer are "
+    "already in interview_slots; offer them in your own words.",
     "present_confirmation": "Read back a phone/date, the brief, or the slot the candidate chose "
-    "(target=slot with its slot_id) and wait for the candidate's answer.",
+    "(target=slot with its number in interview_slots as choice, and their words asking for the "
+    "interview in evidence_text) and wait for the candidate's answer.",
     "confirm_field": "Resolve the pending field read-back with the candidate's answer.",
     "confirm_brief": "Resolve the pending brief read-back with the candidate's answer.",
     "reserve_interview": "The candidate said yes to the slot read-back: reserve that slot_id. "

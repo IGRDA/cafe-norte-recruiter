@@ -1,4 +1,4 @@
-# Replies to explicit requests (ana_v19, en)
+# Replies to explicit requests (ana_v20, en)
 
 One `key: sentence` per line, spoken word for word by the runtime: `human` when `explicit_controls`
 detects the request (`conversation/signals.py`), `time_cap` when a turn carries the session past

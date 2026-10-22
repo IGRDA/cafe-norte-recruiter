@@ -3,7 +3,7 @@
 Sentences live in ``prompts/brief.<language>.md``; this module only fills them. What it returns
 is the text the runtime speaks and the text a confirmation stores, so it is never paraphrased."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from datetime import date, datetime
 from functools import cache
 from typing import Any, Literal
@@ -68,25 +68,6 @@ def field_readback(field: ReadbackField, value: object, language: Language) -> s
     t = _texts(language)
     shown = _phone(str(value)) if field == "contact_phone" else _date(value, t)
     return t[f"readback.{field}"].format(value=shown)
-
-
-def render_slot_offer(
-    slots: Sequence[InterviewSlot], configuration: StoreConfiguration, language: Language
-) -> str:
-    """The offer the runtime speaks: store, each slot in local time, the question. Nothing
-    when there is no slot."""
-    t = _texts(language)
-    if not slots:
-        return t["slots.none"]
-    intro = t["slots.intro"].format(store=configuration.store_name)
-    items = _join(
-        [
-            t["slot"].format(value=slot_time(s.starts_at_utc, configuration, language))
-            for s in slots
-        ],
-        t,
-    )
-    return f"{intro} {items}. {t['slots.question']}"
 
 
 def slot_readback(

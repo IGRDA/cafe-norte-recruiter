@@ -74,6 +74,7 @@ def system_message(
         "fields_still_to_ask": list(unfinished_fields(state.candidate)),
         "pending_confirmation": pending_facts(state),
         "schedule_intent": state.schedule_intent is not None,
+        "interview_slots": offer_facts(state, configuration),
         "booking": booking_facts(state, configuration),
         "lifecycle": state.lifecycle,
         "explicit_requests": sorted(c for c in hints.explicit if c in ("stop", "human")),
@@ -125,6 +126,21 @@ def review_label(review: Review | None) -> str | None:
     if isinstance(review, ReviewInParts):
         return f"part {review.part + 1} of {review.parts}"
     return review.stage if review is not None else None
+
+
+def offer_facts(
+    state: SessionState, configuration: StoreConfiguration
+) -> list[dict[str, object]] | None:
+    """The interview times on offer, by number, in the store's local time: the model offers
+    them in its own words and chooses by number, never by an id it could miscopy (D55)."""
+    offer = state.slot_offer
+    settled = state.brief_confirmed_revision == state.candidate.revision
+    if offer is None or not offer.slots or state.booking is not None or not settled:
+        return None
+    return [
+        {"n": n, "when": slot_time(slot.starts_at_utc, configuration, state.language)}
+        for n, slot in enumerate(offer.slots, start=1)
+    ]
 
 
 def booking_facts(state: SessionState, configuration: StoreConfiguration) -> dict[str, str] | None:

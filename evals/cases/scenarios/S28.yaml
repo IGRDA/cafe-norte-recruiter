@@ -1,0 +1,83 @@
+id: S28
+title: The hosted call of 22 October with no interview times, replayed with a model that never lists them
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# What went wrong live: to "¿Te gustaría hacer una entrevista?" the candidate said "Sí", and
+# the model answered "te digo los huecos" four times without calling list_interview_slots;
+# no time was ever said. The times are now on offer with the confirmed brief and in the facts
+# (D55): line 7 has no question; line 8's model says the times itself, with no tool; line 9
+# picks the last one, which the model reads back by its number (the runtime matches only once
+# the candidate has asked); line 10's yes books it.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
+  - "Sí, todo correcto."
+  - "No, ninguna."
+  - "Sí."
+  - "La última."
+  - "Sí."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: confirm_brief
+      args: { answer: affirm }
+    - say: "¿Te gustaría tener una entrevista?"
+  - - say: "¿Te gustaría tener una entrevista?"
+  - - say: "Tengo el martes 20 a las 17:00, el miércoles 21 a las 10:30 o el miércoles 21 a las 17:00. ¿Cuál te viene mejor?"
+  - - tool: present_confirmation
+      args: { target: slot, choice: 3, evidence_text: "La última." }
+    - say: ""
+  - - tool: end_session
+      args: { reason: candidate_done }
+    - say: "Reservada la entrevista el miércoles 21 a las 17:00; es una reserva simulada, sin cita real. Hasta pronto, Lucía."
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: next monday
+    experience: dos años en una cafetería de barrio
+  wants_interview: true
+checks:
+  - name: tool_ok
+    args: { turn: "9", tool: present_confirmation, ok: "true" }
+  - name: tool_ok
+    args: { turn: "10", tool: reserve_interview, ok: "true" }
+  - name: booking_present
+  - name: outcome_is
+    args: { outcome: reserved }
+  - name: no_fabricated_confirmed_values
+live_candidate: scripted
+live_checks:
+  - name: booking_present
+  - name: max_repeated_questions
+    args: { max: "1" }

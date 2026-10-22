@@ -11,10 +11,10 @@ its own.
 | `tools.py` | The allowlist: one Pydantic argument model per tool and the `ToolSchema` table derived from them |
 | `registry.py` | `ToolRegistry`: name to handler, argument validation; only tools with a handler are advertised |
 | `handlers.py` | `all_handlers()`: update, search knowledge, list interview slots, present (read-backs, the brief, a slot), confirm field/brief, reserve interview, review a cut read-back (`review_readback`: the one offer, each part, and a carry-on confirmed through the read-back's own handler in the same call, D39), request human follow-up, end session. A cut read-back presented again starts with its first part instead of being said whole again. `update_candidate` keeps as evidence the candidate's own message that holds the cited words and refuses words they never said (`evidence_not_said`, D46). Each reads state, lets the domain decide, commits, announces; `model_text` is the model's next step in one sentence |
-| `brief.py` | The deterministic brief, the phone/date read-backs, the slot offer and the slot read-back, filled from `prompts/brief.<lang>.md` in the session language; spoken verbatim by the runtime (D20). A requested follow-up adds one sentence |
+| `brief.py` | The deterministic brief, the phone/date read-backs and the slot read-back, filled from `prompts/brief.<lang>.md` in the session language; spoken verbatim by the runtime (D20). A requested follow-up adds one sentence |
 | `readback.py` | Going over a read-back the candidate cut (D39): `review_parts` slices it into parts of at most two sentences and 160 characters, each ending with `review.check`; `current_saying` is the part under review or the whole text; `target_call` is the read-back's own tool for an answer (`CONFIRM_TOOL`); `answer_call` routes a plain yes, no or carry-on by the review stage (the whole table in one function) |
 | `prompt.py` | System message from the versioned prompt plus session facts as JSON (`PromptHints`: this turn's explicit requests and the previous turn's fresh sentiment); history window; sentence splitting (`split_sentences` for a stream, `sentences` for a whole text); `tool_message` (a tool result plus what was already said this turn); `conversation_tail` (what a generation's trace keeps of the conversation) |
-| `slot_answer.py` | The candidate's answer to the slot offer (D41), pure: `slot_answer` returns the tool to run (read the slot back, reserve the one read back and heard on a yes, offer again for a named day), a `Shortlist` to ask about, or nothing; `open_offer`, `heard_read_back_of` |
+| `slot_answer.py` | The candidate's answer to the slot offer (D41), pure: `slot_answer` returns the tool to run (read the slot back, reserve the one read back and heard on a yes, offer a named day not on offer), a `Shortlist` to ask about, or nothing; `open_offer`, `heard_read_back_of` |
 | `runtime.py` | `Runtime`: one turn at a time per session, journal-before-yield, streamed sentences, bounded tool loop (four rounds; a round whose calls changed nothing ends it once the question was said, and a tool whose call changed nothing is not offered again that turn, D44), first-output and tool deadlines, the explicit-request fast path (language switch, D28; human request, D30; a plain yes, no or carry-on to the pending read-back, D35, routed by `readback.answer_call`: one heard to the end is answered, one the candidate cut goes to `review_readback`, D39; a button answer is routed the same way and no longer counts as hearing it; the candidate's choice of slot, decided by `slot_answer`, D41; a goodbye or thanks once the interview is booked ends the session with the fixed goodbye and no model round, D46), one retry of a silent model round, a generation that ends with no usage report estimated at 4 characters per token (D44), a paused session made active by its next turn, `say` and `aside` for sentences the system speaks (D35), `record_usage` for usage measured outside a turn (a call's speech providers; an ended session's export is stored again, D44), signal analysis after the turn (`settle` waits for it), one malformed-call repair per turn, active seconds accumulated per turn with the 480 s cap, a cancelled or closed turn journaled as interrupted (D37), structured events through the `Telemetry` port (`turn_failed`, `model_round`, `model_round_silent`, `answer_cut`: metadata only), and one trace per turn: `handle-candidate-turn`, then `write-user-turn`, `invoke-agent`, `step` (one per model round), `chat` (the generation, with tokens), one span per tool call (`retriever` for `search_knowledge`) and `write-assistant-turn`. Parents are passed explicitly. |
 | `prompts/` | Versioned prompt files and `PROMPT_VERSION` |
 | `signals.py` | `explicit_controls` (pure patterns for stop, human and language requests, es/en), `requested_language`, `answer_to_readback` (a whole-utterance yes or no), `is_farewell` (a goodbye or thanks with nothing left to do, D46), `ModelSignalAnalyzer` (the asynchronous classifier adapter; its tokens are recorded under the turn it classified, D44), `DecisionSignalAnalyzer` (the same port over a `DecisionModel`, Jev: the two questions of `prompts/signal_questions.yaml`, a soft sentiment at p ≥ 0.5, a language switch at p ≥ 0.7, D52), `fresh_sentiment` and `fresh_switch` |
@@ -33,19 +33,24 @@ the confirmed brief the next step is to invite questions, then the interview.
 
 ## The interview
 
-After the confirmed brief and the questions, Ana asks about an interview. A yes is
-`list_interview_slots(evidence_text)`: the handler saves the candidate's words as the explicit
-intent to schedule, reads up to three future free slots of this store (preferring a stated
-date), and the runtime speaks the offer; the model gets the slot ids in the same order, and
-the session keeps them (`slot_offer`). The runtime matches the candidate's answer against that
-offer first (D41): one slot that fits is read back, several are a shortlist the model asks
-about, none is a new offer for the day named. The model's own call stays the fallback. The
-candidate's choice is `present_confirmation(target=slot, slot_id)`: a read-back bound to the
-current brief revision, spoken by the runtime and marked delivered like the brief. The yes to
+The confirmed brief puts the first three free slots of this store on offer (`slot_offer`), and
+the facts show them by number (`interview_slots`, D55). After the questions, Ana asks about an
+interview and, on a yes, says those times herself, in her own words; no tool call stands
+between the yes and the times. `list_interview_slots(evidence_text, date_preference)` is for
+another day: it replaces the offer, says plainly when that day has nothing free, and saves the
+candidate's words as the explicit intent to schedule. Once the candidate has asked for an
+interview, the runtime matches their answer against the offer first (D41): one slot that fits is read back, several are a shortlist
+the model asks about, a day not on offer is offered and, when the same words name its slot,
+read back in that turn; words that name no day (a time, a month with nothing free) are the
+model's, which has the options. The candidate's choice is
+`present_confirmation(target=slot, choice=n)`, with their words asking for the interview in
+`evidence_text` while the session has none: a read-back bound to the current brief revision,
+spoken by the runtime and marked delivered like the brief. A choice that is not on offer is
+refused with the options, never with "list again". The yes to
 it is `reserve_interview(slot_id)`: the domain resolves the confirmation and checks the five
 conditions, then the calendar row and the session are written in one transaction, and only
 the committed `StateUpdated` carries the booking (D29). A taken slot comes back as a refusal
-that asks for fresh slots; a second call for the same confirmation is refused as already
+that points at the other options; a second call for the same confirmation is refused as already
 answered. After booking the next step is `end_session`, which yields `completed / reserved`.
 
 ## Turn execution

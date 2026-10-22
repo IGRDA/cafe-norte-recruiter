@@ -18,8 +18,9 @@ from cafe_norte.domain.contracts import (
     TurnId,
 )
 from cafe_norte.errors import ServiceError
+from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
-from tests.support.builders import CONFIGS, NOW, SID
+from tests.support.builders import CONFIGS, NOW, SID, full_record
 from tests.support.tools import SLOT, Interview, World, args, context
 
 
@@ -37,14 +38,11 @@ async def test_slots_come_after_the_confirmed_brief_and_record_the_intent() -> N
         context("t3"), args("list_interview_slots", evidence_text="Sí, quiero.")
     )
     assert outcome.ok and outcome.summary == "offered:3"
-    assert outcome.spoken.startswith(
-        "Tengo estos huecos para la entrevista en Café Norte Chamberí:"
-    )
-    assert "miércoles 21 de octubre de 2026 a las 10:30" in outcome.spoken
-    assert outcome.spoken.endswith("¿Cuál te viene mejor?")
-    assert (
-        f"2: slot_id={SLOT}" in outcome.model_text and "present_confirmation" in outcome.model_text
-    )
+    # The model offers the times in its own words and chooses by number; it never sees an id
+    # it could miscopy (D55).
+    assert outcome.spoken == ""
+    assert "2: miércoles 21 de octubre de 2026 a las 10:30" in outcome.model_text
+    assert "slot_id" not in outcome.model_text and "choice" in outcome.model_text
     state = await w.current()
     assert state.schedule_intent == Evidence(source_turn_id=TurnId("t3"), text="Sí, quiero.")
     assert state.brief_confirmed_revision == 1 and state.candidate.revision == 1
@@ -57,14 +55,58 @@ async def test_a_date_preference_narrows_the_offer_when_it_can() -> None:
         args("list_interview_slots", evidence_text="El jueves.", date_preference="2026-10-22"),
     )
     assert outcome.ok and outcome.summary == "offered:2"
-    assert "jueves 22 de octubre" in outcome.spoken and "miércoles" not in outcome.spoken
+    assert "jueves 22 de octubre" in outcome.model_text and "miércoles" not in outcome.model_text
     none = await w.slots(
         context("t3"),
         args(
             "list_interview_slots", evidence_text="El año que viene.", date_preference="2027-01-01"
         ),
     )
-    assert none.ok and none.summary == "offered:3"  # no match: the first three are offered
+    # No slot that day: said plainly, and the first three stay the options.
+    assert none.ok and none.summary == "offered:3:none_on_day"
+    assert "No free slot on 2027-01-01" in none.model_text
+
+
+async def test_confirming_the_brief_puts_the_first_slots_on_offer() -> None:
+    """The live call of 22 October: a model that never called list_interview_slots left the
+    candidate with no times. The offer is now state the model sees, made with the brief."""
+    w = await Interview().ready()
+    state = await w.current()
+    assert state.slot_offer is not None and len(state.slot_offer.slots) == 3
+    assert state.slot_offer.slots[1].slot_id == SLOT
+    assert state.schedule_intent is None  # offering is not the candidate asking
+
+
+async def test_a_slot_is_chosen_by_its_number_with_the_words_asking_for_it() -> None:
+    w = await Interview().ready()
+    unasked = await w.present(context("t3"), args("present_confirmation", target="slot", choice=2))
+    assert not unasked.ok and unasked.summary == "slot_not_offerable:no_intent"
+    assert "evidence_text" in unasked.model_text
+    outcome = await w.present(
+        context("t3"),
+        args("present_confirmation", target="slot", choice=2, evidence_text="Sí, quiero."),
+    )
+    assert outcome.ok and outcome.summary == "presented:slot"
+    assert "miércoles 21 de octubre de 2026 a las 10:30" in outcome.spoken
+    state = await w.current()
+    assert state.schedule_intent == Evidence(source_turn_id=TurnId("t3"), text="Sí, quiero.")
+    assert state.pending_confirmation is not None
+    assert state.pending_confirmation.target == SlotTarget(slot_id=SlotId(SLOT), brief_revision=1)
+
+
+async def test_a_wrong_choice_is_told_the_truth_not_to_list_again() -> None:
+    """Ignacio's call: an invented slot id was refused with "Offer fresh slots", and the list
+    was said four times. A refusal now names the options it has."""
+    w = await (await Interview().ready()).offered()
+    missing = await w.present(context("t4"), args("present_confirmation", target="slot", choice=7))
+    assert not missing.ok and missing.summary == "slot_not_offerable:no_option"
+    invented = await w.present(
+        context("t4"), args("present_confirmation", target="slot", slot_id="slot-2026-10-27T10:30")
+    )
+    assert not invented.ok and invented.summary == "slot_not_offerable:slot_unavailable"
+    for refused in (missing, invented):
+        assert "1: martes 20 de octubre de 2026 a las 17:00" in refused.model_text
+        assert "Offer fresh slots" not in refused.model_text
 
 
 async def test_the_offer_is_remembered_in_the_order_it_was_spoken() -> None:
@@ -112,12 +154,12 @@ async def test_presenting_a_slot_clears_the_shortlist() -> None:
     assert offer is not None and offer.shortlist == () and len(offer.slots) == 3
 
 
-async def test_the_slot_read_back_needs_an_offer_and_a_known_future_slot_of_this_store() -> None:
+async def test_the_slot_read_back_needs_an_intent_and_a_known_future_slot_of_this_store() -> None:
     w = await Interview().ready()
-    no_offer = await w.present(
+    no_intent = await w.present(
         context("t3"), args("present_confirmation", target="slot", slot_id=SLOT)
     )
-    assert not no_offer.ok and no_offer.summary == "slot_not_offerable:no_offer"
+    assert not no_intent.ok and no_intent.summary == "slot_not_offerable:no_intent"
     await w.offered()
     unknown = await w.present(
         context("t4"), args("present_confirmation", target="slot", slot_id="x")
@@ -249,3 +291,30 @@ async def test_a_handler_save_is_fenced_on_the_contexts_lease_generation() -> No
             stale, args("update_candidate", patch={"name": "Ane"}, evidence_text="Ane")
         )
     assert refused.value.code == "conflict"
+
+
+async def test_a_slot_read_back_needs_the_confirmed_brief_and_a_named_choice() -> None:
+    w = World(full_record(), MemoryStore(clock=lambda: NOW))
+    await w.open()
+    early = await w.present(
+        context("t1"), args("present_confirmation", target="slot", choice=1, evidence_text="Sí.")
+    )
+    assert not early.ok and early.summary == "slot_not_offerable:brief_not_confirmed"
+    ready = await Interview().ready()
+    unnamed = await ready.present(
+        context("t3"), args("present_confirmation", target="slot", evidence_text="Sí.")
+    )
+    assert not unnamed.ok and unnamed.summary == "slot_choice_missing"
+    assert "1: martes 20 de octubre de 2026 a las 17:00" in unnamed.model_text
+
+
+async def test_with_no_free_slot_the_model_is_told_to_offer_a_person() -> None:
+    i = Interview()
+    await i.open()  # no calendar seeded: nothing is free
+    await i.present(context("t1"), args("present_confirmation", target="brief"))
+    await i.deliver()
+    await i.confirm_brief(context("t2"), args("confirm_brief", answer="affirm"))
+    assert (await i.current()).slot_offer is not None
+    outcome = await i.slots(context("t3"), args("list_interview_slots", evidence_text="Sí."))
+    assert outcome.ok and outcome.summary == "offered:0"
+    assert "request_human_followup" in outcome.model_text

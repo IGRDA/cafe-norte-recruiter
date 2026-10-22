@@ -6,11 +6,15 @@ from hypothesis import strategies as st
 from cafe_norte.conversation.prompt import (
     clean_sentence,
     conversation_tail,
+    offer_facts,
     sentences,
     split_sentences,
     tool_message,
 )
+from cafe_norte.domain.calendar import interview_slots
+from cafe_norte.domain.contracts import OfferedSlot, SlotOffer
 from cafe_norte.model.contracts import ModelMessage
+from tests.support.builders import CONFIG, NOW, session_state
 
 
 def test_sentences_split_at_an_opening_mark_or_capital_without_a_space() -> None:
@@ -73,3 +77,25 @@ def test_a_tool_result_says_what_was_already_said_this_turn_so_the_model_goes_on
     assert told.startswith("Saved: name. Already said to the candidate this turn: ¿Cómo te")
     assert "Do not repeat or rephrase it" in told
     assert tool_message("Saved: name.", []) == "Saved: name."  # nothing said yet: as it is
+
+
+def test_the_offer_is_in_the_facts_by_number_and_time_never_by_id() -> None:
+    """The model offers the times itself and picks one by number (D55)."""
+    slots = tuple(
+        OfferedSlot(slot_id=s.slot_id, starts_at_utc=s.starts_at_utc)
+        for s in interview_slots(CONFIG, after=NOW)[:2]
+    )
+    base = session_state()
+    state = base.model_copy(
+        update={
+            "slot_offer": SlotOffer(slots=slots),
+            "brief_confirmed_revision": base.candidate.revision,
+        }
+    )
+    assert offer_facts(state, CONFIG) == [
+        {"n": 1, "when": "martes 20 de octubre de 2026 a las 17:00"},
+        {"n": 2, "when": "miércoles 21 de octubre de 2026 a las 10:30"},
+    ]
+    assert offer_facts(state.model_copy(update={"slot_offer": None}), CONFIG) is None
+    unsettled = state.model_copy(update={"brief_confirmed_revision": None})
+    assert offer_facts(unsettled, CONFIG) is None  # a correction voids the brief and the offer

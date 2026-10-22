@@ -2076,3 +2076,12 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   before Jev was on. No phrase list: Jev is on in the hosted demo (D52), and one reader is
   enough. The cost is one more round on the rare turn that is frustrated. The event is
   `sentiment_in_turn`.
+- **A question during a read-back review is answered first.** `review_readback` refuses
+  (`review_refused:question`) when the candidate's message of the turn asks something
+  (`asks_question`: a question mark, or a clause that opens like a question, in either language).
+  The review stays where it was, and the model answers. The offer's text now says what to offer
+  instead of pointing at "the review policy". Live (10:20), "Me gustaría saber cuál es la
+  localización exacta." went in as a yes: part 1 was said and the place was answered three turns
+  late. The journal also shows why the brief counted as unheard: its turn was interrupted after
+  three sentences, before Iñaki answered, by a sound that the old 0.2 s barge-in took as speech.
+  That is D57.

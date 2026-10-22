@@ -136,3 +136,17 @@ async def test_only_a_call_that_changed_nothing_is_idle() -> None:
     )
     nothing = await w.confirm_field(context(), args("confirm_field", answer="affirm"))
     assert [o.idle for o in (saved, refused, again, nothing)] == [False, False, True, False]
+
+
+async def test_a_question_during_the_review_is_answered_before_any_part() -> None:
+    """Iñaki's call: "Me gustaría saber cuál es la localización exacta." during the offer went
+    to review_readback as a yes; part 1 was said and the answer about the place was dropped,
+    three turns running (D58)."""
+    w, _ = await cut_brief()
+    await w.review(context("t2"), args("review_readback", answer="affirm"))  # the offer
+    await w.said("t3", "Me gustaría saber cuál es la localización exacta.")
+    asked = await w.review(context("t3"), args("review_readback", answer="affirm"))
+    assert not asked.ok and asked.summary == "review_refused:question"
+    assert asked.spoken == "" and "search_knowledge" in asked.model_text
+    pending = (await w.current()).pending_confirmation
+    assert pending is not None and pending.review == ReviewOffered(turn_id=TurnId("t2"))

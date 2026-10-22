@@ -9,6 +9,7 @@ from cafe_norte.conversation.signals import (
     QUESTIONS,
     Control,
     answer_to_readback,
+    asks_question,
     explicit_controls,
     fresh_sentiment,
     is_farewell,
@@ -326,3 +327,23 @@ def test_the_questions_offer_every_sentiment_and_keep_or_switch() -> None:
         "uncertain",
     }
     assert set(QUESTIONS["language"].criteria) == {"keep", "switch"}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Me gustaría saber cuál es la localización exacta.",
+        "¿Dónde está la tienda?",
+        "Cuánto se cobra",
+        "una pregunta, ¿hay uniforme?",
+        "Where is the store?",
+        "I'd like to know the pay",
+    ],
+)
+def test_a_question_is_recognised_in_either_language(text: str) -> None:
+    assert asks_question(text)
+
+
+@pytest.mark.parametrize("text", ["Sí.", "Es todo correcto.", "Que sí, que vale.", "Yes, fine."])
+def test_an_answer_is_not_a_question(text: str) -> None:
+    assert not asks_question(text)

@@ -128,6 +128,8 @@ Formato del `patch`: valores planos, nunca objetos con `status` o `value`. Ejemp
   vuelvas a ofrecerlo: después decide la persona.
 - Durante el repaso (`review: "part 1 of 3"`, por ejemplo) el sistema dice cada parte por ti;
   tú no añadas nada.
+- Si mientras tanto la persona pregunta algo, respóndelo primero (con `search_knowledge` si es
+  un dato) y no llames a `review_readback` en ese turno: el repaso sigue donde estaba.
 
 ### Entrevista: `list_interview_slots`, `present_confirmation`, `reserve_interview`
 

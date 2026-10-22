@@ -33,6 +33,7 @@ from cafe_norte.conversation.readback import (
     review_parts,
     target_call,
 )
+from cafe_norte.conversation.signals import asks_question
 from cafe_norte.conversation.tools import (
     ARGUMENT_MODELS,
     ConfirmBriefArgs,
@@ -668,8 +669,13 @@ class ReviewReadbackHandler(_Handler):
     this same call through its own tool, so a model that stops here leaves nothing pending."""
 
     OFFER = (
-        "The candidate answered before hearing the read-back to the end. Make the one offer "
-        "now, as the review policy says, then wait and pass their choice to review_readback."
+        "The candidate answered before hearing the read-back to the end. Make one offer, in "
+        "your own words: to go over it in parts or to carry on. Then wait and pass their "
+        "choice to review_readback."
+    )
+    QUESTION = (
+        "The candidate asked something: answer it first (search_knowledge for facts). The "
+        "read-back review stays where it is; their next answer to it goes to review_readback."
     )
 
     def __init__(
@@ -686,6 +692,10 @@ class ReviewReadbackHandler(_Handler):
         pending = state.pending_confirmation
         if pending is not None and confirmation.ready_to_confirm(pending):
             return await self._confirm(context, pending)  # nothing left to go over
+        if await self._asked(context):
+            # Live, a question here went in as a yes; the part was said and the answer to the
+            # question dropped, three turns running (D58).
+            return self._refuse("review_refused:question", self.QUESTION)
         text = pending.presentation_text if pending is not None else ""
         result = confirmation.advance_review(
             state, arguments.answer, context.turn_id, parts=len(review_parts(text, state.language))
@@ -712,6 +722,12 @@ class ReviewReadbackHandler(_Handler):
             summary="review:offered",
             events=(self._updated(new_state),),
         )
+
+    async def _asked(self, context: ToolContext) -> bool:
+        """The candidate's message of this turn asks a question."""
+        turns = await self._store.turns.recent(context.session_id, 2)
+        mine = [t for t in turns if t.role == "user" and t.turn_id == context.turn_id]
+        return bool(mine) and asks_question(mine[-1].text)
 
     async def _confirm(self, context: ToolContext, pending: Confirmation) -> ToolOutcome:
         """The read-back's own tool with a yes: the domain checks it is ready to confirm."""

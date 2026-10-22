@@ -252,6 +252,26 @@ def answer_to_readback(text: str) -> ReadbackAnswer | None:
     return "affirm" if _is_plain_yes(words) else None
 
 
+# A question opens with an interrogative or a phrase that announces one; "que" alone is left
+# out, since "que sí" is an answer.
+_QUESTION_OPENING = re.compile(
+    r"^(?:(?:y|pero|oye|perdona|una cosa)\s+)*(?:donde|cuanto|cuanta|cuantos|cuantas|cual|"
+    r"cuales|cuando|como|quien|por que|que (?:tipo|hay|pasa|horario|dias)|me gustaria saber|"
+    r"quisiera saber|quiero saber|una pregunta|tengo una duda|where|what|when|how|which|who|why|"
+    r"can i ask|i(?:'d| would) like to know|i want to know)\b"
+)
+
+
+def asks_question(text: str) -> bool:
+    """Whether the candidate asks something: a question mark, or a clause that opens like a
+    question. Pure; both languages. A question is never an answer to a read-back (D58)."""
+    if "?" in text or "¿" in text:
+        return True
+    folded = plain(text).replace("'", "'")
+    clauses = (c.strip() for c in re.split(r"[.,;:!]", folded))
+    return any(_QUESTION_OPENING.match(c) for c in clauses if c)
+
+
 def _without(words: str, phrases: tuple[str, ...]) -> tuple[str, bool]:
     """``words`` minus every whole-word occurrence of the phrases, and whether any was found."""
     rest, found = words, False

@@ -1571,3 +1571,41 @@ instead of €0.07). The comparison is one repetition per case: representative, 
 significant. Smart turn adds CPU on the shared-core VM per call. A finished sentence ends the
 turn sooner, so a candidate who pauses after a complete sentence and then goes on starts a new
 turn.
+
+---
+
+## D50 · The test pyramid: layers as folders, time as an argument, a quality report
+
+_Added 22 October 2026, after an audit of the offline suite (1216 tests, 46 s, 92 % lines)._
+
+**Decision.**
+
+- **Layers are folders.** `tests/unit` holds pure code only (no store, runtime or app),
+  `tests/component` one module behind fakes, `tests/http` the app through `build_test_app`,
+  `tests/e2e` the scenario replays, the acceptance test and Postgres end to end. An
+  architecture test keeps `unit` pure and forbids a test module importing another; shared
+  builders, harnesses and Hypothesis strategies live in the `tests/support` package.
+- **Time is an argument, and so is sleep.** Code that waits takes a `Sleep` beside its clock
+  (default `asyncio.sleep`). Tests drive a `FakeTime` that shares one virtual instant between
+  the clock and the sleeper, so no offline test sleeps on the wall clock.
+- **Laws over examples for pure code.** Pure functions get properties (round trips,
+  idempotence, absorption, invariants) on shared strategies, and the session domain is
+  checked by one Hypothesis state machine. Profiles: `dev` (default), `ci`, `deep`.
+- **Assertions read behaviour.** Returned values, reads through the `Store` contract, HTTP
+  responses, events parsed as models. Not private attributes, not substrings of JSON, and a
+  call count only when the count is the behaviour.
+- **`make quality` is a manual report.** Branch coverage, tests per layer, the slowest tests and
+  a mutation score (mutmut) over the small pure modules. The scores are a ratchet recorded in
+  `tests/README.md`; CI does not run mutation.
+
+**Rejected.**
+
+- Gherkin (`pytest-bdd`). The scenario YAMLs are the behaviour specs and test names are
+  sentences; step glue would duplicate both.
+- A virtual-time event loop plugin. It hides the clock instead of passing it, and needs magic
+  around `asyncio.timeout`.
+- Mutation over the whole of `src/`. Async and the 1200-test suite per mutant make it slow and
+  noisy.
+
+**Consequences we accept.** One large move of test files. A `Sleep` argument on the few
+classes that wait. The mutation score is not a gate.

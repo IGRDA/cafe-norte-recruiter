@@ -84,7 +84,9 @@ def test_shipped_table_prices_every_provider_in_use() -> None:
         ("tts_characters", TTS_MODEL),
         ("media_participant_minutes", "daily"),
     }
-    assert all(p.eur_per_unit > 0 for p in table.prices)
+    # Free is a price (Jev's output tokens, D52); only output tokens may be free.
+    assert all(p.eur_per_unit > 0 or p.unit_detail.endswith(":output") for p in table.prices)
+    assert all(p.eur_per_unit >= 0 for p in table.prices)
 
 
 def test_shipped_table_converts_dollars_at_its_recorded_rate(tmp_path: Path) -> None:

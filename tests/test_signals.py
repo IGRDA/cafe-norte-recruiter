@@ -5,8 +5,11 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from cafe_norte.conversation.contracts import SignalAnalysis
 from cafe_norte.conversation.signals import (
+    QUESTIONS,
     Control,
+    DecisionSignalAnalyzer,
     ModelSignalAnalyzer,
     answer_to_readback,
     explicit_controls,
@@ -16,8 +19,16 @@ from cafe_norte.conversation.signals import (
 )
 from cafe_norte.domain.contracts import Sentiment, Signal, TurnId
 from cafe_norte.errors import Language
-from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelText, ModelUsage
-from cafe_norte.model.fake import FakeModel
+from cafe_norte.model.contracts import (
+    ChoiceAnswer,
+    Decision,
+    ModelError,
+    ModelEvent,
+    ModelFinished,
+    ModelText,
+    ModelUsage,
+)
+from cafe_norte.model.fake import FakeDecisionModel, FakeModel
 
 HUMAN: frozenset[Control] = frozenset({"human"})
 STOP: frozenset[Control] = frozenset({"stop"})
@@ -390,3 +401,78 @@ def test_a_farewell_is_seen_in_both_languages(text: str) -> None:
 )
 def test_a_farewell_with_anything_still_to_do_is_not_one(text: str) -> None:
     assert not is_farewell(text)
+
+
+# ---- the decision-model analyzer (D52) -----------------------------------------------------------
+
+
+def decision(sentiment: str, p_sentiment: float, p_switch: float) -> Decision:
+    rest = {s: 0.0 for s in ("neutral", "positive", "frustrated", "uncertain")}
+    return Decision(
+        answers={
+            "sentiment": ChoiceAnswer(
+                choice=sentiment, probabilities=rest | {sentiment: p_sentiment}
+            ),
+            "language": ChoiceAnswer(
+                choice="switch" if p_switch >= 0.5 else "keep",
+                probabilities={"keep": 1 - p_switch, "switch": p_switch},
+            ),
+        },
+        model_id="typesafe/jev-1.14-20261014",
+        input_tokens=320,
+        output_tokens=0,
+    )
+
+
+async def decide(
+    reply: Decision | ModelError, text: str = "Sorry, my Spanish is not very good.", **kw: str
+) -> tuple[SignalAnalysis, FakeDecisionModel]:
+    model = FakeDecisionModel([reply])
+    language: Language = "en" if kw.get("language") == "en" else "es"
+    analysis = await DecisionSignalAnalyzer(model).analyze(
+        TurnId("t1"), text, language, ana_said=kw.get("ana_said", "")
+    )
+    return analysis, model
+
+
+async def test_a_switch_above_the_threshold_is_suggested_with_the_message_as_evidence() -> None:
+    analysis, model = await decide(decision("uncertain", 0.8, 0.92), ana_said="¿Tu nombre?")
+    assert analysis.signal is not None
+    assert analysis.signal.language_switch_to == "en"
+    assert analysis.signal.sentiment == "uncertain"
+    assert analysis.signal.evidence_text == "Sorry, my Spanish is not very good."
+    assert model.states == [
+        {
+            "session_language": "es",
+            "ana_said": "¿Tu nombre?",
+            "candidate_said": "Sorry, my Spanish is not very good.",
+        }
+    ]
+    assert analysis.usage is not None and analysis.usage.input_tokens == 320
+
+
+async def test_below_the_thresholds_nothing_is_suggested() -> None:
+    analysis, _ = await decide(decision("frustrated", 0.45, 0.6), text="Vale.")
+    assert analysis.signal is not None
+    assert (analysis.signal.sentiment, analysis.signal.language_switch_to) == ("neutral", None)
+    assert analysis.signal.evidence_text == ""
+
+
+async def test_an_explicit_request_wins_over_the_decision() -> None:
+    analysis, _ = await decide(decision("neutral", 1.0, 0.0), text="In English, please.")
+    assert analysis.signal is not None and analysis.signal.language_switch_to == "en"
+
+
+async def test_a_failed_decision_is_no_signal() -> None:
+    analysis, _ = await decide(ModelError("HTTP 503", code="provider_unavailable"))
+    assert (analysis.signal, analysis.usage) == (None, None)
+
+
+def test_the_questions_offer_every_sentiment_and_keep_or_switch() -> None:
+    assert set(QUESTIONS["sentiment"].criteria) == {
+        "neutral",
+        "positive",
+        "frustrated",
+        "uncertain",
+    }
+    assert set(QUESTIONS["language"].criteria) == {"keep", "switch"}

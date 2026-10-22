@@ -5,13 +5,9 @@ import argparse
 import json
 from pathlib import Path
 
-import httpx
 import pytest
-from evals import jev as jev_module
 from evals.contracts import Ratio, SignalCase, SignalPrediction
-from evals.jev import ChoiceQuestion, JevClient, JevError
 from evals.signals import (
-    QUESTIONS,
     JevClassifier,
     LlmClassifier,
     ProductionClassifier,
@@ -31,8 +27,17 @@ from evals.signals_report import (
     summarize,
 )
 
-from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelText, ModelUsage
-from cafe_norte.model.fake import FakeModel
+from cafe_norte.conversation.signals import QUESTIONS
+from cafe_norte.model.contracts import (
+    ChoiceAnswer,
+    Decision,
+    ModelError,
+    ModelEvent,
+    ModelFinished,
+    ModelText,
+    ModelUsage,
+)
+from cafe_norte.model.fake import FakeDecisionModel, FakeModel
 from cafe_norte.observability.cost import load_prices
 
 PRICES = load_prices()
@@ -85,116 +90,41 @@ def test_only_selects_cases_and_rejects_unknown_ids() -> None:
         load_cases(only=["nope"])
 
 
-# ---- the Jev client ------------------------------------------------------------------------------
-
-ANSWER = {
-    "id": "d1",
-    "model": "typesafe/jev-1.14-20261014",
-    "provider": "TypeSafe",
-    "answers": {
-        "sentiment": {
-            "type": "choice",
-            "choice": "frustrated",
-            "confidence": 0.8,
-            "probabilities": {
-                "neutral": 0.1,
-                "positive": 0.0,
-                "frustrated": 0.85,
-                "uncertain": 0.05,
-            },
-        },
-        "language": {
-            "type": "choice",
-            "choice": "switch",
-            "probabilities": {"keep": 0.08, "switch": 0.92},
-        },
-    },
-    "usage": {"input_tokens": 300, "output_tokens": 0, "cost": 0.0000126},
-}
-
-
-def client(*responses: httpx.Response, sent: list[dict[str, object]] | None = None) -> JevClient:
-    queue = list(responses)
-
-    def handle(request: httpx.Request) -> httpx.Response:
-        if sent is not None:
-            sent.append(json.loads(request.content))
-        return queue.pop(0)
-
-    return JevClient("test-key", transport=httpx.MockTransport(handle))
-
-
-async def test_the_request_carries_the_state_and_choice_questions() -> None:
-    sent: list[dict[str, object]] = []
-    jev = client(httpx.Response(200, json=ANSWER), sent=sent)
-    decision = await jev.decide({"candidate_said": "hola"}, QUESTIONS)
-    assert sent[0]["model"] == "typesafe/jev-1.14"
-    assert sent[0]["state"] == {"candidate_said": "hola"}
-    questions = sent[0]["questions"]
-    assert isinstance(questions, dict)
-    assert questions["language"]["type"] == "choice"
-    assert set(questions["language"]["criteria"]) == {"keep", "switch"}
-    assert set(questions["sentiment"]["criteria"]) == {
-        "neutral",
-        "positive",
-        "frustrated",
-        "uncertain",
-    }
-    assert decision.answers["language"].probabilities["switch"] == 0.92
-    assert decision.cost_usd == 0.0000126
-    assert decision.model.startswith("typesafe/jev-1.14")
-
-
-async def test_a_missing_cost_is_priced_from_the_input_tokens() -> None:
-    body = ANSWER | {"usage": {"input_tokens": 1_000_000, "output_tokens": 0}}
-    decision = await client(httpx.Response(200, json=body)).decide({}, QUESTIONS)
-    assert decision.cost_usd == pytest.approx(0.042)
-
-
-async def test_a_rate_limit_is_retried_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(jev_module, "RETRY_SECONDS", 0)
-    jev = client(httpx.Response(429, text="slow down"), httpx.Response(200, json=ANSWER))
-    assert (await jev.decide({}, QUESTIONS)).answers["sentiment"].choice == "frustrated"
-
-
-@pytest.mark.parametrize(
-    ("response", "code"),
-    [
-        (httpx.Response(400, text="bad question"), "400"),
-        (httpx.Response(402, text="no credits"), "402"),
-        (httpx.Response(200, text="not json"), "malformed"),
-        (httpx.Response(200, json=ANSWER | {"answers": {}}), "malformed"),
-    ],
-)
-async def test_a_failed_call_raises_with_its_code(response: httpx.Response, code: str) -> None:
-    with pytest.raises(JevError) as raised:
-        await client(response).decide({}, QUESTIONS)
-    assert raised.value.code == code
-
-
 # ---- the systems ---------------------------------------------------------------------------------
 
 
-async def test_jev_answers_both_questions_with_probabilities_and_cost() -> None:
-    jev = client(httpx.Response(200, json=ANSWER))
-    found = await JevClassifier(jev, usd_per_eur=1.0).classify(case(), 1)
+def decided(sentiment: str, move: str, p_switch: float) -> Decision:
+    return Decision(
+        answers={
+            "sentiment": ChoiceAnswer(choice=sentiment, probabilities={sentiment: 0.85}),
+            "language": ChoiceAnswer(
+                choice=move, probabilities={"keep": 1 - p_switch, "switch": p_switch}
+            ),
+        },
+        model_id="typesafe/jev-1.14-20261014",
+        input_tokens=300,
+        output_tokens=0,
+    )
+
+
+async def test_jev_answers_both_questions_with_probabilities_in_languages() -> None:
+    model = FakeDecisionModel([decided("frustrated", "switch", 0.92)])
+    model.model_id = "typesafe/jev-1.14"
+    found = await JevClassifier(model, PRICES).classify(case(), 1)
     assert (found.sentiment, found.reply_language, found.error) == ("frustrated", "en", None)
-    assert found.language_probabilities == {"es": 0.08, "en": 0.92}
-    assert found.cost_eur == 0.0000126
-
-
-async def test_jev_answering_outside_the_criteria_is_an_error() -> None:
-    body = json.loads(json.dumps(ANSWER))
-    body["answers"]["language"]["choice"] = "fr"
-    found = await JevClassifier(client(httpx.Response(200, json=body)), 1.0).classify(case(), 1)
-    assert found.error == "unknown_choice" and found.reply_language is None
+    assert found.language_probabilities == {"es": pytest.approx(0.08), "en": 0.92}
+    assert found.cost_eur is not None and found.cost_eur > 0
+    assert model.states[0] == {
+        "session_language": "es",
+        "ana_said": "¿Qué días puedes trabajar?",
+        "candidate_said": "De lunes a viernes.",
+    }
 
 
 async def test_jev_failing_is_recorded_not_raised() -> None:
-    found = await JevClassifier(client(httpx.Response(503), httpx.Response(503)), 1.0).classify(
-        case(), 1
-    )
-    assert found.error == "503"
+    model = FakeDecisionModel([ModelError("HTTP 402", code="provider_rejected")])
+    found = await JevClassifier(model, PRICES).classify(case(), 1)
+    assert found.error == "provider_rejected" and found.sentiment is None
 
 
 async def test_regex_switches_on_a_request_and_not_on_a_mention() -> None:
@@ -243,11 +173,6 @@ def test_the_llm_is_asked_every_option_jev_is_asked() -> None:
         assert question.instructions in prompt
         for option, meaning in question.criteria.items():
             assert f"- {option}: {meaning}" in prompt
-
-
-def test_a_question_serializes_as_a_choice() -> None:
-    question = ChoiceQuestion(instructions="Pick.", criteria={"a": "A"})
-    assert question.wire() == {"type": "choice", "instructions": "Pick.", "criteria": {"a": "A"}}
 
 
 # ---- the scores ----------------------------------------------------------------------------------

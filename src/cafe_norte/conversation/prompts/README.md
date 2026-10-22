@@ -1,6 +1,7 @@
 # Prompts
 
-Plain Markdown, versioned with the code. `PROMPT_VERSION` is recorded on every session and
+Plain Markdown, versioned with the code; one YAML file holds the decision model's questions
+(D52). `PROMPT_VERSION` is recorded on every session and
 evaluation run. Facts about pay, hours and shifts are never written here: they come from the
 configuration and the knowledge base, which are their single source.
 
@@ -21,5 +22,6 @@ Instructions to the model are one Spanish file; the language it answers in is a 
 | `controls.<lang>.md` | `key: sentence` table, spoken word for word by the runtime: `human` (the fixed reply to an explicit request for a person) `time_cap` (the goodbye when the active-time cap ends the session, D37) and `goodbye` (said when the candidate says goodbye after booking, D46) |
 | `ui.<lang>.md` | `key: label` table: the words recorded for a Sí / No button press on a read-back card |
 | `summary.md` | Post-session narrative summary (structured generation, optional) |
+| `signal_questions.yaml` | The two `choice` questions the decision-model analyzer asks about one message (sentiment; keep or switch the language), with one criterion per option (D52). Measured with `make evals-signals` on both case sets |
 | `classifier.md` | Sentiment of one candidate message as JSON with verbatim evidence (`ModelSignalAnalyzer`); explicit requests are not the model's job |
 | `simulator.md` | The candidate persona used by live evaluations (not shipped to production) |

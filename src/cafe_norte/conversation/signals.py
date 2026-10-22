@@ -3,22 +3,33 @@
 ``explicit_controls`` is the synchronous path: plain patterns over finalized text, run before
 the model in the same turn, for stop and human requests and for explicit language requests.
 ``ModelSignalAnalyzer`` is the soft path: a small classifier call after the turn, whose
-sentiment shapes the next response only (``fresh_sentiment``)."""
+sentiment shapes the next response only (``fresh_sentiment``). ``DecisionSignalAnalyzer`` is
+the same port over a decision model (Jev, D52): sentiment and a language switch with
+probabilities, the switch applied at the start of the next turn (``fresh_switch``)."""
 
 import asyncio
 import logging
 import re
 import unicodedata
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import Literal, get_args
 
+import yaml
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import SignalAnalysis
 from cafe_norte.domain.contracts import Sentiment, Signal, TurnId
 from cafe_norte.errors import Language, ServiceError
-from cafe_norte.model.contracts import Model, ModelMessage, ModelText, ModelUsage
+from cafe_norte.model.contracts import (
+    ChoiceAnswer,
+    ChoiceQuestion,
+    DecisionModel,
+    Model,
+    ModelMessage,
+    ModelText,
+    ModelUsage,
+)
 
 Control = Literal["stop", "human", "switch_es", "switch_en"]
 
@@ -284,9 +295,12 @@ class ModelSignalAnalyzer:
         self._model = model
         self._deadline_seconds = deadline_seconds
 
-    async def analyze(self, turn_id: TurnId, text: str, language: Language) -> SignalAnalysis:
+    async def analyze(
+        self, turn_id: TurnId, text: str, language: Language, *, ana_said: str = ""
+    ) -> SignalAnalysis:
         """The verdict and the tokens it cost; the tokens are reported even when the verdict
-        is no signal, and are ``None`` only when the call never finished."""
+        is no signal, and are ``None`` only when the call never finished. The classifier reads
+        the message alone; ``ana_said`` is not sent."""
         reply = _Reply()
         try:
             async with asyncio.timeout(self._deadline_seconds):
@@ -351,6 +365,99 @@ def _strip_fence(raw: str) -> str:
 
 
 SOFT_SENTIMENTS: frozenset[Sentiment] = frozenset({"frustrated", "uncertain"})
+
+
+# ---- the decision-model analyzer (D52) -----------------------------------------------------------
+
+# Thresholds from the signals suite (docs/architecture.md): no false alarm on either case set.
+SENTIMENT_THRESHOLD = 0.5  # p(frustrated) or p(uncertain) to report it
+SWITCH_THRESHOLD = 0.7  # p(switch) to suggest the other language
+SENTIMENTS: tuple[Sentiment, ...] = get_args(Sentiment)
+LanguageMove = Literal["keep", "switch"]
+
+
+def load_questions() -> dict[str, ChoiceQuestion]:
+    """``prompts/signal_questions.yaml``: what the decision model is asked."""
+    raw = yaml.safe_load((prompts.PROMPTS_DIR / "signal_questions.yaml").read_text("utf-8"))
+    return {name: ChoiceQuestion.model_validate(q) for name, q in raw.items()}
+
+
+QUESTIONS = load_questions()
+
+
+def decision_state(language: Language, ana_said: str, candidate_said: str) -> dict[str, str]:
+    """What the decision model reads about one message: the session language and the exchange."""
+    return {"session_language": language, "ana_said": ana_said, "candidate_said": candidate_said}
+
+
+def reply_language(language: Language, move: LanguageMove) -> Language:
+    if move == "keep":
+        return language
+    return "en" if language == "es" else "es"
+
+
+class DecisionSignalAnalyzer:
+    """The ``SignalAnalyzer`` port over a decision model. A soft sentiment is reported only at
+    ``SENTIMENT_THRESHOLD``, a language switch only at ``SWITCH_THRESHOLD``; an explicit request
+    the patterns saw wins over the model's suggestion. A decision model quotes nothing, so the
+    evidence is the message it read. A late or failed call is no signal (D30)."""
+
+    def __init__(self, model: DecisionModel, *, deadline_seconds: float = 5.0) -> None:
+        self._model = model
+        self._deadline_seconds = deadline_seconds
+
+    async def analyze(
+        self, turn_id: TurnId, text: str, language: Language, *, ana_said: str = ""
+    ) -> SignalAnalysis:
+        model_id = self._model.model_id
+        deadline = datetime.now(UTC) + timedelta(seconds=self._deadline_seconds)
+        try:
+            async with asyncio.timeout(self._deadline_seconds):
+                decision = await self._model.decide(
+                    decision_state(language, ana_said, text), QUESTIONS, deadline=deadline
+                )
+        except (TimeoutError, ServiceError) as error:
+            log.info("no signal for turn %s: %s", turn_id, type(error).__name__)
+            return SignalAnalysis(signal=None, usage=None, model_id=model_id)
+        usage = ModelUsage(
+            input_tokens=decision.input_tokens,
+            output_tokens=decision.output_tokens,
+            model_id=decision.model_id,
+        )
+        sentiment = _decided_sentiment(decision.answers["sentiment"])
+        switch = decision.answers["language"].probabilities.get("switch", 0.0)
+        controls = explicit_controls(text)
+        asked = requested_language(controls, language)
+        if asked == language and switch >= SWITCH_THRESHOLD:
+            asked = reply_language(language, "switch")
+        signal = Signal(
+            turn_id=turn_id,
+            sentiment=sentiment,
+            explicit_human_request="human" in controls,
+            explicit_stop="stop" in controls,
+            language_switch_to=None if asked == language else asked,
+            evidence_text=text if sentiment != "neutral" or asked != language else "",
+        )
+        return SignalAnalysis(signal=signal, usage=usage, model_id=model_id)
+
+
+def _decided_sentiment(answer: ChoiceAnswer) -> Sentiment:
+    """The chosen label (the adapter checked it), except a soft one below the threshold."""
+    for label in SENTIMENTS:
+        if label == answer.choice:
+            soft = label in SOFT_SENTIMENTS
+            if soft and answer.probabilities.get(label, 0.0) < SENTIMENT_THRESHOLD:
+                return "neutral"
+            return label
+    return "neutral"
+
+
+def fresh_switch(signal: Signal | None, previous_turn_id: TurnId | None) -> Language | None:
+    """The language the previous user turn's verdict asks Ana to switch to, if any (D52). Only
+    from the immediately previous user turn: a late or older verdict switches nothing."""
+    if signal is None or signal.turn_id != previous_turn_id:
+        return None
+    return signal.language_switch_to
 
 
 def fresh_sentiment(signal: Signal | None, previous_turn_id: TurnId | None) -> Sentiment | None:

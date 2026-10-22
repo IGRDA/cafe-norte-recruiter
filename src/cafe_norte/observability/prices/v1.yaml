@@ -37,6 +37,16 @@ prices:
     unit_detail: "gpt-4.1:output"
     usd_per_unit: 0.000008
     source: https://developers.openai.com/api/docs/pricing
+  # https://openrouter.ai/typesafe/jev-1.14 : $0.042 / 1M input tokens, output free (verified
+  # 2026-10-22). The optional signal analyzer (D52); OpenRouter adds no fee on top.
+  - kind: llm_tokens
+    unit_detail: "typesafe/jev-1.14:input"
+    usd_per_unit: 0.000000042
+    source: https://openrouter.ai/typesafe/jev-1.14
+  - kind: llm_tokens
+    unit_detail: "typesafe/jev-1.14:output"
+    usd_per_unit: 0
+    source: https://openrouter.ai/typesafe/jev-1.14
   # Deepgram nova-3 streaming, monolingual (D35: STT runs in the session language).
   # List price $0.0077 / min. The page shows a limited-time $0.0048 / min; we keep the list
   # price so the estimate stays conservative when the promotion ends.

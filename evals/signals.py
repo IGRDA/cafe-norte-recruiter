@@ -16,7 +16,7 @@ import time
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Protocol
 
 import httpx
 import yaml
@@ -24,19 +24,23 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from cafe_norte.conversation.prompts import PROMPT_VERSION
 from cafe_norte.conversation.signals import (
+    QUESTIONS,
+    LanguageMove,
     ModelSignalAnalyzer,
+    decision_state,
     explicit_controls,
+    reply_language,
     requested_language,
 )
 from cafe_norte.domain.contracts import Sentiment, SessionId, TurnId
 from cafe_norte.errors import Language, ServiceError
 from cafe_norte.model.chat_completions import ChatCompletionsModel
-from cafe_norte.model.contracts import Model, ModelMessage, ModelText, ModelUsage
+from cafe_norte.model.contracts import DecisionModel, Model, ModelMessage, ModelText, ModelUsage
+from cafe_norte.model.decisions import JEV_MODEL, DecisionsModel
 from cafe_norte.model.select import model_from_env
 from cafe_norte.observability.contracts import PriceTable, token_usage
-from cafe_norte.observability.cost import PRICES_FILE, estimate, load_prices
+from cafe_norte.observability.cost import estimate, load_prices
 from evals.contracts import SignalCase, SignalPrediction, SignalsReport, SignalSystem
-from evals.jev import JEV_MODEL, USD_PER_INPUT_TOKEN, ChoiceQuestion, JevClient, JevError
 from evals.signals_report import render_json, render_markdown, summarize
 from evals.spend import model_id
 
@@ -60,44 +64,6 @@ TOKENS_PER_CALL: dict[SignalSystem, tuple[int, int]] = {
     "jev": (350, 0),
 }
 
-QUESTIONS: dict[str, ChoiceQuestion] = {
-    "sentiment": ChoiceQuestion(
-        instructions="The tone of candidate_said, the job candidate's latest message to Ana, "
-        "a recruiting assistant. Judge the words only, never the person.",
-        criteria={
-            "neutral": "Plain answers, questions, refusals or goodbyes, including a plain no.",
-            "positive": "Clear enthusiasm or thanks.",
-            "frustrated": "Annoyance, impatience, sarcasm, or feeling misunderstood or "
-            "made to repeat.",
-            "uncertain": "Hesitation, doubt or confusion about what to answer.",
-        },
-    ),
-    # Relative to the session, not "es"/"en": a decision about the conversation, which the
-    # dev set showed Jev reads better (indirect requests).
-    "language": ChoiceQuestion(
-        instructions="Whether Ana should keep session_language for her next reply or switch "
-        "to the other language (es is Spanish, en is English), from candidate_said.",
-        criteria={
-            "keep": "An ordinary reply in session_language; or names a language without asking "
-            "to leave session_language (asks if it is needed for the job, says they studied "
-            "it); or turns down a switch; or uses a borrowed word or two from the other "
-            "language.",
-            "switch": "Asks to continue in the other language; or says the candidate cannot "
-            "speak, understand or follow session_language well, or only speaks the other "
-            "language; or is written entirely in the other language.",
-        },
-    ),
-}
-LanguageMove = Literal["keep", "switch"]
-
-
-def reply_of(case: SignalCase, move: LanguageMove) -> Language:
-    return case.session_language if move == "keep" else _other(case.session_language)
-
-
-def _other(language: Language) -> Language:
-    return "en" if language == "es" else "es"
-
 
 def load_cases(path: Path = FIXTURE, only: Sequence[str] = ()) -> list[SignalCase]:
     cases = [SignalCase.model_validate(c) for c in yaml.safe_load(path.read_text())]
@@ -109,11 +75,11 @@ def load_cases(path: Path = FIXTURE, only: Sequence[str] = ()) -> list[SignalCas
 
 def state_of(case: SignalCase) -> dict[str, str]:
     """What Jev and the ``llm`` system read: the same three facts."""
-    return {
-        "session_language": case.session_language,
-        "ana_said": case.ana,
-        "candidate_said": case.text,
-    }
+    return decision_state(case.session_language, case.ana, case.text)
+
+
+def reply_of(case: SignalCase, move: LanguageMove) -> Language:
+    return reply_language(case.session_language, move)
 
 
 def llm_prompt() -> str:
@@ -237,16 +203,17 @@ class LlmClassifier:
 class JevClassifier:
     system: SignalSystem = "jev"
 
-    def __init__(self, client: JevClient, usd_per_eur: float) -> None:
-        self.model = client.model
-        self._client = client
-        self._usd_per_eur = usd_per_eur
+    def __init__(self, model: DecisionModel, prices: PriceTable) -> None:
+        self.model = model.model_id
+        self._model = model
+        self._prices = prices
 
     async def classify(self, case: SignalCase, repetition: int) -> SignalPrediction:
         started = time.perf_counter()
+        deadline = datetime.now(UTC) + timedelta(seconds=CALL_SECONDS)
         try:
-            decision = await self._client.decide(state_of(case), QUESTIONS)
-        except JevError as failure:
+            decision = await self._model.decide(state_of(case), QUESTIONS, deadline=deadline)
+        except ServiceError as failure:
             return SignalPrediction(
                 case_id=case.id,
                 system=self.system,
@@ -255,17 +222,7 @@ class JevClassifier:
                 error=failure.code,
             )
         sentiment = decision.answers["sentiment"]
-        language = decision.answers["language"]
-        if sentiment.choice not in QUESTIONS["sentiment"].criteria or (
-            language.choice not in QUESTIONS["language"].criteria
-        ):
-            return SignalPrediction(
-                case_id=case.id,
-                system=self.system,
-                repetition=repetition,
-                milliseconds=_since(started),
-                error="unknown_choice",
-            )
+        language = decision.answers["language"]  # the adapter checked both against the criteria
         return SignalPrediction(
             case_id=case.id,
             system=self.system,
@@ -278,7 +235,15 @@ class JevClassifier:
                 reply_of(case, "switch"): language.probabilities.get("switch", 0.0),
             },
             milliseconds=_since(started),
-            cost_eur=decision.cost_usd / self._usd_per_eur,
+            cost_eur=_eur(
+                self._prices,
+                self.model,
+                ModelUsage(
+                    input_tokens=decision.input_tokens,
+                    output_tokens=decision.output_tokens,
+                    model_id=decision.model_id,
+                ),
+            ),
         )
 
 
@@ -318,10 +283,6 @@ def _strip_fence(raw: str) -> str:
     return body.strip()
 
 
-def usd_per_eur() -> float:
-    return float(yaml.safe_load(PRICES_FILE.read_text(encoding="utf-8"))["usd_per_eur"])
-
-
 # ---- command -------------------------------------------------------------------------------------
 
 
@@ -334,13 +295,10 @@ def estimate_eur(
         if system == "regex":
             continue
         tokens_in, tokens_out = TOKENS_PER_CALL[system]
-        if system == "jev":
-            total += calls * tokens_in * USD_PER_INPUT_TOKEN / usd_per_eur()
-            continue
         records = token_usage(
             SessionId("estimate"),
             None,
-            model_id(signal_model),
+            JEV_MODEL if system == "jev" else model_id(signal_model),
             calls * tokens_in,
             calls * tokens_out,
             estimated=True,
@@ -401,13 +359,15 @@ async def _run(
 ) -> SignalsReport:
     async with httpx.AsyncClient() as http:
         classifiers: list[Classifier] = []
-        jev: JevClient | None = None
+        jev: DecisionsModel | None = None
         for system in systems:
             if system == "regex":
                 classifiers.append(RegexClassifier())
             elif system == "jev":
-                jev = JevClient(env["OPENROUTER_API_KEY"], model=env.get("JEV_MODEL", JEV_MODEL))
-                classifiers.append(JevClassifier(jev, usd_per_eur()))
+                jev = DecisionsModel(
+                    api_key=env["OPENROUTER_API_KEY"], model_id=env.get("JEV_MODEL", JEV_MODEL)
+                )
+                classifiers.append(JevClassifier(jev, prices))
             else:
                 model = model_from_env(signal_model, env)
                 if isinstance(model, ChatCompletionsModel):

@@ -2205,7 +2205,7 @@ out by D24 (voice needs a routable NIC).
   past the gate: the page posts the code to `POST /api/access` once and removes the fragment
   from the address bar, as the resume link does (D34). A fragment never reaches the server,
   its logs or a Referer; a query string would. The form stays for a wrong or missing code. This
-  is the same shared code as before (luzia's `/#code=`), not user authentication.
+  is the same shared code as before, not user authentication.
 
 **Consequences.** A third-party DNS provider in the path of the shared link; a wrong
 `public_hostname` fails the deploy's smoke check, which uses the named URL. Anyone with the link

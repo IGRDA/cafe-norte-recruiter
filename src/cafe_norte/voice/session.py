@@ -61,6 +61,8 @@ def _utcnow() -> datetime:
 
 class VoiceSession:
     filler_after_seconds: float = 1.5
+    hang_up_grace_seconds: float = 2.0  # silence after the goodbye before Ana leaves (D59)
+    hang_up_fallback_seconds: float = 10.0  # after a sound over the goodbye that brings no words
     join_window_seconds: float = 5.0  # a cut answer and the words after it are one (KI-07)
 
     def __init__(
@@ -90,6 +92,7 @@ class VoiceSession:
         self._on_language = on_language
         self._on_hang_up = on_hang_up
         self._ending = False  # the session ended: hang up once everything sent has played
+        self._grace_task: asyncio.Task[None] | None = None  # the wait before leaving (D59)
         self._closed = False
         self.status: VoiceStatus = "connecting"
         self._quiet = asyncio.Event()  # nothing sent to TTS is still to play
@@ -121,6 +124,11 @@ class VoiceSession:
     async def transcript(self, text: str) -> None:
         """A finalized transcript: one voice turn through the runtime."""
         self._cancel_idle()
+        if self._ending:
+            # Words over or after the goodbye: nothing runs on the ended session; Ana waits for
+            # the candidate to finish, then leaves (D59).
+            self._arm_hang_up(self.hang_up_grace_seconds)
+            return
         if self._turn_task is not None and not self._turn_task.done():
             return  # an interruption frame precedes any new speech; nothing to do here
         self._prompted = False  # the candidate has spoken: the next silence earns a prompt again
@@ -170,8 +178,8 @@ class VoiceSession:
             await self._runtime.delivered(self._turn_id, text=text, complete=False)
         self._ledger = Ledger()
         self._owed = None  # the candidate is already speaking: the apology has no job left
-        if self._ending:  # talked over the goodbye: there is nothing left to listen for
-            await self._hang_up()
+        if self._ending:  # talked over the goodbye: let them finish, then leave (D59)
+            self._arm_hang_up(self.hang_up_fallback_seconds)
             return
         self._set("listening")
         self._restart_idle()
@@ -193,6 +201,7 @@ class VoiceSession:
         self._closed = True
         self._cancel_idle()
         self._cancel_filler()
+        self._cancel_grace()
         if self._turn_task is not None:
             self._turn_task.cancel()
             await asyncio.gather(self._turn_task, return_exceptions=True)
@@ -251,6 +260,21 @@ class VoiceSession:
         carry, self._carry = self._carry, None
         return text if carry is None else f"{carry.text} {text}"
 
+    def _arm_hang_up(self, seconds: float) -> None:
+        """Leave after ``seconds`` in which nothing more was said or played; a new sound or
+        transcript arms it again (D59)."""
+        self._cancel_grace()
+        self._grace_task = asyncio.create_task(self._leave_after(seconds))
+
+    async def _leave_after(self, seconds: float) -> None:
+        await self._after_silence(seconds)
+        await self._hang_up()
+
+    def _cancel_grace(self) -> None:
+        if self._grace_task is not None:
+            self._grace_task.cancel()
+            self._grace_task = None
+
     async def _hang_up(self) -> None:
         """The goodbye has played: Ana leaves the call herself, once, so it is never cut."""
         hang_up, self._on_hang_up = self._on_hang_up, None
@@ -280,7 +304,7 @@ class VoiceSession:
             self._set("speaking")
             await self._say(owed)  # its own playback calls this again
         elif self._ending:
-            await self._hang_up()
+            self._arm_hang_up(self.hang_up_grace_seconds)
         elif self.status != "listening":
             self._set("listening")
             self._restart_idle()

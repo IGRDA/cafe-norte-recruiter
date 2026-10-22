@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from datetime import datetime
 from typing import Any
 
-from cafe_norte.conversation.contracts import RuntimeEvent, SignalAnalyzer, TurnInput
+from cafe_norte.conversation.contracts import RuntimeEvent, SignalAnalyzer, ToolStarted, TurnInput
 from cafe_norte.conversation.runtime import Limits
 from cafe_norte.domain.contracts import InputId, SessionId, SlotId
 from cafe_norte.errors import Language
@@ -20,6 +20,8 @@ from tests.support.builders import CONFIGS, NOW, SESSION, full_record, session_s
 
 STOP = ModelFinished(reason="stop")
 WANTS_TOOLS = ModelFinished(reason="tool_calls")
+
+FAST_DEADLINE = Limits(llm_first_output_seconds=0.05)
 
 TUE_17 = SlotId("chamberi_barista_v1-2026-10-20-1700")
 WED_1030 = SlotId("chamberi_barista_v1-2026-10-21-1030")
@@ -160,3 +162,24 @@ async def slots_offered(h: Harness) -> None:
             expected_revision=state.candidate.revision,
         )
     await h.run("Sí, quiero entrevista.", "in-1")
+
+
+def with_date_read_back(*then: list[ModelEvent]) -> Harness:
+    """Turn in-1 captures the date and the runtime reads it back, as in the hosted call; the
+    scripts after it are the model's next turns."""
+    return Harness([[DATE_CALL, WANTS_TOOLS], says(""), *then])
+
+
+async def readback_pending(h: Harness) -> None:
+    await h.run("El 2 de noviembre", "in-1")
+
+
+def tools_started(events: list[RuntimeEvent]) -> list[str]:
+    return [e.name for e in events if isinstance(e, ToolStarted)]
+
+
+async def voice_run(h: Harness, text: str, input_id: str = "v-1") -> list[RuntimeEvent]:
+    voice_turn = TurnInput(
+        session_id=SESSION, input_id=InputId(input_id), text=text, channel="voice", received_at=NOW
+    )
+    return [event async for event in h.runtime.run_turn(voice_turn)]

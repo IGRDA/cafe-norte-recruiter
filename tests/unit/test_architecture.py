@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
-SRC = Path(__file__).resolve().parents[1] / "src" / "cafe_norte"
+from tests.support import ROOT
+
+SRC = ROOT / "src" / "cafe_norte"
 MODULES = {
     "domain",
     "model",
@@ -111,7 +113,7 @@ def test_the_check_catches_forbidden_imports(tmp_path: Path) -> None:
     ]
 
 
-TESTS = SRC.parents[1] / "tests"
+TESTS = ROOT / "tests"
 
 
 def cross_test_imports(root: Path = TESTS) -> list[str]:
@@ -140,3 +142,46 @@ def test_the_check_catches_a_test_importing_a_test(tmp_path: Path) -> None:
         "from tests.test_b import helper\nfrom tests.support.harness import Harness\n"
     )
     assert cross_test_imports(tmp_path) == ["test_a.py imports tests.test_b.helper"]
+
+
+# What a unit test may not touch: a store, the runtime, the handlers, the app, the composition
+# root, I/O adapters, or the support built on them.
+NOT_UNIT = (
+    "cafe_norte.persistence.memory",
+    "cafe_norte.persistence.postgres.store",
+    "cafe_norte.conversation.runtime",
+    "cafe_norte.conversation.handlers",
+    "cafe_norte.voice.session",
+    "cafe_norte.api",
+    "cafe_norte.main",
+    "tests.support.app",
+    "tests.support.harness",
+    "tests.support.http",
+    "tests.support.tools",
+    "tests.support.voice",
+    "fastapi",
+    "httpx",
+    "psycopg",
+    "pipecat",
+)
+
+
+def impure_unit_imports(root: Path = TESTS / "unit") -> list[str]:
+    return [
+        f"{path.relative_to(root)} imports {name}"
+        for path in sorted(root.rglob("*.py"))
+        for name in sorted(imports_of(path))
+        if any(name == banned or name.startswith(banned + ".") for banned in NOT_UNIT)
+    ]
+
+
+def test_unit_tests_import_only_pure_code() -> None:
+    assert impure_unit_imports() == []
+
+
+def test_the_check_catches_a_unit_test_using_a_store(tmp_path: Path) -> None:
+    (tmp_path / "test_a.py").write_text(
+        "from cafe_norte.persistence.memory import MemoryStore\n"
+        "from cafe_norte.domain import fields\n"
+    )
+    assert impure_unit_imports(tmp_path) == ["test_a.py imports cafe_norte.persistence.memory"]

@@ -1,9 +1,8 @@
 """Every hosted plain setting (`plain_env` in `infra/app/main.tf`) is one the app knows."""
 
 import re
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from tests.support import ROOT
 
 
 def plain_env_keys() -> set[str]:

@@ -1,14 +1,13 @@
 """The live fixtures hold together: every live run has checks the scorers know, and the
 comparison only points at scenarios that can run live."""
 
-from pathlib import Path
-
 import yaml
 from evals.contracts import ComparisonCase
 from evals.runner import load_scenarios
 from evals.scorers import SCORERS
 
-ROOT = Path(__file__).resolve().parents[1]
+from tests.support import ROOT
+
 COMPARISON = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
 RELEASE_GATE = {"S01", "S02"}  # spec §13: both live happy paths must complete
 

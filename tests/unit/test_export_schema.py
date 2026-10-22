@@ -1,12 +1,10 @@
 """The export schema is generated from the Pydantic model, and the tool schemas from the args."""
 
 import json
-from pathlib import Path
 
 from cafe_norte.conversation.tools import ARGUMENT_MODELS, tool_schemas
 from cafe_norte.persistence.export import ExportDocument
-
-ROOT = Path(__file__).resolve().parents[1]
+from tests.support import ROOT
 
 
 def test_export_schema_file_matches_the_model() -> None:

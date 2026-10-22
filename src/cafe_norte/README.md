@@ -1,7 +1,7 @@
 # `cafe_norte` package
 
 Eight modules, one composition root. Each module exposes its types and ports in `contracts.py`
-and keeps adapters private. `tests/test_architecture.py` enforces the import rules below.
+and keeps adapters private. `tests/unit/test_architecture.py` enforces the import rules below.
 
 | Module | Owns | May import (internal) |
 | --- | --- | --- |

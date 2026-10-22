@@ -28,5 +28,5 @@ keywords: [salario, salary, horas, hours, contrato, contract]
 
 `scripts/build_index.py` produces `kb/index/<kb_version>/` (git-ignored, built into the image).
 Every body is fictional. Pay, hours and shifts in the offer and store documents must match
-`config/*.yaml` (`tests/test_kb.py` checks it): the configuration is the canonical source.
+`config/*.yaml` (`tests/unit/test_knowledge_loader.py` checks it): the configuration is the canonical source.
 Sections are `## ` headings; each becomes one chunk `doc_id#slug`, at most 90 words.

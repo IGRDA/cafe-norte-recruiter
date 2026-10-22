@@ -4,7 +4,6 @@ come from the app's own SSE encoder, so a change in the wire format breaks here 
 import json
 from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, datetime
-from pathlib import Path
 
 import httpx
 import pytest
@@ -23,8 +22,8 @@ from cafe_norte.conversation.contracts import (
 )
 from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, TurnId
 from cafe_norte.persistence.export import ExportDocument
+from tests.support import ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
 EXPORT = ExportDocument.model_validate_json(
     (ROOT / "examples" / "session_export.example.json").read_text(encoding="utf-8")
 )

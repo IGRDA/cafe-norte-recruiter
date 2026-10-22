@@ -1,7 +1,7 @@
 INFRA_APP := infra/app
 INFRA_BOOTSTRAP := infra/bootstrap
 
-.PHONY: setup check lint typecheck test test-db db-up db-down run migrate build-index export-schema export-example \
+.PHONY: setup check lint typecheck test test-unit test-component test-http test-e2e test-db db-up db-down run migrate build-index export-schema export-example \
         evals evals-retrieval compare smoke voice-listen voice-smoke infra-check infra-init infra-plan infra-apply
 
 # Locked install with every extra; CI and local use the same command.
@@ -19,6 +19,10 @@ typecheck:
 # Offline suite: no network, no Postgres, no credentials. Postgres-marked tests are skipped.
 test:
 	uv run pytest --cov
+
+# One layer of the pyramid (tests/README.md); no coverage floor, for a fast loop.
+test-unit test-component test-http test-e2e:
+	uv run pytest tests/$(@:test-%=%)
 
 # Postgres-backed tests against the compose database (or CAFE_NORTE_TEST_DATABASE_URL if set).
 test-db: db-up

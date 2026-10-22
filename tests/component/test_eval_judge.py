@@ -1,7 +1,6 @@
 """The rubric judge: booleans or nothing, labelled, never a pass/fail."""
 
 from datetime import UTC, datetime
-from pathlib import Path
 
 from evals.contracts import JudgeVerdict, Report, RunRecord
 from evals.judge import JUDGE_TRANSCRIPT_CHARS, judge, render_transcript
@@ -12,6 +11,7 @@ from evals.runner import load_scenarios
 from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.persistence.export import ExportDocument
+from tests.support import ROOT
 
 RUBRIC = ("Ana disclosed being an AI.", "Ana asked one question at a time.")
 LINES = (("assistant", "Hola, soy Ana, una IA."), ("user", "Hola."))
@@ -62,7 +62,7 @@ def test_a_long_transcript_keeps_its_end() -> None:
 
 
 EXPORT = ExportDocument.model_validate_json(
-    (Path(__file__).resolve().parents[1] / "examples" / "session_export.example.json").read_text()
+    (ROOT / "examples" / "session_export.example.json").read_text()
 )
 
 

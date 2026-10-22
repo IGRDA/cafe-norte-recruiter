@@ -7,7 +7,7 @@ today: "2026-10-20"
 # turn is finished normally and saved; then the session is abandoned and Ana says the fixed
 # goodbye (controls `time_cap`). Silence (one prompt, never a pause) and overload (a third voice
 # session is refused before any provider is opened) are not conversations: they are covered by
-# tests/test_voice_session.py and tests/test_api_voice.py, as S12 and S13 are (D32, D37).
+# tests/component/test_voice_session.py and tests/http/test_api_voice.py, as S12 and S13 are (D32, D37).
 seconds_per_turn: 150
 scripted_turns:
   - "Sí, me viene bien."

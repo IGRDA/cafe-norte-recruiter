@@ -303,8 +303,7 @@ def _voice_mode(env: Mapping[str, str]) -> VoiceMode:
     value = env.get("CAFE_NORTE_VOICE", "off")
     modes = get_args(VoiceMode)
     if value not in modes:
-        removed = " (browser speech was removed in D45)" if value == "browser" else ""
-        raise ValueError(f"CAFE_NORTE_VOICE must be {' or '.join(modes)}, not {value!r}{removed}")
+        raise ValueError(f"CAFE_NORTE_VOICE must be {' or '.join(modes)}, not {value!r}")
     return value  # type: ignore[return-value]
 
 

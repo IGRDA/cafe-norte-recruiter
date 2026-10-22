@@ -37,7 +37,7 @@ VoiceStatus = Literal["connecting", "listening", "thinking", "speaking", "paused
 STT_MODEL = "nova-3"
 TTS_MODEL = "eleven_flash_v2_5"
 
-VoiceMode = Literal["off", "pipecat"]  # the browser's own speech was removed (D45)
+VoiceMode = Literal["off", "pipecat"]
 
 
 class VoiceTexts(Frozen):

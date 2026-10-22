@@ -33,7 +33,7 @@ def test_without_hosted_voice_the_stamp_names_no_voice_provider() -> None:
 
 
 def test_the_pipeline_runs_the_models_the_stamp_names() -> None:
-    assert stt_settings("es").model == STT_MODEL
+    assert stt_settings().model == STT_MODEL
     assert tts_settings("voice-1").model == TTS_MODEL
     assert tts_settings("voice-1").voice == "voice-1"
 

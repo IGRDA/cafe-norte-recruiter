@@ -42,8 +42,9 @@ variable "model" {
 }
 
 variable "elevenlabs_voice_id" {
-  type    = string
-  default = "EXAVITQu4vr4xnSDxMaL"
+  type        = string
+  default     = "uQw4jpKzMLrZuo0RLPS9"
+  description = "Ana's ElevenLabs voice, Spanish and English alike (D47)."
 }
 
 variable "enable_database" {

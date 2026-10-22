@@ -1449,3 +1449,19 @@ with these changes (`evals/results/live/20261022T073513Z-scenarios`, not committ
 first stated it, when the model batches. Thanks alone after booking ends the call, so a
 candidate who thanks and then wants to ask something must start a new session. A model that
 rewrites the candidate's words (a translation, a summary) is refused until it quotes them.
+
+---
+
+## D47 · One ElevenLabs voice, Spanish, for both languages
+
+_Added 22 October 2026, after a listening check of ElevenLabs voices in Spanish and English._
+
+**Decision.** Ana speaks Spanish and English in one voice, `uQw4jpKzMLrZuo0RLPS9`, on
+`eleven_flash_v2_5`. It replaces the scaffold's default (Sarah) on the hosted demo.
+
+**Rejected.** A voice per language. A separate English voice sounded better in English, but it
+needs a TTS reconnect on every language switch, and Ana would sound like a different person
+after the switch.
+
+**Consequences we accept.** Ana speaks English with a Spanish accent. That fits a Spanish
+employer.

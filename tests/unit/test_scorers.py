@@ -3,7 +3,7 @@
 from datetime import UTC, date, datetime
 
 from evals.contracts import Check, CheckResult, Persona, SessionResult
-from evals.scorers import extraction_accuracy, run_check
+from evals.scorers import _parse, extraction_accuracy, run_check
 
 from cafe_norte.domain.candidate import apply_patch
 from cafe_norte.domain.contracts import (
@@ -21,6 +21,7 @@ from cafe_norte.domain.contracts import (
     SessionState,
     SlotId,
     TurnId,
+    YearMonth,
 )
 from cafe_norte.persistence.contracts import TurnRecord
 
@@ -323,3 +324,9 @@ def test_claims_saved_without_save_finds_a_save_said_with_nothing_saved() -> Non
     assert not run_check(refused, check).ok
     asked = result(spoken_by_turn=(("¿Quieres que lo deje anotado?",),))
     assert run_check(asked, check).ok  # an offer to save is not a claim
+
+
+def test_a_month_reference_compares_at_month_precision() -> None:
+    assert _parse("earliest_start_date", "2027-01", date(2026, 10, 20)) == YearMonth(
+        year=2027, month=1
+    )

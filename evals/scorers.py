@@ -21,6 +21,7 @@ from cafe_norte.domain.contracts import (
     Captured,
     Confirmed,
     SessionState,
+    YearMonth,
 )
 from cafe_norte.domain.fields import value_of
 from cafe_norte.errors import Language
@@ -448,6 +449,8 @@ def _parse(field: str, raw: str, today: date) -> object:
     if field in INT_FIELDS:
         return int(raw)
     if field in DATE_FIELDS:
+        if len(raw.strip()) == 7:
+            return YearMonth(year=int(raw[:4]), month=int(raw[5:7]))  # a month alone (D58)
         return relative_date(raw, today) or date.fromisoformat(raw)
     return raw
 

@@ -2092,3 +2092,12 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
   for gpt-4.1 ($0.50 / 1M), gpt-4o and gpt-4o-mini at the prices its comments already recorded.
   Live gpt-4.1 calls send about 5,000 input tokens, mostly the same system prompt and tools, so
   the full-rate price overstated them. A provider that reports no cache sends no third record.
+- **A start given by month stays a month.** `earliest_start_date` holds a date or a `YearMonth`
+  (`YYYY-MM` in the patch, the state and the export; "en enero de 2027" in the brief and the
+  read-back). A date is kept only when the candidate's words name its day (`names_a_day`: the
+  number, "primero", the weekday, hoy/mañana, "la semana que viene" for its Monday); otherwise
+  `not_in_evidence`, and the model sends the month or asks. A past month is refused like a
+  past date. Live, "Desde enero del año que viene" was saved as 1 January and read back as
+  "viernes 1 de enero", a day never said. The scorers compare a `YYYY-MM` reference at month
+  precision. A date-plus-precision flag was rejected: a stored 1 January that is not true leaks
+  wherever the flag is forgotten.

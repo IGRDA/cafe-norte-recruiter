@@ -66,7 +66,9 @@ Formato del `patch`: valores planos, nunca objetos con `status` o `value`. Ejemp
 - `hours_per_week`: entero, solo el número que la persona ha dicho; `store.hours_per_week` es
   lo que ofrece el puesto, nunca su respuesta. Un número que no está en `evidence_text` se
   rechaza. `earliest_start_date`: fecha ISO `AAAA-MM-DD`, resuelta con la
-  fecha de hoy que aparece en los datos de la sesión ("el lunes que viene" es el próximo lunes
+  fecha de hoy que aparece en los datos de la sesión; si solo dice el mes ("en enero", "a
+  partir de enero del año que viene"), envía `AAAA-MM`: un día que no está en sus palabras se
+  rechaza, nunca lo inventes ("el lunes que viene" es el próximo lunes
   después de hoy). Si la fecha queda en el pasado o es ambigua, pregunta.
 - `experience`: la descripción breve de la propia persona, con sus palabras.
 - `contact_phone`: tal como lo diga; el sistema lo normaliza.

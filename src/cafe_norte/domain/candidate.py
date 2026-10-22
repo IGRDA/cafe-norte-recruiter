@@ -75,9 +75,52 @@ def validate_patch(
                     field="availability_shifts", reason="unknown_shift", detail=",".join(unknown)
                 )
             )
-    if patch.earliest_start_date is not None and patch.earliest_start_date < today:
+    start = patch.earliest_start_date
+    if isinstance(start, date):
+        if not names_a_day(evidence_text, start, today):
+            # "Desde enero del año que viene" was once saved as the 1st: a guessed day (D58).
+            return Err(
+                FieldError(
+                    field="earliest_start_date",
+                    reason="not_in_evidence",
+                    detail="the candidate's words do not say the day; send the month as "
+                    "YYYY-MM, or ask which day",
+                )
+            )
+        if start < today:
+            return Err(FieldError(field="earliest_start_date", reason="past_date"))
+    elif start is not None and (start.year, start.month) < (today.year, today.month):
         return Err(FieldError(field="earliest_start_date", reason="past_date"))
     return Ok(patch.model_copy(update=updates))
+
+
+_WEEKDAY_WORDS = (
+    ("lunes", "monday"),
+    ("martes", "tuesday"),
+    ("miercoles", "wednesday"),
+    ("jueves", "thursday"),
+    ("viernes", "friday"),
+    ("sabado", "saturday"),
+    ("domingo", "sunday"),
+)
+_NEXT_WEEK = re.compile(r"\b(?:semana que viene|proxima semana|next week)\b")
+_FIRST = re.compile(r"\b(?:primero|primer|first|1st)\b")
+
+
+def names_a_day(evidence_text: str, day: date, today: date) -> bool:
+    """Whether the candidate's words name ``day``: its number, "primero", its weekday, today or
+    tomorrow by name, or "next week" for the Monday after today. A month alone does not."""
+    words = plain(evidence_text)
+    offset = (day - today).days
+    return (
+        mentions_number(evidence_text, day.day)
+        or (day.day == 1 and bool(_FIRST.search(words)))
+        or any(re.search(rf"\b{w}\b", words) for w in _WEEKDAY_WORDS[day.weekday()])
+        or (offset == 0 and bool(re.search(r"\b(?:hoy|today)\b", words)))
+        or (offset == 1 and bool(re.search(r"\b(?:manana|tomorrow)\b", words)))
+        or (offset == 2 and bool(re.search(r"\b(?:pasado manana|day after tomorrow)\b", words)))
+        or (day.weekday() == 0 and 0 < offset <= 7 and bool(_NEXT_WEEK.search(words)))
+    )
 
 
 def apply_patch(

@@ -24,6 +24,7 @@ from cafe_norte.domain.contracts import (
     Evidence,
     TurnId,
     Unknown,
+    YearMonth,
 )
 from cafe_norte.domain.fields import value_of
 from cafe_norte.domain.result import Err, Ok
@@ -61,13 +62,76 @@ def test_unknown_shifts_and_past_dates_are_refused() -> None:
     assert isinstance(shifts, Err) and shifts.error.reason == "unknown_shift"
     assert shifts.error.detail == "night"
     past = validate_patch(
-        CandidatePatch(earliest_start_date=date(2026, 1, 1)), CONFIG, TODAY, evidence_text=""
+        CandidatePatch(earliest_start_date=date(2026, 1, 1)),
+        CONFIG,
+        TODAY,
+        evidence_text="el uno de enero",
     )
     assert isinstance(past, Err) and past.error.reason == "past_date"
     today = validate_patch(
-        CandidatePatch(earliest_start_date=TODAY), CONFIG, TODAY, evidence_text=""
+        CandidatePatch(earliest_start_date=TODAY), CONFIG, TODAY, evidence_text="hoy mismo"
     )
     assert isinstance(today, Ok)
+
+
+def test_a_start_day_the_candidate_did_not_say_is_refused_and_a_month_alone_is_kept() -> None:
+    """Ignacio's call: "Desde enero del año que viene" was saved as 2027-01-01 and read back
+    as "viernes 1 de enero": a guessed day (D58). The month alone is what was said."""
+    guessed = validate_patch(
+        CandidatePatch(earliest_start_date=date(2027, 1, 1)),
+        CONFIG,
+        TODAY,
+        evidence_text="Desde enero del año que viene.",
+    )
+    assert isinstance(guessed, Err) and guessed.error.reason == "not_in_evidence"
+    assert guessed.error.field == "earliest_start_date" and "YYYY-MM" in guessed.error.detail
+    month = validate_patch(
+        CandidatePatch.model_validate({"earliest_start_date": "2027-01"}),
+        CONFIG,
+        TODAY,
+        evidence_text="Desde enero del año que viene.",
+    )
+    assert isinstance(month, Ok) and month.value.earliest_start_date == YearMonth(
+        year=2027, month=1
+    )
+    gone = validate_patch(
+        CandidatePatch.model_validate({"earliest_start_date": "2026-09"}),
+        CONFIG,
+        TODAY,
+        evidence_text="en septiembre",
+    )
+    assert isinstance(gone, Err) and gone.error.reason == "past_date"
+
+
+@pytest.mark.parametrize(
+    ("said", "day"),
+    [
+        ("el lunes que viene", date(2026, 10, 26)),
+        ("el dos de noviembre", date(2026, 11, 2)),
+        ("el 2 de noviembre", date(2026, 11, 2)),
+        ("el primero de diciembre", date(2026, 12, 1)),
+        ("mañana", date(2026, 10, 21)),
+        ("hoy", TODAY),
+        ("la semana que viene", date(2026, 10, 26)),
+        ("next Monday", date(2026, 10, 26)),
+        ("on November 2nd", date(2026, 11, 2)),
+    ],
+)
+def test_a_day_in_the_candidates_words_is_kept(said: str, day: date) -> None:
+    ok = validate_patch(CandidatePatch(earliest_start_date=day), CONFIG, TODAY, evidence_text=said)
+    assert isinstance(ok, Ok)
+
+
+def test_a_month_round_trips_as_year_dash_month() -> None:
+    record = apply_patch(
+        CandidateRecord(),
+        CandidatePatch.model_validate({"earliest_start_date": "2027-01"}),
+        EVIDENCE,
+    )
+    dumped = record.model_dump(mode="json")
+    assert dumped["earliest_start_date"]["value"] == "2027-01"
+    assert CandidateRecord.model_validate(dumped) == record
+    assert str(YearMonth(year=2027, month=1)) == "2027-01"
 
 
 def test_apply_captures_values_marks_declined_and_unknown_and_bumps_revision() -> None:

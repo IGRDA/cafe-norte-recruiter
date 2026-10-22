@@ -103,6 +103,7 @@ def build_router(
             voice=voice_mode,
             config_ids=tuple(configurations),
             access_required=gate.requires_code,
+            commit_sha=versions.commit_sha,
         )
 
     @router.post("/api/access", status_code=status.HTTP_204_NO_CONTENT)

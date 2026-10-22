@@ -82,6 +82,7 @@ def _longer_number_follows(words: str, spoken: str) -> bool:
 
 
 def plain(text: str) -> str:
-    """Case-folded, without accents: how every word list in ``domain`` is matched."""
-    decomposed = unicodedata.normalize("NFKD", text.casefold())
+    """Case-folded, without accents: how every word list is matched. Decomposed before it is
+    folded, so a compatibility letter ("𝞐") folds too and ``plain`` is idempotent."""
+    decomposed = unicodedata.normalize("NFKD", text).casefold()
     return "".join(c for c in decomposed if not unicodedata.combining(c))

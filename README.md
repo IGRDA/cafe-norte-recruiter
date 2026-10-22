@@ -2,86 +2,67 @@
 
 # Café Norte
 
-Ana is a voice and text recruiting assistant for a fictional coffee chain. She collects a
-candidate's details, answers questions from a store-specific knowledge base, reads back the
-facts for confirmation, and books a simulated interview. No hiring decision is made.
+Ana is a recruiting assistant you can speak or type to. She collects candidate details,
+answers questions about a café role, confirms what she heard, and books a simulated interview.
+Each session produces an export with the facts, transcript, sources and usage.
 
-Spanish and English have reviewed texts and evaluation cases. Eight more languages are wired
-through the same runtime, with model-translated templates; their conversation quality is not
-evaluated. The calendar and company information are fictional. The export is a factual record,
-with a deterministic brief, transcript, sources, confirmations, usage and version stamps.
+This is a demo: the company and calendar are fictional, and Ana makes no hiring decisions.
+Spanish and English have reviewed texts and evaluation cases. Eight additional languages
+are supported through model translation; their conversation quality has not been evaluated.
 
-## Run
+## Run locally
 
-Requires Python 3.12 (installed by uv if needed), [uv](https://docs.astral.sh/uv/), Node 24,
-and Docker for the Postgres tests.
+Install [uv](https://docs.astral.sh/uv/) and Node 24. uv supplies Python 3.12 if needed.
 
 ```sh
-make setup        # locked Python and browser dependencies
-make check        # Ruff, strict mypy, offline Python tests, TypeScript, ESLint, Vitest
-make test-db      # shared store contracts and integration tests on Postgres
-make run          # builds the page and serves http://localhost:8000
-make web-dev      # Vite on :5173, proxying /api to :8000
+make setup        # install locked dependencies
+make run          # build the browser app and serve http://localhost:8000
 ```
 
-Without `.env`, the app uses a fake model, memory storage, lexical retrieval and no voice.
-For real conversations, copy [.env.example](.env.example) to `.env`, select
-`CAFE_NORTE_MODEL=openai/gpt-4.1` and set `OPENAI_API_KEY`. Set `CAFE_NORTE_DATABASE_URL`
-for persistence. Hosted voice needs the Daily, Deepgram and ElevenLabs settings in that file;
-`make voice-smoke` starts the server with voice enabled. Provider calls are paid.
+With no `.env`, the app runs offline with a fake model, memory storage and text input.
+For real conversations, copy [.env.example](.env.example) to `.env` and configure the model,
+voice providers and database there. Provider calls are paid. For browser development,
+`make web-dev` serves Vite on port 5173 alongside the API on port 8000.
 
-## Where to start
+## How it works
 
-[main.py](src/cafe_norte/main.py) composes the adapters. Each module's `contracts.py` defines
-its public values and ports; operation docstrings describe effects, ordering and failures.
+Text and voice share one conversation runtime. It uses domain rules to update the candidate
+record, saves changes, then announces them. [main.py](src/cafe_norte/main.py) connects the
+runtime to storage, retrieval, model and speech providers.
 
-| Module | Owns |
+| Start here | Responsibility |
 | --- | --- |
-| [domain](src/cafe_norte/domain/contracts.py) | Candidate values, confirmations, booking and lifecycle rules; time is an input |
-| [conversation](src/cafe_norte/conversation/contracts.py) | One bounded turn loop for text and voice; persistence precedes announcements |
-| [model](src/cafe_norte/model/contracts.py) | Provider-neutral completions and probability-based decisions |
-| [knowledge](src/cafe_norte/knowledge/contracts.py) | Store-filtered retrieval over the documents in `kb/` |
-| [persistence](src/cafe_norte/persistence/contracts.py) | Transactions, ownership leases, reservations, event replay and exports |
-| [voice](src/cafe_norte/voice/contracts.py) | Rooms, audio delivery and call lifecycle; Pipecat carries speech |
-| [observability](src/cafe_norte/observability/contracts.py) | Versioned usage, EUR costs, structured events and traces |
-| [api](src/cafe_norte/api/contracts.py) | Validated HTTP messages, session ownership and SSE envelopes |
+| [Domain](src/cafe_norte/domain/contracts.py) | Candidate facts, confirmations and booking rules |
+| [Conversation](src/cafe_norte/conversation/contracts.py) | Turn processing and events shared by text and voice |
+| [Persistence](src/cafe_norte/persistence/contracts.py) | Transactions, session ownership, event replay and exports |
+| [Browser](web/src/page/reducer.ts) | Page state and user interactions |
 
-The browser's [reducer](web/src/page/reducer.ts) owns page state; its effect runner owns I/O.
-`make export-schema` generates the browser schema and TypeScript from Python declarations.
-The export schema is available from `ExportDocument.model_json_schema()`.
-[Import checks](tests/unit/test_architecture.py) enforce dependency direction and keep adapters
-out of the domain. Tests cover pure rules, components, HTTP boundaries and whole sessions;
-shared helpers live in `tests/support/`. `make quality` reports coverage and mutation results.
+Public types and their contract comments describe each module's promises. The browser's API
+types are generated from Python declarations with `make export-schema`.
 
-## Evaluate
+## Check and evaluate
 
 ```sh
-make evals ARGS="--suite scenarios --mode fake"   # same regressions as make check
-make evals-retrieval ARGS="--retriever lexical --ragas"
-make evals ARGS="--suite scorecard --retriever lexical"
-make compare                                    # estimate before paid model comparisons
-make evals-signals ARGS="--systems regex"        # free signal baseline
-uv run python -m evals.run --help
+make check        # Python and TypeScript checks, offline tests and coverage
+make test-db      # shared contracts and integration tests on Postgres; requires Docker
+make infra-check  # Terraform formatting and validation; requires Terraform ≥1.11
+make evals ARGS="--help"
 ```
 
-Scenarios share cases and invariants between fake and live runs. Retrieval, signal calibration,
-model comparisons and the combined scorecard measure different promises. Paid commands require
-`--yes`; use `--base-url` to evaluate an existing server. Scorecard targets live in
-[scorecard.py](evals/scorecard.py), case formats in [contracts.py](evals/contracts.py).
-Selected baselines in `evals/results/` stay tracked. New output is ignored; promote a reviewed
-baseline explicitly with `git add -f <report>`.
-`--rescore <recorded-folder>` and retrieval's `--replay <recorded-folder>` reuse paid evidence.
+Evaluations cover conversation scenarios, retrieval, signals and model comparisons.
+`make compare` estimates cost; paid runs require `--yes`. Selected baselines stay tracked in
+`evals/results/`. New output is ignored until explicitly promoted with `git add -f <report>`.
 
-Before merging, run `make preflight` (offline checks, Postgres and selected live regressions),
-then `make preview` for the owner's voice call on Postgres with the real providers.
+Before merging, run `make preflight` for offline, Postgres and live regressions, then
+`make preview` for the owner's voice call with real providers.
 
 ## Hosting
 
-One Compute Engine VM runs the app, Caddy and the Cloud SQL Auth Proxy. Daily's native WebRTC
-transport needs a routable network interface, which the tested Cloud Run deployment did not
-provide. Text uses POST plus SSE: idempotent input identifiers and sequence-based replay fit
-ordinary HTTP and cookie authentication without a bidirectional socket.
+The demo runs on one Compute Engine VM with Cloud SQL. Daily's native WebRTC transport needs
+a routable network interface that the tested Cloud Run deployment did not provide. Text uses
+HTTP POST plus SSE: input IDs make retries safe, and event sequences support replay without
+a bidirectional WebSocket connection.
 
-The demo has a shared access code, two concurrent voice places by default, seven-day session
-retention and no high-availability deployment. See [infrastructure operations](infra/OPERATIONS.md)
-for bootstrap, deployment, recovery, secrets and teardown. `docs/` contains visual assets only.
+A shared access code and request limits guard the hosted demo. See
+[infrastructure operations](infra/OPERATIONS.md) for deployment, limits, secrets, recovery and
+teardown.

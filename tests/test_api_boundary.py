@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from cafe_norte.api.boundary import MAX_BODY_BYTES
 from cafe_norte.model.fake import FakeModel
-from tests.support import build_test_app
+from tests.support.app import build_test_app
 
 HEADERS = {
     "referrer-policy": "no-referrer",

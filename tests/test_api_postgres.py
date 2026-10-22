@@ -6,21 +6,16 @@ from evals.runner import load_scenarios, run_fake
 
 from cafe_norte.api.access import AccessGate
 from cafe_norte.conversation.contracts import AssistantText, TurnFailed, TurnFinished, TurnInput
-from cafe_norte.conversation.handlers import all_handlers
-from cafe_norte.conversation.registry import ToolRegistry
-from cafe_norte.conversation.runtime import Limits, Runtime
-from cafe_norte.domain.configuration import load_configurations
+from cafe_norte.conversation.runtime import Runtime
 from cafe_norte.domain.contracts import ConfigId, InputId, SessionId, SessionState
 from cafe_norte.domain.fields import value_of
-from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.model.fake import FakeModel
-from cafe_norte.observability.fakes import NullTelemetry
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.export import ExportDocument
 from cafe_norte.persistence.postgres import PostgresStore
-from tests.support import CONFIG_DIR
-from tests.test_runtime import WANTS_TOOLS, name_call, says
-from tests.test_store_contract import NOW, VERSIONS
+from tests.support.app import build_runtime
+from tests.support.builders import NOW, STAMP
+from tests.support.harness import WANTS_TOOLS, name_call, says
 
 pytestmark = pytest.mark.postgres
 
@@ -41,22 +36,10 @@ async def test_s01_runs_on_postgres_and_survives_a_restart(
     session_id = SessionId("eval-S01")
     state = await restarted.sessions.get(session_id)
     assert state is not None and state.lifecycle == "completed" and state.booking is not None
-    before = await restarted.snapshot(session_id, versions=VERSIONS, taken_at=NOW)
+    before = await restarted.snapshot(session_id, versions=STAMP, taken_at=NOW)
     assert before is not None and len(before.turns) == len(record.export.transcript)
 
-    configurations = load_configurations(CONFIG_DIR)
-    runtime = Runtime(
-        model=FakeModel([]),
-        tools=ToolRegistry(
-            all_handlers(store=restarted, configurations=configurations, retriever=FakeRetriever())
-        ),
-        store=restarted,
-        configurations=configurations,
-        signals=None,
-        limits=Limits(),
-        telemetry=NullTelemetry(),
-        owner="restarted",
-    )
+    runtime = build_runtime(model=FakeModel([]), store=restarted, owner="restarted")
     turn = TurnInput(
         session_id=session_id,
         input_id=InputId("after"),
@@ -66,26 +49,13 @@ async def test_s01_runs_on_postgres_and_survives_a_restart(
     )
     events = [e async for e in runtime.run_turn(turn)]
     assert isinstance(events[-1], TurnFailed) and events[-1].code == "session_ended"
-    after = await restarted.snapshot(session_id, versions=VERSIONS, taken_at=NOW)
+    after = await restarted.snapshot(session_id, versions=STAMP, taken_at=NOW)
     assert after is not None and [e.seq for e in after.events][-1] == before.events[-1].seq + 1
     await restarted.close()
 
 
 def runtime_over(store: Store, model: FakeModel, owner: str) -> Runtime:
-    configurations = load_configurations(CONFIG_DIR)
-    return Runtime(
-        model=model,
-        tools=ToolRegistry(
-            all_handlers(store=store, configurations=configurations, retriever=FakeRetriever())
-        ),
-        store=store,
-        configurations=configurations,
-        signals=None,
-        limits=Limits(),
-        telemetry=NullTelemetry(),
-        owner=owner,
-        clock=lambda: NOW,
-    )
+    return build_runtime(model=model, store=store, owner=owner, clock=lambda: NOW)
 
 
 async def test_s12_restart_zombie_worker_and_private_resume(
@@ -135,7 +105,7 @@ async def test_s12_restart_zombie_worker_and_private_resume(
     assert value_of(state.candidate.name) == "Lucía"
     done = [e async for e in second.run_turn(turn_input(session_id, "¿Hola?", "in-3"))]
     assert isinstance(done[-1], TurnFinished)
-    snapshot = await replacement.snapshot(session_id, versions=VERSIONS, taken_at=NOW)
+    snapshot = await replacement.snapshot(session_id, versions=STAMP, taken_at=NOW)
     assert snapshot is not None
     seqs = [e.seq for e in snapshot.events]
     assert seqs == list(range(1, len(seqs) + 1))

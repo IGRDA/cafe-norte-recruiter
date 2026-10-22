@@ -10,8 +10,7 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import ConfigId, SessionId, TurnId
+from cafe_norte.domain.contracts import SessionId, TurnId
 from cafe_norte.observability.contracts import (
     Price,
     PriceTable,
@@ -27,9 +26,8 @@ from cafe_norte.observability.telemetry import (
     configure,
     traces_endpoint,
 )
-from tests.support import CONFIG_DIR
+from tests.support.builders import CONFIG
 
-CONFIGURATION = load_configurations(CONFIG_DIR)[ConfigId("chamberi_barista_v1")]
 PROCESS = ProcessVersions(
     model_id="gpt-4o-mini",
     prompt_version="ana_v9",
@@ -66,7 +64,7 @@ class Traced:
         return self.telemetry.turn(
             session_id=SessionId("s1"),
             turn_id=TurnId("t1"),
-            configuration=CONFIGURATION,
+            configuration=CONFIG,
             channel="voice",
             language="es",
         )
@@ -202,8 +200,8 @@ def test_every_span_carries_the_whole_version_stamp_as_filterable_metadata() -> 
     prefix = "langfuse.trace.metadata."
     assert {k.removeprefix(prefix): v for k, v in attrs.items() if k.startswith(prefix)} == {
         "config_id": "chamberi_barista_v1",
-        "config_version": CONFIGURATION.version,
-        "kb_version": CONFIGURATION.kb_version,
+        "config_version": CONFIG.version,
+        "kb_version": CONFIG.kb_version,
         "prompt_version": "ana_v9",
         "schema_version": "1",
         "model_id": "gpt-4o-mini",

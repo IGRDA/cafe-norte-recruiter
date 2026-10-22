@@ -109,3 +109,34 @@ def test_the_check_catches_forbidden_imports(tmp_path: Path) -> None:
         "knowledge/bad.py imports cafe_norte.domain.fields",
         "knowledge/bad.py imports psycopg",
     ]
+
+
+TESTS = SRC.parents[1] / "tests"
+
+
+def cross_test_imports(root: Path = TESTS) -> list[str]:
+    """Test modules that import another test module: shared helpers belong in tests/support."""
+    found: list[str] = []
+    for path in sorted(root.rglob("test_*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names = [f"{node.module}.{alias.name}" for alias in node.names]
+            for name in names:
+                parts = name.split(".")
+                if parts[0] == "tests" and any(p.startswith("test_") for p in parts[1:]):
+                    found.append(f"{path.relative_to(root)} imports {name}")
+    return found
+
+
+def test_no_test_module_imports_another() -> None:
+    assert cross_test_imports() == []
+
+
+def test_the_check_catches_a_test_importing_a_test(tmp_path: Path) -> None:
+    (tmp_path / "test_a.py").write_text(
+        "from tests.test_b import helper\nfrom tests.support.harness import Harness\n"
+    )
+    assert cross_test_imports(tmp_path) == ["test_a.py imports tests.test_b.helper"]

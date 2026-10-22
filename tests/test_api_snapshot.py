@@ -4,8 +4,8 @@ from fastapi.testclient import TestClient
 
 from cafe_norte.api.contracts import CreateSessionResponse, SessionSnapshotResponse
 from cafe_norte.model.fake import FakeModel
-from tests.support import build_test_app
-from tests.test_api_tracer import ANSWER_TURN, OPENING_EVENTS, TOOL_TURN, create_session, read_turn
+from tests.support.app import build_test_app
+from tests.support.http import ANSWER_TURN, OPENING_EVENTS, TOOL_TURN, create_session, read_turn
 
 
 def test_the_owner_reads_state_transcript_versions_and_the_last_sequence() -> None:

@@ -2,7 +2,7 @@
 session's end come from the journaled ``state_updated`` events."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from functools import partial
 
 import pytest
@@ -25,12 +25,10 @@ from cafe_norte.observability.contracts import (
     PriceTable,
     UsageKind,
     UsageRecord,
-    VersionStamp,
 )
 from cafe_norte.observability.cost import estimate
 from cafe_norte.persistence.contracts import EventRecord, SessionSnapshot, TurnRecord
 from cafe_norte.persistence.export import (
-    SCHEMA_VERSION,
     ExportDocument,
     brief_text,
     build_export,
@@ -38,18 +36,9 @@ from cafe_norte.persistence.export import (
     ended_at,
 )
 from cafe_norte.persistence.memory import MemoryStore
+from tests.support.builders import NOW, STAMP
 
-NOW = datetime(2026, 10, 20, 10, tzinfo=UTC)
 SID = SessionId("s1")
-VERSIONS = VersionStamp(
-    config_id=ConfigId("chamberi_barista_v1"),
-    config_version="1",
-    kb_version="1",
-    prompt_version="ana_v4",
-    schema_version=SCHEMA_VERSION,
-    model_id="fake",
-    commit_sha="local",
-)
 PHONE = Confirmation(
     confirmation_id=ConfirmationId("c-phone"),
     target=FieldTarget(field="contact_phone", revision=1),
@@ -142,7 +131,7 @@ def snapshot(events: tuple[EventRecord, ...] = ()) -> SessionSnapshot:
         events=events,
         usage=(usage,),
         timings=(),
-        versions=VERSIONS,
+        versions=STAMP,
         taken_at=NOW,
     )
 
@@ -176,7 +165,7 @@ def test_build_export_fills_every_section_from_the_snapshot() -> None:
     assert document.metrics.turns == 1 and document.metrics.cost_is_partial
     assert document.metrics.estimated_marginal_cost_eur is None
     assert len(document.transcript) == 1 and len(document.confirmations) == 2
-    assert document.versions == VERSIONS
+    assert document.versions == STAMP
     again = ExportDocument.model_validate_json(document.model_dump_json())
     assert again == document
 
@@ -229,13 +218,13 @@ async def test_memory_store_snapshot_reads_the_whole_session() -> None:
             await store.events.append(tx, event)
         await store.events.record_usage(tx, base.usage[0])
         await store.events.record_usage(tx, base.usage[0].model_copy(update={"session_id": "x"}))
-    taken = await store.snapshot(SID, versions=VERSIONS, taken_at=NOW)
+    taken = await store.snapshot(SID, versions=STAMP, taken_at=NOW)
     assert taken is not None
     assert taken.turns == base.turns and len(taken.events) == 6
     assert [c.status for c in taken.confirmations] == ["invalidated", "confirmed"]
     assert taken.usage == base.usage and taken.timings == ()
     assert "secret" not in build_export(taken).model_dump_json()
-    assert await store.snapshot(SessionId("nope"), versions=VERSIONS, taken_at=NOW) is None
+    assert await store.snapshot(SessionId("nope"), versions=STAMP, taken_at=NOW) is None
 
 
 def test_retrieval_events_come_from_journaled_sources() -> None:

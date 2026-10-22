@@ -9,9 +9,9 @@ from cafe_norte.domain.contracts import SessionId, SessionState
 from cafe_norte.knowledge.contracts import TOPIC_DOCS, Chunk, RetrievedChunk
 from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.persistence.memory import MemoryStore
-from tests.test_handlers import CONFIG, CONFIGS, args, context, full_record
+from tests.support.builders import CONFIG, CONFIGS, SID, full_record
+from tests.support.tools import args, context
 
-SID = SessionId("s")
 HOURS = RetrievedChunk(
     chunk=Chunk(
         chunk_id="offer_chamberi#horas",

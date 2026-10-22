@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import ConfigId
 from cafe_norte.knowledge.contracts import Chunk, Document
 from cafe_norte.knowledge.loader import MAX_CHUNK_WORDS, chunk_document, load_documents, slugify
-from tests.support import CONFIG_DIR, ROOT
+from tests.support import ROOT
+from tests.support.builders import CONFIGS
 
 KB_DIR = ROOT / "kb"
 FRONT = """---
@@ -86,14 +86,14 @@ def test_the_kb_has_twelve_documents_with_unique_short_chunks() -> None:
 
 def test_each_configuration_lists_exactly_the_documents_that_allow_it() -> None:
     documents = load_documents(KB_DIR)
-    for configuration in load_configurations(CONFIG_DIR).values():
+    for configuration in CONFIGS.values():
         allowing = {d.doc_id for d in documents if configuration.config_id in d.config_ids}
         assert allowing == set(configuration.kb_doc_ids), configuration.config_id
 
 
 def test_offer_and_store_documents_state_the_configured_hours_and_shifts() -> None:
     by_id = {d.doc_id: d for d in load_documents(KB_DIR)}
-    for configuration in load_configurations(CONFIG_DIR).values():
+    for configuration in CONFIGS.values():
         store = configuration.config_id.split("_")[0]
         offer, place = by_id[f"offer_{store}"].body, by_id[f"store_{store}"].body
         assert f"{configuration.hours_per_week} horas" in offer

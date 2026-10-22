@@ -11,8 +11,8 @@ from cafe_norte.domain.contracts import SessionId
 from cafe_norte.model.contracts import ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.persistence.memory import MemoryStore
-from tests.support import build_test_app
-from tests.test_api_tracer import read_turn
+from tests.support.app import build_test_app
+from tests.support.http import read_turn
 
 SESSION = {"config_id": "chamberi_barista_v1", "language": "es", "channel": "text"}
 

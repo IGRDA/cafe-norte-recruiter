@@ -11,8 +11,8 @@ from cafe_norte.domain.contracts import SessionId
 from cafe_norte.model.contracts import ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.voice.fake import FakeRooms, FakeVoiceController
-from tests.support import build_test_app
-from tests.test_api_tracer import create_session
+from tests.support.app import build_test_app
+from tests.support.http import create_session
 
 
 @pytest.fixture

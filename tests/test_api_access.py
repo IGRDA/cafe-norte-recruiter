@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from cafe_norte.model.contracts import ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
-from tests.support import build_test_app
+from tests.support.app import build_test_app
 
 SESSION = {"config_id": "chamberi_barista_v1", "language": "es", "channel": "text"}
 

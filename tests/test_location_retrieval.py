@@ -5,14 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.knowledge.contracts import TOPIC_DOCS, RetrievalQuery
 from cafe_norte.knowledge.hybrid import HybridRetriever
 from cafe_norte.knowledge.index import lexical_index
 from cafe_norte.knowledge.loader import load_documents
-from tests.support import CONFIG_DIR, ROOT
+from tests.support import ROOT
+from tests.support.builders import CONFIGS
 
-CONFIGS = load_configurations(CONFIG_DIR)
 KB_VERSION = next(iter(CONFIGS.values())).kb_version
 RETRIEVER = HybridRetriever(
     lexical_index(load_documents(Path(ROOT / "kb")), kb_version=KB_VERSION), None

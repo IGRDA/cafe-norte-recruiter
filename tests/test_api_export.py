@@ -14,8 +14,8 @@ from cafe_norte.observability.contracts import Price, PriceTable
 from cafe_norte.observability.cost import estimate
 from cafe_norte.persistence.export import ExportDocument
 from cafe_norte.persistence.memory import MemoryStore
-from tests.support import build_test_app
-from tests.test_api_tracer import ANSWER_TURN, OPENING_EVENTS, TOOL_TURN, create_session, read_turn
+from tests.support.app import build_test_app
+from tests.support.http import ANSWER_TURN, OPENING_EVENTS, TOOL_TURN, create_session, read_turn
 
 PRICED = partial(
     estimate,

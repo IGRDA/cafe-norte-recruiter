@@ -10,21 +10,18 @@ from cafe_norte.domain.candidate import (
     unfinished_fields,
     validate_patch,
 )
-from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import (
     CandidatePatch,
     CandidateRecord,
     Captured,
-    ConfigId,
     Declined,
     Evidence,
     TurnId,
     Unknown,
 )
 from cafe_norte.domain.result import Err, Ok
-from tests.support import CONFIG_DIR
+from tests.support.builders import CONFIG
 
-CONFIG = load_configurations(CONFIG_DIR)[ConfigId("chamberi_barista_v1")]
 TODAY = date(2026, 10, 20)
 EVIDENCE = Evidence(source_turn_id=TurnId("t1"), text="me llamo Lucía")
 

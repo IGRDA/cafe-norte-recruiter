@@ -2,11 +2,10 @@
 per session, the same key returning the same booking. Runs against every ``Store``."""
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
-from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import (
     CandidateRecord,
     ConfigId,
@@ -22,10 +21,8 @@ from cafe_norte.domain.contracts import (
 from cafe_norte.errors import ServiceError
 from cafe_norte.persistence.contracts import Store
 from cafe_norte.persistence.seed import seed_calendar
-from tests.support import CONFIG_DIR
+from tests.support.builders import CONFIGS, NOW
 
-NOW = datetime(2026, 10, 20, 10, tzinfo=UTC)
-CONFIGS = load_configurations(CONFIG_DIR)
 CHAMBERI = ConfigId("chamberi_barista_v1")
 
 

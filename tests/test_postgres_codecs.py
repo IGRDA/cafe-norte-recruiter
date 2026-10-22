@@ -2,7 +2,7 @@
 row unchanged. Offline; the SQL that carries the rows is exercised by the contract on Postgres."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from hypothesis import given
 from hypothesis import strategies as st
@@ -21,8 +21,8 @@ from cafe_norte.domain.contracts import (
 from cafe_norte.observability.contracts import StageTiming, UsageRecord
 from cafe_norte.persistence.contracts import EventRecord, TurnRecord
 from cafe_norte.persistence.postgres import codecs
+from tests.support.builders import NOW
 
-NOW = datetime(2026, 10, 20, 10, tzinfo=UTC)
 text = st.text(min_size=1, max_size=20)
 instants = st.integers(min_value=0, max_value=10**7).map(lambda s: NOW + timedelta(seconds=s))
 

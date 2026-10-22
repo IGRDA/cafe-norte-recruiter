@@ -10,8 +10,6 @@ from hypothesis import strategies as st
 
 from cafe_norte.conversation.brief import slot_time
 from cafe_norte.domain.calendar import interview_slots
-from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import ConfigId
 from cafe_norte.domain.numbers import spelled
 from cafe_norte.domain.slot_choice import (
     LAST,
@@ -25,7 +23,7 @@ from cafe_norte.domain.slot_choice import (
     read_slot_words,
 )
 from cafe_norte.errors import Language
-from tests.support import CONFIG_DIR
+from tests.support.builders import CONFIG
 
 WEEKDAY_NAMES: dict[Language, list[str]] = {
     "es": "lunes martes miércoles jueves viernes sábado domingo".split(),
@@ -214,7 +212,6 @@ def test_filler_words_say_nothing_about_a_slot(fillers: list[str]) -> None:
 # ---- choosing among the slots offered ------------------------------------------------------------
 
 MADRID = ZoneInfo("Europe/Madrid")
-CHAMBERI = load_configurations(CONFIG_DIR)[ConfigId("chamberi_barista_v1")]
 TODAY = date(2026, 10, 20)  # a Tuesday
 TUE_17 = datetime(2026, 10, 20, 17, 0)
 WED_1030 = datetime(2026, 10, 21, 10, 30)
@@ -354,7 +351,7 @@ def offers(draw: st.DrawFn) -> tuple[datetime, tuple[datetime, ...]]:
     """An instant and up to three distinct slots of the real calendar after it, in order,
     in local time."""
     after = draw(instants)
-    calendar = [s.starts_at_utc for s in interview_slots(CHAMBERI, after=after)]
+    calendar = [s.starts_at_utc for s in interview_slots(CONFIG, after=after)]
     assume(calendar)
     picked = draw(st.lists(st.sampled_from(calendar), min_size=1, max_size=3, unique=True))
     return after, tuple(sorted(t.astimezone(MADRID).replace(tzinfo=None) for t in picked))
@@ -366,7 +363,7 @@ def test_any_slot_said_back_as_ana_says_it_is_chosen(
 ) -> None:
     after, offered = offer
     index = data.draw(st.integers(0, len(offered) - 1))
-    said = slot_time(offered[index].replace(tzinfo=MADRID), CHAMBERI, language)
+    said = slot_time(offered[index].replace(tzinfo=MADRID), CONFIG, language)
     today = after.astimezone(MADRID).date()
     choice = choose_slot(read_slot_words(said), offered, today=today)
     assert choice == Chosen(index=index), said

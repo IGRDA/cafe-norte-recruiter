@@ -1,7 +1,7 @@
 """What is specific to the in-memory store: its deferred-apply transactions. The shared
 behaviour is in ``test_store_contract.py`` and ``test_calendar_contract.py``."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
@@ -19,8 +19,7 @@ from cafe_norte.domain.contracts import (
 )
 from cafe_norte.errors import ServiceError
 from cafe_norte.persistence.memory import MemoryStore
-
-NOW = datetime(2026, 10, 20, 10, tzinfo=UTC)
+from tests.support.builders import NOW
 
 
 def confirmation(cid: str) -> Confirmation:

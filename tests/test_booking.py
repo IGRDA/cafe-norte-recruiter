@@ -5,7 +5,6 @@ from zoneinfo import ZoneInfo
 
 from cafe_norte.domain.booking import idempotency_key, reservation_allowed, slot_offerable
 from cafe_norte.domain.calendar import interview_slots
-from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import (
     Booking,
     BriefTarget,
@@ -22,12 +21,10 @@ from cafe_norte.domain.contracts import (
     TurnId,
 )
 from cafe_norte.domain.result import Err, Ok
-from tests.support import CONFIG_DIR
+from tests.support.builders import CONFIGS, NOW
 
-CONFIGS = load_configurations(CONFIG_DIR)
 CHAMBERI = CONFIGS[ConfigId("chamberi_barista_v1")]
 ARGANZUELA = CONFIGS[ConfigId("arganzuela_barista_v1")]
-NOW = datetime(2026, 10, 20, 10, tzinfo=UTC)  # a Tuesday
 MADRID = ZoneInfo("Europe/Madrid")
 INTENT = Evidence(source_turn_id=TurnId("t7"), text="Sí, quiero entrevista.")
 

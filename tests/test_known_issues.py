@@ -20,10 +20,10 @@ from cafe_norte.domain.confirmation import assurance
 from cafe_norte.domain.contracts import TurnId
 from cafe_norte.model.contracts import ModelEvent, ModelMessage, ModelText, ToolCall, ToolSchema
 from cafe_norte.model.fake import FakeModel
-from tests.test_runtime import (
+from tests.support.builders import SESSION
+from tests.support.harness import (
     DATE_CALL,
     FRI_1030,
-    SESSION,
     STOP,
     WANTS_TOOLS,
     Harness,
@@ -35,7 +35,7 @@ from tests.test_runtime import (
     turn,
     with_slots_offered,
 )
-from tests.test_voice_session import FakeRuntime, Recorder, finished, say, session
+from tests.support.voice import FakeRuntime, Recorder, finished, say, session
 
 
 @pytest.mark.parametrize(

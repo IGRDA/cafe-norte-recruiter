@@ -2,8 +2,8 @@
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
-from datetime import UTC, datetime, timedelta
+from collections.abc import AsyncGenerator
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 import pytest
@@ -14,7 +14,6 @@ from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
     SignalAnalysis,
-    SignalAnalyzer,
     SignalRecorded,
     StateUpdated,
     ToolFinished,
@@ -25,32 +24,25 @@ from cafe_norte.conversation.contracts import (
     TurnStarted,
     UiAnswer,
 )
-from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.readback import review_parts
-from cafe_norte.conversation.registry import ToolRegistry
-from cafe_norte.conversation.runtime import Limits, Runtime, conversation_tail
+from cafe_norte.conversation.runtime import Limits, conversation_tail
 from cafe_norte.conversation.signals import ModelSignalAnalyzer
 from cafe_norte.domain import confirmation
-from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import (
-    ConfigId,
     Confirmation,
     ConfirmationId,
     FieldTarget,
     InputId,
     SessionId,
-    SessionState,
     Signal,
     SlotId,
     SlotTarget,
     TurnId,
 )
 from cafe_norte.errors import Language
-from cafe_norte.knowledge.fake import FakeRetriever
 from cafe_norte.model.contracts import (
     ModelError,
     ModelEvent,
-    ModelFinished,
     ModelMessage,
     ModelText,
     ModelUsage,
@@ -59,108 +51,26 @@ from cafe_norte.model.contracts import (
 )
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.observability.contracts import StructuredEvent, UsageRecord
-from cafe_norte.observability.fakes import RecordedSpan, RecordingTelemetry
-from cafe_norte.persistence.memory import MemoryStore
-from cafe_norte.persistence.seed import seed_calendar
-from tests.support import CONFIG_DIR
-
-SESSION = SessionId("s1")
-NOW = datetime(2026, 10, 20, 10, 0, tzinfo=UTC)
-STOP = ModelFinished(reason="stop")
-WANTS_TOOLS = ModelFinished(reason="tool_calls")
-
-
-def says(*parts: str) -> list[ModelEvent]:
-    return [*(ModelText(text=p) for p in parts), STOP]
-
-
-def name_call(call_id: str = "c1", name: str = "Lucía") -> ToolCall:
-    return ToolCall(
-        call_id=call_id,
-        name="update_candidate",
-        arguments_json=json.dumps({"patch": {"name": name}, "evidence_text": f"Soy {name}"}),
-    )
-
-
-def turn(text: str, input_id: str = "in-1") -> TurnInput:
-    return TurnInput(
-        session_id=SESSION,
-        input_id=InputId(input_id),
-        text=text,
-        channel="text",
-        received_at=NOW,
-    )
-
-
-class SlowFirst(FakeModel):
-    """The first ``slow_calls`` model calls say nothing for a second, as a slow provider does;
-    nothing of them is consumed, so the retry replays the same script."""
-
-    def __init__(self, scripts: Sequence[Sequence[ModelEvent]], slow_calls: int) -> None:
-        super().__init__(scripts)
-        self.slow_left = slow_calls
-        self.attempts = 0
-
-    async def stream(
-        self, messages: tuple[ModelMessage, ...], tools: tuple[Any, ...], *, deadline: datetime
-    ) -> AsyncGenerator[ModelEvent, None]:
-        self.attempts += 1
-        if self.slow_left:
-            self.slow_left -= 1
-            await asyncio.sleep(1)
-        async for event in super().stream(messages, tools, deadline=deadline):
-            yield event
-
-
-class Harness:
-    def __init__(
-        self,
-        scripts: Sequence[Sequence[ModelEvent]],
-        *,
-        limits: Limits | None = None,
-        signals: SignalAnalyzer | None = None,
-        store: MemoryStore | None = None,
-        slow_calls: int = 0,
-        on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
-        clock: Callable[[], datetime] | None = None,
-        model: FakeModel | None = None,
-    ):
-        self.store = store or MemoryStore()
-        self.telemetry = RecordingTelemetry()
-        configurations = load_configurations(CONFIG_DIR)
-        self.model = model or (SlowFirst(scripts, slow_calls) if slow_calls else FakeModel(scripts))
-        self.runtime = Runtime(
-            model=self.model,
-            tools=ToolRegistry(
-                all_handlers(
-                    store=self.store, configurations=configurations, retriever=FakeRetriever()
-                )
-            ),
-            store=self.store,
-            configurations=configurations,
-            signals=signals,
-            limits=limits or Limits(),
-            owner="test",
-            clock=clock or (lambda: NOW),
-            on_closed=on_closed,
-            telemetry=self.telemetry,
-        )
-
-    async def open_session(self, language: Language = "es") -> None:
-        await self.store.sessions.create(
-            SessionState(
-                session_id=SESSION,
-                config_id=ConfigId("chamberi_barista_v1"),
-                config_version="1",
-                language=language,
-                channel="text",
-                created_at=NOW,
-            ),
-            access_hash="",
-        )
-
-    async def run(self, text: str, input_id: str = "in-1") -> list[RuntimeEvent]:
-        return [event async for event in self.runtime.run_turn(turn(text, input_id))]
+from cafe_norte.observability.fakes import RecordedSpan
+from tests.support.builders import CONFIG, NOW, SESSION, full_record
+from tests.support.harness import (
+    DATE_CALL,
+    FRI_17,
+    FRI_1030,
+    STOP,
+    TUE_17,
+    WANTS_TOOLS,
+    WED_1030,
+    Harness,
+    SlowFirst,
+    fill_record,
+    name_call,
+    present_brief,
+    says,
+    slots_offered,
+    turn,
+    with_slots_offered,
+)
 
 
 async def test_the_candidate_state_is_committed_before_the_state_update_is_yielded() -> None:
@@ -630,24 +540,6 @@ async def test_a_question_before_the_tool_call_silences_the_round_after_it() -> 
     assert any(isinstance(e, StateUpdated) for e in events)  # the tool call still ran
 
 
-def present_brief(call_id: str = "p1") -> ToolCall:
-    return ToolCall(
-        call_id=call_id, name="present_confirmation", arguments_json='{"target": "brief"}'
-    )
-
-
-async def fill_record(h: Harness) -> None:
-    from tests.test_handlers import FULL, full_record
-
-    _ = FULL
-    state = await h.store.sessions.get(SESSION)
-    assert state is not None
-    async with h.store.transaction() as tx:
-        await h.store.sessions.save(
-            tx, state.model_copy(update={"candidate": full_record()}), expected_revision=0
-        )
-
-
 async def test_a_presentation_is_spoken_verbatim_before_tool_finished_and_marked_delivered() -> (
     None
 ):
@@ -1042,15 +934,6 @@ async def test_resume_of_an_ended_or_unknown_session_fails_without_speaking() ->
 
 
 # ---- plain answers to a read-back, resolved by the runtime ---------------------------------------
-
-
-DATE_CALL = ToolCall(
-    call_id="d1",
-    name="update_candidate",
-    arguments_json=json.dumps(
-        {"patch": {"earliest_start_date": "2026-11-02"}, "evidence_text": "El 2 de noviembre"}
-    ),
-)
 
 
 def with_date_read_back(*then: list[ModelEvent]) -> Harness:
@@ -1514,44 +1397,6 @@ def test_the_latest_message_is_kept_even_when_it_alone_exceeds_the_budget() -> N
 
 # ---- choosing a slot, resolved by the runtime (D41) ----------------------------------------------
 
-TUE_17 = SlotId("chamberi_barista_v1-2026-10-20-1700")
-WED_1030 = SlotId("chamberi_barista_v1-2026-10-21-1030")
-FRI_1030 = SlotId("chamberi_barista_v1-2026-10-23-1030")
-FRI_17 = SlotId("chamberi_barista_v1-2026-10-23-1700")
-
-
-def offer_call(date_preference: str | None = None) -> ToolCall:
-    payload = {"evidence_text": "Sí, quiero entrevista."}
-    if date_preference is not None:
-        payload["date_preference"] = date_preference
-    return ToolCall(call_id="o1", name="list_interview_slots", arguments_json=json.dumps(payload))
-
-
-def with_slots_offered(*then: list[ModelEvent], date_preference: str | None = None) -> Harness:
-    """Turn in-1 offers the slots, as the model does when the candidate asks for an interview;
-    the scripts after it are the model's next turns. This model never presents a slot itself
-    (KI-06): whatever is read back, the runtime read back."""
-    return Harness(
-        [[offer_call(date_preference), WANTS_TOOLS], says(""), *then],
-        store=MemoryStore(clock=lambda: NOW),
-    )
-
-
-async def slots_offered(h: Harness) -> None:
-    """Calendar seeded, brief confirmed, then the offer in turn in-1."""
-    await h.open_session()
-    await seed_calendar(h.store, load_configurations(CONFIG_DIR), now=NOW)
-    await fill_record(h)
-    state = await h.store.sessions.get(SESSION)
-    assert state is not None
-    async with h.store.transaction() as tx:
-        await h.store.sessions.save(
-            tx,
-            state.model_copy(update={"brief_confirmed_revision": state.candidate.revision}),
-            expected_revision=state.candidate.revision,
-        )
-    await h.run("Sí, quiero entrevista.", "in-1")
-
 
 async def pending_slot(h: Harness) -> SlotId | None:
     state = await h.store.sessions.get(SESSION)
@@ -1811,7 +1656,6 @@ async def test_a_no_over_the_cut_summary_rejects_it() -> None:
 
 
 async def test_going_over_it_each_part_is_said_and_heard_by_its_own_playback() -> None:
-    from tests.test_handlers import CONFIG, full_record
 
     parts = review_parts(render_brief(full_record(), CONFIG, "es"), "es")
     h = await cut_summary(says(OFFER), *[says("")] * len(parts), says("¿Alguna duda?"))

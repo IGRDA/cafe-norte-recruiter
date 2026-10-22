@@ -9,9 +9,9 @@ from fastapi.testclient import TestClient
 
 from cafe_norte.api.contracts import SessionSnapshotResponse
 from cafe_norte.model.fake import FakeModel
-from tests.support import build_test_app
-from tests.test_api_tracer import OPENING_EVENTS, create_session, read_turn
-from tests.test_runtime import DATE_CALL, WANTS_TOOLS, says
+from tests.support.app import build_test_app
+from tests.support.harness import DATE_CALL, WANTS_TOOLS, says
+from tests.support.http import OPENING_EVENTS, create_session, read_turn
 
 
 @pytest.fixture

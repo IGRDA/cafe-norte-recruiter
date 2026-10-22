@@ -8,7 +8,7 @@ from evals.scorers import run_check
 
 from cafe_norte.domain.contracts import ConfigId
 from cafe_norte.model.fake import FakeModel
-from tests.support import build_test_app
+from tests.support.app import build_test_app
 
 
 async def test_a_scripted_scenario_scores_the_same_live_and_fake() -> None:

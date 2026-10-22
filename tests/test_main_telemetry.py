@@ -10,7 +10,7 @@ from cafe_norte.persistence.export import ExportDocument
 from cafe_norte.voice.contracts import STT_MODEL, TTS_MODEL
 from cafe_norte.voice.pipeline import stt_settings, tts_settings
 from tests.support import CONFIG_DIR, ROOT
-from tests.test_api_tracer import OPENING_EVENTS, create_session, read_turn
+from tests.support.http import OPENING_EVENTS, create_session, read_turn
 
 
 def test_hosted_voice_names_its_models_and_voice_in_the_stamp() -> None:

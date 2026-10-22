@@ -24,19 +24,14 @@ from cafe_norte.conversation.contracts import (
 )
 from cafe_norte.conversation.prompt import sentences
 from cafe_norte.conversation.readback import review_parts
-from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import InputId, SessionState
 from cafe_norte.model.contracts import ModelEvent, ModelMessage, ModelText, ToolCall, ToolSchema
 from cafe_norte.model.fake import FakeModel
 from cafe_norte.persistence.export import build_export
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
-from tests.support import CONFIG_DIR
-from tests.test_export import VERSIONS
-from tests.test_handlers import CONFIG, full_record
-from tests.test_runtime import (
-    NOW,
-    SESSION,
+from tests.support.builders import CONFIG, CONFIGS, NOW, SESSION, STAMP, full_record
+from tests.support.harness import (
     WANTS_TOOLS,
     Harness,
     fill_record,
@@ -196,7 +191,7 @@ async def opened(kind: Kind) -> Harness:
     await h.open_session()
     await fill_record(h)
     if kind == "slot":
-        await seed_calendar(h.store, load_configurations(CONFIG_DIR), now=NOW)
+        await seed_calendar(h.store, CONFIGS, now=NOW)
         state = await h.store.sessions.get(SESSION)
         assert state is not None
         async with h.store.transaction() as tx:
@@ -246,7 +241,7 @@ async def test_a_read_back_cut_anywhere_settles_as_its_path_says(
     assert line is None, "the read-back did not settle"
     assert not [e for e in events if isinstance(e, TurnFailed)]
 
-    snapshot = await h.store.snapshot(SESSION, versions=VERSIONS, taken_at=NOW)
+    snapshot = await h.store.snapshot(SESSION, versions=STAMP, taken_at=NOW)
     assert snapshot is not None
     document = build_export(snapshot)
     final = document.confirmations[-1]

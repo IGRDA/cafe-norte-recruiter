@@ -13,7 +13,7 @@ from evals.runner import load_scenarios, main, script_events
 
 from cafe_norte.domain.contracts import ConfigId
 from cafe_norte.model.fake import FakeModel
-from tests.support import build_test_app
+from tests.support.app import build_test_app
 
 
 def test_the_loopback_app_gets_the_model_a_memory_store_and_no_gate() -> None:

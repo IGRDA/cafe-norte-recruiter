@@ -7,24 +7,8 @@ import pytest
 
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.brief import field_readback, render_brief
-from cafe_norte.domain.candidate import apply_patch
-from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import (
-    CandidatePatch,
-    CandidateRecord,
-    ConfigId,
-    Evidence,
-    TurnId,
-)
 from cafe_norte.errors import Language
-from tests.support import CONFIG_DIR
-
-CONFIG = load_configurations(CONFIG_DIR)[ConfigId("chamberi_barista_v1")]
-EVIDENCE = Evidence(source_turn_id=TurnId("t"), text="…")
-
-
-def record(**fields: object) -> CandidateRecord:
-    return apply_patch(CandidateRecord(), CandidatePatch(**fields), EVIDENCE)
+from tests.support.builders import CONFIG, record
 
 
 def test_the_s01_record_renders_as_short_spoken_sentences() -> None:

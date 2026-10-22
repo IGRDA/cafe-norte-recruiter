@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from cafe_norte.domain.contracts import SessionId
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.retention import purge_expired, purge_periodically
-from tests.test_store_contract import state
+from tests.support.builders import session_state
 
 NOW = datetime(2026, 10, 20, tzinfo=UTC)
 
@@ -17,7 +17,7 @@ async def seeded() -> MemoryStore:
     store = MemoryStore()
     for session_id, age in (("a", 10), ("b", 8), ("c", 6), ("d", 0)):
         await store.sessions.create(
-            state(session_id=SessionId(session_id)).model_copy(
+            session_state(SessionId(session_id)).model_copy(
                 update={"created_at": NOW - timedelta(days=age)}
             ),
             access_hash="",

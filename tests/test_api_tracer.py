@@ -5,58 +5,15 @@ the browser sees: turn started, tool started and finished, state updated with th
 name, the answer sentence by sentence, turn finished. All offline, scripted model, memory store.
 """
 
-import json
 from collections.abc import Iterator
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
-from cafe_norte.model.contracts import ModelEvent, ModelFinished, ModelText, ModelUsage, ToolCall
+from cafe_norte.model.contracts import ModelFinished, ModelText, ToolCall
 from cafe_norte.model.fake import FakeModel
-from tests.support import build_test_app
-
-NAME_CALL = ToolCall(
-    call_id="call_1",
-    name="update_candidate",
-    arguments_json=json.dumps(
-        {"patch": {"name": "Lucía Marín"}, "evidence_text": "Me llamo Lucía Marín"}
-    ),
-)
-TOOL_TURN: list[ModelEvent] = [
-    NAME_CALL,
-    ModelUsage(input_tokens=120, output_tokens=9, model_id="fake"),
-    ModelFinished(reason="tool_calls"),
-]
-ANSWER_TURN: list[ModelEvent] = [
-    ModelText(text="Encantada, Lucía. "),
-    ModelText(text="¿Te interesa el puesto de barista?"),
-    ModelUsage(input_tokens=120, output_tokens=14, model_id="fake"),
-    ModelFinished(reason="stop"),
-]
-
-
-def read_turn(client: TestClient, session_id: str, *, after: int = 0) -> list[dict[str, Any]]:
-    """Collect SSE events for one turn: everything until ``turn_finished`` or ``turn_failed``."""
-    headers = {"Last-Event-ID": str(after)} if after else {}
-    seen: list[dict[str, Any]] = []
-    with client.stream("GET", f"/api/sessions/{session_id}/events", headers=headers) as response:
-        assert response.status_code == 200
-        assert response.headers["content-type"].startswith("text/event-stream")
-        event: dict[str, Any] = {}
-        for line in response.iter_lines():
-            if line.startswith("id: "):
-                event["seq"] = int(line[4:])
-            elif line.startswith("event: "):
-                event["type"] = line[7:]
-            elif line.startswith("data: "):
-                event["data"] = json.loads(line[6:])
-            elif line == "" and event:
-                seen.append(event)
-                if event["type"] in {"turn_finished", "turn_failed"}:
-                    return seen
-                event = {}
-    return seen
+from tests.support.app import build_test_app
+from tests.support.http import ANSWER_TURN, OPENING_EVENTS, TOOL_TURN, create_session, read_turn
 
 
 @pytest.fixture
@@ -68,24 +25,6 @@ def model() -> FakeModel:
 def client(model: FakeModel) -> Iterator[TestClient]:
     with TestClient(build_test_app(model=model)) as client:
         yield client
-
-
-def create_session(client: TestClient) -> str:
-    response = client.post(
-        "/api/sessions",
-        json={"config_id": "chamberi_barista_v1", "language": "es", "channel": "text"},
-    )
-    assert response.status_code == 201, response.text
-    assert "cafe_norte_session" in response.cookies
-    session_id = str(response.json()["session_id"])
-    opening = read_turn(client, session_id)
-    assert [e["type"] for e in opening] == ["turn_started", "assistant_text", "turn_finished"]
-    assert opening[0]["data"]["payload"]["text"] == ""  # Ana opens; nobody spoke yet
-    assert opening[1]["data"]["payload"]["text"].startswith("Hola, soy Ana, la asistente de IA")
-    return session_id
-
-
-OPENING_EVENTS = 3
 
 
 def test_a_name_is_captured_persisted_and_then_announced(

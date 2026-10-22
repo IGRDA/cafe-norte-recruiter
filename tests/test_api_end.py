@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 from cafe_norte.api.contracts import SessionSnapshotResponse
 from cafe_norte.domain.lifecycle import is_terminal
 from cafe_norte.model.fake import FakeModel
-from tests.support import build_test_app
-from tests.test_api_tracer import create_session
+from tests.support.app import build_test_app
+from tests.support.http import create_session
 
 
 def snapshot(client: TestClient, session_id: str) -> SessionSnapshotResponse:

@@ -22,7 +22,9 @@ Beyond the table, the suite has: the import-rule check, field algebra properties
 and application, configuration loading, the store contract on both stores, the registry, the
 runtime's turn behaviour, SSE encoding and heartbeat, cookie ownership, the Groq adapter
 against a scripted transport, the handlers (including the interview offer, slot read-back and reservation), the confirmation rules, the brief, the explicit controls and the signal classifier (`tests/test_signals.py`, with property tests), the slot-choice matcher (`tests/test_slot_choice.py`, with property tests over the real calendar and Ana's own slot sentences), follow-up flags, the booking conditions and the calendar rule (`tests/test_booking.py`), the calendar contract (`tests/test_calendar_contract.py`), `tests/test_scenarios.py` (every `evals/cases/scenarios/S*.yaml` replayed through `evals.runner.run_fake`) and `tests/test_scorers.py` `tests/test_api_tracer.py`, the HTTP boundary, snapshot, end and confirmation endpoints (`tests/test_api_boundary.py`, `test_api_snapshot.py`, `test_api_end.py`, `test_api_confirmations.py`) and the outside-in acceptance test of
-a whole session through the HTTP boundary. `tests/support.py` builds the app with fakes.
+a whole session through the HTTP boundary. `tests/support/` holds the shared builders, the
+runtime harness and the HTTP and voice helpers (its README lists them); a test module never
+imports another test module.
 `tests/test_infra_settings.py` checks that every hosted plain setting in `infra/app/main.tf` is
 a key of `.env.example`, so a misspelled one cannot be silently ignored.
 

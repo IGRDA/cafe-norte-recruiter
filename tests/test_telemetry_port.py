@@ -5,21 +5,19 @@ from datetime import UTC, datetime
 
 import pytest
 
-from cafe_norte.domain.configuration import load_configurations
-from cafe_norte.domain.contracts import ConfigId, SessionId, TurnId
+from cafe_norte.domain.contracts import SessionId, TurnId
 from cafe_norte.observability.contracts import Span, StructuredEvent, Telemetry
 from cafe_norte.observability.events import StdoutTelemetry
 from cafe_norte.observability.fakes import NullTelemetry, RecordingTelemetry
-from tests.support import CONFIG_DIR
+from tests.support.builders import CONFIG
 
-CONFIGURATION = load_configurations(CONFIG_DIR)[ConfigId("chamberi_barista_v1")]
 SID = SessionId("s1")
 TID = TurnId("t1")
 
 
 def open_turn(telemetry: Telemetry) -> Span:
     return telemetry.turn(
-        session_id=SID, turn_id=TID, configuration=CONFIGURATION, channel="text", language="es"
+        session_id=SID, turn_id=TID, configuration=CONFIG, channel="text", language="es"
     )
 
 

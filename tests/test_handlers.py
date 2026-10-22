@@ -1,6 +1,5 @@
 """Tool handlers: the domain decides, the store commits, the model is told what to do next."""
 
-import json
 import uuid
 from datetime import UTC, date, datetime
 
@@ -21,15 +20,12 @@ from cafe_norte.conversation.handlers import (
     UpdateCandidateHandler,
 )
 from cafe_norte.conversation.readback import review_parts
-from cafe_norte.conversation.tools import ARGUMENT_MODELS, ToolName
 from cafe_norte.domain.candidate import apply_patch
-from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import (
     BriefTarget,
     CandidatePatch,
     CandidateRecord,
     Captured,
-    ConfigId,
     Confirmation,
     ConfirmationId,
     Evidence,
@@ -48,33 +44,8 @@ from cafe_norte.errors import ServiceError
 from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.persistence.memory import MemoryStore
 from cafe_norte.persistence.seed import seed_calendar
-from tests.support import CONFIG_DIR
-
-CONFIGS = load_configurations(CONFIG_DIR)
-CONFIG = CONFIGS[ConfigId("chamberi_barista_v1")]
-SID = SessionId("s")
-NOW = datetime(2026, 10, 20, 10, tzinfo=UTC)
-EVIDENCE = Evidence(source_turn_id=TurnId("t0"), text="…")
-FULL = CandidatePatch(
-    name="Lucía Marín",
-    interest="yes",
-    work_authorization="yes",
-    availability_days=frozenset({"mon", "tue", "thu"}),
-    availability_shifts=frozenset({"morning"}),
-    hours_per_week=30,
-    earliest_start_date=date(2026, 10, 26),
-    experience="dos años en una cafetería",
-)
-
-
-def context(turn: str = "t1") -> ToolContext:
-    return ToolContext(
-        session_id=SID, turn_id=TurnId(turn), now=NOW, language="es", lease_generation=None
-    )
-
-
-def args(name: ToolName, **payload: object) -> BaseModel:
-    return ARGUMENT_MODELS[name].model_validate_json(json.dumps(payload, default=str))
+from tests.support.builders import CONFIG, CONFIGS, EVIDENCE, NOW, SID, full_record
+from tests.support.tools import args, context
 
 
 class World:
@@ -146,10 +117,6 @@ class World:
                 state.model_copy(update={"pending_confirmation": pending}),
                 expected_revision=state.candidate.revision,
             )
-
-
-def full_record() -> CandidateRecord:
-    return apply_patch(CandidateRecord(), FULL, EVIDENCE)
 
 
 async def test_the_brief_is_refused_until_every_requested_field_is_settled() -> None:

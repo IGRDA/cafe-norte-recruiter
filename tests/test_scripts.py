@@ -7,7 +7,7 @@ from scripts import set_secrets, smoke
 
 from cafe_norte.model.contracts import ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel
-from tests.support import build_test_app
+from tests.support.app import build_test_app
 
 
 def app(code: str | None) -> FastAPI:

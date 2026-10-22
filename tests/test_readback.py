@@ -29,7 +29,7 @@ from cafe_norte.domain.contracts import (
     TurnId,
 )
 from cafe_norte.errors import Language
-from tests.test_brief import CONFIG, record
+from tests.support.builders import CONFIG, record
 
 LUCIA = record(
     name="Lucía Marín",

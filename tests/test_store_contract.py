@@ -3,51 +3,27 @@ fixture of ``conftest.py``. Only port methods are used; nothing implementation-s
 
 import asyncio
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
 from cafe_norte.domain.contracts import (
-    CandidateRecord,
     ConfigId,
     Confirmation,
     ConfirmationId,
     InputId,
     InterviewSlot,
     SessionId,
-    SessionState,
     SlotId,
     SlotTarget,
     TurnId,
 )
 from cafe_norte.errors import ServiceError
-from cafe_norte.observability.contracts import StageTiming, UsageRecord, VersionStamp
+from cafe_norte.observability.contracts import StageTiming, UsageRecord
 from cafe_norte.persistence.contracts import EventRecord, Store, TurnRecord
+from tests.support.builders import NOW, STAMP, session_state
 
-NOW = datetime(2026, 10, 20, tzinfo=UTC)
 SID = SessionId("s1")
-VERSIONS = VersionStamp(
-    config_id="c",
-    config_version="1",
-    kb_version="kb1",
-    prompt_version="p",
-    schema_version="1",
-    model_id="fake",
-    voice_id="",
-    commit_sha="local",
-)
-
-
-def state(revision: int = 0, session_id: SessionId = SID) -> SessionState:
-    return SessionState(
-        session_id=session_id,
-        config_id=ConfigId("c"),
-        config_version="1",
-        language="es",
-        channel="text",
-        created_at=NOW,
-        candidate=CandidateRecord(revision=revision),
-    )
 
 
 def turn(input_id: str, role: str = "user") -> TurnRecord:
@@ -68,7 +44,7 @@ def event(seq: int) -> EventRecord:
 
 
 async def created(store: Store) -> Store:
-    await store.sessions.create(state(), access_hash="")
+    await store.sessions.create(session_state(), access_hash="")
     return store
 
 
@@ -99,7 +75,7 @@ async def test_an_exception_inside_the_transaction_rolls_back(store: Store) -> N
 async def test_a_session_is_created_once(store: Store) -> None:
     await created(store)
     with pytest.raises(ServiceError) as twice:
-        await store.sessions.create(state(), access_hash="")
+        await store.sessions.create(session_state(), access_hash="")
     assert twice.value.code == "conflict"
     assert await store.sessions.get(SessionId("unknown")) is None
 
@@ -107,10 +83,10 @@ async def test_a_session_is_created_once(store: Store) -> None:
 async def test_save_is_conditional_on_the_revision_the_writer_saw(store: Store) -> None:
     await created(store)
     async with store.transaction() as tx:
-        await store.sessions.save(tx, state(1), expected_revision=0)
+        await store.sessions.save(tx, session_state(revision=1), expected_revision=0)
     with pytest.raises(ServiceError) as stale:
         async with store.transaction() as tx:
-            await store.sessions.save(tx, state(2), expected_revision=0)
+            await store.sessions.save(tx, session_state(revision=2), expected_revision=0)
     assert stale.value.code == "conflict"
     current = await store.sessions.get(SID)
     assert current is not None and current.candidate.revision == 1
@@ -119,12 +95,12 @@ async def test_save_is_conditional_on_the_revision_the_writer_saw(store: Store) 
 async def test_saving_an_unknown_session_is_not_found(store: Store) -> None:
     with pytest.raises(ServiceError) as missing:
         async with store.transaction() as tx:
-            await store.sessions.save(tx, state(), expected_revision=0)
+            await store.sessions.save(tx, session_state(), expected_revision=0)
     assert missing.value.code == "not_found"
 
 
 async def test_the_state_round_trips_whole(store: Store) -> None:
-    full = state().model_copy(update={"lifecycle": "completed", "outcome": "brief_only"})
+    full = session_state().model_copy(update={"lifecycle": "completed", "outcome": "brief_only"})
     await store.sessions.create(full, access_hash="h")
     assert await store.sessions.get(SID) == full
 
@@ -204,7 +180,7 @@ async def test_a_duplicate_sequence_number_conflicts(store: Store) -> None:
 
 
 async def test_snapshot_is_none_for_an_unknown_session(store: Store) -> None:
-    assert await store.snapshot(SID, versions=VERSIONS, taken_at=NOW) is None
+    assert await store.snapshot(SID, versions=STAMP, taken_at=NOW) is None
 
 
 async def test_snapshot_holds_turns_events_usage_and_timings_of_this_session_only(
@@ -212,7 +188,7 @@ async def test_snapshot_holds_turns_events_usage_and_timings_of_this_session_onl
 ) -> None:
     await created(store)
     other = SessionId("s2")
-    await store.sessions.create(state(session_id=other), access_hash="")
+    await store.sessions.create(session_state(other), access_hash="")
     usage = UsageRecord(
         session_id=SID,
         turn_id=None,
@@ -235,15 +211,15 @@ async def test_snapshot_holds_turns_events_usage_and_timings_of_this_session_onl
         await store.events.record_usage(tx, usage)
         await store.events.record_timing(tx, timing)
         await store.events.append(tx, event(1).model_copy(update={"session_id": other}))
-    snapshot = await store.snapshot(SID, versions=VERSIONS, taken_at=NOW)
+    snapshot = await store.snapshot(SID, versions=STAMP, taken_at=NOW)
     assert snapshot is not None
-    assert snapshot.state == state()
+    assert snapshot.state == session_state()
     assert [t.input_id for t in snapshot.turns] == ["a"]
     assert [e.seq for e in snapshot.events] == [1, 2]
     assert snapshot.usage == (usage,)
     assert snapshot.timings == (timing,)
     assert snapshot.confirmations == ()
-    assert (snapshot.versions, snapshot.taken_at) == (VERSIONS, NOW)
+    assert (snapshot.versions, snapshot.taken_at) == (STAMP, NOW)
 
 
 async def test_check_ready(store: Store) -> None:
@@ -255,7 +231,7 @@ async def test_check_ready(store: Store) -> None:
 
 async def test_next_seq_counts_from_one_per_session_inside_a_transaction(store: Store) -> None:
     await created(store)
-    await store.sessions.create(state(session_id=SessionId("s2")), access_hash="")
+    await store.sessions.create(session_state(SessionId("s2")), access_hash="")
     async with store.transaction() as tx:
         first = await store.sessions.next_seq(tx, SID)
         second = await store.sessions.next_seq(tx, SID)
@@ -331,7 +307,7 @@ async def test_a_write_fenced_on_a_stale_lease_generation_is_a_conflict(store: S
     assert mine is not None
     async with store.transaction() as tx:
         await store.sessions.save(
-            tx, state(1), expected_revision=0, lease_generation=mine.generation
+            tx, session_state(revision=1), expected_revision=0, lease_generation=mine.generation
         )
         assert await store.sessions.next_seq(tx, SID, lease_generation=mine.generation) == 1
     await store.leases.release(mine)
@@ -340,7 +316,7 @@ async def test_a_write_fenced_on_a_stale_lease_generation_is_a_conflict(store: S
     with pytest.raises(ServiceError) as stale_save:
         async with store.transaction() as tx:
             await store.sessions.save(
-                tx, state(2), expected_revision=1, lease_generation=mine.generation
+                tx, session_state(revision=2), expected_revision=1, lease_generation=mine.generation
             )
     assert stale_save.value.code == "conflict"
     with pytest.raises(ServiceError) as stale_seq:
@@ -350,7 +326,7 @@ async def test_a_write_fenced_on_a_stale_lease_generation_is_a_conflict(store: S
     current = await store.sessions.get(SID)
     assert current is not None and current.candidate.revision == 1
     async with store.transaction() as tx:  # unfenced writes still work
-        await store.sessions.save(tx, state(2), expected_revision=1)
+        await store.sessions.save(tx, session_state(revision=2), expected_revision=1)
 
 
 # ---- admission -----------------------------------------------------------------------------------
@@ -359,7 +335,7 @@ async def test_a_write_fenced_on_a_stale_lease_generation_is_a_conflict(store: S
 async def test_at_most_max_active_voice_sessions_and_release_frees_a_place(store: Store) -> None:
     a, b, c = SessionId("a"), SessionId("b"), SessionId("c")
     for session_id in (a, b, c):
-        await store.sessions.create(state(session_id=session_id), access_hash="")
+        await store.sessions.create(session_state(session_id), access_hash="")
     admission = store.admission
     assert await admission.acquire(a, max_active=2, reserve_eur=0.5)
     assert await admission.acquire(b, max_active=2, reserve_eur=0.5)
@@ -373,7 +349,7 @@ async def test_at_most_max_active_voice_sessions_and_release_frees_a_place(store
 async def test_concurrent_admissions_never_exceed_the_cap(store: Store) -> None:
     ids = [SessionId(f"s{i}") for i in range(6)]
     for session_id in ids:
-        await store.sessions.create(state(session_id=session_id), access_hash="")
+        await store.sessions.create(session_state(session_id), access_hash="")
     results = await asyncio.gather(
         *(store.admission.acquire(s, max_active=2, reserve_eur=0.5) for s in ids)
     )
@@ -385,7 +361,7 @@ async def test_concurrent_admissions_never_exceed_the_cap(store: Store) -> None:
 
 async def test_a_resume_token_opens_only_its_session_until_it_expires(store: Store) -> None:
     await created(store)
-    await store.sessions.create(state(session_id=SessionId("s2")), access_hash="")
+    await store.sessions.create(session_state(SessionId("s2")), access_hash="")
     later = NOW + timedelta(days=7)
     await store.resume_tokens.issue(SID, "hash-1", expires_at=later)
     await store.resume_tokens.issue(SessionId("s2"), "hash-2", expires_at=later)
@@ -421,7 +397,7 @@ async def test_the_export_snapshot_is_written_once_per_session_and_read_back(sto
 async def test_expired_lists_the_oldest_sessions_first_up_to_the_limit(store: Store) -> None:
     for session_id, age in (("old", 8), ("older", 9), ("new", 1)):
         await store.sessions.create(
-            state(session_id=SessionId(session_id)).model_copy(
+            session_state(SessionId(session_id)).model_copy(
                 update={"created_at": NOW - timedelta(days=age)}
             ),
             access_hash="",
@@ -449,7 +425,7 @@ async def test_delete_removes_the_session_and_everything_that_belongs_to_it(stor
     await store.sessions.delete(SID)
     assert await store.sessions.get(SID) is None
     assert await store.turns.recent(SID, 10) == ()
-    assert await store.snapshot(SID, versions=VERSIONS, taken_at=NOW) is None
+    assert await store.snapshot(SID, versions=STAMP, taken_at=NOW) is None
     assert await store.exports.read_snapshot(SID) is None
     assert await store.resume_tokens.redeem("hash", now=NOW) is None
     assert await store.calendar.booking_by_key("key") is None

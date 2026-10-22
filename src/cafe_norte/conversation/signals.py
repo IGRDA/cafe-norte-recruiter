@@ -174,16 +174,32 @@ _STILL_TO_DO = frozenset(
     "pero espera cambiar cambio otra otro cancelar mover duda pregunta "
     "but wait change another cancel move actually question".split()
 )
+# What may stand beside a goodbye without saying anything else.
+_FAREWELL_GLUE = frozenset(
+    "vale si no nada mas muchas ana de nuevo por todo a ti igualmente venga perfecto genial "
+    "again so much very for everything you too".split()
+)
 
 
 def is_farewell(text: str) -> bool:
-    """The candidate is closing: a goodbye or thanks, with no question and nothing still to
-    change ("adiós, pero ¿puedo cambiar la hora?" is not one). Only read once the interview is
-    booked, when thanks means the candidate is done. Pure; both languages."""
+    """The candidate is closing: a goodbye or thanks that is the whole utterance, with no
+    question and nothing still to change ("adiós, pero ¿puedo cambiar la hora?" is not one).
+    A clause that says anything else ("no me lo expliques, he vivido por ahí, muchas
+    gracias") leaves it to the model, which can answer before it closes (D46, D59). Only read
+    once the interview is booked, when thanks means the candidate is done. Pure; both
+    languages."""
     if "?" in text:
         return False
-    words = " ".join(_clauses(text))
-    return _without(words, _FAREWELLS)[1] and _STILL_TO_DO.isdisjoint(words.split())
+    clauses = [c for c in _clauses(text) if c.strip()]
+    if not clauses or not _STILL_TO_DO.isdisjoint(" ".join(clauses).split()):
+        return False
+    closing = False
+    for clause in clauses:
+        rest, found = _without(clause, _FAREWELLS)
+        closing = closing or found
+        if not all(w in _FAREWELL_GLUE or w in _FILLERS for w in rest.split()):
+            return False
+    return closing
 
 
 # ---- plain answers to a read-back ----------------------------------------------------------------

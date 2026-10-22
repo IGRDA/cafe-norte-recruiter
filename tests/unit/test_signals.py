@@ -296,13 +296,27 @@ def test_anything_more_than_a_plain_answer_goes_to_the_model(text: str) -> None:
         "No, nada más. Muchas gracias, adiós.",
         "Vale, gracias, nos vemos.",
         "Goodbye, Ana! Thank you again!",
-        "Thank you, Ana! I appreciate your help and I'm looking forward to the interview. Goodbye!",
-        "Thank you, Ana! I'm excited about the opportunity.",  # thanks alone closes too
-        "Gracias, Ana.",
+        "Gracias, Ana.",  # thanks alone closes too
+        "Vale, muchas gracias por todo, hasta pronto.",
     ],
 )
 def test_a_farewell_is_seen_in_both_languages(text: str) -> None:
     assert is_farewell(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sí, no me lo expliques, he vivido por ahí, muchas gracias.",  # live, 22 October
+        "Thank you, Ana! I appreciate your help and I'm looking forward to the interview.",
+        "Gracias, una cosa más, el teléfono es otro.",
+    ],
+)
+def test_thanks_beside_other_words_is_the_models(text: str) -> None:
+    """Live: "muchas gracias" inside a longer sentence closed the call with no model round,
+    and the next four things said failed on an ended session (D59). Only a goodbye that is
+    the whole utterance is the runtime's."""
+    assert not is_farewell(text)
 
 
 @pytest.mark.parametrize(

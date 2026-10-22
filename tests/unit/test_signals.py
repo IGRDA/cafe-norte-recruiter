@@ -11,6 +11,7 @@ from cafe_norte.conversation.signals import (
     SWITCH_THRESHOLD,
     Control,
     answer_to_readback,
+    asks_for_a_language,
     asks_question,
     chosen_language,
     explicit_controls,
@@ -419,3 +420,11 @@ def test_an_answer_is_not_a_question(text: str) -> None:
 )
 def test_asking_to_be_contacted_is_a_request_for_a_person(text: str) -> None:
     assert "human" in explicit_controls(text)
+
+
+def test_any_explicit_language_request_counts_not_only_spanish_and_english() -> None:
+    """The runtime skips the analyzer's suggestion when the candidate asked for a language
+    themselves; before D63 only es/en requests did, so "en francés" lost to a stale verdict."""
+    assert asks_for_a_language(explicit_controls("En francés, por favor."))
+    assert asks_for_a_language(explicit_controls("In English, please."))
+    assert not asks_for_a_language(explicit_controls("Quiero hablar con una persona."))

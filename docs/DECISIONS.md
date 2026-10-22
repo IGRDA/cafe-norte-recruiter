@@ -2310,20 +2310,23 @@ language" would be gone.
 - One prompt. `language.md` is a template with the language's native name, appended last as
   before; `language.es.md` and `language.en.md` are gone, and `system.md` names no language.
   Native names, English names and text direction live in `prompts/languages.yaml`.
-- Fixed sentences (opening, resume, brief, read-backs, control replies) in a tabled language
-  come from its table, as before. In another language the runtime takes the English sentence
-  and asks the model to say it in the session language (`Wording` port, one short call, no
-  tools), journals what came back and says that. The facts stay the runtime's: a wording that
-  drops a digit run or a capitalised token of the source, fails, or takes more than 2 s is
-  replaced by the English sentence. Error messages in HTTP bodies and the voice fillers fall
-  back to English. Number words (`spelled`, slot answers by word) stay es/en; digits work in
-  every language.
+- Fixed sentences (opening, resume, brief, read-backs, control replies, the Sí/No labels) in
+  a tabled language come from its table, as before. For any other language the *templates*
+  are worded, not the sentences: the first time a session needs the language, the model
+  translates the six English template files once (`conversation/wording.py`, one call per
+  file, cached for the process). A worded table must keep every key and, row by row, exactly
+  the `{placeholders}` of its source; a file that does not, fails, or takes more than 20 s
+  stays English. The runtime then fills the placeholders as it always does, so a name, a phone
+  number, a date or a slot never passes through the model. The first turn in a new language
+  waits for the wording once per process. With the fake model nothing is worded (English).
+  Error messages in HTTP bodies and the voice fillers fall back to English. Number words
+  (`spelled`, slot answers by word) stay es/en; digits work in every language.
 - Voice: recognition follows the session language (Deepgram nova-3 has all ten). The voice is
   the one Spanish voice with its current tuning (D47): a Spanish bar, a Spanish accent.
 - The page: the chooser lists the ten by native name, `<html lang>` follows and Arabic sets
   `dir="rtl"`; the strip shows the top three language probabilities and "otros".
 
 **Consequences we accept.** A read-back in French is the model's wording of a checked
-English sentence, not a reviewed text. The eight untested languages may be worse than the
+English template, not a reviewed text; the facts in it are the runtime's. The eight untested languages may be worse than the
 two tested ones, and nothing here measures by how much. `SignalProbabilities.language` is now
 keyed by language code, so exports written under D62 and D63 differ in those keys.

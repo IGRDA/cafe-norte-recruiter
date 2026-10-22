@@ -169,6 +169,11 @@ def explicit_controls(text: str) -> frozenset[Control]:
     return frozenset(found)
 
 
+def asks_for_a_language(controls: frozenset[Control]) -> bool:
+    """An explicit request for any language, even an ambiguous one (two at once)."""
+    return any(c in _SWITCH_TO for c in controls)
+
+
 def requested_language(controls: frozenset[Control], current: Language) -> Language:
     """The language asked for when exactly one was requested; ``current`` otherwise."""
     asked = {_SWITCH_TO[c] for c in controls if c in _SWITCH_TO}

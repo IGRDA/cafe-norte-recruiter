@@ -30,6 +30,7 @@ from cafe_norte.conversation.handlers import all_handlers
 from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.runtime import Limits, Runtime
 from cafe_norte.conversation.signals import DecisionSignalAnalyzer, ModelSignalAnalyzer
+from cafe_norte.conversation.wording import Wording
 from cafe_norte.domain.configuration import load_configurations
 from cafe_norte.domain.contracts import ConfigId, SessionId, StoreConfiguration
 from cafe_norte.errors import MESSAGES, ErrorCode, Language, ServiceError
@@ -220,6 +221,7 @@ def create_default_app(
         store=store,
         configurations=configurations,
         signals=signals,
+        wording=None if model.model_id == "fake" else Wording(model),
         limits=Limits(
             llm_first_output_seconds=float(env.get("CAFE_NORTE_LLM_FIRST_OUTPUT_SECONDS", "6")),
             tool_seconds=float(env.get("CAFE_NORTE_TOOL_SECONDS", "10")),

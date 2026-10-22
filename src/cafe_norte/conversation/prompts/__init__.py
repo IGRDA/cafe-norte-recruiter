@@ -11,11 +11,22 @@ PROMPT_VERSION = "ana_v24"
 PROMPTS_DIR = Path(__file__).parent
 
 
+# Template files worded in a language without reviewed texts (``conversation/wording.py``):
+# filled once per process, read like the files. Until a file is worded it reads as English.
+_WORDED: dict[tuple[str, Language], str] = {}
+
+
+def use_worded(name: str, language: Language, text: str) -> None:
+    _WORDED[(name, language)] = text
+
+
 def load(name: str, language: Language | None = None) -> str:
     """Read ``<name>.<language>.md`` for candidate-facing text, ``<name>.md`` otherwise. A
-    language without reviewed texts reads the English file: the source the runtime has the
-    model word in the session language (D63)."""
+    language without reviewed texts reads its worded copy, or English until it has one (D63)."""
     if language is not None and language not in TABLED:
+        worded = _WORDED.get((name, language))
+        if worded is not None:
+            return worded
         language = "en"
     stem = name if language is None else f"{name}.{language}"
     return (PROMPTS_DIR / f"{stem}.md").read_text(encoding="utf-8")

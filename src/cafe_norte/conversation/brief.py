@@ -5,7 +5,6 @@ is the text the runtime speaks and the text a confirmation stores, so it is neve
 
 from collections.abc import Callable
 from datetime import date, datetime
-from functools import cache
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
@@ -25,7 +24,6 @@ WEEKDAY_ORDER: tuple[Weekday, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", 
 ReadbackField = Literal["contact_phone", "earliest_start_date"]
 
 
-@cache
 def _texts(language: Language) -> dict[str, str]:
     return prompts.table("brief", language)
 

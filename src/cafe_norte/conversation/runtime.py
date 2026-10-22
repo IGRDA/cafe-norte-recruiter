@@ -45,6 +45,7 @@ from cafe_norte.conversation.registry import ToolRegistry
 from cafe_norte.conversation.signals import (
     SOFT_SENTIMENTS,
     answer_to_readback,
+    asks_for_a_language,
     explicit_controls,
     fresh_sentiment,
     fresh_switch,
@@ -52,6 +53,7 @@ from cafe_norte.conversation.signals import (
     requested_language,
 )
 from cafe_norte.conversation.slot_answer import Shortlist, slot_answer
+from cafe_norte.conversation.wording import Wording
 from cafe_norte.domain.contracts import (
     ConfigId,
     InputId,
@@ -270,6 +272,7 @@ class Runtime:
         telemetry: Telemetry,
         owner: str,
         clock: Callable[[], datetime] = _utcnow,
+        wording: Wording | None = None,
         on_closed: Callable[[SessionId], Awaitable[None]] | None = None,
     ) -> None:
         self._on_closed = on_closed
@@ -282,6 +285,7 @@ class Runtime:
         self._telemetry = telemetry
         self._owner = owner
         self._clock = clock
+        self._wording = wording  # texts in a language without reviewed files (D63)
         self._locks: dict[SessionId, asyncio.Lock] = {}
         self._turn_sessions: dict[TurnId, SessionId] = {}  # for delivery acknowledgements
         self._last_user_turn: dict[SessionId, TurnId] = {}
@@ -295,6 +299,7 @@ class Runtime:
             if state is None:
                 yield _NOT_FOUND  # nothing to journal against, and nobody can stream it
                 return
+            await self._words_for(state.language)
             if turn.ui_answer is not None and not turn.text:
                 label = prompts.table("ui", state.language)[turn.ui_answer.answer]
                 turn = turn.model_copy(update={"text": label})
@@ -422,6 +427,7 @@ class Runtime:
             if state is None:
                 yield _NOT_FOUND
                 return
+            await self._words_for(state.language)
             run = _Turn(input=system, state=state)
             if is_terminal(state):
                 yield await self._emit(run, run.failed("session_ended"))
@@ -548,13 +554,14 @@ class Runtime:
         previous = run.state
         controls = explicit_controls(run.input.text)
         language = requested_language(controls, previous.language)
-        if not controls & {"switch_es", "switch_en"}:
+        if not asks_for_a_language(controls):
             suggested = fresh_switch(
                 self._latest_signal.get(run.session_id),
                 self._last_user_turn.get(run.session_id),
             )
             language = suggested or language
         run.state = previous.model_copy(update={"language": language})
+        await self._words_for(language)
         if previous.lifecycle == "paused":  # the candidate is back: the session is live again
             resumed = transition(run.state, "resume")
             if not isinstance(resumed, Err):
@@ -722,11 +729,18 @@ class Runtime:
         run.switch_waited_ms = int((time.monotonic() - waited) * 1000)
         return True
 
+    async def _words_for(self, language: Language) -> None:
+        """The fixed texts in ``language`` before anything is said in it (D63); once per
+        process and language, nothing for Spanish and English."""
+        if self._wording is not None:
+            await self._wording.prepare(language)
+
     async def _switch_in_turn(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """The analyzer's switch, applied before Ana says anything: saved, then announced, so
         the channel (speech recognition, the page) follows before the answer comes (D53)."""
         language, run.switch_to = run.switch_to, None
         assert language is not None
+        await self._words_for(language)
         state = run.state.model_copy(update={"language": language})
         async with self._store.transaction() as tx:
             await self._store.sessions.save(

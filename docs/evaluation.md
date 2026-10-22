@@ -23,6 +23,23 @@
 | Voice latency | browser monotonic timings + server stage timings | hosted, by hand, ≥6 sessions |
 | Production traces | OpenTelemetry → Langfuse EU | always |
 
+## The scorecard (D48)
+
+One table of 25 rows says whether a change made Ana better: `make evals ARGS="--suite
+scorecard"`. Four tiers, cheapest first, like a test pyramid:
+
+| Tier | Kind | Rows | Decides |
+| --- | --- | --- | --- |
+| 0 | Deterministic, no reference | valid export, turn length, first-sentence latency, cost, tool calls accepted, language kept, no leak | gate |
+| 1 | Deterministic, against a reference | recall@3, ragas ID precision/recall, no cross-store source, abstention, expected facts, ragas `ToolCallF1`, scenario trajectory, extraction, no fabrication, task success, injection held | gate |
+| 2 | Judge, against a reference | ragas `Faithfulness`, `FactualCorrectness`, `AgentGoalAccuracyWithReference`, rubric bullets (`AspectCritic`) | report |
+| 3 | Judge alone | ragas `TopicAdherence`, style critic | report |
+
+Each row carries k/n, its target (`docs/architecture.md`) and the delta against the committed
+baseline (`evals/results/scorecard/`). A row nothing measured says "not run" and neither passes
+nor fails. `make check` holds the gated scenario rows on every fake scenario
+(`tests/test_eval_scorecard.py`).
+
 ## What a scenario checks
 
 Scorers over `ExportDocument`: brief confirmed at the final revision; booking present or absent;

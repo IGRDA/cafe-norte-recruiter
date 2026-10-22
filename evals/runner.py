@@ -41,8 +41,10 @@ from evals.contracts import (
     ComparisonCase,
     FakeSignal,
     Fault,
+    RetrievalReport,
     RunRecord,
     Scenario,
+    Scorecard,
     Step,
     TurnObservation,
 )
@@ -51,6 +53,8 @@ from evals.live_runs import DEFAULT_SIMULATOR, Planned, execute
 from evals.observation import fold, session_result
 from evals.ragas_bridge import score_with_ragas, to_ragas_samples
 from evals.retrieval import load_cases, run_retrieval, write_report
+from evals.scorecard import render_markdown as render_scorecard
+from evals.scorecard import scorecard
 from evals.scorers import run_check
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,6 +68,7 @@ COMPARISON_CASES = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
 COMPARISON_RESULTS = ROOT / "evals" / "results" / "comparison"  # committed (.gitignore)
 COMPARISON_MODELS = ("openai/gpt-4.1", "openai/gpt-4o-mini")  # hosted and previous (D49)
 COMPARISON_REPEAT = 2
+SCORECARD_RESULTS = ROOT / "evals" / "results" / "scorecard"  # baselines, committed (.gitignore)
 
 _FAKE_INDEX: dict[str, Index] = {}
 
@@ -245,7 +250,9 @@ def _arm(fault: Fault | None, model: FakeModel, store: Store) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="evals")
     parser.add_argument(
-        "--suite", choices=["scenarios", "retrieval", "comparison"], default="scenarios"
+        "--suite",
+        choices=["scenarios", "retrieval", "comparison", "scorecard"],
+        default="scenarios",
     )
     parser.add_argument("--mode", choices=["fake", "live"], default="fake")
     parser.add_argument("--only", nargs="*", default=[])
@@ -256,6 +263,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=None, help="results directory (per suite default)")
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--ragas", action="store_true", help="retrieval: add ragas' ID metrics")
+    parser.add_argument(
+        "--save-baseline", action="store_true", help="scorecard: commit this run as the baseline"
+    )
     live = parser.add_argument_group("live runs (paid; the estimate is printed first)")
     live.add_argument("--model", default=os.environ.get("CAFE_NORTE_MODEL") or DEFAULT_MODEL)
     live.add_argument("--simulator", default=DEFAULT_SIMULATOR)
@@ -274,6 +284,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.suite == "retrieval":
         out = Path(args.out or RETRIEVAL_RESULTS)
         return retrieval_main(args.retriever, args.only, out, ragas=args.ragas)
+    if args.suite == "scorecard":
+        return scorecard_main(args)
     if args.suite == "scenarios" and args.mode == "live":
         return live_main(args)
     if args.suite == "comparison":
@@ -369,9 +381,11 @@ def comparison_main(args: argparse.Namespace) -> int:
     )
 
 
-def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = False) -> int:
-    """The 24 questions through the real retriever: ``hybrid`` needs the knowledge extra and
-    downloads the model once; ``lexical`` is BM25 only and runs anywhere. ``ragas`` adds its
+def retrieval_report(
+    mode: str, only: Sequence[str] = (), *, ragas: bool = False
+) -> RetrievalReport:
+    """The fixture's questions through the real retriever: ``hybrid`` needs the knowledge extra
+    and downloads the model once; ``lexical`` is BM25 only and runs anywhere. ``ragas`` adds its
     ID-based context precision and recall over the answerable questions (offline, free)."""
     configurations = load_configurations(CONFIG_DIR)
     (kb_version,) = {c.kb_version for c in configurations.values()}
@@ -389,6 +403,11 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = F
     if ragas:
         scores = asyncio.run(score_with_ragas(to_ragas_samples(report.runs, cases)))
         report = report.model_copy(update={"ragas": scores})
+    return report
+
+
+def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = False) -> int:
+    report = retrieval_report(mode, only, ragas=ragas)
     path = write_report(report, out)
     for run in report.runs:
         mark = {True: "hit ", False: "MISS", None: "    "}[run.hit] + (
@@ -408,3 +427,25 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = F
             f"{report.ragas.mean_recall:.2f} (n={report.ragas.samples})"
         )
     return 0 if report.leaked == 0 else 1
+
+
+def scorecard_main(args: argparse.Namespace) -> int:
+    """Tiers 0 and 1 over every fake scenario and the retrieval fixture: free, offline, the
+    same numbers ``make check`` gates on. Live tiers arrive with the QA probes (D48)."""
+    if args.mode != "fake":
+        print("the live scorecard arrives with the QA probes (D48).")
+        return 2
+    scenarios = load_scenarios(only=args.only)
+    runs = [asyncio.run(run_fake(s)) for s in scenarios]
+    retrieval = retrieval_report(args.retriever, ragas=True)
+    baseline_path = SCORECARD_RESULTS / "fake.json"
+    baseline = (
+        Scorecard.model_validate_json(baseline_path.read_text()) if baseline_path.exists() else None
+    )
+    card = scorecard(runs, {s.id: s for s in scenarios}, retrieval=retrieval, baseline=baseline)
+    print(render_scorecard(card))
+    if args.save_baseline:
+        SCORECARD_RESULTS.mkdir(parents=True, exist_ok=True)
+        baseline_path.write_text(card.model_dump_json(indent=2) + "\n")
+        print(f"baseline -> {baseline_path}")
+    return 1 if card.gate_failures else 0

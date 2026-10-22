@@ -1571,3 +1571,54 @@ instead of €0.07). The comparison is one repetition per case: representative, 
 significant. Smart turn adds CPU on the shared-core VM per call. A finished sentence ends the
 turn sooner, so a candidate who pauses after a complete sentence and then goes on starts a new
 turn.
+
+---
+
+## D48 · One scorecard in four tiers; ragas measures answers, tools and goals
+
+_Added 22 October 2026, the evaluation stage._
+
+**Context.** `evals/` scored which chunks came back, not what Ana answered with them, and its
+numbers were spread over three reports. Nothing said, in one place, whether a prompt or model
+change made Ana better.
+
+**Options (agreed with the owner).** A curated suite on top of the runner, a rebuild around
+ragas, or only new ragas metrics. ragas plus Langfuse, or adding promptfoo (red-team) or
+deepeval. A judge model and a spend ceiling. A question set written by hand, generated, or
+generated then curated.
+
+**Decisions.**
+- **One scorecard, 25 rows, four tiers** (`evals/scorecard.py`), cheapest first: 0,
+  deterministic with no reference (valid export, turn length, first-sentence latency, cost,
+  tool calls accepted, language kept, no leak); 1, deterministic against a reference
+  (recall@3, ragas ID-based precision and recall, no cross-store source, abstention, expected
+  facts in the answer, ragas `ToolCallF1`, scenario trajectory, extraction, no fabricated
+  value, task success, injection held); 2, a judge against a reference (ragas
+  `Faithfulness`, `FactualCorrectness`, `AgentGoalAccuracyWithReference`, rubric bullets as
+  `AspectCritic`); 3, a judge alone (`TopicAdherence`, a style critic). Tiers 0 and 1 gate;
+  judge rows report against a target and the committed baseline, never pass or fail (D06
+  holds: deterministic checks decide).
+- **The trajectory is the journal's.** A scenario may carry `reference_tools` (`in_order` as a
+  subsequence, `anywhere`, `never`) read from `tool_started` events, model and runtime calls
+  alike, and a one-sentence `goal` for the goal judge. Only what every good run does.
+- **Turn-level reads are pure** (`evals/scorers.py`): model-written turns are the assistant
+  turns that carry no read-back question, brief or fixed reply; language by function words
+  (accents are no evidence: Chamberí is said in both); a leak is a tool, chunk or
+  configuration id, the prompt version, a key shape, raw JSON, or 12 consecutive words of
+  `system.md` (8 matched instructed phrases such as the follow-up notice).
+- **ragas and Langfuse only.** promptfoo is Node and a second runner; deepeval overlaps ragas.
+  Injection is a handful of scripted scenarios scored deterministically.
+- **Judge `openai/gpt-4o-mini`, at most €3 for a full paid run**; a self-judged run is
+  labelled. The question set is generated once by ragas over our own chunks and curated by
+  hand. Answer metrics come from QA probes: one short live session per question.
+
+**Measured (22 October, fake model, hybrid retriever).** Every gated row holds on the 18 fake
+scenarios. Tool calls accepted 113/137 (82 %): the refusals are a well-behaved script calling a
+confirmation the runtime already took (`already_answered`, D35). ragas ID-based precision 0.35
+and recall 0.88 on the 16 answerable questions (R07 expects two sections and finds one); the
+floors are set just below.
+
+**Consequences we accept.** The retrieval rows need the hybrid retriever, so `make check`
+gates the scenario rows and leaves retrieval to its own tests (BM25 alone misses the English
+questions the model would have reformulated). Latency and cost targets are provisional until
+the first paid baseline.

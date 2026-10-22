@@ -1,12 +1,13 @@
 # Evaluations
 
-Three suites, one typed runner, two execution modes. Deterministic runs use the fake model and
+Four suites, one typed runner, two execution modes. Deterministic runs use the fake model and
 are part of CI; live runs call paid providers and are manual.
 
 | Suite | Cases | Scorers | Mode |
 | --- | --- | --- | --- |
 | `scenarios` | S01–S22 (`cases/scenarios/*.yaml`): scripted turns for CI, persona for the simulator | deterministic checks on the final `ExportDocument` (fields, confirmations, booking, flags, no fabricated confirmed value) + optional rubric judge | CI (fake) and live |
 | `retrieval` | 24 questions (`cases/retrieval/questions.yaml`): 16 answerable, 4 unsupported, 4 leakage | recall@3 of expected sections, zero cross-store sources; unsupported questions reported with what came back after the floor (D27); ragas ID-based context precision and recall with `--ragas` | `make evals-retrieval` (`--retriever hybrid` needs the extra; `lexical` runs in CI) |
+| `scorecard` | everything above, summarised | 25 rows in four tiers (D48): deterministic without and with a reference (gate), ragas judges with and without one (report); delta against `results/scorecard/` | fake and offline today; live with the QA probes |
 | `comparison` | 6 multi-turn cases × 2 models × 2 repetitions (`cases/comparison/cases.yaml`), 24 runs on one loopback server per model, same prompt, tools, KB and configuration | each case's scenario `live_checks`, extraction accuracy, tool calls ok, grounding checks, runs passed, latency, cost; summary and runs (no exports) committed under `results/comparison/` | live, bounded, `--yes` |
 
 ```bash
@@ -14,6 +15,8 @@ make evals ARGS="--suite scenarios --mode fake"          # what CI runs
 make evals ARGS="--suite scenarios --mode live --only S01 S02"          # prints the estimate only
 make evals ARGS="--suite scenarios --mode live --only S01 S02 --yes"    # spends
 make evals ARGS="--suite scenarios --mode live --only S01 --model fake --simulator fake --yes"  # free dry run
+make evals ARGS="--suite scorecard"              # tiers 0-1 over fake scenarios + hybrid retrieval
+make evals ARGS="--suite scorecard --save-baseline"   # commit the result as results/scorecard/fake.json
 make evals-retrieval ARGS="--retriever hybrid"   # lexical: BM25 only, no extra
 make evals-retrieval ARGS="--retriever lexical --ragas"   # adds ragas' ID-based metrics, offline
 make compare                                   # 6 cases x 2 models x 2 runs: prints the estimate only
@@ -69,6 +72,9 @@ One file `evals/cases/scenarios/Snn.yaml`:
   computed apart from the checks: the persona's exact-match facts (name, phone, permit, days,
   shifts, hours, start date; corrections applied, declined fields left out) against the final
   record; free text such as `experience` is the judge's to read.
+- `goal` (optional): one sentence, what a good run achieves (the goal judge reads it, D48).
+- `reference_tools` (optional): `in_order` (a subsequence of the journaled calls), `anywhere`,
+  `never`; only what every good run does. The scorecard's trajectory row reads it.
 - `persona`: what the simulated candidate knows (`facts`, the first value of a field it later
   `corrects`), `asks`, `declines`, `mood`, `switch_language_after_turn`, `withdraws_after_turn`,
   `wants_interview`.
@@ -92,7 +98,8 @@ is built as well, and the checks move to it when the remaining checks land (D21)
 - `spend.py`: what a paid command will cost before it spends: synthetic usage from the per-turn assumptions in `docs/architecture.md`, priced by `observability.cost.estimate` with the export's own table; a model with no price is named, never counted as free.
 - `retrieval.py`: the retrieval suite: fixture questions through a retriever, recall@3, leakage, timings; one committed JSON per embedding model and KB version.
 - `runner.py`: loads cases, drives a session through the HTTP API (live) or the runtime with fakes (CI), collects the export and timings, applies scorers, writes a report with a `VersionStamp`.
-- `scorers.py`: pure functions over `ExportDocument` and retrieval results.
+- `scorers.py`: pure functions over `ExportDocument` and retrieval results; the scorecard's reads over an export (model-written turns, words, language by function words, leaks, the journaled tool trajectory against `reference_tools`).
+- `scorecard.py`: the 25 `MetricSpec` rows (D48), `scorecard(runs, scenarios, retrieval=…, measured=…, baseline=…)` (pure), `render_markdown`; a row with nothing to measure is "not run".
 - `simulator.py`: the simulated candidate. `cue(persona, language, transcript)` decides deterministically what the next line does (raise `asks[k]` on line k+2, correct on the first brief read-back only, switch language after line N, withdraw after line N, the persona's mood); an LLM through the `Model` port only words it, so every behaviour happens and on a line the report can name. Its prompt carries today's date and each relative date fact with the day it means (`next monday (Monday 26 October 2026)`): the model miscounts weekdays on its own.
 - `judge.py`: rubric judge through the same `Model` port (`--judge provider/model`, prompt `prompts/judge.md`): one JSON boolean per scenario `rubric` bullet over the exported transcript, or `unparsable` with the reason (a string "true" is not a boolean). Secondary signal, never pass/fail: the report shows it in its own section and flags a judge that is also the answering model.
 - `ragas_bridge.py`: answerable retrieval runs as ragas samples (chunk ids retrieved and expected) scored by ragas' ID-based context precision and recall: offline, no model, next to recall@3 (`make evals-retrieval ARGS="--ragas"`). A question that retrieved nothing has no precision and is counted apart. Faithfulness needs answers and a paid judge and is not computed.

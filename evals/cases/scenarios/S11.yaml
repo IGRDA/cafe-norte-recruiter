@@ -81,3 +81,8 @@ live_checks:
   - name: booking_absent
   - name: no_fabricated_confirmed_values
   - name: no_cross_store_sources
+# What a good run achieves, and the tool trajectory every good run shows (D48).
+goal: "The declined hours stay out of the record, the session ends when the candidate withdraws, and nothing is booked."
+reference_tools:
+  anywhere: [end_session]
+  never: [reserve_interview]

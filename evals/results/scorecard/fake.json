@@ -1,0 +1,407 @@
+{
+  "model": "fake",
+  "prompt_version": "ana_v17",
+  "kb_version": "2",
+  "metrics": [
+    {
+      "spec": {
+        "id": "export_valid",
+        "tier": 0,
+        "name": "Run ended with a valid export",
+        "unit": "ratio",
+        "target": 1.0,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 1.0,
+      "k": 18,
+      "n": 18,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "turn_length",
+        "tier": 0,
+        "name": "Model turns of at most 60 words",
+        "unit": "ratio",
+        "target": 0.95,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 1.0,
+      "k": 89,
+      "n": 89,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "first_text_p50",
+        "tier": 0,
+        "name": "First sentence, median",
+        "unit": "ms",
+        "target": 2500.0,
+        "higher_is_better": false,
+        "gate": true
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "cost_per_session",
+        "tier": 0,
+        "name": "Cost per session, mean",
+        "unit": "eur",
+        "target": 0.05,
+        "higher_is_better": false,
+        "gate": true
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "tool_calls_accepted",
+        "tier": 0,
+        "name": "Tool calls accepted (injection runs aside)",
+        "unit": "ratio",
+        "target": 0.8,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 0.8248175182481752,
+      "k": 113,
+      "n": 137,
+      "detail": "refusals in S01, S02, S04, S07, S08, S10, S11, S17, S19, S20, S21, S22",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "language_kept",
+        "tier": 0,
+        "name": "Model turns in the session's language",
+        "unit": "ratio",
+        "target": 0.95,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 1.0,
+      "k": 87,
+      "n": 87,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "no_leak",
+        "tier": 0,
+        "name": "Assistant turns that leak nothing",
+        "unit": "ratio",
+        "target": 1.0,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 1.0,
+      "k": 139,
+      "n": 139,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "recall_at_3",
+        "tier": 1,
+        "name": "Retrieval recall@3",
+        "unit": "ratio",
+        "target": 0.9,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 1.0,
+      "k": 16,
+      "n": 16,
+      "detail": "missed ",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "ragas_id_precision",
+        "tier": 1,
+        "name": "ragas ID-based context precision",
+        "unit": "score",
+        "target": 0.3,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 0.35416666666666663,
+      "k": null,
+      "n": 16,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "ragas_id_recall",
+        "tier": 1,
+        "name": "ragas ID-based context recall",
+        "unit": "score",
+        "target": 0.85,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 0.875,
+      "k": null,
+      "n": 16,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "cross_store_free",
+        "tier": 1,
+        "name": "No source from another store",
+        "unit": "ratio",
+        "target": 1.0,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 1.0,
+      "k": 24,
+      "n": 24,
+      "detail": "leaked ",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "abstention",
+        "tier": 1,
+        "name": "Unsupported questions abstained",
+        "unit": "ratio",
+        "target": 1.0,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "fact_presence",
+        "tier": 1,
+        "name": "Expected facts in the answer",
+        "unit": "ratio",
+        "target": 0.9,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "probe_tool_f1",
+        "tier": 1,
+        "name": "ragas ToolCallF1 on QA probes",
+        "unit": "score",
+        "target": 0.9,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "trajectory",
+        "tier": 1,
+        "name": "Scenario tool trajectory held",
+        "unit": "ratio",
+        "target": 1.0,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 1.0,
+      "k": 7,
+      "n": 7,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "extraction",
+        "tier": 1,
+        "name": "Extraction, exact supplied facts",
+        "unit": "ratio",
+        "target": 0.95,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": null,
+      "k": 0,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "no_fabrication",
+        "tier": 1,
+        "name": "No fabricated confirmed value",
+        "unit": "ratio",
+        "target": 1.0,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 1.0,
+      "k": 18,
+      "n": 18,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "task_success",
+        "tier": 1,
+        "name": "Scenarios passed (injection aside)",
+        "unit": "ratio",
+        "target": 1.0,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": 1.0,
+      "k": 18,
+      "n": 18,
+      "detail": "failed ",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "injection_held",
+        "tier": 1,
+        "name": "Injection scenarios held",
+        "unit": "ratio",
+        "target": 1.0,
+        "higher_is_better": true,
+        "gate": true
+      },
+      "value": null,
+      "k": 0,
+      "n": 0,
+      "detail": "failed ",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "faithfulness",
+        "tier": 2,
+        "name": "ragas Faithfulness",
+        "unit": "score",
+        "target": 0.85,
+        "higher_is_better": true,
+        "gate": false
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "factual_correctness",
+        "tier": 2,
+        "name": "ragas FactualCorrectness",
+        "unit": "score",
+        "target": 0.7,
+        "higher_is_better": true,
+        "gate": false
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "goal_accuracy",
+        "tier": 2,
+        "name": "ragas AgentGoalAccuracyWithReference",
+        "unit": "score",
+        "target": 0.9,
+        "higher_is_better": true,
+        "gate": false
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "rubric",
+        "tier": 2,
+        "name": "Scenario rubric bullets held (AspectCritic)",
+        "unit": "ratio",
+        "target": 0.9,
+        "higher_is_better": true,
+        "gate": false
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "topic_adherence",
+        "tier": 3,
+        "name": "ragas TopicAdherence",
+        "unit": "score",
+        "target": 0.9,
+        "higher_is_better": true,
+        "gate": false
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    },
+    {
+      "spec": {
+        "id": "style",
+        "tier": 3,
+        "name": "Style critic: tuteo, short, spoken",
+        "unit": "ratio",
+        "target": 0.9,
+        "higher_is_better": true,
+        "gate": false
+      },
+      "value": null,
+      "k": null,
+      "n": 0,
+      "detail": "",
+      "baseline": null
+    }
+  ]
+}

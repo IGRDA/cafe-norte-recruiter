@@ -78,8 +78,18 @@ class Fault(Frozen):
     after_sentences: int = 1
 
 
+class ReferenceTools(Frozen):
+    """The tool trajectory a scenario expects, read from the journal (model and runtime calls
+    alike): ``in_order`` appears as a subsequence, ``anywhere`` at least once, ``never`` not at
+    all. Only what every good run must do; a run may call more (D48)."""
+
+    in_order: tuple[ToolName, ...] = ()
+    anywhere: tuple[ToolName, ...] = ()
+    never: tuple[ToolName, ...] = ()
+
+
 class Scenario(Frozen):
-    id: str  # S01..S18
+    id: str  # S01..S27
     title: str
     config_id: ConfigId
     language: Language
@@ -93,6 +103,11 @@ class Scenario(Frozen):
     checks: tuple[Check, ...]
     live_checks: tuple[Check, ...] = ()  # live mode: no turn numbers; empty = not run live
     rubric: tuple[str, ...] = ()
+    goal: str = ""  # one sentence: what a good run achieves, for the goal judge (D48)
+    reference_tools: ReferenceTools | None = None
+    injection: bool = False  # the lines attack the rules; scored apart from task success
+    # live: who speaks for the candidate; ``scripted`` says ``scripted_turns`` whatever Ana says
+    live_candidate: Literal["simulated", "scripted"] = "simulated"
 
     @model_validator(mode="after")
     def _script_matches_lines(self) -> "Scenario":
@@ -316,3 +331,49 @@ class CandidateSimulator(Protocol):
     def model_id(self) -> str: ...
 
     async def reply(self, persona: Persona, cue: Cue, transcript: Transcript) -> str: ...
+
+
+Tier = Literal[0, 1, 2, 3]
+Unit = Literal["ratio", "ms", "eur", "score"]
+
+
+class MetricSpec(Frozen):
+    """One scorecard row (D48). Tier 0: deterministic, no reference; 1: deterministic against a
+    reference; 2: a judge against a reference; 3: a judge alone. A ``gate`` row with a value
+    that misses its target fails the run; the others report."""
+
+    id: str  # stable: the baseline and Langfuse key on it
+    tier: Tier
+    name: str
+    unit: Unit
+    target: float
+    higher_is_better: bool = True
+    gate: bool
+
+
+class Metric(Frozen):
+    spec: MetricSpec
+    value: float | None  # None: nothing this run could measure it with
+    k: int | None = None  # a ratio's numerator
+    n: int = 0  # what the value was measured over
+    detail: str = ""  # the misses, named
+    baseline: float | None = None  # the committed scorecard's value, for the delta
+
+    @property
+    def ok(self) -> bool | None:
+        if self.value is None:
+            return None
+        if self.spec.higher_is_better:
+            return self.value >= self.spec.target
+        return self.value <= self.spec.target
+
+
+class Scorecard(Frozen):
+    model: str
+    prompt_version: str
+    kb_version: str
+    metrics: tuple[Metric, ...]
+
+    @property
+    def gate_failures(self) -> tuple[Metric, ...]:
+        return tuple(m for m in self.metrics if m.spec.gate and m.ok is False)

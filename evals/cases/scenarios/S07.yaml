@@ -96,3 +96,8 @@ live_checks:
     args: { lifecycle: completed }
   - name: no_fabricated_confirmed_values
   - name: no_cross_store_sources
+# What a good run achieves, and the tool trajectory every good run shows (D48).
+goal: "The session switches to English when asked and the brief is confirmed in English."
+reference_tools:
+  in_order: [update_candidate, present_confirmation, confirm_brief]
+  never: [reserve_interview]

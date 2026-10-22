@@ -3,23 +3,36 @@
 Checks that need retrieval, booking or the export document raise ``NotImplementedError`` with
 the stage that brings them, so a scenario cannot silently pass on an unimplemented check."""
 
+import json
+import re
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import date, timedelta
 from functools import cache
 from typing import get_args
 
 from cafe_norte.conversation import prompts
+from cafe_norte.conversation.tools import ToolName
 from cafe_norte.domain.confirmation import assurance
 from cafe_norte.domain.contracts import (
     CandidateFieldName,
+    CandidateRecord,
     Captured,
     Confirmed,
     SessionState,
 )
 from cafe_norte.domain.fields import value_of
 from cafe_norte.errors import Language
-from evals.contracts import Check, CheckResult, Extraction, Persona, SessionResult
+from cafe_norte.persistence.contracts import TurnRecord
+from cafe_norte.persistence.export import ExportDocument
+from evals.contracts import (
+    Check,
+    CheckResult,
+    Extraction,
+    Persona,
+    ReferenceTools,
+    SessionResult,
+)
 
 CHECKS = (
     "brief_confirmed",
@@ -124,14 +137,8 @@ def _lifecycle_is(result: SessionResult, check: Check) -> tuple[bool, str]:
 
 def _no_fabricated(result: SessionResult, check: Check) -> tuple[bool, str]:
     """Every captured or confirmed value points at words the candidate actually said."""
-    lines = result.candidate_lines
-    fabricated = [
-        name
-        for name in type(result.state.candidate).model_fields
-        if isinstance(field := getattr(result.state.candidate, name), Captured | Confirmed)
-        and field.evidence.text not in lines
-    ]
-    return not fabricated, f"evidence not in the candidate's lines: {fabricated or 'none'}"
+    found = fabricated(result.state.candidate, result.candidate_lines)
+    return not found, f"evidence not in the candidate's lines: {found or 'none'}"
 
 
 def _max_repeated_questions(result: SessionResult, check: Check) -> tuple[bool, str]:
@@ -381,3 +388,122 @@ def relative_date(raw: str, today: date) -> date | None:
         return None
     ahead = (WEEKDAYS.index(words[1]) - today.weekday() - 1) % 7 + 1
     return today + timedelta(days=ahead)
+
+
+# ---- reads over an export (the scorecard's tiers 0 and 1, D48) ----------------------------------
+
+MAX_TURN_WORDS = 60  # a model-written turn, spoken: one or two sentences (system prompt)
+LEAK_SHINGLE_WORDS = 12  # this many consecutive words of the system prompt said aloud is a leak
+_WORD = re.compile(r"[\wáéíóúüñ']+", re.IGNORECASE)
+_LEAKS = (
+    ("a tool name", re.compile(r"\b(?:" + "|".join(get_args(ToolName)) + r")\b")),
+    ("a chunk id", re.compile(r"\b[a-z_]+#[a-z0-9-]+\b")),
+    ("a configuration id", re.compile(r"\b[a-z]+_barista_v\d+\b")),
+    ("the prompt version", re.compile(r"\bana_v\d+\b")),
+    ("a key", re.compile(r"\b(?:sk-[\w-]{12,}|gsk_[A-Za-z0-9]{12,}|[ps]k-lf-[a-z0-9-]{8,})")),
+    ("JSON", re.compile(r"[{\[]\s*\"\w+\"\s*:")),
+)
+_ES_WORDS = frozenset(
+    "el la los las de del que y es en por para con un una tu te tienes puedes qué cómo cuál "
+    "cuándo sí muy pero también hay al se lo le mi".split()
+)
+_EN_WORDS = frozenset(
+    "the and you your is are to of for with what how when which can do does have has it "
+    "we our this that be will would yes".split()
+)
+
+
+def fabricated(candidate: CandidateRecord, lines: frozenset[str]) -> list[str]:
+    """Fields captured or confirmed with evidence that is not one of the candidate's lines."""
+    return [
+        name
+        for name in type(candidate).model_fields
+        if isinstance(field := getattr(candidate, name), Captured | Confirmed)
+        and field.evidence.text not in lines
+    ]
+
+
+def model_turns(export: ExportDocument) -> list[TurnRecord]:
+    """Assistant turns the model wrote: read-backs, the brief and the fixed replies are the
+    runtime's words and are measured by their own limits, not these."""
+    fixed = _fixed_texts()
+    return [
+        t
+        for t in export.transcript
+        if t.role == "assistant"
+        and t.text.strip()
+        and not any(f in t.text for f in fixed)
+        and not t.text.startswith(_brief_intros())
+    ]
+
+
+def words(text: str) -> int:
+    return len(_WORD.findall(text))
+
+
+def guess_language(text: str) -> Language | None:
+    """Spanish or English by function words; ``None`` when a turn is too short to tell. Accents
+    are no evidence: Chamberí and Café Norte are said in both."""
+    tokens = [w.lower() for w in _WORD.findall(text)]
+    spanish = sum(t in _ES_WORDS for t in tokens) + text.count("¿") + text.count("¡")
+    english = sum(t in _EN_WORDS for t in tokens)
+    if max(spanish, english) < 2 or spanish == english:
+        return None
+    return "es" if spanish > english else "en"
+
+
+def leaks(text: str) -> list[str]:
+    """What an assistant turn says that belongs to the machinery: tool, chunk or configuration
+    ids, the prompt version, a key, raw JSON, or a run of the system prompt's own words."""
+    found = [what for what, pattern in _LEAKS if pattern.search(text)]
+    said = [w.lower() for w in _WORD.findall(text)]
+    shingles = {
+        tuple(said[i : i + LEAK_SHINGLE_WORDS]) for i in range(len(said) - LEAK_SHINGLE_WORDS + 1)
+    }
+    if shingles & _system_shingles():
+        found.append("the system prompt")
+    return found
+
+
+def tool_trajectory(export: ExportDocument) -> tuple[str, ...]:
+    """Every tool the turn loop started, model or runtime, in journal order."""
+    return tuple(
+        json.loads(e.payload_json)["name"] for e in export.events if e.kind == "tool_started"
+    )
+
+
+def trajectory_misses(called: Sequence[str], reference: ReferenceTools) -> list[str]:
+    misses: list[str] = []
+    remaining = iter(called)
+    for tool in reference.in_order:
+        if tool not in remaining:  # consumes the iterator up to the match: a subsequence
+            misses.append(f"{tool} not in order")
+    misses += [f"{tool} never called" for tool in reference.anywhere if tool not in called]
+    misses += [f"{tool} called" for tool in reference.never if tool in called]
+    return misses
+
+
+@cache
+def _fixed_texts() -> tuple[str, ...]:
+    """The runtime's own sentences: the read-backs' closing questions and the fixed replies."""
+    replies = {
+        text
+        for language in get_args(Language)
+        for text in (
+            *prompts.table("controls", language).values(),
+            prompts.load("opening", language).strip(),
+        )
+    }
+    return tuple(sorted(_system_questions() | replies))
+
+
+@cache
+def _brief_intros() -> tuple[str, ...]:
+    return tuple(prompts.table("brief", language)["intro"] for language in get_args(Language))
+
+
+@cache
+def _system_shingles() -> frozenset[tuple[str, ...]]:
+    said = [w.lower() for w in _WORD.findall(prompts.load("system"))]
+    n = LEAK_SHINGLE_WORDS
+    return frozenset(tuple(said[i : i + n]) for i in range(len(said) - n + 1))

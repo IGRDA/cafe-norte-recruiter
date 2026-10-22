@@ -22,6 +22,7 @@ make compare ARGS="--yes"                      # spends; default models openai/g
 make compare ARGS="--models fake --repeat 1 --simulator fake --max-turns 2 --yes"  # free dry run
 make evals-signals                             # regex only, free; prints the estimate for the rest
 make evals-signals ARGS="--yes"                # regex, production, llm and jev, 2 repetitions
+make evals-signals ARGS="--cases heldout --yes" # the same on the held-out set
 make evals-signals ARGS="--systems regex jev --only es-49 en-35 --repeat 1 --yes"
 uv run python -m evals.run --list
 ```
@@ -125,7 +126,12 @@ The questions live once in `QUESTIONS`; the `llm` prompt is written from them. E
 runtime's fallback (neutral, session language) and is counted under errors. `written_other` (a
 whole message in the other language, no request) is labelled a switch but kept out of the false
 switch and missed request rates, because D28 deliberately keeps the session language there.
-Committed results go to `results/signals/<UTC time>-<systems>.{md,json}`: synthetic text only.
+Two case sets (`--cases`): `dev`, the hand-written `turns.yaml` the questions may be tuned on,
+and `heldout`, 83 turns written by gpt-4.1 from a fixed grid (`evals/signals_generate.py`: one call
+writes each cell's lines, a second checks each line against the cell and drops what does not
+fit; labels come from the cell, nothing is relabelled). The held-out set is only scored.
+Committed results go to `results/signals/<UTC time>-<set>-<systems>.{md,json}`: synthetic text
+only.
 
 Keys: `OPENAI_API_KEY` for `production` and `llm`; `OPENROUTER_API_KEY` for `jev` (openrouter.ai →
 Settings → Credits, a few dollars; Settings → API Keys → Create Key with a credit limit; add the

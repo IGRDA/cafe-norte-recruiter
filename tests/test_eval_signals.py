@@ -336,6 +336,7 @@ def test_regex_has_no_sentiment_and_production_no_language() -> None:
 def args(tmp_path: Path, *, yes: bool, systems: list[str]) -> argparse.Namespace:
     return argparse.Namespace(
         only=["es-49", "es-67"],
+        cases="dev",
         systems=systems,
         repeat=1,
         signal_model="openai/gpt-4o-mini",
@@ -376,3 +377,53 @@ def test_the_report_names_every_system() -> None:
         predictions=(prediction(system="regex"),),
     )
     assert "| regex | explicit_controls |" in render_markdown(report, cases)
+
+
+# ---- the held-out generator ----------------------------------------------------------------------
+
+
+def written(*texts: str) -> list[ModelEvent]:
+    lines = [{"ana": "¿Qué días puedes trabajar?", "text": t} for t in texts]
+    return [ModelText(text=json.dumps({"cases": lines})), ModelFinished(reason="stop")]
+
+
+def checked(*fits: bool) -> list[ModelEvent]:
+    return [ModelText(text=json.dumps({"fits": list(fits)})), ModelFinished(reason="stop")]
+
+
+async def test_the_generator_keeps_lines_that_fit_with_the_cells_labels() -> None:
+    from evals.signals_generate import generate
+
+    model = FakeModel(
+        [
+            written("Can we switch to English?", "Prefiero el español.", "English, please."),
+            checked(True, False, True),
+            written("Can we continue in Spanish?"),
+            checked(True),
+        ]
+    )
+    cases = await generate(model, grid=(("explicit", "neutral", 1),))
+    assert [(c.session_language, c.text, c.reply_language) for c in cases] == [
+        ("es", "Can we switch to English?", "en"),
+        ("en", "Can we continue in Spanish?", "es"),
+    ]
+    assert all(c.kind == "explicit" and c.sentiment == "neutral" for c in cases)
+    writer_prompt = model.calls[0][1].content
+    assert "continue in English instead of Spanish" in writer_prompt
+
+
+async def test_a_cell_with_no_fitting_line_stops_the_generation() -> None:
+    from evals.signals_generate import generate
+
+    model = FakeModel([written("Hola."), checked(False)])
+    with pytest.raises(ValueError, match="no line fits"):
+        await generate(model, grid=(("stay", "neutral", 1),))
+
+
+def test_the_committed_held_out_set_loads_and_covers_every_kind() -> None:
+    from evals.signals import CASE_SETS
+
+    held_out = load_cases(CASE_SETS["heldout"])
+    assert len(held_out) >= 70
+    assert {c.kind for c in held_out} == SHOULD_STAY | REQUESTED | {"written_other"}
+    assert not {c.id for c in held_out} & {c.id for c in CASES}

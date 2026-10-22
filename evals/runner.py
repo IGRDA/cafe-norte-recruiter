@@ -52,7 +52,7 @@ from evals.observation import fold, session_result
 from evals.ragas_bridge import score_with_ragas, to_ragas_samples
 from evals.retrieval import load_cases, run_retrieval, write_report
 from evals.scorers import run_check
-from evals.signals import DEFAULT_SIGNAL_MODEL, SYSTEMS, signals_main
+from evals.signals import CASE_SETS, DEFAULT_SIGNAL_MODEL, SYSTEMS, signals_main
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIOS_DIR = ROOT / "evals" / "cases" / "scenarios"
@@ -260,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--ragas", action="store_true", help="retrieval: add ragas' ID metrics")
     parser.add_argument("--systems", nargs="*", choices=SYSTEMS, default=list(SYSTEMS))
+    parser.add_argument("--cases", choices=list(CASE_SETS), default="dev", help="signals")
     parser.add_argument(
         "--signal-model",
         default=os.environ.get("CAFE_NORTE_SIGNAL_MODEL") or DEFAULT_SIGNAL_MODEL,

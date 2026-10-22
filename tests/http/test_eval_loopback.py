@@ -4,7 +4,7 @@ scripted model, the runner's HTTP adapter. Same scenario, both modes, same verdi
 import httpx
 from evals.live import HttpConversation, ScriptedCandidate, drive, serve
 from evals.runner import load_scenarios, run_fake, script_events
-from evals.scorers import run_check
+from evals.scorers import checks_for, run_check
 
 from cafe_norte.domain.contracts import ConfigId
 from cafe_norte.model.fake import FakeModel
@@ -25,7 +25,7 @@ async def test_a_scripted_scenario_scores_the_same_live_and_fake() -> None:
         finished = await drive(live, ScriptedCandidate(scenario.scripted_turns), max_turns=10)
 
     fake = await run_fake(scenario)
-    live_checks = tuple(run_check(finished.result, check) for check in scenario.checks)
+    live_checks = tuple(run_check(finished.result, c) for c in checks_for(scenario.checks))
     assert [c.ok for c in live_checks] == [c.ok for c in fake.checks]
     assert fake.checks and all(c.ok for c in fake.checks)
     assert " ".join(finished.result.spoken_by_turn[-1]) == (

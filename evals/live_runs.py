@@ -37,7 +37,7 @@ from evals.live import (
 from evals.pool import CONCURRENCY, bounded
 from evals.ragas_bridge import judge_from, judge_runs
 from evals.report import render_json, render_markdown
-from evals.scorers import extraction_accuracy, run_check
+from evals.scorers import checks_for, extraction_accuracy, run_check
 from evals.simulator import ModelCandidateSimulator, SimulatedCandidate, SimulatorError
 from evals.spend import estimate_spend
 
@@ -115,7 +115,9 @@ async def run_live(
         **base,
         versions=export.versions,
         export=export,
-        checks=tuple(run_check(finished.result, check) for check in scenario.live_checks),
+        checks=tuple(
+            run_check(finished.result, check) for check in checks_for(scenario.live_checks)
+        ),
         provider_failed=any(t.failed for t in turns),
         estimated_cost_eur=export.metrics.estimated_marginal_cost_eur,
         extraction=extraction_accuracy(scenario.persona, finished.result.state),

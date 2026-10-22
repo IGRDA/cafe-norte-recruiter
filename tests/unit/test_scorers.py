@@ -3,7 +3,7 @@
 from datetime import UTC, date, datetime
 
 from evals.contracts import Check, CheckResult, Persona, SessionResult
-from evals.scorers import _parse, extraction_accuracy, run_check
+from evals.scorers import INVARIANTS, _parse, checks_for, extraction_accuracy, run_check
 
 from cafe_norte.domain.candidate import apply_patch
 from cafe_norte.domain.contracts import (
@@ -24,6 +24,7 @@ from cafe_norte.domain.contracts import (
     YearMonth,
 )
 from cafe_norte.persistence.contracts import TurnRecord
+from tests.support.builders import FULL
 
 NOW = datetime(2026, 10, 20, tzinfo=UTC)
 LINES = ("Me llamo Lucía Marín, sí me interesa.", "Puedo lunes y jueves, 30 horas.")
@@ -330,3 +331,52 @@ def test_a_month_reference_compares_at_month_precision() -> None:
     assert _parse("earliest_start_date", "2027-01", date(2026, 10, 20)) == YearMonth(
         year=2027, month=1
     )
+
+
+# ---- the invariants every scenario runs (D64): each one fed the failure of 22 October ----------
+
+
+def test_every_scenario_gets_the_invariants_once() -> None:
+    own = (
+        Check(name="goodbye_ends_session"),
+        Check(name="lifecycle_is", args={"lifecycle": "stopped"}),
+    )
+    names = [c.name for c in checks_for(own)]
+    assert names.count("goodbye_ends_session") == 1
+    assert {c.name for c in INVARIANTS} <= set(names)
+
+
+def test_a_sentence_said_twice_in_one_turn_fails() -> None:
+    said = "Eso es todo, gracias. Ahora te leo un resumen y me confirmas si está correcto."
+    bad = result(spoken_by_turn=(("¿Cómo te llamas?",), (said, said)))
+    check = run_check(bad, Check(name="no_sentence_twice_in_a_turn"))
+    assert not check.ok and "turn 2" in check.detail
+    fine = result(spoken_by_turn=((said,), (said,), ("Sí.", "Sí.")))  # other turns; short words
+    assert run_check(fine, Check(name="no_sentence_twice_in_a_turn")).ok
+
+
+def test_a_goodbye_that_leaves_the_session_open_fails() -> None:
+    r = result()
+    goodbye = r.turns + (turn("user", "Gracias, adiós.", 9),)
+    open_call = r.model_copy(update={"turns": goodbye})
+    assert not run_check(open_call, Check(name="goodbye_ends_session")).ok
+    ended = result(lifecycle="stopped", outcome="incomplete")
+    assert run_check(
+        ended.model_copy(update={"turns": goodbye}), Check(name="goodbye_ends_session")
+    ).ok
+
+
+def test_a_complete_record_whose_brief_was_never_read_fails() -> None:
+    never_read = result(FULL)
+    assert not run_check(never_read, Check(name="brief_presented_once_complete")).ok
+    read = result(FULL, brief_status="pending")
+    assert run_check(read, Check(name="brief_presented_once_complete")).ok
+    capped = result(FULL, lifecycle="abandoned", outcome="incomplete")
+    assert run_check(capped, Check(name="brief_presented_once_complete")).ok
+
+
+def test_a_turn_that_failed_internally_fails() -> None:
+    r = result().model_copy(update={"failed_by_turn": ("", "internal_error")})
+    assert not run_check(r, Check(name="no_internal_failure")).ok
+    r = result().model_copy(update={"failed_by_turn": ("", "timeout")})
+    assert run_check(r, Check(name="no_internal_failure")).ok  # a provider timeout is not a bug

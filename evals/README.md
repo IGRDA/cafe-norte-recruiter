@@ -170,3 +170,12 @@ line to `.env`, never to a command line). `JEV_MODEL` overrides the model id
 Scenarios in fake mode must pass; S01 and S02 live must complete. Extraction accuracy across the
 fixed set targets ≥95% exact on supplied facts and zero fabricated confirmed fields. Misses are
 reported as misses.
+
+## Invariants every scenario runs (D64)
+
+`evals/scorers.py` `INVARIANTS` are appended to every scenario's checks, fake and live, so a
+scenario cannot leave them out: `no_sentence_twice_in_a_turn`, `goodbye_ends_session`,
+`brief_presented_once_complete` (unless the system ended the session first) and
+`no_internal_failure`. Each one is a failure seen in the calls of 22 October. S33 and S34 replay
+two of them; S34 also runs on Postgres (`tests/e2e/test_api_postgres.py`), where the language
+check lived.

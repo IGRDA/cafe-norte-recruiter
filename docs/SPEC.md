@@ -8,7 +8,7 @@ Project specification · 20 October 2026 · Owner: Iñaki · Status: ready for i
 >
 > | Section | Spec text | Amended to | Decision |
 > | --- | --- | --- | --- |
-> | §1 Browser | React, TypeScript, Vite | Vanilla ES modules served statically, vendored `daily-js`, no build step | D02 |
+> | §1 Browser | React, TypeScript, Vite | As specified, with the page's logic in one pure reducer (D61; D02's vanilla ES modules superseded) | D61 |
 > | §1 Application, §8 | SQLAlchemy/Alembic | psycopg 3 with numbered SQL migrations applied under an advisory lock | D03 |
 > | §4 Ownership boundaries | Use Pipecat's context and tool-calling machinery for the runtime | Our `ConversationRuntime` owns the loop; Pipecat is the voice shell with one bridge processor | D01 |
 > | §10 Endpoints | `WS /api/sessions/{id}/events` | `GET …/events` (SSE with sequence ids and replay) plus `POST …/turns` per text turn | D11 |

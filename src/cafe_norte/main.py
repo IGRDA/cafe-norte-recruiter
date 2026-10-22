@@ -232,7 +232,7 @@ def create_default_app(
         configurations=configurations,
         gate=gate_from_env(env),
         versions=process,
-        web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web")),
+        web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web/dist")),  # `npm run build` (D61)
         voice_mode=voice_mode,
         rooms=rooms,
         voice=voice,

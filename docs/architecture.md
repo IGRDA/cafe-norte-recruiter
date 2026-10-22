@@ -30,6 +30,8 @@ Every `RuntimeEvent` is wrapped by the API in `SessionEvent(session_id, seq, tur
 payload)` and delivered over SSE with `id: <seq>`. Voice status is a `VoiceState` payload on
 the same stream. Reconnect: `GET /api/sessions/{id}` for the snapshot, then
 `Last-Event-ID: <last_seq>` on the stream. Transient tokens are not replayed.
+The page ignores any event whose `seq` it has already applied, so a replay never doubles a
+bubble; its reducer (`web/src/page/reducer.ts`, D61) is the one place that reads the stream.
 
 ## Export
 
@@ -112,6 +114,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | LLM first output | 6 s per round, one retry of a silent round, then `timeout` (D35) |
 | External tool | 10 s |
 | Text turn | 1–2000 characters |
+| Reviewer panel on the page | the last 40 entries (one per turn, one for the session); older ones drop off (`MAX_REVIEW_ENTRIES`, D61) |
 | Voice sessions per container | 2 (Postgres-enforced) |
 | Session starts per access session per hour | 3 |
 | Silence | 8 s of audible silence (queued audio played, no speech heard), then one "¿Sigues ahí?" per candidate turn; speech restarts the count; a live call is never paused, the session pauses when the call ends (D35, D40) |

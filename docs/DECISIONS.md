@@ -2210,3 +2210,44 @@ out by D24 (voice needs a routable NIC).
 **Consequences.** A third-party DNS provider in the path of the shared link; a wrong
 `public_hostname` fails the deploy's smoke check, which uses the named URL. Anyone with the link
 has the code, as anyone told the code had before.
+
+## D61 · The page in React, TypeScript and Vite, with its logic in one reducer
+
+_Added 22 October 2026. Supersedes D02._
+
+**Context.** D02 chose vanilla ES modules over the spec's React + TypeScript + Vite to keep one
+toolchain. The page has since grown: SSE replay, an access gate, resume links, read-back
+answers, voice with its own life cycle, end, delete, a reviewer panel. Its state lived in one
+mutable object and its rules in event handlers that also touched the DOM. The demo is also a
+React sample for the role it accompanies.
+
+**Options.** Keep D02 and add JSDoc types; React with logic in hooks and `useEffect`; React with
+the logic in one pure reducer whose effects are data; XState.
+
+**Decisions.**
+- **React 19, TypeScript (strict), Vite.** A `node:24-slim` stage builds `web/dist`; the
+  runtime image gets the static files only, never Node. FastAPI serves `web/dist`
+  (`CAFE_NORTE_WEB_DIR`). The CSP (D38) is unchanged: the build emits same-origin module
+  scripts and no inline code. `daily-js` comes from npm at the same pinned 0.94.0, split into
+  its own chunk that loads only when **Hablar** is pressed; `web/vendor/` is gone.
+- **One reducer, effects as data.** `web/src/page/reducer.ts` is `(state, action, exec) =>
+  state`: actions are what happened (a click, a reply, a stream event), and the reducer calls
+  `exec(effect)` to ask for I/O (post a turn, open the stream, start voice, ask a yes/no
+  question, focus a field). `effects.ts` runs them and dispatches what came back; it has no
+  rules. `usePage` keeps each step's effects next to its state, so the reducer stays pure under
+  StrictMode's double call and every effect runs once. Components read selectors and dispatch.
+- **Phases, not flags.** `page` is `loading | gate | choosing | active | ended | deleted |
+  failed`, `voice` is `off | connecting | live | closing`. An ended page cannot send, answer or
+  call; delete hangs up a live call (the old page left it to the server).
+- **Types from the API.** `browser_schema()` (`api/contracts.py`) is one JSON Schema of every
+  contract the page sends or reads; `make export-schema` writes it and generates
+  `web/src/api/contracts.ts`. A Python test and a Vitest test fail when either is stale.
+- **Tests without a browser.** Most of the page's tests are pure reducer cases asserting the
+  next state and the exact effects; the runner is tested with a fake `fetch`; a few render
+  tests use Testing Library and axe. `make check` runs `tsc`, ESLint (hooks, jsx-a11y) and
+  Vitest offline after `make setup`.
+
+**Consequences.** Node 24 joins Python in `make setup` and CI; `npm ci` needs the network once,
+as `uv sync` does. The Postgres and smoke jobs stay Python-only. Behaviour is a port: the same
+API, the same texts, the same SSE handling; a failed voice join now returns to text instead of
+leaving **Parar** pressed.

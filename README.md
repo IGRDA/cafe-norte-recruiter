@@ -58,13 +58,14 @@ stores, the pay, the candidates. No real hiring decision is made or suggested.
 
 ## Run and test
 
-Install [uv](https://docs.astral.sh/uv/); it installs Python 3.12 if needed.
+Install [uv](https://docs.astral.sh/uv/) (it installs Python 3.12 if needed) and Node 24.
 
 ```bash
-make setup        # locked dependencies, every extra
-make check        # ruff, strict mypy, offline tests (no credentials, Docker or network)
+make setup        # locked dependencies, every extra, and the page's npm packages
+make check        # ruff, strict mypy, offline tests; tsc, ESLint and Vitest for the page
 make test-db      # Postgres-backed tests (starts compose)
-make run          # http://localhost:8000; reads .env when present
+make run          # builds the page, http://localhost:8000; reads .env when present
+make web-dev      # the page with hot reload on :5173, proxying /api to make run
 make evals ARGS="--suite scenarios --mode fake"   # the scripted scenarios CI runs
 make voice-smoke  # hosted voice from the laptop (paid; the three voice keys in .env)
 ```
@@ -82,7 +83,7 @@ day). For voice add `DAILY_API_KEY`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY` an
 ## How it is built
 
 ```text
-Browser (vanilla JS) ──SSE/POST──▶ api ──▶ conversation runtime ──▶ model (OpenAI | Groq | fake)
+Browser (React)  ──SSE/POST──▶ api ──▶ conversation runtime ──▶ model (OpenAI | Groq | fake)
 Browser ──Daily audio──▶ voice (Pipecat shell) ─┘        │   ├──▶ knowledge (hybrid | lexical)
                                                          │   ├──▶ persistence (Postgres | memory)
                                                          └──▶ domain (pure rules)

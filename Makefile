@@ -1,14 +1,26 @@
 INFRA_APP := infra/app
 INFRA_BOOTSTRAP := infra/bootstrap
 
-.PHONY: setup check lint typecheck test test-unit test-component test-http test-e2e quality test-db db-up db-down run migrate build-index export-schema export-example \
+.PHONY: setup check web-check web-build web-dev lint typecheck test test-unit test-component test-http test-e2e quality test-db db-up db-down run migrate build-index export-schema export-example \
         evals evals-retrieval compare evals-signals smoke voice-listen voice-smoke infra-check infra-init infra-plan infra-apply
 
 # Locked install with every extra; CI and local use the same command.
 setup:
 	uv sync --locked --all-extras
+	npm --prefix web ci --no-audit --no-fund
 
-check: lint typecheck test
+check: lint typecheck test web-check
+
+# The page (D61): types, lint and Vitest; offline once `make setup` has installed web/node_modules.
+web-check:
+	npm --prefix web run check
+
+web-build:
+	npm --prefix web run build
+
+# The page on :5173 with hot reload, proxying /api to `make run` on :8000.
+web-dev:
+	npm --prefix web run dev
 
 lint:
 	uv run ruff check . && uv run ruff format --check .
@@ -45,7 +57,7 @@ db-up:
 db-down:
 	docker compose down
 
-run:
+run: web-build
 	uv run uvicorn cafe_norte.main:create_default_app --factory --port 8000 $(if $(wildcard .env),--env-file .env)
 
 migrate:
@@ -54,9 +66,11 @@ migrate:
 build-index:
 	uv run python scripts/build_index.py
 
-# Regenerates examples/session_export.schema.json from the Pydantic export model.
+# Regenerates examples/session_export.schema.json from the Pydantic export model, and the page's
+# contract schema and its TypeScript types (web/src/api/contracts.*).
 export-schema:
 	uv run python scripts/export_schema.py
+	npm --prefix web run types
 
 # Regenerates examples/session_export.example.json by replaying scenario S01 offline.
 export-example:

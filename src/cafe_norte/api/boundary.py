@@ -9,7 +9,7 @@ from cafe_norte.errors import MESSAGES
 
 MAX_BODY_BYTES = 64 * 1024
 
-# The page is same-origin ES modules with no inline code; Daily is the only third party.
+# The page is Vite's same-origin build with no inline code (D61); Daily is the only third party.
 # daily-js fetches its call machine from c.daily.co and runs it with Function(): without
 # 'unsafe-eval' no browser joins a room. Inline scripts stay blocked.
 CONTENT_SECURITY_POLICY = "; ".join(

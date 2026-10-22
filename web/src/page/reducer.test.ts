@@ -12,13 +12,14 @@ import {
   exportHref,
   initial,
   MAX_REVIEW_ENTRIES,
+  showAccess,
   storeName,
   talkPressed,
 } from "./reducer";
 
 describe("boot", () => {
   it("opens a session for a known store", () => {
-    const { state, effects } = run(initial({ store: "chamberi", language: "en", resumeToken: null }), {
+    const { state, effects } = run(initial({ store: "chamberi", language: "en", resumeToken: null, code: null }), {
       type: "booted",
       voiceOffered: false,
       stores: [STORE],
@@ -35,7 +36,7 @@ describe("boot", () => {
   });
 
   it("fails when the stores could not be loaded", () => {
-    const { state, effects } = run(initial({ store: null, language: "es", resumeToken: null }), {
+    const { state, effects } = run(initial({ store: null, language: "es", resumeToken: null, code: null }), {
       type: "booted",
       voiceOffered: false,
       stores: [],
@@ -46,7 +47,7 @@ describe("boot", () => {
   });
 
   it("resumes from the fragment and removes it from the address bar first", () => {
-    const { effects } = run(initial({ store: null, language: "es", resumeToken: "tok" }), {
+    const { effects } = run(initial({ store: null, language: "es", resumeToken: "tok", code: null }), {
       type: "booted",
       voiceOffered: false,
       stores: [STORE],
@@ -55,7 +56,7 @@ describe("boot", () => {
   });
 
   it("a dead resume link falls back to a new session with a notice", () => {
-    const start = run(initial({ store: "chamberi", language: "es", resumeToken: "tok" }), {
+    const start = run(initial({ store: "chamberi", language: "es", resumeToken: "tok", code: null }), {
       type: "booted",
       voiceOffered: false,
       stores: [STORE],
@@ -66,7 +67,7 @@ describe("boot", () => {
   });
 
   it("a resumed session takes its store and language from the snapshot", () => {
-    const resuming = run(initial({ store: null, language: "es", resumeToken: "tok" }), {
+    const resuming = run(initial({ store: null, language: "es", resumeToken: "tok", code: null }), {
       type: "booted",
       voiceOffered: false,
       stores: [STORE],
@@ -119,6 +120,40 @@ describe("access gate", () => {
     const gate = run(booted(), { type: "session-needs-code" }).state;
     const { effects } = run(gate, { type: "code-submitted", code: "1" }, { type: "code-submitted", code: "1" });
     expect(effects).toHaveLength(1);
+  });
+});
+
+describe("access link (#code=)", () => {
+  const withCode = (resumeToken: string | null = null) =>
+    run(initial({ store: "chamberi", language: "es", resumeToken, code: "1234" }), {
+      type: "booted",
+      voiceOffered: false,
+      stores: [STORE],
+    });
+
+  it("removes the code from the address bar and checks it before anything else", () => {
+    const { state, effects } = withCode();
+    expect(effects).toEqual([{ type: "clear-fragment" }, { type: "check-code", code: "1234" }]);
+    expect(state.access).toBe("checking");
+  });
+
+  it("a good code opens the session with no form shown", () => {
+    const { state, effects } = run(withCode().state, { type: "access-granted" });
+    expect(effects).toEqual([{ type: "create-session", store: "chamberi", language: "es" }]);
+    expect(showAccess(state)).toBe(false);
+  });
+
+  it("a good code then resumes when the link carries both", () => {
+    const { effects } = run(withCode("tok").state, { type: "access-granted" });
+    expect(effects).toEqual([{ type: "resume", token: "tok" }]);
+  });
+
+  it("a wrong code lands on the form with the error, focused", () => {
+    const { state, effects } = run(withCode().state, { type: "access-refused" });
+    expect(state.page).toBe("gate");
+    expect(state.error).toBe("Código incorrecto.");
+    expect(state.status).toBe("Introduce el código de acceso de la demostración.");
+    expect(effects).toEqual([{ type: "focus", target: "code" }]);
   });
 });
 

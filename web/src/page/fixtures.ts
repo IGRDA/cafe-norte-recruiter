@@ -31,7 +31,7 @@ export function run(state: State, ...actions: Action[]): { state: State; effects
 }
 
 export function booted(store: string | null = "chamberi"): State {
-  return run(initial({ store, language: "es", resumeToken: null }), {
+  return run(initial({ store, language: "es", resumeToken: null, code: null }), {
     type: "booted",
     voiceOffered: true,
     stores: [STORE],

@@ -49,8 +49,9 @@ export interface State {
   page: Page;
   voice: Voice;
   access: Access;
-  // From the address: ?store= and ?lang= open a session, #resume= resumes one.
-  requested: { store: string | null; language: Language; resumeToken: string | null };
+  // From the address: ?store= and ?lang= open a session, #resume= resumes one, #code= is the
+  // shared access code (D60), checked before anything else.
+  requested: { store: string | null; language: Language; resumeToken: string | null; code: string | null };
   voiceOffered: boolean;
   stores: ConfigurationSummary[];
   chooser: { store: string; language: Language };
@@ -73,6 +74,7 @@ export interface State {
 }
 
 export const MAX_REVIEW_ENTRIES = 40;
+const GATE = "Introduce el código de acceso de la demostración.";
 
 export function initial(requested: State["requested"]): State {
   return {
@@ -193,13 +195,13 @@ export function reduce(state: State, action: Action, exec: Exec): State {
         stores: action.stores,
         chooser: { ...state.chooser, store: state.chooser.store || action.stores[0]?.config_id || "" },
       };
-      const { resumeToken } = state.requested;
-      if (resumeToken) {
-        exec({ type: "clear-fragment" });
-        exec({ type: "resume", token: resumeToken });
-        return next;
+      const { code, resumeToken } = state.requested;
+      if (code || resumeToken) exec({ type: "clear-fragment" }); // a secret never stays in the bar
+      if (code) {
+        exec({ type: "check-code", code });
+        return { ...next, access: "checking" };
       }
-      return openOrChoose(next, exec);
+      return proceed(next, exec);
     }
 
     // Access
@@ -211,11 +213,13 @@ export function reduce(state: State, action: Action, exec: Exec): State {
       return { ...state, access: "checking" };
     }
     case "access-granted":
-      if (state.page !== "gate") return state;
-      return openOrChoose({ ...state, access: "idle", error: null, page: "loading" }, exec);
+      if (state.access !== "checking") return state;
+      return proceed({ ...state, access: "idle", error: null, page: "loading" }, exec);
     case "access-refused":
-      if (state.page !== "gate") return state;
-      return { ...state, access: "refused", error: "Código incorrecto." };
+      // A wrong code in the link lands on the form, as a wrong typed one does.
+      if (state.access !== "checking") return state;
+      if (state.page !== "gate") exec({ type: "focus", target: "code" });
+      return { ...state, page: "gate", access: "refused", error: "Código incorrecto.", status: GATE };
 
     // Chooser
     case "chooser-changed":
@@ -253,7 +257,7 @@ export function reduce(state: State, action: Action, exec: Exec): State {
     case "session-needs-code":
       if (state.page !== "loading") return state;
       exec({ type: "focus", target: "code" });
-      return { ...state, page: "gate", status: "Introduce el código de acceso de la demostración." };
+      return { ...state, page: "gate", status: GATE };
     case "session-failed":
       if (state.page !== "loading") return state;
       return { ...state, page: "failed", error: "No se pudo crear la conversación. Recarga la página." };
@@ -391,6 +395,14 @@ export function reduce(state: State, action: Action, exec: Exec): State {
 }
 
 // ---- helpers -------------------------------------------------------------------------------
+
+// Past the gate: a resume link resumes, a chosen store opens a session, otherwise the chooser.
+function proceed(state: State, exec: Exec): State {
+  const { resumeToken } = state.requested;
+  if (!resumeToken) return openOrChoose(state, exec);
+  exec({ type: "resume", token: resumeToken });
+  return { ...state, page: "loading" };
+}
 
 // A chosen store opens a session; otherwise the chooser waits for Empezar.
 function openOrChoose(state: State, exec: Exec): State {

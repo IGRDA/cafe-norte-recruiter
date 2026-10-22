@@ -34,8 +34,8 @@ actions; they never fetch and hold no logic in `useEffect`. The runner only does
 | File | Responsibility |
 | --- | --- |
 | `index.html` | Vite entry: title, favicon, the root element |
-| `src/main.tsx` | Reads `?store=`, `?lang=` and `#resume=` once, wires the browser into the runner's ports, renders `App` in StrictMode |
-| `src/page/reducer.ts` | State, the `Action` and `Effect` unions, the reducer and the selectors. Boot, access gate, chooser, create or resume, the SSE event handling (replay by `seq`, the transcript from the stream alone, at most 40 reviewer entries), turns, Sí / No at the revision on screen, voice, end and delete |
+| `src/main.tsx` | Reads `?store=`, `?lang=`, `#resume=` and `#code=` (D60) once, wires the browser into the runner's ports, renders `App` in StrictMode |
+| `src/page/reducer.ts` | State, the `Action` and `Effect` unions, the reducer and the selectors. Boot, access gate (a `#code=` link is checked first and leaves the address bar; a wrong one lands on the form), chooser, create or resume, the SSE event handling (replay by `seq`, the transcript from the stream alone, at most 40 reviewer entries), turns, Sí / No at the revision on screen, voice, end and delete |
 | `src/page/effects.ts` | The effect runner: typed API calls, the `EventSource`, the voice call, `confirm`, the address bar, focus. `Ports` makes every browser dependency replaceable in tests |
 | `src/page/usePage.ts` | `useReducer` plus the effect queue: each step keeps the effects its action asked for, run once |
 | `src/page/format.ts` | Display text from contract values: field values and statuses, the confirmation line, the booking in Madrid time, versions, sources, a finished turn's timings and tokens |

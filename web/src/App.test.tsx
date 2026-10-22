@@ -26,7 +26,7 @@ function json(status: number, body: unknown = null): Response {
   return new Response(body === null ? null : JSON.stringify(body), { status });
 }
 
-function setup({ needsCode = false } = {}) {
+function setup({ needsCode = false, code = null as string | null } = {}) {
   const stream = new FakeStream();
   const posted: { url: string; body: unknown }[] = [];
   let open = !needsCode;
@@ -56,8 +56,8 @@ function setup({ needsCode = false } = {}) {
     focus: (id) => document.getElementById(id)?.focus(),
     newId: () => "id-1",
   };
-  const view = render(<App requested={{ store: "chamberi", language: "es", resumeToken: null }} ports={ports} />);
-  return { ...view, stream, posted };
+  const view = render(<App requested={{ store: "chamberi", language: "es", resumeToken: null, code }} ports={ports} />);
+  return { ...view, stream, posted, ports };
 }
 
 describe("App", () => {
@@ -84,6 +84,14 @@ describe("App", () => {
     await userEvent.clear(code);
     await userEvent.type(code, "1234{Enter}");
     await screen.findByText("Conectada.");
+    expect(screen.queryByLabelText("Código de acceso")).not.toBeInTheDocument();
+  });
+
+  it("a link with #code= opens the session without showing the form", async () => {
+    const { posted, ports } = setup({ needsCode: true, code: "1234" });
+    await screen.findByText("Conectada.");
+    expect(ports.clearFragment).toHaveBeenCalled();
+    expect(posted[0]).toEqual({ url: "/api/access", body: { code: "1234" } });
     expect(screen.queryByLabelText("Código de acceso")).not.toBeInTheDocument();
   });
 

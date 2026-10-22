@@ -20,6 +20,7 @@ from cafe_norte.domain.contracts import (
     Signal,
     TurnId,
 )
+from cafe_norte.domain.lifecycle import TERMINAL
 from cafe_norte.errors import ErrorCode, Language
 from cafe_norte.model.contracts import ModelUsage
 from cafe_norte.observability.contracts import StageTiming, UsageRecord
@@ -95,6 +96,11 @@ class StateUpdated(Frozen):
     booking: Booking | None
     lifecycle: Lifecycle
     outcome: Outcome | None
+
+    @property
+    def ended(self) -> bool:
+        """The session reached a terminal lifecycle: nothing more will be asked."""
+        return self.lifecycle in TERMINAL
 
     @classmethod
     def of(cls, state: SessionState) -> "StateUpdated":

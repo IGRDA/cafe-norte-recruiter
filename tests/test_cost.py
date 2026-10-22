@@ -8,6 +8,7 @@ import pytest
 from cafe_norte.domain.contracts import SessionId, TurnId
 from cafe_norte.observability.contracts import Price, PriceTable, UsageKind, UsageRecord
 from cafe_norte.observability.cost import estimate, load_prices
+from cafe_norte.voice.contracts import TTS_MODEL
 
 SID = SessionId("s1")
 
@@ -78,7 +79,7 @@ def test_shipped_table_prices_every_provider_in_use() -> None:
         ("llm_tokens", "gpt-4o-mini:input"),
         ("llm_tokens", "gpt-4o-mini:output"),
         ("stt_seconds", "nova-3"),
-        ("tts_characters", "eleven_flash_v2_5"),
+        ("tts_characters", TTS_MODEL),
         ("media_participant_minutes", "daily"),
     }
     assert all(p.eur_per_unit > 0 for p in table.prices)

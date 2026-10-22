@@ -476,7 +476,7 @@ function renderBooking(booking) {
 }
 
 function endConversation() {
-  // The goodbye arrives after the terminal state: keep speaking, stop listening, freeze the UI.
+  // The goodbye arrives after the terminal state: Ana says it and hangs up, the UI freezes now.
   state.ended = true;
   el.text.disabled = true;
   el.send.disabled = true;

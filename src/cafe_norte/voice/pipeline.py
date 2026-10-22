@@ -13,6 +13,7 @@ import logging
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 
+import aiohttp
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADAnalyzer
 from pipecat.frames.frames import STTUpdateSettingsFrame
@@ -24,7 +25,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregatorParams,
 )
 from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
-from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
+from pipecat.services.elevenlabs.tts import ElevenLabsHttpTTSService, ElevenLabsHttpTTSSettings
 from pipecat.transcriptions.language import Language as PipecatLanguage
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.turns.user_start.transcription_user_turn_start_strategy import (
@@ -72,6 +73,15 @@ def stt_settings(language: Language) -> DeepgramSTTSettings:
     """Deepgram in the session's language: ``multi`` heard a Spanish "sí" as "C" (D35)."""
     return DeepgramSTTSettings(
         model=STT_MODEL, language=STT_LANGUAGES[language], interim_results=True
+    )
+
+
+def tts_settings(voice_id: str) -> ElevenLabsHttpTTSSettings:
+    """v4 Turbo over HTTP, one request per sentence (D48). Chosen by listening: the same
+    intonation across sentences and messages, loosened so it does not sound read. v4 ignores
+    ``speed``, so none is set."""
+    return ElevenLabsHttpTTSSettings(
+        model=TTS_MODEL, voice=voice_id, stability=0.4, similarity_boost=0.8, style=0.2
     )
 
 
@@ -211,9 +221,11 @@ class PipecatVoiceController:
             DailyParams(audio_in_enabled=True, audio_out_enabled=True, video_out_enabled=False),
         )
         stt = DeepgramSTTService(api_key=self._deepgram_api_key, settings=stt_settings(language))
-        tts = ElevenLabsTTSService(
+        http = aiohttp.ClientSession()  # one per call, so sentences reuse its connection
+        tts = ElevenLabsHttpTTSService(
             api_key=self._elevenlabs_api_key,
-            settings=ElevenLabsTTSSettings(model=TTS_MODEL, voice=self._voice_id),
+            aiohttp_session=http,
+            settings=tts_settings(self._voice_id),
         )
         holder: dict[str, InboundBridge] = {}
         tasks: set[asyncio.Future[None]] = set()
@@ -229,6 +241,10 @@ class PipecatVoiceController:
         async def speak(text: str) -> None:
             await holder["bridge"].speak(text)
 
+        async def hang_up() -> None:
+            """Graceful: what is in flight drains before Ana leaves the room."""
+            await task_holder["task"].end(reason="goodbye")
+
         session = VoiceSession(
             self._runtime,
             session_id,
@@ -238,6 +254,7 @@ class PipecatVoiceController:
             language=language,
             clock=self._clock,
             on_language=lambda new: tasks.add(asyncio.ensure_future(recognise_in(new))),
+            on_hang_up=hang_up,
         )
         user = user_side(session, SileroVADAnalyzer())
         holder["bridge"] = user[-1]
@@ -256,7 +273,7 @@ class PipecatVoiceController:
             pipeline, params=pipeline_params(), observers=[UsageObserver(meter)]
         )
         task_holder["task"] = pipeline_task
-        live = _Live(session=session, pipeline_task=pipeline_task, meter=meter)
+        live = _Live(session=session, pipeline_task=pipeline_task, meter=meter, http=http)
 
         async def on_joined(_transport: object, _data: object) -> None:
             meter.entered("bot", self._now())
@@ -293,15 +310,22 @@ async def _run(live: "_Live", report: Callable[[], Awaitable[None]]) -> None:
     finally:
         await report()
         await live.session.close()
+        await live.http.close()
 
 
 class _Live:
     def __init__(
-        self, *, session: VoiceSession, pipeline_task: PipelineTask, meter: SpeechMeter
+        self,
+        *,
+        session: VoiceSession,
+        pipeline_task: PipelineTask,
+        meter: SpeechMeter,
+        http: aiohttp.ClientSession,
     ) -> None:
         self.session = session
         self.pipeline_task = pipeline_task
         self.meter = meter
+        self.http = http
         self.joined = asyncio.Event()
         self.error: str | None = None
         self.task: asyncio.Task[None] | None = None

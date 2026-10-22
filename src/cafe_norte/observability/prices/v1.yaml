@@ -1,6 +1,6 @@
 # Provider prices in USD, converted to EUR at load time (D36). A price is data, not code:
 # change this file, bump `version`, update `verified_on`. Re-verify before every release.
-version: "2026-10-21"
+version: "2026-10-22"
 verified_on: 2026-10-21
 # ECB euro reference rate of 21 October 2026, USD per 1 EUR.
 usd_per_eur: 1.1234
@@ -33,6 +33,12 @@ prices:
     unit_detail: nova-3
     usd_per_unit: 0.000128333
     source: https://deepgram.com/pricing
+  # ElevenLabs v4 Turbo, the voice since D48, pay as you go: $0.04 / 1,000 characters
+  # (verified 2026-10-22). Flash stays priced for the exports made before the switch.
+  - kind: tts_characters
+    unit_detail: eleven_v4_turbo
+    usd_per_unit: 0.00004
+    source: https://elevenlabs.io/pricing/api
   # ElevenLabs Flash / Turbo, pay as you go: $0.04 / 1,000 characters.
   - kind: tts_characters
     unit_detail: eleven_flash_v2_5

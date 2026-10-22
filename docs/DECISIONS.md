@@ -1470,3 +1470,52 @@ after the switch.
 
 **Consequences we accept.** Ana speaks English with a Spanish accent. That fits a Spanish
 employer.
+
+---
+
+## D48 · ElevenLabs v4 Turbo over HTTP; Ana hangs up after her goodbye
+
+_Added 22 October 2026, after the first browser calls with the D47 voice._
+
+**Context.** Two complaints from the first hosted calls. Ana's intonation changed between
+sentences and between messages: a full stop or a question mark sounded like a new call. And
+the call ended before her goodbye was heard. The page left the room as soon as the session's
+state became terminal, and that state arrives before the goodbye's audio has played.
+
+**Decisions.**
+- **The voice model is `eleven_v4_turbo`, over HTTP.** Chosen by listening to the same two
+  messages in Flash v2.5, Turbo v2.5, Multilingual v2, v3 Conversational and v4 Turbo, with
+  several stability and speed settings (one request per sentence, as the app sends them). v4
+  Turbo was the only model whose intonation stayed the same across sentences and messages.
+  Settings: stability 0.4, similarity 0.8, style 0.2. Lower stability sounded less read, and v4
+  ignores `speed` (measured: the same 2.0 s for one sentence at 0.8, 1.0 and 1.2).
+- **HTTP, not WebSocket.** ElevenLabs' `multi-stream-input` WebSocket rejects v4 (HTTP 400), so
+  the pipeline runs Pipecat's `ElevenLabsHttpTTSService`, one request per sentence, with one
+  aiohttp session per call. The bridge, the session and the delivery ledger do not change.
+  Each sentence is still its own utterance with its own `TTSStoppedFrame` and word timings
+  from the `with-timestamps` endpoint. Barge-in still cancels the request in flight: measured
+  offline, no audio after the `InterruptionFrame`.
+- **Ana hangs up.** `VoiceSession` notes a terminal `StateUpdated`. Once everything sent has
+  played, or as soon as the candidate talks over the goodbye, it calls `on_hang_up`, which ends
+  the pipeline gracefully (`PipelineTask.end`). The page no longer leaves on the terminal
+  state. It waits for Ana to leave the room, or 20 s.
+
+**Measured.** Time to first audio, median of six sentences over HTTP: v4 Turbo 185 ms, Flash
+v2.5 195 ms. Today's Flash over WebSocket was about 145 ms, so the switch costs about 40 ms
+per sentence. Plain v4 and v3 were about 660 ms and were rejected. Price: v4 Turbo is $0.04
+per 1,000 characters, the same as Flash.
+
+**Rejected.**
+- One ElevenLabs context per reply, so prosody would carry across sentences. On Flash it
+  sounded worse than separate sentences. In Pipecat's sentence mode, a sentence also waits
+  for the next one before it is spoken.
+- `previous_text` continuity on v4 (Pipecat sends it within one reply turn). It sounded no
+  better than separate sentences and would need that reply-turn change.
+- Flash, Turbo v2.5 or Multilingual v2 with higher stability or speed: faster, but the
+  intonation still changed at punctuation and between messages.
+
+**Consequences we accept.** About 40 ms more before each sentence, and an HTTP request per
+sentence instead of one open socket. v4 speaks more slowly than Flash, and no setting changes
+that. A candidate who talks over the goodbye ends the call; they can resume with the private
+link.
+

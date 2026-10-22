@@ -25,6 +25,7 @@ from typing import Literal, Protocol
 from cafe_norte.conversation.contracts import (
     AssistantText,
     RuntimeEvent,
+    StateUpdated,
     ToolFinished,
     ToolStarted,
     TurnFailed,
@@ -74,6 +75,7 @@ class VoiceSession:
         clock: Callable[[], datetime] | None = None,
         idle_prompt_seconds: float = 8.0,
         on_language: Callable[[Language], None] | None = None,
+        on_hang_up: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._runtime = runtime
         self._session_id = session_id
@@ -84,6 +86,8 @@ class VoiceSession:
         self._clock = clock or _utcnow
         self._idle_prompt_seconds = idle_prompt_seconds
         self._on_language = on_language
+        self._on_hang_up = on_hang_up
+        self._ending = False  # the session ended: hang up once everything sent has played
         self._closed = False
         self.status: VoiceStatus = "connecting"
         self._quiet = asyncio.Event()  # nothing sent to TTS is still to play
@@ -158,6 +162,9 @@ class VoiceSession:
             await self._runtime.delivered(self._turn_id, text=text, complete=False)
         self._ledger = Ledger()
         self._owed = None  # the candidate is already speaking: the apology has no job left
+        if self._ending:  # talked over the goodbye: there is nothing left to listen for
+            await self._hang_up()
+            return
         self._set("listening")
         self._restart_idle()
 
@@ -202,6 +209,8 @@ class VoiceSession:
                         self._cancel_filler()
                         self._set("speaking")
                         await self._voice(event.spoken_form)
+                    elif isinstance(event, StateUpdated) and event.ended:
+                        self._ending = True
                     elif isinstance(event, ToolStarted):
                         self._filler_task = asyncio.create_task(self._filler())
                     elif isinstance(event, ToolFinished):
@@ -233,6 +242,13 @@ class VoiceSession:
             return text
         return f"{carry.text} {text}"
 
+    async def _hang_up(self) -> None:
+        """The goodbye has played: Ana leaves the call herself, once, so it is never cut."""
+        hang_up, self._on_hang_up = self._on_hang_up, None
+        self._cancel_idle()
+        if hang_up is not None:
+            await hang_up()
+
     async def _filler(self) -> None:
         await self._after_silence(self.filler_after_seconds)
         await self._voice(self._texts.filler)
@@ -254,6 +270,8 @@ class VoiceSession:
         if owed is not None:
             self._set("speaking")
             await self._say(owed)  # its own playback calls this again
+        elif self._ending:
+            await self._hang_up()
         elif self.status != "listening":
             self._set("listening")
             self._restart_idle()

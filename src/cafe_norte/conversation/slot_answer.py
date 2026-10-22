@@ -38,11 +38,14 @@ def slot_answer(
     now: datetime,
 ) -> RuntimeCall | Shortlist | None:
     """One slot that fits is read back, or reserved when it is the slot already read back,
-    heard, and the words say yes; several are a shortlist; words that fit nothing offered are
-    offered again, for the day they name. ``None``: no open offer, or the words are not a
-    choice, and they are the model's."""
+    heard, and the words say yes; several are a shortlist; words that name a day with nothing
+    offered are offered again for that day. ``None``: no open offer or no request for the
+    interview yet, words that are not a
+    choice, or words that name no day (a time, a month with nothing free): the model has the
+    options in its facts and says what there is, so the same list is never said again (D56)."""
     offer = open_offer(state, by_button=by_button)
-    if offer is None:
+    intent = state.schedule_intent
+    if offer is None or intent is None:
         return None
     zone = ZoneInfo(configuration.timezone)
     ids = [slot.slot_id for slot in offer.slots]
@@ -60,11 +63,8 @@ def slot_answer(
             return "reserve_interview", {"slot_id": ids[index]}
         case Chosen(index=index):
             return "present_confirmation", {"target": "slot", "slot_id": ids[index]}
-        case NoMatch(day=day):
-            intent = state.schedule_intent
-            arguments = {"evidence_text": intent.text if intent else text}
-            if day is not None:
-                arguments["date_preference"] = day.isoformat()
+        case NoMatch(day=day) if day is not None:
+            arguments = {"evidence_text": intent.text, "date_preference": day.isoformat()}
             return "list_interview_slots", arguments
         case Ambiguous(indices=indices):
             options = "; ".join(
@@ -86,7 +86,9 @@ def slot_answer(
 def open_offer(state: SessionState, *, by_button: bool) -> SlotOffer | None:
     """The offer a spoken answer may choose from: there is one, nothing is booked, the session
     is live, and no field or brief read-back is waiting for its own answer. A button press
-    answers a read-back, never an offer."""
+    answers a read-back, never an offer. ``slot_answer`` also waits for the candidate to have
+    asked for the interview: the offer is made with the brief, before Ana has said a time, and
+    "la última" then means nothing yet (D56)."""
     offer = state.slot_offer
     pending = state.pending_confirmation
     waiting = (

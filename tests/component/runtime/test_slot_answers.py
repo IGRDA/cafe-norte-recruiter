@@ -97,21 +97,34 @@ async def test_a_day_not_offered_is_offered_again_for_that_day_by_the_runtime() 
     events = await h.run("¿Y el viernes?", "in-2")
     assert tools_started(events) == ["list_interview_slots"]
     assert await offered_ids(h) == [FRI_1030, FRI_17]
-    said = " ".join(e.text for e in events if isinstance(e, AssistantText))
-    assert "viernes 23 de octubre de 2026 a las 10:30" in said
+    # The model says the new times in its own words; the runtime says no list (D56).
+    assert not [e for e in events if isinstance(e, AssistantText)]
     state = await h.store.sessions.get(SESSION)
     assert state is not None and state.schedule_intent is not None
     assert state.schedule_intent.text == "Sí, quiero entrevista."
-    assert '"slot_choice": "Offered, in this order' in h.model.calls[-1][0].content
+    prompt = h.model.calls[-1][0].content
+    assert '"slot_choice": "The times on offer are: 1: viernes 23 de octubre' in prompt
+    assert '"interview_slots": [{"n": 1, "when": "viernes 23 de octubre' in prompt
 
 
-async def test_a_time_not_offered_offers_the_same_slots_again() -> None:
+async def test_a_day_and_time_not_offered_offers_that_day_and_reads_its_slot_back() -> None:
+    """Ignacio's "el martes veintisiete a las diez": that slot existed, but only the offer
+    was searched, so the list came back again and again."""
+    h = with_slots_offered(says(""))
+    await slots_offered(h)
+    events = await h.run("El viernes a las diez y media.", "in-2")
+    assert tools_started(events) == ["list_interview_slots", "present_confirmation"]
+    assert await pending_slot(h) == FRI_1030
+
+
+async def test_a_time_not_offered_is_the_models_with_the_options_it_has() -> None:
     h = with_slots_offered(says(""))
     await slots_offered(h)
     before = await offered_ids(h)
     events = await h.run("A las ocho.", "in-2")
-    assert tools_started(events) == ["list_interview_slots"]
+    assert tools_started(events) == []
     assert await offered_ids(h) == before
+    assert '"interview_slots": [{"n": 1' in h.model.calls[-1][0].content
 
 
 async def booking_of(h: Harness) -> SlotId | None:

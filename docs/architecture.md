@@ -60,7 +60,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Offers to go over a read-back the candidate cut | 1 per read-back; then the candidate decides (D39) |
 | A read-back said whole | at most twice; a cut one is never said whole again, only in parts (D39) |
 | Fields read back right after capture | `contact_phone`, `earliest_start_date` |
-| Interview slots offered per `list_interview_slots` | 3, from a window of 50 when a date is preferred |
+| Interview slots on offer (with the confirmed brief, or per `list_interview_slots`) | 3, from a window of 50 when a date is preferred (D56) |
 | Simulated calendar | 7 days ahead, 30-minute slots at each store's `interview_times` on shift days (D29) |
 | Slot choice matched by the runtime | against the last offer (at most 3 slots); positions 1–3 and last; days of the month 1–31; a day not offered is offered again when it falls within the 7-day horizon; an hour below 12 also matches the same hour after noon; afternoon from 14:00 (D41) |
 | Bookings | one per slot, one per session, same idempotency key returns the same booking |

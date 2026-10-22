@@ -26,6 +26,8 @@ the session never paused during the call; no model round timed out.
 | KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | `test_ki07_…` | **fixed (D44)** |
 | KI-08 | Wasted model rounds add latency | Low | `test_ki08_…` (two) | **fixed (D44)** |
 | KI-09 | A mention or a refusal of a language switches it; a frustrated request does not | Medium | `test_ki09_…` (four), the signals suite | **fixed (D52)** |
+| KI-10 | No interview time is ever said: the model promises them and calls no tool | High | S28 | **fixed (D56)** |
+| KI-11 | An invented slot id makes the whole list be said again, up to four times | High | S29, `test_a_wrong_choice_…` | **fixed (D56)** |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -180,3 +182,44 @@ the session never paused during the call; no model round timed out.
   dev, 0/59 held-out, one repetition); the indirect requests it still misses (6/19, 9/18) are
   what the Jev analyzer is for (D52).
 
+
+## KI-10 · No interview time is ever said: the model promises them and calls no tool
+
+- **Found in** the hosted voice call of 22 October 2026, 13:01 UTC (session `e657bb5e…`,
+  gpt-4.1, `ana_v19`, Langfuse traces).
+- **What happens.** To "¿Te gustaría hacer una entrevista?" the candidate says "Sí."; Ana
+  answers "Perfecto, te digo los huecos disponibles para entrevista." Then "Vale." gets "Aquí
+  tienes las opciones de entrevista. ¿Con cuál te quedas?" and "No me has dado ninguna opción."
+  gets "Ahora te los digo: aquí van los huecos…". Each turn has one model round and no tool
+  call. The candidate ends up with a follow-up request instead of a booking.
+- **Cause.** The times existed only behind `list_interview_slots`, which the model had to
+  remember to call; the runtime's slot matcher works only once an offer exists.
+- **Fixed (D56).** The confirmed brief puts the first three slots on offer, and the facts show
+  them by number. The model says them without a tool. S28 replays the call with a model that
+  never lists.
+
+## KI-11 · An invented slot id makes the whole list be said again, up to four times
+
+- **Found in** the hosted voice call of 22 October 2026, 11:30 UTC (session `14648365…`,
+  gpt-4.1, `ana_v17`), and the candidate's own account: "me volvía en bucle a decirme los días
+  hasta que en una me ha pillado".
+- **What happens.**
+  - "La última que me has dicho": the model calls
+    `present_confirmation(slot_id="2026-10-24T17:00:00")` → refused "Offer fresh slots with
+    list_interview_slots" → the runtime says the whole list again.
+  - "El martes, de noviembre" is offered Tuesday 27 October.
+  - "No, el martes veintisiete. A las diez" lists again (an invented id `slot-2026-10-27T10:30`)
+    and then reads the slot back: two questions in one reply.
+- **Cause.**
+  - History holds only spoken text, so after the listing turn the model never sees an id.
+  - The refusal told it to list again.
+  - The runtime spoke every list.
+  - The matcher threw the month away and searched only the offer.
+- **Fixed (D56).**
+  - Choice by number.
+  - Refusals that name the options.
+  - The list said by the model, not the runtime.
+  - The month kept.
+  - A day not on offer offered and its slot read back in the same turn.
+
+  S29 replays it with a model that invents an id.

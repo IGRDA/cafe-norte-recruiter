@@ -1,13 +1,13 @@
 """Which interview slot a candidate's words mean (D41). Pure; both languages, no language
 argument: the words of one language never collide with the other's in a slot answer.
 
-``read_slot_words`` says what was said (an ordinal, a weekday, a day of the month, a relative
-day, a clock time, a part of the day) and what was left over; ``choose_slot`` holds those words
-against the slots just offered. As with a plain yes (D35), only an answer that is all about the
-slot is a choice: one word that is neither a slot word nor the talk around a choice ("me va
-bien", "mejor", "sí") makes it the model's, which covers refusals ("no, ninguno") and questions
-("¿dura treinta minutos?") alike. Nothing is guessed: a feature that was not said does not
-filter."""
+``read_slot_words`` says what was said (an ordinal, a weekday, a day of the month, a month, a
+relative day, a clock time, a part of the day) and what was left over; ``choose_slot`` holds
+those words against the slots just offered. As with a plain yes (D35), only an answer that is
+all about the slot is a choice: one word that is neither a slot word nor the talk around a
+choice ("me va bien", "mejor", "sí") makes it the model's, which covers refusals ("no,
+ninguno") and questions ("¿dura treinta minutos?") alike. Nothing is guessed: a feature that
+was not said does not filter."""
 
 import re
 from collections.abc import Callable, Sequence
@@ -29,6 +29,7 @@ class SlotWords(Frozen):
     positions: frozenset[int] = frozenset()  # 1-based, or LAST
     weekdays: frozenset[int] = frozenset()  # Monday is 0
     days: frozenset[int] = frozenset()  # day of the month
+    months: frozenset[int] = frozenset()  # January is 1
     offsets: frozenset[int] = frozenset()  # days from today: hoy 0, mañana 1
     times: frozenset[Clock] = frozenset()
     part: Part | None = None
@@ -73,11 +74,13 @@ _WEEKDAYS = {
     **_counted("lunes martes miercoles jueves viernes sabado domingo", 0),
     **_counted("monday tuesday wednesday thursday friday saturday sunday", 0),
 }
-_MONTHS = (
-    "enero febrero marzo abril mayo junio julio agosto septiembre setiembre octubre noviembre "
-    "diciembre january february march april may june july august september october november "
-    "december"
-).split()
+_MONTHS = {
+    **_counted("enero febrero marzo abril mayo junio julio agosto septiembre octubre", 1),
+    **_counted("noviembre diciembre", 11),
+    "setiembre": 9,
+    **_counted("january february march april may june july august september october", 1),
+    **_counted("november december", 11),
+}
 _POSITIONS = {
     **dict.fromkeys(("primero", "primer", "primera", "first"), 1),
     **dict.fromkeys(("segundo", "segunda", "second"), 2),
@@ -179,7 +182,7 @@ _TODAY = _p(r"\b(?:hoy|today)\b")
 _WEEKDAY = _p(rf"\b({_any(_WEEKDAYS)})\b")
 _POSITION = _p(rf"\b({_any(_POSITIONS)})\b")
 _DAY = _p(rf"\b{_NUM}(?:st|nd|rd|th|o)?\b")
-_MONTH_NAME = _p(rf"\b(?:{_MONTH})\b")
+_MONTH_NAME = _p(rf"\b({_MONTH})\b")
 
 
 def _normal(text: str) -> str:
@@ -273,13 +276,14 @@ def read_slot_words(text: str) -> SlotWords:
     weekdays = set(scan.eat(_WEEKDAY, lambda m: _WEEKDAYS[m[1]]))
     positions = set(scan.eat(_POSITION, lambda m: _POSITIONS[m[1]]))
     days.update(scan.eat(_DAY, lambda m: _day(_n(m[1]))))
-    scan.eat(_MONTH_NAME, lambda m: True)
+    months = set(scan.eat(_MONTH_NAME, lambda m: _MONTHS[m[1]]))
 
     rest = " ".join(w for w in scan.text.replace("\x01", " ").split() if w not in _GLUE)
     return SlotWords(
         positions=frozenset(positions),
         weekdays=frozenset(weekdays),
         days=frozenset(days),
+        months=frozenset(months),
         offsets=frozenset(offsets),
         times=frozenset(times),
         part=next(iter(parts)) if len(parts) == 1 else None,
@@ -362,6 +366,7 @@ def _on_day(words: SlotWords, day: date, today: date) -> bool:
     return (
         (not words.weekdays or day.weekday() in words.weekdays)
         and (not words.days or day.day in words.days)
+        and (not words.months or day.month in words.months)
         and (not words.offsets or (day - today).days in words.offsets)
     )
 
@@ -376,7 +381,7 @@ def _at(clock: Clock, start: datetime) -> bool:
 
 def _named_day(words: SlotWords, today: date) -> date | None:
     """The first day from today within the calendar's horizon that the words name."""
-    if not (words.weekdays or words.days or words.offsets):
+    if not (words.weekdays or words.days or words.months or words.offsets):
         return None
     days = (today + timedelta(days=n) for n in range(HORIZON_DAYS + 1))
     return next((day for day in days if _on_day(words, day, today)), None)

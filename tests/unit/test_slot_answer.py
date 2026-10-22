@@ -92,15 +92,19 @@ def test_a_day_not_offered_offers_again_for_that_day_with_the_original_words() -
     )
 
 
-def test_without_a_saved_intent_the_words_themselves_are_the_evidence() -> None:
-    assert answer(offered(schedule_intent=None), "A las ocho.") == (
-        "list_interview_slots",
-        {"evidence_text": "A las ocho."},
-    )
+def test_before_the_candidate_asks_for_an_interview_nothing_is_decided() -> None:
+    """The offer is made with the brief, before any time was said (D56): live, "La última."
+    to another question booked a time the candidate never heard. The first choice is the
+    model's, with the candidate's words."""
+    assert answer(offered(schedule_intent=None), "La última.") is None
+    assert answer(offered(schedule_intent=None), "¿Y el viernes?") is None
 
 
-def test_a_time_not_offered_offers_again_with_no_day() -> None:
-    assert answer(offered(), "A las ocho.") == ("list_interview_slots", {"evidence_text": ASKED})
+def test_words_that_name_no_day_are_the_models_which_has_the_options() -> None:
+    """A time or a month with nothing on offer is not offered again: the same list said
+    again is the loop of 22 October. The model says what there is (D56)."""
+    assert answer(offered(), "A las ocho.") is None
+    assert answer(offered(), "El martes de noviembre.") is None
 
 
 def test_a_yes_with_the_slot_read_back_and_heard_reserves_it() -> None:

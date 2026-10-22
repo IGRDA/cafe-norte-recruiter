@@ -48,6 +48,7 @@ class ModelUsage(Frozen):
     input_tokens: int
     output_tokens: int
     model_id: str
+    cached_input_tokens: int = 0  # of input_tokens, read from the provider's prompt cache
 
 
 class ModelFinished(Frozen):

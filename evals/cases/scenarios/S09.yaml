@@ -28,6 +28,7 @@ persona:
   mood: frustrated
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: signal_recorded
     args: { turn: "2", sentiment: frustrated }
   - name: said_control_reply

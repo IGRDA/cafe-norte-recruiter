@@ -1,6 +1,7 @@
 """Telemetry fakes: ``NullTelemetry`` for runs that trace nothing, ``RecordingTelemetry`` for
 tests that assert on what a turn emitted."""
 
+import asyncio
 from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Any
@@ -25,7 +26,9 @@ class NullSpan:
     def annotate(self, **metadata: SpanValue) -> None:
         pass
 
-    def set_usage(self, *, model_id: str, input_tokens: int, output_tokens: int) -> None:
+    def set_usage(
+        self, *, model_id: str, input_tokens: int, output_tokens: int, cached_input_tokens: int = 0
+    ) -> None:
         pass
 
     def set_content(self, *, input: str | None = None, output: str | None = None) -> None:
@@ -35,6 +38,9 @@ class NullSpan:
         pass
 
     def fail(self, code: str) -> None:
+        pass
+
+    def warn(self, code: str) -> None:
         pass
 
     def end(self) -> None:
@@ -78,6 +84,7 @@ class RecordedSpan:
     content: tuple[str | None, str | None] | None = None
     first_output: bool = False
     failure: str | None = None
+    warning: str | None = None
     ended: bool = False
 
 
@@ -148,7 +155,9 @@ class _RecordingSpan(NullSpan):
     def annotate(self, **metadata: SpanValue) -> None:
         self._record.metadata.update(metadata)
 
-    def set_usage(self, *, model_id: str, input_tokens: int, output_tokens: int) -> None:
+    def set_usage(
+        self, *, model_id: str, input_tokens: int, output_tokens: int, cached_input_tokens: int = 0
+    ) -> None:
         self._record.usage = (model_id, input_tokens, output_tokens)
 
     def set_content(self, *, input: str | None = None, output: str | None = None) -> None:
@@ -164,6 +173,9 @@ class _RecordingSpan(NullSpan):
     def fail(self, code: str) -> None:
         self._record.failure = code
 
+    def warn(self, code: str) -> None:
+        self._record.warning = code
+
     def end(self) -> None:
         self._record.ended = True
 
@@ -176,7 +188,10 @@ class _RecordingSpan(NullSpan):
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if (
+        if exc_type is not None and issubclass(exc_type, asyncio.CancelledError):
+            if self._record.warning is None and self._record.failure is None:
+                self.warn(exc_type.__name__)  # the candidate talked over Ana: not an error
+        elif (
             exc_type is not None
             and not issubclass(exc_type, GeneratorExit)  # an abandoned stream, not an error
             and self._record.failure is None  # a code given on purpose wins

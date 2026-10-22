@@ -1,5 +1,6 @@
 """The OpenTelemetry adapter: one trace per turn, shaped for Langfuse, nothing sent in tests."""
 
+import asyncio
 import base64
 import json
 from collections.abc import Callable
@@ -44,6 +45,7 @@ PRICES = PriceTable(
     prices=(
         Price(kind="llm_tokens", unit_detail="gpt-4o-mini:input", eur_per_unit=0.000001),
         Price(kind="llm_tokens", unit_detail="gpt-4o-mini:output", eur_per_unit=0.000004),
+        Price(kind="llm_tokens", unit_detail="gpt-4o-mini:input_cached", eur_per_unit=0.0000005),
     ),
 )
 
@@ -385,3 +387,51 @@ def test_input_and_output_set_apart_are_both_exported_when_content_is_on() -> No
     attrs = attributes(traced.finished()["chat"])
     assert json.loads(str(attrs["langfuse.observation.input"])) == "hola"
     assert json.loads(str(attrs["langfuse.observation.output"])) == "buenas"
+
+
+def test_a_warned_span_is_a_warning_with_its_code_and_not_an_error() -> None:
+    traced = Traced()
+    with traced.turn() as root:
+        tool = root.child("update_candidate", "tool")
+        tool.warn("evidence_not_said")
+        tool.end()
+    span = traced.finished()["update_candidate"]
+    attrs = attributes(span)
+    assert attrs["langfuse.observation.level"] == "WARNING"
+    assert attrs["langfuse.observation.status_message"] == "evidence_not_said"
+    assert span.status.status_code != trace.StatusCode.ERROR
+
+
+def test_a_cancelled_span_is_a_warning_and_the_cancellation_propagates() -> None:
+    traced = Traced()
+    with (
+        pytest.raises(asyncio.CancelledError),
+        traced.turn() as root,
+        root.child("chat", "generation"),
+    ):
+        raise asyncio.CancelledError
+    attrs = attributes(traced.finished()["chat"])
+    assert attrs["langfuse.observation.level"] == "WARNING"
+
+
+def test_cached_input_is_a_separate_usage_bucket_priced_apart() -> None:
+    """Langfuse buckets do not overlap: input excludes input_cached_tokens."""
+    traced = Traced()
+    with traced.turn() as root:
+        chat = root.child("chat", "generation")
+        chat.set_usage(
+            model_id="gpt-4o-mini", input_tokens=1000, output_tokens=500, cached_input_tokens=800
+        )
+        chat.end()
+    attrs = attributes(traced.finished()["chat"])
+    assert json.loads(str(attrs["langfuse.observation.usage_details"])) == {
+        "input": 200,
+        "input_cached_tokens": 800,
+        "output": 500,
+        "total": 1500,
+    }
+    cost = json.loads(str(attrs["langfuse.observation.cost_details"]))
+    assert set(cost) == {"input", "input_cached_tokens", "output", "total"}
+    assert cost["total"] == pytest.approx(
+        cost["input"] + cost["input_cached_tokens"] + cost["output"]
+    )

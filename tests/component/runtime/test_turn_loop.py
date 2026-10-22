@@ -121,7 +121,7 @@ async def test_a_domain_refusal_goes_back_to_the_model_and_writes_nothing() -> N
         call_id="c1",
         name="update_candidate",
         arguments_json=json.dumps(
-            {"patch": {"earliest_start_date": "2020-01-01"}, "evidence_text": "en 2020"}
+            {"patch": {"earliest_start_date": "2020-01-01"}, "evidence_text": "el 1 de enero"}
         ),
     )
     h = Harness([[bad, WANTS_TOOLS], says("¿Cuándo?")])
@@ -328,7 +328,7 @@ async def test_a_domain_refusal_is_not_a_malformed_call() -> None:
         call_id="p",
         name="update_candidate",
         arguments_json=json.dumps(
-            {"patch": {"earliest_start_date": "2020-01-01"}, "evidence_text": "en 2020"}
+            {"patch": {"earliest_start_date": "2020-01-01"}, "evidence_text": "el 1 de enero"}
         ),
     )
     h = Harness([[past, WANTS_TOOLS], [past, WANTS_TOOLS], [past, WANTS_TOOLS], says("¿Cuándo?")])

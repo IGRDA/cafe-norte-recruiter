@@ -1,37 +1,47 @@
 # Provider prices in USD, converted to EUR at load time (D36). A price is data, not code:
 # change this file, bump `version`, update `verified_on`. Re-verify before every release.
-version: "2026-10-22"
+version: "2026-10-22.1"
 verified_on: 2026-10-21
 # ECB euro reference rate of 21 October 2026, USD per 1 EUR.
 usd_per_eur: 1.1234
 prices:
-  # https://developers.openai.com/api/docs/models/gpt-4o-mini : $0.15 / 1M in, $0.60 / 1M out.
-  # Cached input ($0.075 / 1M) is not recorded, so every input token is priced at the full rate.
+  # https://developers.openai.com/api/docs/models/gpt-4o-mini : $0.15 / 1M in, $0.075 / 1M
+  # cached in, $0.60 / 1M out. Cached input is its own record since D58.
   - kind: llm_tokens
     unit_detail: "gpt-4o-mini:input"
     usd_per_unit: 0.00000015
+    source: https://developers.openai.com/api/docs/models/gpt-4o-mini
+  - kind: llm_tokens
+    unit_detail: "gpt-4o-mini:input_cached"
+    usd_per_unit: 0.000000075
     source: https://developers.openai.com/api/docs/models/gpt-4o-mini
   - kind: llm_tokens
     unit_detail: "gpt-4o-mini:output"
     usd_per_unit: 0.0000006
     source: https://developers.openai.com/api/docs/models/gpt-4o-mini
   # https://developers.openai.com/api/docs/models/gpt-4o : $2.50 / 1M in, $10 / 1M out
-  # (verified 2026-10-21). The model comparison's second candidate (D43); cached input
-  # ($1.25 / 1M) is priced at the full rate, as for gpt-4o-mini.
+  # (verified 2026-10-21), cached input $1.25 / 1M. The model comparison's second candidate (D43).
   - kind: llm_tokens
     unit_detail: "gpt-4o:input"
     usd_per_unit: 0.0000025
+    source: https://developers.openai.com/api/docs/models/gpt-4o
+  - kind: llm_tokens
+    unit_detail: "gpt-4o:input_cached"
+    usd_per_unit: 0.00000125
     source: https://developers.openai.com/api/docs/models/gpt-4o
   - kind: llm_tokens
     unit_detail: "gpt-4o:output"
     usd_per_unit: 0.00001
     source: https://developers.openai.com/api/docs/models/gpt-4o
   # https://developers.openai.com/api/docs/pricing : gpt-4.1, standard tier: $2 / 1M in, $8 / 1M out
-  # (verified 2026-10-22). The voice model since D49; cached input ($0.50 / 1M) is priced at the
-  # full rate, as for gpt-4o-mini.
+  # (verified 2026-10-22), cached input $0.50 / 1M. The voice model since D49.
   - kind: llm_tokens
     unit_detail: "gpt-4.1:input"
     usd_per_unit: 0.000002
+    source: https://developers.openai.com/api/docs/pricing
+  - kind: llm_tokens
+    unit_detail: "gpt-4.1:input_cached"
+    usd_per_unit: 0.0000005
     source: https://developers.openai.com/api/docs/pricing
   - kind: llm_tokens
     unit_detail: "gpt-4.1:output"

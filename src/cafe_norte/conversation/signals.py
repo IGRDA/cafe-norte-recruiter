@@ -54,6 +54,11 @@ _PATTERNS: dict[Language, dict[Control, re.Pattern[str]]] = {
         "human": re.compile(
             rf"\b(?:(?:hablar|hable|habla|pasame|pasarme|me pasas|ponme|ponerme|comunicame"
             rf"|comunicarme) con|quiero|prefiero|que me atienda) {_PERSON_ES}\b"
+            # "Anótalo para que me contacten": a request for a person, said as a request to
+            # be contacted (D58).
+            r"|\bque (?:me|nos) (?:contacten|contacte|llamen|llame|escriban|escriba)\b"
+            r"|\bque (?:alguien|una persona)(?: del equipo)? (?:me|nos) "
+            r"(?:contacte|llame|escriba)\b"
         ),
         "stop": re.compile(
             r"\b(?:quiero|prefiero|vamos a|podemos) (?:parar|terminar|acabar|dejarlo|colgar)\b"
@@ -67,6 +72,7 @@ _PATTERNS: dict[Language, dict[Control, re.Pattern[str]]] = {
         "human": re.compile(
             rf"\b(?:(?:talk|speak) (?:to|with)|i want|id like|i need|get me|put me through to)"
             rf" {_PERSON_EN}\b"
+            r"|\b(?:contact|call|email) me(?: back)?\b|\bsomeone to (?:contact|call) me\b"
         ),
         "stop": re.compile(
             r"\b(?:i want to|id like to|lets|can we|i wanna) (?:stop|end|quit|finish|hang up)\b"
@@ -250,6 +256,26 @@ def answer_to_readback(text: str) -> ReadbackAnswer | None:
             leftover = [w for w in rest.split() if w not in _FILLERS and w not in alongside]
             return answer if not leftover else None  # a plain word plus more: the model decides
     return "affirm" if _is_plain_yes(words) else None
+
+
+# A question opens with an interrogative or a phrase that announces one; "que" alone is left
+# out, since "que sí" is an answer.
+_QUESTION_OPENING = re.compile(
+    r"^(?:(?:y|pero|oye|perdona|una cosa)\s+)*(?:donde|cuanto|cuanta|cuantos|cuantas|cual|"
+    r"cuales|cuando|como|quien|por que|que (?:tipo|hay|pasa|horario|dias)|me gustaria saber|"
+    r"quisiera saber|quiero saber|una pregunta|tengo una duda|where|what|when|how|which|who|why|"
+    r"can i ask|i(?:'d| would) like to know|i want to know)\b"
+)
+
+
+def asks_question(text: str) -> bool:
+    """Whether the candidate asks something: a question mark, or a clause that opens like a
+    question. Pure; both languages. A question is never an answer to a read-back (D58)."""
+    if "?" in text or "¿" in text:
+        return True
+    folded = plain(text).replace("'", "'")
+    clauses = (c.strip() for c in re.split(r"[.,;:!]", folded))
+    return any(_QUESTION_OPENING.match(c) for c in clauses if c)
 
 
 def _without(words: str, phrases: tuple[str, ...]) -> tuple[str, bool]:

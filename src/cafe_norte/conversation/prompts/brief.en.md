@@ -1,4 +1,4 @@
-# Brief and read-back sentences (ana_v20, en)
+# Brief and read-back sentences (ana_v21, en)
 
 One `key: sentence` per line; `#` lines and blank lines are ignored. `{value}` is filled by
 `conversation/brief.py`. `brief.es.md` has exactly the same keys.
@@ -16,14 +16,14 @@ availability: You can work {days}, on the {shifts} shift, about {hours} hours a 
 availability_days: You can work {value}.
 availability_shifts: On the {value} shift.
 hours_per_week: About {value} hours a week.
-earliest_start_date: You could start on {value}.
+earliest_start_date: You could start {value}.
 experience: Experience: {value}.
 contact_phone: Your phone number is {value}.
 followup: You have asked for someone from the team to get in touch with you.
 unknown: {label}: you do not know.
 declined: {label}: you would rather not say.
 readback.contact_phone: I have your phone number as {value}. Is that correct?
-readback.earliest_start_date: I have that you could start on {value}. Is that correct?
+readback.earliest_start_date: I have that you could start {value}. Is that correct?
 readback.slot: I have the interview at {store} on {value}, Madrid time. Shall I reserve it?
 review.check: Is that right?
 slot_time: {date} at {time}
@@ -42,3 +42,5 @@ weekdays: Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday
 months: January,February,March,April,May,June,July,August,September,October,November,December
 and: and
 date: {weekday} {day} {month} {year}
+start.on: on {value}
+start.in: in {month} {year}

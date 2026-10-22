@@ -40,6 +40,7 @@ persona:
     name: Lucía Marín
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: said_control_reply
     args: { turn: "4", control: time_cap }
   - name: lifecycle_is

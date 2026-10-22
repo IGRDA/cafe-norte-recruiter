@@ -1,6 +1,9 @@
 """The trace of a turn, and the conversation tail it carries."""
 
+import asyncio
 import json
+
+import pytest
 
 from cafe_norte.conversation.runtime import Limits
 from cafe_norte.model.contracts import (
@@ -18,7 +21,9 @@ from tests.support.harness import (
     Harness,
     name_call,
     says,
+    turn,
 )
+from tests.support.time import settle
 
 SEARCH = ToolCall(
     call_id="k1",
@@ -147,3 +152,38 @@ async def test_a_generation_is_marked_when_its_first_output_arrives() -> None:
     await h.open_session()
     await h.run("Hola")
     assert h.telemetry.span("chat").first_output is True
+
+
+async def test_an_interrupted_turn_is_a_warning_not_an_error() -> None:
+    """Live: 13 of 51 turns were ERROR, every one a candidate talking over Ana. A barge-in is
+    normal in a voice call; ERROR is kept for what failed."""
+    h = Harness([says("Hola.")], slow_calls=1)
+    await h.open_session()
+
+    async def consume() -> None:
+        async for _ in h.runtime.run_turn(turn("Hola")):
+            pass
+
+    task = asyncio.create_task(consume())
+    await settle()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    (root,) = roots(h)
+    assert root.warning == "interrupted" and root.failure is None
+    assert root.metadata["outcome"] == "interrupted"
+    assert all(span.failure is None for span in h.telemetry.spans)
+
+
+async def test_a_refused_tool_is_a_warning_with_its_stable_code() -> None:
+    """Live: 44 of 89 update_candidate calls were refused, visible only in metadata. The code
+    (the summary before its first colon) is what a dashboard counts."""
+    early = ToolCall(
+        call_id="b1", name="present_confirmation", arguments_json='{"target": "brief"}'
+    )
+    h = Harness([[early, WANTS_TOOLS], says("¿Cómo te llamas?")])
+    await h.open_session()
+    await h.run("Hola")
+    tool = h.telemetry.span("present_confirmation")
+    assert tool.warning == "brief_not_ready" and tool.failure is None
+    assert tool.metadata["ok"] is False

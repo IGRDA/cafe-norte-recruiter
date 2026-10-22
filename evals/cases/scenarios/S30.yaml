@@ -1,0 +1,81 @@
+id: S30
+title: Ignacio's "Sí, anótalo" of 22 October, replayed with a model that writes a note first
+config_id: chamberi_barista_v1
+language: es
+today: "2026-10-20"
+# What went wrong live: after the brief the candidate said he was the owner's son and had been
+# promised 15.000 euros a year; Ana offered "¿Quieres que lo deje anotado para que te
+# contacten?", he said "Sí, anótalo", and the model saved a note: nobody would ever contact
+# him. A note now says so in its result (D58); line 7's model, told, calls
+# request_human_followup in the same turn.
+scripted_turns:
+  - "Sí, me viene bien."
+  - "Me llamo Lucía Marín, sí me interesa el puesto."
+  - "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+  - "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+  - "Sí, es correcto."
+  - "Sí, todo correcto."
+  - "Una cosa: soy hijo del dueño y me prometieron quince mil euros al año."
+  - "Sí, anótalo para que me contacten."
+  - "No, nada más. Gracias."
+fake_script:
+  - - say: "Genial. ¿Cómo te llamas y te interesa el puesto de barista?"
+  - - tool: update_candidate
+      args:
+        patch: { name: Lucía Marín, interest: "yes" }
+        evidence_text: "Me llamo Lucía Marín, sí me interesa el puesto."
+    - say: "Encantada, Lucía. ¿Tienes permiso de trabajo y qué disponibilidad tienes?"
+  - - tool: update_candidate
+      args:
+        patch:
+          work_authorization: "yes"
+          availability_days: [mon, tue, thu]
+          availability_shifts: [morning]
+          hours_per_week: 30
+        evidence_text: "Tengo permiso de trabajo. Puedo lunes, martes y jueves por la mañana, unas 30 horas."
+    - say: "Perfecto. ¿Cuándo podrías empezar y qué experiencia tienes?"
+  - - tool: update_candidate
+      args:
+        patch: { earliest_start_date: "2026-10-26", experience: dos años en una cafetería }
+        evidence_text: "Podría empezar el lunes que viene. He trabajado dos años en una cafetería."
+    - say: ""
+  - - tool: confirm_field
+      args: { answer: affirm }
+    - tool: present_confirmation
+      args: { target: brief }
+    - say: ""
+  - - tool: confirm_brief
+      args: { answer: affirm }
+    - say: "¿Tienes alguna duda sobre el puesto o la tienda?"
+  - - say: "Lo que aparece en la oferta es lo que te puedo decir. ¿Quieres que lo deje anotado para que alguien del equipo te contacte sobre ese tema?"
+  - - tool: update_candidate
+      args:
+        patch: { note: "Dice que es hijo del dueño y que le prometieron 15.000 euros al año." }
+        evidence_text: "Una cosa: soy hijo del dueño y me prometieron quince mil euros al año."
+    - tool: request_human_followup
+      args: { reason: "Dice que es hijo del dueño y que le prometieron otras condiciones." }
+    - say: "Hecho: alguien del equipo te contestaría, aunque en esta demostración no se avisa a nadie real. ¿Te gustaría tener una entrevista?"
+  - - tool: end_session
+      args: { reason: candidate_done }
+    - say: "Gracias a ti, Lucía. ¡Hasta pronto!"
+persona:
+  facts:
+    name: Lucía Marín
+    work_authorization: "yes"
+    availability_days: mon,tue,thu
+    availability_shifts: morning
+    hours_per_week: "30"
+    earliest_start_date: next monday
+    experience: dos años en una cafetería de barrio
+  wants_interview: true
+checks:
+  - name: claims_saved_without_save
+  - name: tool_ok
+    args: { turn: "8", tool: request_human_followup, ok: "true" }
+  - name: review_flag_present
+    args: { kind: human_followup }
+live_candidate: scripted
+live_checks:
+  - name: claims_saved_without_save
+  - name: review_flag_present
+    args: { kind: human_followup }

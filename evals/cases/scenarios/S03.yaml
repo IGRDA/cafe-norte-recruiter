@@ -17,6 +17,7 @@ persona:
   facts: {}
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: field_equals
     args: { field: interest, value: "no" }
   - name: lifecycle_is

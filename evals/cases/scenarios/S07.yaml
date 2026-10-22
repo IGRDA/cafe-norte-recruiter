@@ -62,6 +62,7 @@ persona:
   switch_language_after_turn: 2
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: field_equals
     args: { field: name, value: Lucía Marín }
   - name: field_equals

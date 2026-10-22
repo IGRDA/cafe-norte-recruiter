@@ -101,3 +101,29 @@ async def test_once_ana_has_spoken_the_turn_is_not_restarted() -> None:
     assert said[0] in prompts.load("controls", "es")  # the fixed reply, said before the model
     assert len(h.model.calls) == 2  # one round each turn: the first was not restarted
     assert next(e for e in second if isinstance(e, TurnStarted)).language == "en"
+
+
+async def test_frustration_read_before_the_first_sentence_reaches_this_turn() -> None:
+    """Ignacio's call: "estoy bastante mosqueado… no me ha gustado nada tu servicio" got the
+    next field question. The analyzer's verdict, read where D53 reads the language, now
+    reaches the turn it is about: the round is dropped and answered again with it (D58)."""
+    h = Harness(
+        [says("¿Qué turno prefieres?"), says("Siento que te haya molestado.")],
+        signals=decision_analyzer(0.0, sentiment="frustrated"),
+    )
+    await h.open_session()
+
+    events = await h.run("Estoy bastante mosqueado, no me ha gustado nada tu servicio.")
+
+    assert [e.text for e in events if isinstance(e, AssistantText)] == [
+        "Siento que te haya molestado."
+    ]
+    assert '"candidate_sentiment": null' in h.model.calls[0][0].content
+    assert '"candidate_sentiment": "frustrated"' in h.model.calls[1][0].content
+
+
+async def test_a_neutral_verdict_answers_once() -> None:
+    h = Harness([says("Vale.")], signals=decision_analyzer(0.0, sentiment="neutral"))
+    await h.open_session()
+    await h.run("De lunes a viernes.")
+    assert len(h.model.calls) == 1

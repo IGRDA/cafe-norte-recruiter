@@ -130,8 +130,10 @@ DESCRIPTIONS: dict[ToolName, str] = {
     "a part, skip when they want to carry on without going over it. The system speaks the "
     "parts and confirms a skip for you.",
     "request_human_followup": "Save a request for a person to follow up, with the reason: "
-    "the candidate's unanswered question, or their wish to talk to a person. Call it once the "
-    "candidate accepts the offer; nobody real is notified in this demo.",
+    "the candidate's unanswered question, their wish to talk to a person, or what they want "
+    "the team to look at (a complaint, a claim about their conditions). Call it once the "
+    "candidate accepts the offer; a note is never read by a person. Nobody real is notified "
+    "in this demo.",
     "end_session": "Close the conversation for an allowed reason.",
 }
 

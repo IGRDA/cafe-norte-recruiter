@@ -320,3 +320,45 @@ async def test_not_interested_stops_with_that_outcome() -> None:
 
 def test_tool_outcome_spoken_defaults_to_nothing() -> None:
     assert ToolOutcome(ok=True, model_text="x", summary="y").spoken == ""
+
+
+async def test_a_confirmed_field_is_not_read_back_again() -> None:
+    """Iñaki's call: "That's right." confirmed the date; the model then called confirm_field
+    again, was told "Present it again", and the date was read back a second time."""
+    w = await World(full_record()).open()
+    await w.present(
+        context(), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    await w.deliver()
+    await w.confirm_field(context("t2"), args("confirm_field", answer="affirm"))
+    twice = await w.confirm_field(context("t2"), args("confirm_field", answer="affirm"))
+    assert not twice.ok and twice.summary == "confirmation_refused:already_answered"
+    assert "Present it again" not in twice.model_text
+    assert "already confirmed" in twice.model_text
+    again = await w.present(
+        context("t2"), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    assert not again.ok and again.summary == "already_confirmed:earliest_start_date"
+    assert again.spoken == "" and "already confirmed" in again.model_text
+
+
+async def test_a_note_tells_the_model_nobody_will_act_on_it() -> None:
+    """Ignacio's call: "¿Quieres que lo deje anotado para que te contacten?" — "Sí, anótalo",
+    and the model saved a note. A note reaches no one; the result says so, with the tool that
+    does, so the model can correct itself (D58)."""
+    w = await World().open()
+    outcome = await w.update(
+        context(),
+        args(
+            "update_candidate",
+            patch={"note": "Dice que es hijo del dueño y le prometieron 15.000 euros."},
+            evidence_text="yo soy hijo del dueño",
+        ),
+    )
+    assert outcome.ok
+    assert "nobody will contact" in outcome.model_text
+    assert "request_human_followup" in outcome.model_text
+    named = await w.update(
+        context("t2"), args("update_candidate", patch={"name": "Ane"}, evidence_text="Ane")
+    )
+    assert "nobody will contact" not in named.model_text  # only a note earns it

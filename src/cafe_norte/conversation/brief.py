@@ -16,6 +16,7 @@ from cafe_norte.domain.contracts import (
     InterviewSlot,
     StoreConfiguration,
     Weekday,
+    YearMonth,
 )
 from cafe_norte.domain.fields import value_of
 from cafe_norte.errors import Language
@@ -49,7 +50,7 @@ def render_brief(
         record,
         "earliest_start_date",
         t,
-        lambda v: t["earliest_start_date"].format(value=_date(v, t)),
+        lambda v: t["earliest_start_date"].format(value=_start(v, t)),
     )
     parts += _fact(
         record, "experience", t, lambda v: t["experience"].format(value=str(v).rstrip("."))
@@ -66,7 +67,7 @@ def render_brief(
 
 def field_readback(field: ReadbackField, value: object, language: Language) -> str:
     t = _texts(language)
-    shown = _phone(str(value)) if field == "contact_phone" else _date(value, t)
+    shown = _phone(str(value)) if field == "contact_phone" else _start(value, t)
     return t[f"readback.{field}"].format(value=shown)
 
 
@@ -176,6 +177,15 @@ def _date(value: object, t: dict[str, str]) -> str:
     weekday = t["weekdays"].split(",")[value.weekday()]
     month = t["months"].split(",")[value.month - 1]
     return t["date"].format(weekday=weekday, day=value.day, month=month, year=value.year)
+
+
+def _start(value: object, t: dict[str, str]) -> str:
+    """A start date with its preposition ("el lunes 2 de noviembre de 2026"), or the month alone
+    ("en enero de 2027") when that is all the candidate said (D58)."""
+    if isinstance(value, YearMonth):
+        month = t["months"].split(",")[value.month - 1]
+        return t["start.in"].format(month=month, year=value.year)
+    return t["start.on"].format(value=_date(value, t))
 
 
 def _phone(e164: str) -> str:

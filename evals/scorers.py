@@ -21,6 +21,7 @@ from cafe_norte.domain.contracts import (
     Captured,
     Confirmed,
     SessionState,
+    YearMonth,
 )
 from cafe_norte.domain.fields import value_of
 from cafe_norte.errors import Language
@@ -59,6 +60,7 @@ CHECKS = (
     "sources_shown_on_any_turn",
     "no_leak",
     "spoken_language",
+    "claims_saved_without_save",
 )
 
 SET_FIELDS = {"availability_days", "availability_shifts"}
@@ -247,6 +249,43 @@ def _tool_ok(result: SessionResult, check: Check) -> tuple[bool, str]:
     )
 
 
+# A sentence that says something was just saved, in either language; a question offering to
+# save ("¿quieres que lo deje anotado?") is not a claim.
+_SAVE_CLAIM = re.compile(
+    r"\b(guardo|he guardado|apunto|he apuntado|anoto|he anotado|lo dejo anotado|"
+    r"queda (?:guardad|anotad|apuntad)\w*|i(?:'ve| have) (?:saved|noted)|i'll note|noted)\b",
+    re.IGNORECASE,
+)
+# A tool whose success makes a "saved" true: the save itself or the system's read-back of it.
+_SAVING_TOOLS = frozenset(
+    {
+        "update_candidate",
+        "request_human_followup",
+        "reserve_interview",
+        "present_confirmation",
+        "confirm_field",
+        "confirm_brief",
+        "review_readback",
+    }
+)
+
+
+def _claims_saved_without_save(result: SessionResult, check: Check) -> tuple[bool, str]:
+    """Nothing is announced before it is persisted: no turn says it saved something unless a
+    saving tool succeeded in that same turn (D58)."""
+    claims = []
+    for index, sentences in enumerate(result.spoken_by_turn):
+        tools = result.tools_by_turn[index] if index < len(result.tools_by_turn) else ()
+        if any(ok and name in _SAVING_TOOLS for name, ok in tools):
+            continue
+        claims += [
+            f"turn {index + 1}: {s}"
+            for s in sentences
+            if "?" not in s and _SAVE_CLAIM.search(s) and not s.startswith(_readback_openings())
+        ]
+    return not claims, f"said saved with nothing saved: {claims or 'none'}"
+
+
 def _turn_failed(result: SessionResult, check: Check) -> tuple[bool, str]:
     """Candidate line ``turn`` (1-based) ended with error ``code``; ``none``: it did not fail."""
     turn, wanted = int(check.args["turn"]), check.args["code"]
@@ -319,6 +358,7 @@ SCORERS: dict[str, Callable[[SessionResult, Check], tuple[bool, str]]] = {
     "sources_shown_on_any_turn": _sources_shown_on_any_turn,
     "no_leak": _no_leak,
     "spoken_language": _spoken_language,
+    "claims_saved_without_save": _claims_saved_without_save,
 }
 LATER: dict[str, str] = {}
 
@@ -331,6 +371,18 @@ def _user_turn_ids(result: SessionResult) -> list[str]:
 
 
 @cache
+@cache
+def _readback_openings() -> tuple[str, ...]:
+    """How the system's read-backs of saved values begin ("He apuntado el teléfono"): said
+    after the save, even in a turn cut before its tool's end was seen."""
+    return tuple(
+        template.split("{", 1)[0].strip()
+        for language in get_args(Language)
+        for key, template in prompts.table("brief", language).items()
+        if key.startswith("readback.")
+    )
+
+
 def _system_questions() -> frozenset[str]:
     """The fixed questions of prompts/brief.<language>.md, in every language: the brief's
     closing question, the last sentence of each read-back template and the review's check."""
@@ -397,6 +449,8 @@ def _parse(field: str, raw: str, today: date) -> object:
     if field in INT_FIELDS:
         return int(raw)
     if field in DATE_FIELDS:
+        if len(raw.strip()) == 7:
+            return YearMonth(year=int(raw[:4]), month=int(raw[5:7]))  # a month alone (D58)
         return relative_date(raw, today) or date.fromisoformat(raw)
     return raw
 

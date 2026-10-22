@@ -315,8 +315,8 @@
           },
           "discriminator": {
             "mapping": {
-              "captured": "#/$defs/Captured_date_",
-              "confirmed": "#/$defs/Confirmed_date_",
+              "captured": "#/$defs/Captured_Annotated_Union_date__YearMonth___BeforeValidator__",
+              "confirmed": "#/$defs/Confirmed_Annotated_Union_date__YearMonth___BeforeValidator__",
               "declined": "#/$defs/Declined",
               "unknown": "#/$defs/Unknown",
               "unset": "#/$defs/Unset"
@@ -328,10 +328,10 @@
               "$ref": "#/$defs/Unset"
             },
             {
-              "$ref": "#/$defs/Captured_date_"
+              "$ref": "#/$defs/Captured_Annotated_Union_date__YearMonth___BeforeValidator__"
             },
             {
-              "$ref": "#/$defs/Confirmed_date_"
+              "$ref": "#/$defs/Confirmed_Annotated_Union_date__YearMonth___BeforeValidator__"
             },
             {
               "$ref": "#/$defs/Unknown"
@@ -387,6 +387,38 @@
       "title": "CandidateRecord",
       "type": "object"
     },
+    "Captured_Annotated_Union_date__YearMonth___BeforeValidator__": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "captured",
+          "default": "captured",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/YearMonth"
+            }
+          ],
+          "title": "Value"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "evidence"
+      ],
+      "title": "Captured[Annotated[Union[date, YearMonth], BeforeValidator]]",
+      "type": "object"
+    },
     "Captured_Annotated_int__FieldInfo_annotation_NoneType__required_True__metadata__Ge_ge_1___Le_le_60_____": {
       "additionalProperties": false,
       "properties": {
@@ -440,31 +472,6 @@
         "evidence"
       ],
       "title": "Captured[Literal['yes', 'unsure', 'no']]",
-      "type": "object"
-    },
-    "Captured_date_": {
-      "additionalProperties": false,
-      "properties": {
-        "status": {
-          "const": "captured",
-          "default": "captured",
-          "title": "Status",
-          "type": "string"
-        },
-        "value": {
-          "format": "date",
-          "title": "Value",
-          "type": "string"
-        },
-        "evidence": {
-          "$ref": "#/$defs/Evidence"
-        }
-      },
-      "required": [
-        "value",
-        "evidence"
-      ],
-      "title": "Captured[date]",
       "type": "object"
     },
     "Captured_frozenset_Literal__mon____tue____wed____thu____fri____sat____sun____": {
@@ -532,6 +539,43 @@
       "title": "Captured[frozenset[NewType]]",
       "type": "object"
     },
+    "Confirmed_Annotated_Union_date__YearMonth___BeforeValidator__": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "confirmed",
+          "default": "confirmed",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/YearMonth"
+            }
+          ],
+          "title": "Value"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "confirmation_id": {
+          "title": "Confirmation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "evidence",
+        "confirmation_id"
+      ],
+      "title": "Confirmed[Annotated[Union[date, YearMonth], BeforeValidator]]",
+      "type": "object"
+    },
     "Confirmed_Annotated_int__FieldInfo_annotation_NoneType__required_True__metadata__Ge_ge_1___Le_le_60_____": {
       "additionalProperties": false,
       "properties": {
@@ -595,36 +639,6 @@
         "confirmation_id"
       ],
       "title": "Confirmed[Literal['yes', 'unsure', 'no']]",
-      "type": "object"
-    },
-    "Confirmed_date_": {
-      "additionalProperties": false,
-      "properties": {
-        "status": {
-          "const": "confirmed",
-          "default": "confirmed",
-          "title": "Status",
-          "type": "string"
-        },
-        "value": {
-          "format": "date",
-          "title": "Value",
-          "type": "string"
-        },
-        "evidence": {
-          "$ref": "#/$defs/Evidence"
-        },
-        "confirmation_id": {
-          "title": "Confirmation Id",
-          "type": "string"
-        }
-      },
-      "required": [
-        "value",
-        "evidence",
-        "confirmation_id"
-      ],
-      "title": "Confirmed[date]",
       "type": "object"
     },
     "Confirmed_frozenset_Literal__mon____tue____wed____thu____fri____sat____sun____": {
@@ -1650,6 +1664,30 @@
         "commit_sha"
       ],
       "title": "VersionStamp",
+      "type": "object"
+    },
+    "YearMonth": {
+      "additionalProperties": false,
+      "description": "A start the candidate gave by month only (\"en enero\"): never filled to a day they did not\nsay (D58). Serialized as ``YYYY-MM``.",
+      "properties": {
+        "year": {
+          "maximum": 2100,
+          "minimum": 2000,
+          "title": "Year",
+          "type": "integer"
+        },
+        "month": {
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Month",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "year",
+        "month"
+      ],
+      "title": "YearMonth",
       "type": "object"
     },
     "cafe_norte__domain__contracts__Captured_Annotated_str__StringConstraints____1": {

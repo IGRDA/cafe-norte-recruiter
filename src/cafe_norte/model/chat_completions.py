@@ -142,9 +142,11 @@ async def _parse(
             raise ModelError(_error_detail(chunk["error"]), code="invalid_response")
         raw_usage = chunk.get("usage") or chunk.get("x_groq", {}).get("usage")
         if raw_usage:
+            cached = (raw_usage.get("prompt_tokens_details") or {}).get("cached_tokens")
             usage = ModelUsage(
                 input_tokens=int(raw_usage.get("prompt_tokens", 0)),
                 output_tokens=int(raw_usage.get("completion_tokens", 0)),
+                cached_input_tokens=int(cached or 0),
                 model_id=str(chunk.get("model", "")),
             )
         for choice in chunk.get("choices", []):

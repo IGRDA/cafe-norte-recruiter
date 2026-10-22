@@ -2027,3 +2027,83 @@ change; rarer now).
 **Consequences we accept.** About 0.3 s more after every finished sentence. A one-word answer
 over Ana ("no") waits until she stops. Barge-in now waits for the first interim transcript
 instead of VAD, a few hundred milliseconds later.
+
+## D58 · The rest of the live-call fixes: warnings that count, the model told the truth
+
+_Added 22 October 2026, from the hosted calls of the same day (KI-12 and the traces read with
+the v2 observations API), after D56 and D57. One entry per fix, in the order they landed._
+
+**Decisions.**
+- **A warning is not a failure.** The `Span` port gains `warn(code)`: Langfuse level
+  `WARNING` with the code as status message, and no OpenTelemetry error status.
+  - An interrupted turn is a warning (`interrupted`), and its outcome is `interrupted`.
+  - A span left by a cancellation is a warning (`CancelledError`), unless a code was set on
+    purpose.
+  - A refused tool call is a warning whose code is its summary before the first colon
+    (`evidence_not_said`, `slot_not_offerable`, `confirmation_refused`), so a dashboard can count
+    refusals per tool.
+  - Timeouts and real failures stay `ERROR`. Live, 13 of 51 turns were `ERROR`, every one a
+    barge-in, and 44 of 89 `update_candidate` calls were refused with nothing to count them by.
+- **A confirmed field is not read back again.** `present_confirmation(field)` on a confirmed
+  field is refused ("already confirmed; it is not read back again", then the next step). A
+  second `confirm_field` hears "It is already confirmed" plus the next step, instead of
+  "Present it again", the order that read Iñaki's start date twice. The other defaults of the
+  kind ("Present the slot again") now say that nothing was reserved, and give the next step.
+- **An interview request is the candidate's own words.** `list_interview_slots` and a first
+  `present_confirmation(slot)` check `evidence_text` with the same `said_in` as
+  `update_candidate` (D46) before they save the intent. Live, "Sí, quiero tener una entrevista."
+  was saved when the candidate had said only "Sí.". An intent already saved is reused, not
+  checked again.
+- **An accepted follow-up is a follow-up.** A note is read by no one, and its result now says so:
+  "nobody will contact the candidate from it; if they accepted that a person follows up, call
+  request_human_followup". The prompt and the tool description say the same, and a follow-up
+  offer waits for the answer. Live, "Sí, anótalo" to "¿Quieres que lo deje anotado para que te
+  contacten?" became a note. S30 replays it.
+- **Nothing announced before it is saved: a rule and a check, no filter.** The prompt says not to
+  claim a save without a "Saved" result in the turn. `claims_saved_without_save` (in every
+  scenario, and in the live checks of S01, S02, S28, S29 and S30) fails a turn that says
+  guardo, apunto, anoto or "I've saved" with no successful saving tool. The system's own
+  read-backs ("He apuntado…") are exempt. Live, "Guardo que puedes trabajar los fines de
+  semana" was said in a turn with no tool call. A runtime filter on Ana's words was rejected:
+  holding text back until tools run would not have caught a turn with none.
+- **Frustration reaches the turn it is about.** At D53's check before Ana's first words (the
+  same verdict and the same wait of at most 0.5 s), a `frustrated` or `uncertain` sentiment the
+  prompt does not have yet drops the round, as a language switch does, and the turn is
+  answered again with it in `candidate_sentiment`. A later verdict keeps the next-turn path
+  of D30. The prompt now says to acknowledge it first in Ana's own words, not to argue or change
+  the conditions, and to offer a person (`request_human_followup` on a yes). Live, Ignacio's
+  "estoy bastante mosqueado… no me ha gustado nada tu servicio" got the next field question,
+  before Jev was on. No phrase list: Jev is on in the hosted demo (D52), and one reader is
+  enough. The cost is one more round on the rare turn that is frustrated. The event is
+  `sentiment_in_turn`.
+- **A question during a read-back review is answered first.** `review_readback` refuses
+  (`review_refused:question`) when the candidate's message of the turn asks something
+  (`asks_question`: a question mark, or a clause that opens like a question, in either language).
+  The review stays where it was, and the model answers. The offer's text now says what to offer
+  instead of pointing at "the review policy". Live (10:20), "Me gustaría saber cuál es la
+  localización exacta." went in as a yes: part 1 was said and the place was answered three turns
+  late. The journal also shows why the brief counted as unheard: its turn was interrupted after
+  three sentences, before Iñaki answered, by a sound that the old 0.2 s barge-in took as speech.
+  That is D57.
+- **Cached input is counted and priced apart.** `ModelUsage.cached_input_tokens` is read from
+  OpenAI's `prompt_tokens_details.cached_tokens`. The usage records gain `<model>:input_cached`,
+  and `:input` then excludes it. The generation sends Langfuse's `input_cached_tokens` bucket,
+  since flat `usage_details` must not overlap. The price table (`2026-10-22.1`) prices cached input
+  for gpt-4.1 ($0.50 / 1M), gpt-4o and gpt-4o-mini at the prices its comments already recorded.
+  Live gpt-4.1 calls send about 5,000 input tokens, mostly the same system prompt and tools, so
+  the full-rate price overstated them. A provider that reports no cache sends no third record.
+- **A start given by month stays a month.** `earliest_start_date` holds a date or a `YearMonth`
+  (`YYYY-MM` in the patch, the state and the export; "en enero de 2027" in the brief and the
+  read-back). A date is kept only when the candidate's words name its day (`names_a_day`: the
+  number, "primero", the weekday, hoy/mañana, "la semana que viene" for its Monday); otherwise
+  `not_in_evidence`, and the model sends the month or asks. A past month is refused like a
+  past date. Live, "Desde enero del año que viene" was saved as 1 January and read back as
+  "viernes 1 de enero", a day never said. The scorers compare a `YYYY-MM` reference at month
+  precision. A date-plus-precision flag was rejected: a stored 1 January that is not true leaks
+  wherever the flag is forgotten.
+- **"Que me contacten" is a request for a person.** The D30 patterns gain "que me contacten /
+  llamen / escriban", "que alguien me contacte" and "contact / call me (back)": the runtime
+  saves the follow-up and says the fixed reply, as for "hablar con una persona". Live on
+  gpt-4.1, "Sí, anótalo para que me contacten" with no offer before it became a second note
+  even after the note's result named the tool; a stated request is the runtime's, like the
+  other explicit ones.

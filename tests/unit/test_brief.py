@@ -7,6 +7,7 @@ import pytest
 
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.brief import field_readback, render_brief
+from cafe_norte.domain.contracts import YearMonth
 from cafe_norte.errors import Language
 from tests.support.builders import CONFIG, record
 
@@ -105,3 +106,12 @@ def test_a_requested_follow_up_is_stated_just_before_the_question() -> None:
         "Has pedido que una persona del equipo se ponga en contacto contigo. ¿Es todo correcto?"
     )
     assert "persona del equipo" not in render_brief(ane, CONFIG, "es")
+
+
+def test_a_month_only_start_is_read_back_as_the_month() -> None:
+    assert field_readback("earliest_start_date", YearMonth(year=2027, month=1), "es") == (
+        "He apuntado que podrías empezar en enero de 2027. ¿Es correcto?"
+    )
+    assert field_readback("earliest_start_date", YearMonth(year=2027, month=1), "en") == (
+        "I have that you could start in January 2027. Is that correct?"
+    )

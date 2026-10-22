@@ -318,3 +318,21 @@ async def test_with_no_free_slot_the_model_is_told_to_offer_a_person() -> None:
     outcome = await i.slots(context("t3"), args("list_interview_slots", evidence_text="Sí."))
     assert outcome.ok and outcome.summary == "offered:0"
     assert "request_human_followup" in outcome.model_text
+
+
+async def test_words_the_candidate_never_said_are_not_an_interview_request() -> None:
+    """Ignacio's call: list_interview_slots was accepted with "Sí, quiero tener una
+    entrevista." when the candidate had said only "Sí."."""
+    w = await Interview().ready()
+    await w.said("t3", "Sí.")
+    invented = await w.slots_handler(
+        context("t3"),
+        args("list_interview_slots", evidence_text="Sí, quiero tener una entrevista."),
+    )
+    assert not invented.ok and invented.summary == "evidence_not_said"
+    chosen = await w.present_handler(
+        context("t3"),
+        args("present_confirmation", target="slot", choice=1, evidence_text="Quiero el martes."),
+    )
+    assert not chosen.ok and chosen.summary == "evidence_not_said"
+    assert (await w.current()).schedule_intent is None

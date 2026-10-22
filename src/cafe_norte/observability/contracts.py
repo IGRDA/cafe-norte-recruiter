@@ -105,10 +105,16 @@ def token_usage(
     output_tokens: float,
     *,
     estimated: bool,
-) -> tuple[UsageRecord, UsageRecord]:
-    """A model call's tokens as two records, keyed ``<model_id>:input`` and ``:output``. The
-    configured model id prices them: a provider echoes a dated snapshot id instead (D36)."""
-    input_record, output_record = (
+    cached: float = 0,
+) -> tuple[UsageRecord, ...]:
+    """A model call's tokens as records keyed ``<model_id>:input`` and ``:output``, and
+    ``:input_cached`` for the part of the input read from the provider's cache, which the
+    input then excludes (D58). The configured model id prices them: a provider echoes a dated
+    snapshot id instead (D36)."""
+    parts = [("input", input_tokens - cached), ("output", output_tokens)]
+    if cached:
+        parts.insert(1, ("input_cached", cached))
+    return tuple(
         UsageRecord(
             session_id=session_id,
             turn_id=turn_id,
@@ -117,9 +123,8 @@ def token_usage(
             unit_detail=f"{model_id}:{direction}",
             estimated=estimated,
         )
-        for direction, quantity in (("input", input_tokens), ("output", output_tokens))
+        for direction, quantity in parts
     )
-    return input_record, output_record
 
 
 class Price(Frozen):
@@ -148,7 +153,12 @@ Estimator = Callable[[SessionId, Sequence[UsageRecord]], CostEstimate]
 
 Severity = Literal["INFO", "WARNING", "ERROR"]
 EventName = Literal[
-    "turn_failed", "model_round", "model_round_silent", "answer_cut", "language_switched"
+    "turn_failed",
+    "model_round",
+    "model_round_silent",
+    "answer_cut",
+    "language_switched",
+    "sentiment_in_turn",
 ]
 
 
@@ -180,8 +190,11 @@ class Span(Protocol):
 
     def annotate(self, **metadata: SpanValue) -> None: ...
 
-    def set_usage(self, *, model_id: str, input_tokens: int, output_tokens: int) -> None:
-        """Tokens of a generation; the adapter prices them."""
+    def set_usage(
+        self, *, model_id: str, input_tokens: int, output_tokens: int, cached_input_tokens: int = 0
+    ) -> None:
+        """Tokens of a generation (``cached_input_tokens`` of the input came from the provider's
+        cache); the adapter prices them."""
         ...
 
     def set_content(self, *, input: str | None = None, output: str | None = None) -> None:
@@ -193,6 +206,10 @@ class Span(Protocol):
         ...
 
     def fail(self, code: str) -> None: ...
+
+    def warn(self, code: str) -> None:
+        """Worth counting, not a failure: a candidate talking over Ana, a refused tool call."""
+        ...
 
     def end(self) -> None: ...
 

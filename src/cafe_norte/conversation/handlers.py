@@ -33,6 +33,7 @@ from cafe_norte.conversation.readback import (
     review_parts,
     target_call,
 )
+from cafe_norte.conversation.signals import asks_question
 from cafe_norte.conversation.tools import (
     ARGUMENT_MODELS,
     ConfirmBriefArgs,
@@ -100,6 +101,11 @@ NEXT_STEP = {
     "booked": "The interview is reserved. Call end_session(reason=candidate_done).",
     "goodbye": "Session ended. Say goodbye in one short sentence.",
 }
+# Words given as the candidate's that they never said (D46, D58).
+NOT_SAID = (
+    "evidence_text must be the candidate's exact words asking for the interview, from one of "
+    "their messages. Nothing was saved."
+)
 # A read-back the candidate did not hear to the end: their answer goes to the review (D39).
 NOT_HEARD = (
     "It was not heard to the end: call review_readback with the candidate's answer "
@@ -161,6 +167,13 @@ class _Handler:
     @staticmethod
     def _refuse(summary: str, model_text: str, *, idle: bool = False) -> ToolOutcome:
         return ToolOutcome(ok=False, model_text=model_text, summary=summary, idle=idle)
+
+    async def _said(self, context: ToolContext, text: str) -> Evidence | None:
+        """``text`` as evidence, when the candidate said it in their recent messages (D46): the
+        latest message that holds it, whole. ``None`` when they never said it."""
+        turns = await self._store.turns.recent(context.session_id, HISTORY_TURNS)
+        said = said_in(text, [(t.turn_id, t.text) for t in turns if t.role == "user"])
+        return None if said is None else Evidence(source_turn_id=said[0], text=said[1])
 
     async def _free_slots(
         self, state: SessionState, context: ToolContext
@@ -273,11 +286,8 @@ class UpdateCandidateHandler(_Handler):
                 )
             return self._refuse("empty_patch", "Nothing to save; call only with stated facts.")
 
-        turns = await self._store.turns.recent(context.session_id, HISTORY_TURNS)
-        said = said_in(
-            arguments.evidence_text, [(t.turn_id, t.text) for t in turns if t.role == "user"]
-        )
-        if said is None:
+        evidence = await self._said(context, arguments.evidence_text)
+        if evidence is None:
             return self._refuse(
                 "evidence_not_said",
                 "evidence_text must be the candidate's exact words from ONE of their messages. "
@@ -285,7 +295,6 @@ class UpdateCandidateHandler(_Handler):
                 "again now, once per message, each call with only the facts that message "
                 "states and its exact words.",
             )
-        evidence = Evidence(source_turn_id=said[0], text=said[1])
         candidate = apply_patch(state.candidate, patch, evidence)
         flags = state.review_flags
         if patch.work_authorization in {"no", "unsure"}:
@@ -323,6 +332,12 @@ class UpdateCandidateHandler(_Handler):
             step = NEXT_STEP["end"]
         else:
             step = _next_question(new_state)
+        if patch.note is not None and not has_followup(new_state):
+            # A note is read by no one: "Sí, anótalo" to a follow-up offer went here (D58).
+            step = (
+                "The note is kept in the record; nobody will contact the candidate from it. If "
+                f"they accepted that a person follows up, call request_human_followup. {step}"
+            )
         return ToolOutcome(
             ok=True,
             model_text=f"Saved: {saved}. {step}",
@@ -505,19 +520,23 @@ class PresentConfirmationHandler(_Handler):
             target = SlotTarget(slot_id=slot.slot_id, brief_revision=revision)
             text = slot_readback(slot, configuration, state.language)
             if state.schedule_intent is None and arguments.evidence_text is not None:
-                state = state.model_copy(
-                    update={
-                        "schedule_intent": Evidence(
-                            source_turn_id=context.turn_id, text=arguments.evidence_text
-                        )
-                    }
-                )
+                intent = await self._said(context, arguments.evidence_text)
+                if intent is None:
+                    return self._refuse("evidence_not_said", NOT_SAID)
+                state = state.model_copy(update={"schedule_intent": intent})
         elif arguments.target == "field" and arguments.field in READBACK_FIELDS:
             field_name: ReadbackField = arguments.field
             value = fields.value_of(getattr(state.candidate, field_name))
             if value is None:
                 return self._refuse(
                     f"nothing_to_read_back:{field_name}", f"{field_name} has no value yet."
+                )
+            if getattr(state.candidate, field_name).status == "confirmed":
+                return self._refuse(
+                    f"already_confirmed:{field_name}",
+                    f"{field_name} is already confirmed; it is not read back again. "
+                    f"{_next_question(state)}",
+                    idle=True,
                 )
             target = FieldTarget(field=field_name, revision=revision)
             text = field_readback(field_name, value, state.language)
@@ -582,11 +601,13 @@ class _ConfirmHandler(_Handler):
             )
         result = confirmation.respond(state, arguments.answer, context.turn_id)
         if isinstance(result, Err):
+            answered = pending.status if pending is not None else "answered"
             advice = {
                 "same_turn": SAME_TURN,
-                "nothing_pending": "Continue.",
                 "not_delivered": NOT_HEARD,
-            }.get(result.error, "Present it again.")
+                # Saying it again was the order that read a confirmed date twice (D58).
+                "already_answered": f"It is already {answered}. {_next_question(state)}",
+            }.get(result.error, f"Continue. {_next_question(state)}")
             return self._refuse(
                 f"confirmation_refused:{result.error}",
                 f"No {self.kind} read-back can be answered now ({result.error}). {advice}",
@@ -648,8 +669,13 @@ class ReviewReadbackHandler(_Handler):
     this same call through its own tool, so a model that stops here leaves nothing pending."""
 
     OFFER = (
-        "The candidate answered before hearing the read-back to the end. Make the one offer "
-        "now, as the review policy says, then wait and pass their choice to review_readback."
+        "The candidate answered before hearing the read-back to the end. Make one offer, in "
+        "your own words: to go over it in parts or to carry on. Then wait and pass their "
+        "choice to review_readback."
+    )
+    QUESTION = (
+        "The candidate asked something: answer it first (search_knowledge for facts). The "
+        "read-back review stays where it is; their next answer to it goes to review_readback."
     )
 
     def __init__(
@@ -666,6 +692,10 @@ class ReviewReadbackHandler(_Handler):
         pending = state.pending_confirmation
         if pending is not None and confirmation.ready_to_confirm(pending):
             return await self._confirm(context, pending)  # nothing left to go over
+        if await self._asked(context):
+            # Live, a question here went in as a yes; the part was said and the answer to the
+            # question dropped, three turns running (D58).
+            return self._refuse("review_refused:question", self.QUESTION)
         text = pending.presentation_text if pending is not None else ""
         result = confirmation.advance_review(
             state, arguments.answer, context.turn_id, parts=len(review_parts(text, state.language))
@@ -692,6 +722,12 @@ class ReviewReadbackHandler(_Handler):
             summary="review:offered",
             events=(self._updated(new_state),),
         )
+
+    async def _asked(self, context: ToolContext) -> bool:
+        """The candidate's message of this turn asks a question."""
+        turns = await self._store.turns.recent(context.session_id, 2)
+        mine = [t for t in turns if t.role == "user" and t.turn_id == context.turn_id]
+        return bool(mine) and asks_question(mine[-1].text)
 
     async def _confirm(self, context: ToolContext, pending: Confirmation) -> ToolOutcome:
         """The read-back's own tool with a yes: the domain checks it is ready to confirm."""
@@ -749,9 +785,9 @@ class ListInterviewSlotsHandler(_InterviewHandler):
         none_on_day = day is not None and not preferred
         # The first words asking for an interview stay its evidence when the offer is made
         # again for another day.
-        intent = state.schedule_intent or Evidence(
-            source_turn_id=context.turn_id, text=arguments.evidence_text
-        )
+        intent = state.schedule_intent or await self._said(context, arguments.evidence_text)
+        if intent is None:
+            return self._refuse("evidence_not_said", NOT_SAID)
         new_state = state.model_copy(
             update={"schedule_intent": intent, "slot_offer": _offer(slots)}
         )
@@ -807,7 +843,9 @@ class ReserveInterviewHandler(_InterviewHandler):
             )
         answered = confirmation.respond(state, "affirm", context.turn_id)
         if isinstance(answered, Err):
-            advice = self.ADVICE.get(answered.error, "Present the slot again.")
+            advice = self.ADVICE.get(
+                answered.error, f"Nothing was reserved. {_next_question(state)}"
+            )
             return self._refuse(
                 f"confirmation_refused:{answered.error}",
                 advice,
@@ -818,7 +856,9 @@ class ReserveInterviewHandler(_InterviewHandler):
             return self._refuse("booking_refused:slot_unavailable", NEXT_STEP["slots"])
         allowed = reservation_allowed(state, slot, answered.value, now=context.now)
         if isinstance(allowed, Err):
-            advice = self.ADVICE.get(allowed.error, "Present the slot again.")
+            advice = self.ADVICE.get(
+                allowed.error, f"Nothing was reserved. {_next_question(state)}"
+            )
             return self._refuse(f"booking_refused:{allowed.error}", advice)
         key = idempotency_key(state, answered.value)
         try:

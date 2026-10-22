@@ -66,6 +66,7 @@ persona:
     - [hours_per_week, "25"]
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: field_equals
     args: { field: hours_per_week, value: "25" }
   - name: brief_confirmed

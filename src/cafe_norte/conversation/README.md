@@ -101,7 +101,10 @@ the runtime checks the verdict once, waiting at most `switch_wait_seconds` (0.5 
 come. A switch drops that round unsaid and unrun, saves the language, announces it with
 `StateUpdated` (which carries the session language, so speech recognition follows before Ana
 speaks) and answers again in the new language. A verdict later than the wait, or one that comes
-after something was said (a fixed reply, a read-back), keeps D52's switch at the next turn.
+after something was said (a fixed reply, a read-back), keeps D52's switch at the next turn. The same
+check carries the sentiment (D58): a `frustrated` or `uncertain` verdict the prompt does not
+have yet drops the round the same way, and the turn is answered again with it in
+`candidate_sentiment` (event `sentiment_in_turn`).
 Only an analyzer with `switches_language` (Jev) is waited for; the chat classifier still runs
 after the turn.
 

@@ -63,6 +63,7 @@ persona:
     experience: dos años en una cafetería de barrio
   wants_interview: false
 checks:
+  - name: claims_saved_without_save
   - name: brief_confirmed
   - name: readback_assurance
     args: { assurance: waived }

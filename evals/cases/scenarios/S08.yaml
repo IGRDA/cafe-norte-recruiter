@@ -81,6 +81,7 @@ persona:
     experience: dos años en una cafetería de barrio
   wants_interview: true
 checks:
+  - name: claims_saved_without_save
   - name: tool_ok
     args: { turn: "9", tool: review_readback, ok: "true" }
   - name: tool_ok

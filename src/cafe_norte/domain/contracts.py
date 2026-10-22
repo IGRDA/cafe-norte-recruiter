@@ -7,7 +7,14 @@ conversationally collected field uses. ``CandidatePatch`` is what the model may 
 from datetime import date, datetime
 from typing import Annotated, Literal, NewType, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_serializer,
+)
 
 from cafe_norte.errors import Language
 
@@ -45,6 +52,31 @@ Outcome = Literal[
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 E164Phone = Annotated[str, StringConstraints(pattern=r"^\+[1-9]\d{6,14}$")]
 HoursPerWeek = Annotated[int, Field(ge=1, le=60)]
+
+
+class YearMonth(Frozen):
+    """A start the candidate gave by month only ("en enero"): never filled to a day they did not
+    say (D58). Serialized as ``YYYY-MM``."""
+
+    year: int = Field(ge=2000, le=2100)
+    month: int = Field(ge=1, le=12)
+
+    @model_serializer(mode="plain")
+    def _as_text(self) -> str:
+        return str(self)
+
+    def __str__(self) -> str:
+        return f"{self.year:04d}-{self.month:02d}"
+
+
+def _start_date(value: object) -> object:
+    if isinstance(value, str) and len(value) == 7 and value[4] == "-":
+        return YearMonth(year=int(value[:4]), month=int(value[5:]))
+    return value
+
+
+# A start date, or the month alone when that is all the candidate said.
+StartDate = Annotated[date | YearMonth, BeforeValidator(_start_date)]
 Experience = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
 Note = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
 
@@ -112,7 +144,7 @@ class CandidateRecord(Frozen):
         FieldState[frozenset[ShiftId]], Field(discriminator="status")
     ] = Unset()
     hours_per_week: Annotated[FieldState[HoursPerWeek], Field(discriminator="status")] = Unset()
-    earliest_start_date: Annotated[FieldState[date], Field(discriminator="status")] = Unset()
+    earliest_start_date: Annotated[FieldState[StartDate], Field(discriminator="status")] = Unset()
     experience: Annotated[FieldState[Experience], Field(discriminator="status")] = Unset()
     notes: tuple[str, ...] = ()  # specific restrictions the candidate mentioned, verbatim
 
@@ -143,8 +175,9 @@ REQUESTED_FIELDS: tuple[CandidateFieldName, ...] = (
 
 class CandidatePatch(Frozen):
     """What the model may propose in one ``update_candidate`` call. Every value is optional;
-    ``None`` means "not mentioned". Relative dates are resolved by the runtime before this is
-    built, so ``earliest_start_date`` is already a date. The server adds ``evidence``."""
+    ``None`` means "not mentioned". The model resolves relative dates against the session's
+    day, and sends ``YYYY-MM`` when only a month was said; the domain refuses a day the
+    candidate's words do not name. The server adds ``evidence``."""
 
     name: Name | None = None
     contact_phone: str | None = None  # raw; normalized to E.164 by domain validation
@@ -153,7 +186,7 @@ class CandidatePatch(Frozen):
     availability_days: frozenset[Weekday] | None = None
     availability_shifts: frozenset[ShiftId] | None = None
     hours_per_week: HoursPerWeek | None = None
-    earliest_start_date: date | None = None
+    earliest_start_date: StartDate | None = None
     experience: Experience | None = None
     declined: frozenset[CandidateFieldName] = frozenset()
     unknown: frozenset[CandidateFieldName] = frozenset()

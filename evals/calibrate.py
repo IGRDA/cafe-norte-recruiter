@@ -1,4 +1,4 @@
-"""Judge calibration (D51): the pass/fail judges against labelled conversations.
+"""Judge calibration: the pass/fail judges against labelled conversations.
 
 A judge row is only worth reading if the judge agrees with a person on clear cases. Each case
 in ``cases/judge/calibration.yaml`` names a criterion (topic, style, goal) and the verdict a

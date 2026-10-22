@@ -1,4 +1,4 @@
-"""The model's words in a tool-call round are held until the calls commit (D59): said once
+"""The model's words in a tool-call round are held until the calls commit: said once
 every call succeeded, dropped when one was refused. A data turn then needs one round, not
 two, and nothing is announced before it is persisted."""
 

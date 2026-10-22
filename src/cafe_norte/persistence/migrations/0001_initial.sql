@@ -1,14 +1,10 @@
--- 0001_initial: the tables the application uses today (persistence stage, PR1).
+-- Session journals, candidate state and simulated reservations.
 --
 -- Invariants live here, not in Python: uniqueness, foreign keys, the revision a conditional
 -- update checks, one booking per slot and per session. `schema_migrations` is created by the
 -- applier itself (`persistence/migrate.py`).
 --
--- Later pull requests add: leases (session_id PK, owner, generation, expires_at), admission
--- (session_id PK, reserved_eur, actual_eur, acquired_at, released_at), resume_tokens
--- (token_hash PK, session_id FK, expires_at, redeemed_at), summary_jobs (session_id PK, status,
--- attempts, claimed_by, updated_at) and exports (session_id PK, schema_version, snapshot JSONB,
--- taken_at). Confirmations are derived from the journaled `state_updated` events (D25).
+
 
 create table sessions (
     session_id     text primary key,

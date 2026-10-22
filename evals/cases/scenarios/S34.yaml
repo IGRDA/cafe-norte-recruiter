@@ -5,7 +5,7 @@ language: es
 today: "2026-10-20"
 # Live, 22 October: after "Can you ask in German, please?" every turn failed to save on
 # Postgres (turns_language_check, fixed by migration 0005). The explicit request switches the
-# session to German for this very turn (D28, D63). tests/e2e/test_api_postgres.py runs this
+# session to German for this very turn. tests/e2e/test_api_postgres.py runs this
 # scenario on Postgres, where the check lives.
 live_candidate: scripted
 scripted_turns:

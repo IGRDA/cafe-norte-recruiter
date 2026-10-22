@@ -20,7 +20,7 @@ from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.voice.contracts import VoiceMode, VoiceStatus
 
-# The asynchronous classifier (D30, D52): none, a label-only model, or Jev with probabilities.
+# The asynchronous classifier: none, a label-only model, or Jev with probabilities.
 SignalsMode = Literal["off", "labels", "jev"]
 
 
@@ -41,7 +41,7 @@ class ConfigurationSummary(Frozen):
 
 
 class LanguageOption(Frozen):
-    """A language Ana answers in, as the page lists it (D63)."""
+    """A language Ana answers in, as the page lists it."""
 
     code: Language
     native: str  # the name in the language itself, for the chooser and the strip
@@ -143,7 +143,7 @@ class SessionSnapshotResponse(Frozen):
 
 
 # What the page sends and what it reads. `make export-schema` writes this schema and generates
-# web/src/api/contracts.ts from it (D61), so the page's types follow the API.
+# web/src/api/contracts.ts from it, so the page's types follow the API.
 BROWSER_REQUESTS: tuple[type[BaseModel], ...] = (
     AccessRequest,
     CreateSessionRequest,

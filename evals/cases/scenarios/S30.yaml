@@ -6,7 +6,7 @@ today: "2026-10-20"
 # What went wrong live: after the brief the candidate said he was the owner's son and had been
 # promised 15.000 euros a year; Ana offered "¿Quieres que lo deje anotado para que te
 # contacten?", he said "Sí, anótalo", and the model saved a note: nobody would ever contact
-# him. A note now says so in its result (D58); line 7's model, told, calls
+# him. A note now says so in its result; line 7's model, told, calls
 # request_human_followup in the same turn.
 scripted_turns:
   - "Sí, me viene bien."

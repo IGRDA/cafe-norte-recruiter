@@ -6,7 +6,7 @@ never reaches a candidate, a log line or a trace by accident."""
 
 from typing import Literal
 
-# The ten languages Ana answers in (D63). ``TABLED`` are the two with reviewed word-for-word
+# The ten languages Ana answers in. ``TABLED`` are the two with reviewed word-for-word
 # texts and the only ones evaluated; the rest are wired and untested.
 Language = Literal["es", "en", "fr", "pt", "it", "de", "ro", "ar", "zh", "uk"]
 SWITCHABLE: tuple[Language, ...] = ("es", "en", "fr", "pt", "it", "de", "ro", "ar", "zh", "uk")
@@ -23,7 +23,7 @@ ErrorCode = Literal[
     "not_found",  # session, slot or confirmation does not exist for this caller
     "conflict",  # revision mismatch, slot taken, superseded lease, duplicate input id
     "limit_exceeded",  # text length, turns per session or active seconds
-    "rate_limited",  # too many access attempts or session starts from one client (D65)
+    "rate_limited",  # too many access attempts or session starts from one client
     "session_ended",  # the session is completed, stopped, abandoned or failed
     "internal_error",
 ]

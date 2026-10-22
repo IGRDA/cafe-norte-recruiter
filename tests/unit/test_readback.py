@@ -1,4 +1,4 @@
-"""Going over a cut read-back: its short parts (D39)."""
+"""Going over a cut read-back: its short parts."""
 
 from datetime import date
 
@@ -104,7 +104,7 @@ def test_parts_cover_every_fact_in_order_and_each_is_short(text: str, language: 
         assert len(body) == 1 or len(" ".join(body)) <= PART_CHARACTERS
 
 
-# ---- the review of a cut read-back and which tool answers a plain reply (D39) -----------------
+# ---- the review of a cut read-back and which tool answers a plain reply -----------------
 
 T1, T2, T3 = TurnId("t1"), TurnId("t2"), TurnId("t3")
 BRIEF = render_brief(LUCIA, CONFIG, "es")

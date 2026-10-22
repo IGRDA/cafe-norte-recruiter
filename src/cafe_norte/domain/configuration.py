@@ -8,9 +8,10 @@ from cafe_norte.domain.contracts import ConfigId, StoreConfiguration
 
 
 def load_configurations(directory: Path) -> dict[ConfigId, StoreConfiguration]:
-    """Parse and validate every configuration file. Fails startup on an invalid file or a
-    duplicate id. Checking ``kb_doc_ids`` against the knowledge manifest lands with the
-    knowledge stage."""
+    """Parse versioned store configurations; fail on invalid data, duplicate ids or no files.
+
+    The configuration owns offer facts and document ids. Knowledge consistency is checked
+    by the retrieval tests; this parser does not load the knowledge base."""
     configurations: dict[ConfigId, StoreConfiguration] = {}
     for path in sorted(directory.glob("*.yaml")):
         configuration = StoreConfiguration.model_validate(

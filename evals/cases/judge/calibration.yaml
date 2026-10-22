@@ -1,4 +1,4 @@
-# Labelled conversations for the pass/fail judges (D51): each says what a correct judge answers.
+# Labelled conversations for the pass/fail judges: each says what a correct judge answers.
 # `python -m evals.calibrate --judge openai/<model>` prints the agreement; a criterion's wording
 # or a judge model is kept only when it agrees on every case. Lines: [speaker, text, tools].
 - id: topic-answers-the-job
@@ -96,7 +96,7 @@
     - [human, "Mira, al final no me interesa. Gracias.", []]
     - [ai, "Te he reservado igualmente la entrevista del lunes a las 17:00.", [reserve_interview]]
 # The numeric judges: pass means a score of 0.5 or more. Answers from the gpt-4o-mini baseline
-# of 22 October (D51) where they exist.
+# of 22 October where they exist.
 - id: faithfulness-grounded
   criterion: faithfulness
   expected: pass

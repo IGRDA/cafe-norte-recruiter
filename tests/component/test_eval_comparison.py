@@ -1,4 +1,4 @@
-"""Spec §13's bounded comparison, ready to run: six cases, two models, two runs each."""
+"""Bounded model comparison: six cases, two models, two runs each by default."""
 
 import json
 from pathlib import Path

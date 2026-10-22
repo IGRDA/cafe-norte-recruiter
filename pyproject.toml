@@ -35,9 +35,9 @@ dev = [
     "types-pyyaml>=6.0.12",
     # Evaluation tooling: never imported by src/.
     "ragas>=0.2",
-    # ragas' testset generation links chunks by string overlap (D51).
+    # ragas' testset generation links chunks by string overlap.
     "rapidfuzz>=3",
-    # ragas 0.4 imports langchain_community.chat_models.vertexai, gone in 0.4 (D43).
+    # ragas 0.4 imports langchain_community.chat_models.vertexai, gone in 0.4.
     "langchain-community>=0.3,<0.4",
     "langfuse>=3",
     "mutmut>=3.3",
@@ -75,7 +75,7 @@ exclude = ["evals/results"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["rank_bm25", "fastembed", "ragas", "ragas.*", "pipecat", "pipecat.*"]
+module = ["fastembed", "ragas", "ragas.*", "pipecat", "pipecat.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]
@@ -86,12 +86,12 @@ branch = true
 show_missing = true
 skip_covered = true
 # Lines and branches over the whole package, the Postgres adapters (covered by make test-db)
-# included; a ratchet: raise it when the measure rises, never lower it (D50).
+# included; a ratchet: raise it when the measure rises, never lower it.
 fail_under = 91
 
 [tool.mutmut]
-# make quality (D50): mutation testing of the small pure modules against the unit layer.
-# Not a gate: the scores are a ratchet recorded in tests/README.md.
+# make quality: mutation testing of the small pure modules against the unit layer.
+# Manual diagnostic; results are written to .quality/.
 source_paths = ["src"]
 only_mutate = [
     "src/cafe_norte/domain/lifecycle.py",
@@ -108,4 +108,4 @@ only_mutate = [
     "src/cafe_norte/observability/cost.py",
 ]
 tests_dir = ["tests/unit/"]
-also_copy = ["tests/", "evals/", "scripts/", "config/", "kb/", "examples/", "infra/", "web/", ".env.example"]
+also_copy = ["tests/", "evals/", "scripts/", "config/", "kb/", "infra/", "web/", ".env.example"]

@@ -40,7 +40,7 @@ class UpdateCandidateArgs(Args):
 class SearchKnowledgeArgs(Args):
     """The candidate's words for the record and the model's self-contained Spanish queries
     for the index (English questions are reformulated here). No topic: a model-chosen topic
-    hid answers its documents did not include (D54)."""
+    hid answers its documents did not include."""
 
     question: str = Field(min_length=1, max_length=500)
     queries: tuple[str, ...] = Field(min_length=1, max_length=3)
@@ -56,7 +56,7 @@ class ListInterviewSlotsArgs(Args):
 class PresentConfirmationArgs(Args):
     """A slot is named by its number in ``interview_slots`` (``choice``); an id is still
     accepted. ``evidence_text`` is the candidate's words asking for the interview, needed while
-    the session has none (D56)."""
+    the session has none."""
 
     target: Literal["field", "brief", "slot"]
     field: CandidateFieldName | None = None
@@ -78,7 +78,7 @@ class ReserveInterviewArgs(Args):
 
 
 class ReviewReadbackArgs(Args):
-    """The candidate's answer to a read-back they did not hear to the end (D39)."""
+    """The candidate's answer to a read-back they did not hear to the end."""
 
     answer: Literal["affirm", "skip"]
 

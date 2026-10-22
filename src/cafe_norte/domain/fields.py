@@ -4,7 +4,7 @@ Laws (pinned by tests/unit/test_field_algebra.py):
 
 * ``capture`` always yields ``Captured`` with the given value, whatever the previous state, so
   a correction after confirmation drops the stale confirmation.
-* ``confirm`` succeeds only from ``Captured`` and keeps the value and evidence.
+* ``confirm`` promotes ``Captured``, preserving value and evidence; ``Confirmed`` is unchanged.
 * ``value_of`` is ``None`` exactly for ``Unset``, ``Unknown`` and ``Declined``.
 """
 
@@ -58,8 +58,3 @@ def value_of[T](field: FieldState[T]) -> T | None:
     if isinstance(field, Captured | Confirmed):
         return field.value
     return None
-
-
-def is_settled[T](field: FieldState[T]) -> bool:
-    """True when the field no longer needs a question: anything but ``Unset``."""
-    return not field.status == "unset"

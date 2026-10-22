@@ -36,7 +36,7 @@ from tests.support.harness import (
 
 
 def session_facts(messages: tuple[ModelMessage, ...]) -> dict[str, object]:
-    """The JSON facts of the system message; the language line follows them (D28)."""
+    """The JSON facts of the system message; the language line follows them."""
     facts, _ = json.JSONDecoder().raw_decode(messages[0].content.split("(JSON)\n", 1)[1])
     assert isinstance(facts, dict)
     return facts
@@ -175,7 +175,7 @@ async def test_a_failing_analyzer_never_reaches_the_turn() -> None:
     assert not any(e.kind == "signal_recorded" for e in await h.journal())
 
 
-# ---- a switch the decision-model analyzer read (D52) ---------------------------------------------
+# ---- a switch the decision-model analyzer read ---------------------------------------------
 
 
 async def test_a_switch_the_analyzer_read_applies_at_the_start_of_the_next_turn() -> None:
@@ -203,7 +203,7 @@ async def test_a_switch_below_the_threshold_or_too_late_changes_nothing() -> Non
     late = Harness(
         [says("Uno."), says("Dos.")],
         signals=decision_analyzer(0.95, delay=0.05),
-        limits=Limits(switch_wait_seconds=0),  # no wait in the turn: D52's path alone
+        limits=Limits(switch_wait_seconds=0),  # only the next-turn path
     )
     await late.open_session()
     await late.run("Sorry, my Spanish is not very good.", "in-1")

@@ -316,7 +316,7 @@ def test_a_declined_fact_is_not_supplied() -> None:
 
 def test_claims_saved_without_save_finds_a_save_said_with_nothing_saved() -> None:
     """Ignacio's call: "Guardo que puedes trabajar los fines de semana." in a turn with no tool
-    call; the save came a turn later (D58)."""
+    call; the save came a turn later."""
     said = ("Guardo que puedes trabajar los fines de semana.", "¿Quieres que lo deje anotado?")
     check = Check(name="claims_saved_without_save")
     early = result(spoken_by_turn=((), said)).model_copy(update={"tools_by_turn": ((), ())})
@@ -336,7 +336,7 @@ def test_a_month_reference_compares_at_month_precision() -> None:
     )
 
 
-# ---- the invariants every scenario runs (D64): each one fed the failure of 22 October ----------
+# ---- the invariants every scenario runs: each one fed the failure of 22 October ----------
 
 
 def test_every_scenario_gets_the_invariants_once() -> None:
@@ -402,7 +402,7 @@ def test_tool_ok_on_any_turn_is_the_turn_free_form_for_live_runs() -> None:
 
 
 def test_offered_real_times_needs_a_time_actually_on_offer_said_aloud() -> None:
-    """D64: Ana said there were no slots while the calendar had them."""
+    """A nonempty calendar alone is not evidence that Ana offered an actual time."""
     slots = tuple(
         OfferedSlot(slot_id=s.slot_id, starts_at_utc=s.starts_at_utc)
         for s in interview_slots(CONFIG, after=NOW)[:2]

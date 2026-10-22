@@ -1,6 +1,6 @@
 """The session domain as a state machine: facts change, Ana reads back, playback finishes or is
 cut, the candidate answers or goes over it, in any order, as the runtime drives them. After
-every step the promises of the spec still hold."""
+every step the domain invariants still hold."""
 
 from datetime import timedelta
 

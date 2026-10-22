@@ -1,4 +1,4 @@
-"""`make quality` (D50): one report of the suite's shape and strength, folded from what pytest,
+"""`make quality`: one report of the suite's shape and strength, folded from what pytest,
 coverage and mutmut already wrote. Pure folds and one ``main`` that reads the files."""
 
 import json

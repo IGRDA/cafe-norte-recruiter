@@ -3,10 +3,8 @@ title: The summary cut by a yes, then the interview asked for, and the calendar 
 config_id: chamberi_barista_v1
 language: es
 today: "2026-10-20"
-# Iñaki's preview call of 22 October (D64): "Es todo correcto, sí" over the summary earned the
-# review offer (D39, kept), the summary stayed unconfirmed, and the calendar was blocked, so Ana
-# said there were no slots. The calendar is always open now: the times are listed whatever the
-# summary's state; only reserving one needs the summary confirmed, and the tool says so.
+# Interrupting a summary with "Es todo correcto, sí" leaves it unconfirmed and offers review.
+# Available interview times can still be listed; reserving one requires a confirmed summary.
 live_candidate: scripted
 scripted_turns:
   - "Sí, me viene bien."
@@ -44,7 +42,7 @@ fake_script:
     # The candidate speaks over the summary: the turn ends while it is still being said.
     - tool: present_confirmation
       args: { target: brief }
-  # "Sí, está todo bien." over the summary: the one offer (D39).
+  # "Sí, está todo bien." over the summary: the one offer.
   - - say: "Perdona, me has contestado antes de acabar. ¿Lo repasamos por partes o seguimos?"
   # The interview, with the summary still unconfirmed: the calendar answers anyway.
   - - tool: list_interview_slots

@@ -85,7 +85,7 @@ def test_a_tool_result_says_what_was_already_said_this_turn_so_the_model_goes_on
 
 
 def test_the_offer_is_in_the_facts_by_number_and_time_never_by_id() -> None:
-    """The model offers the times itself and picks one by number (D56)."""
+    """The model offers the times itself and picks one by number."""
     slots = tuple(
         OfferedSlot(slot_id=s.slot_id, starts_at_utc=s.starts_at_utc)
         for s in interview_slots(CONFIG, after=NOW)[:2]
@@ -103,7 +103,7 @@ def test_the_offer_is_in_the_facts_by_number_and_time_never_by_id() -> None:
     ]
     assert offer_facts(state.model_copy(update={"slot_offer": None}), CONFIG) is None
     unsettled = state.model_copy(update={"brief_confirmed_revision": None})
-    assert offer_facts(unsettled, CONFIG) == offer_facts(state, CONFIG)  # D64: never hidden
+    assert offer_facts(unsettled, CONFIG) == offer_facts(state, CONFIG)  # never hidden
 
 
 def turn(role: Literal["user", "assistant"], text: str) -> TurnRecord:
@@ -121,7 +121,7 @@ def turn(role: Literal["user", "assistant"], text: str) -> TurnRecord:
 
 def test_a_fragment_joined_into_the_next_turn_is_not_said_twice() -> None:
     """Ignacio's call: the model saw "user: …mala reputación," and then the same words with the
-    rest. A pause cut the answer, the voice side joined it (D44), and both stayed in history."""
+    rest. A pause cut the answer, the voice side joined it, and both stayed in history."""
     turns = (
         turn("assistant", "¿Tienes permiso de trabajo?"),
         turn("user", "Sí, anótalo y esto no es lo que había hablado con él,"),

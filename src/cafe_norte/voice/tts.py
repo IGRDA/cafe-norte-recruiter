@@ -1,7 +1,7 @@
-"""ElevenLabs v4 Turbo over HTTP, one request per sentence (D48), without the gap between
+"""ElevenLabs v4 Turbo over HTTP, one request per sentence, without the gap between
 sentences: the request for the next sentence is sent as soon as its text arrives, not after
 the previous audio finished downloading, and the sentences before stay as ``previous_text``
-so the voice carries over (D59). Pipecat's service does the synthesis, timestamps and frames;
+so the voice carries over. Pipecat's service does the synthesis, timestamps and frames;
 this one only decides when a request starts and what context it carries."""
 
 import asyncio

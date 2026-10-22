@@ -27,10 +27,3 @@ def heard(ledger: Ledger) -> tuple[str, bool]:
     """The text played to the end, and whether that is everything that was sent."""
     text = " ".join(ledger.sent[: ledger.finished])
     return text, ledger.finished == len(ledger.sent)
-
-
-def readback_heard(ledger: Ledger, presentation_text: str) -> bool:
-    """A read-back was heard when its last sentence is among the finished ones."""
-    last = presentation_text.rsplit(" ", 1)[-1] if " " in presentation_text else presentation_text
-    played = ledger.sent[: ledger.finished]
-    return any(sentence.endswith(last) and sentence in presentation_text for sentence in played)

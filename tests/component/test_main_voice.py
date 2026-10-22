@@ -1,4 +1,4 @@
-"""The composition root picks the voice mode from the environment: off or hosted (D45)."""
+"""The composition root picks the voice mode from the environment: off or hosted."""
 
 import pytest
 

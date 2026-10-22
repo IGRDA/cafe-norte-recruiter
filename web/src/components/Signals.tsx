@@ -1,6 +1,6 @@
 import type { LanguageBar, SignalPoint } from "../page/reducer";
 
-// What the classifier read in the latest message (D62): tone and language probabilities. Advisory and about the words, never about the person.
+// What the classifier read in the latest message: tone and language probabilities. Advisory and about the words, never about the person.
 // Not a live region: it changes every message and must not talk over Ana.
 
 const TONES = [

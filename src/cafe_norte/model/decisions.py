@@ -1,4 +1,4 @@
-"""OpenRouter's Decisions API: TypeSafe's Jev behind the ``DecisionModel`` port (D52).
+"""OpenRouter's Decisions API: TypeSafe's Jev behind the ``DecisionModel`` port.
 
 An alpha endpoint (https://openrouter.ai/docs/api/api-reference/alphadecisions): a state and
 ``choice`` questions in, one probability per option out, no text. Only ``choice`` questions

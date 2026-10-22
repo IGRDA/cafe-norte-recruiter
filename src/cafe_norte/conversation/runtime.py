@@ -130,7 +130,7 @@ class Limits:
         self.llm_first_output_seconds = llm_first_output_seconds
         self.tool_seconds = tool_seconds
         self.session_seconds = session_seconds
-        self.switch_wait_seconds = switch_wait_seconds  # for the analyzer, before Ana speaks (D53)
+        self.switch_wait_seconds = switch_wait_seconds  # for the analyzer, before Ana speaks
 
 
 log = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-# A generation with no usage report is estimated at this many characters per token (D44).
+# A generation with no usage report is estimated at this many characters per token.
 CHARACTERS_PER_TOKEN = 4
 
 
@@ -162,16 +162,16 @@ class _Turn:
     timings: list[StageTiming] = field(default_factory=list)
     asked: bool = False  # a question has been spoken; the turn says nothing more
     repairs: int = 0  # malformed tool calls this turn; the budget is ``Limits.max_repairs``
-    round_idle: bool = False  # every call of the latest model round changed nothing (D44)
-    withheld: set[str] = field(default_factory=set)  # tools not offered again this turn (D44)
+    round_idle: bool = False  # every call of the latest model round changed nothing
+    withheld: set[str] = field(default_factory=set)  # tools not offered again this turn
     previous_end: datetime | None = None  # when Ana last finished, for the gap before this turn
-    ana_before: str = ""  # what Ana said last before this turn, for the signal analyzer (D52)
-    analysis: "asyncio.Task[SignalAnalysis] | None" = None  # started with the turn (D53)
+    ana_before: str = ""  # what Ana said last before this turn, for the signal analyzer
+    analysis: "asyncio.Task[SignalAnalysis] | None" = None  # started with the turn
     analysis_kept: bool = False  # handed to the after-turn journaling; otherwise cancelled
-    gated: bool = False  # the switch check before Ana's first words has been made (D53)
-    switch_to: Language | None = None  # the language the turn restarts in (D53)
+    gated: bool = False  # the switch check before Ana's first words has been made
+    switch_to: Language | None = None  # the language the turn restarts in
     sentiment: Sentiment | None = None  # the tone the prompt adapts to this turn
-    retone: Sentiment | None = None  # read before Ana spoke: the turn restarts with it (D58)
+    retone: Sentiment | None = None  # read before Ana spoke: the turn restarts with it
     switch_waited_ms: int = 0  # how long Ana's first words waited for the analyzer
     recorded: bool = False  # the user turn is stored, so an interruption has a turn to close
     lease: Lease | None = None  # held for the turn; every write is fenced on its generation
@@ -184,12 +184,12 @@ class _Turn:
     tools_called: int = 0
     rounds: int = 0
     held: list[str] = field(default_factory=list)  # a tool round's words, said once it commits
-    round_settled: bool = False  # a held question was said after writes alone (D59)
+    round_settled: bool = False  # a held question was said after writes alone
 
     @property
     def restarting(self) -> bool:
         """The analyzer read, before Ana's first words, a language or a tone the round did not
-        have: it is dropped and answered again (D53, D58)."""
+        have: it is dropped and answered again."""
         return self.switch_to is not None or self.retone is not None
 
     @property
@@ -285,7 +285,7 @@ class Runtime:
         self._telemetry = telemetry
         self._owner = owner
         self._clock = clock
-        self._wording = wording  # texts in a language without reviewed files (D63)
+        self._wording = wording  # texts in a language without reviewed files
         self._locks: dict[SessionId, asyncio.Lock] = {}
         self._turn_sessions: dict[TurnId, SessionId] = {}  # for delivery acknowledgements
         self._last_user_turn: dict[SessionId, TurnId] = {}
@@ -357,7 +357,7 @@ class Runtime:
         """What the root span says about the turn: how it ended and how big it was, never the
         words (they go in as content, which the adapter drops unless the operator asked)."""
         if failure == "interrupted":
-            run.trace.warn(failure)  # a candidate talking over Ana is normal in a call (D58)
+            run.trace.warn(failure)  # a candidate talking over Ana is normal in a call
         elif failure is not None:
             run.trace.fail(failure)
         outcome = "finished" if failure is None else "failed"
@@ -371,7 +371,7 @@ class Runtime:
         run.trace.set_content(input=run.input.text, output=" ".join(run.spoken))
 
     async def open_session(self, session_id: SessionId) -> AsyncIterator[RuntimeEvent]:
-        """The spec's opening sentence, word for word, before any candidate input."""
+        """The disclosure greeting, word for word, before any candidate input."""
         async for event in self._system_turn(session_id, InputId("opening"), _opening):
             yield event
 
@@ -385,7 +385,7 @@ class Runtime:
     async def say(self, session_id: SessionId, text: str) -> AsyncIterator[RuntimeEvent]:
         """A fixed sentence the system says outside a candidate turn (the silence prompt, the
         apology after a failed turn), journaled as its own turn so the page and the export
-        show everything Ana said (D35)."""
+        show everything Ana said."""
         input_id = InputId(f"system-{uuid.uuid4().hex[:8]}")
         async for event in self._system_turn(session_id, input_id, lambda _: [text]):
             yield event
@@ -399,7 +399,7 @@ class Runtime:
 
     async def record_usage(self, session_id: SessionId, usage: Sequence[UsageRecord]) -> None:
         """Usage measured outside a turn, such as a call's speech providers. A session that
-        has already ended stores its export again, so the cost in it includes this (D44)."""
+        has already ended stores its export again, so the cost in it includes this."""
         await self._record(usage)
         state = await self._store.sessions.get(session_id)
         if state is not None and is_terminal(state):
@@ -488,7 +488,7 @@ class Runtime:
                 pending = state.pending_confirmation
                 if pending is not None and pending.presented_turn_id == turn_id:
                     # Heard when playback reached the last sentence of what was said: the
-                    # whole read-back, or the part under review (D39).
+                    # whole read-back, or the part under review.
                     last_sentence = sentences(current_saying(pending, state.language))[-1]
                     was_heard = complete or text.endswith(last_sentence)
                     await self._store.sessions.save(
@@ -528,7 +528,7 @@ class Runtime:
                 self._close_later(session_id)
 
     async def _claim(self, run: _Turn) -> bool:
-        """The session lease for this turn (D32). ``False`` when another container holds it."""
+        """The session lease for this turn. ``False`` when another container holds it."""
         run.lease = await self._store.leases.claim(
             run.session_id, self._owner, ttl_seconds=self._limits.lease_seconds
         )
@@ -550,7 +550,7 @@ class Runtime:
     async def _turn(self, run: _Turn) -> AsyncGenerator[RuntimeEvent, None]:
         # An explicit language request applies to this very turn: saved with the user turn,
         # before the model is called, so the record, the prompt and the reply all agree. With
-        # none, a switch the analyzer read in the previous turn applies now, the same way (D52).
+        # none, a switch the analyzer read in the previous turn applies now, the same way.
         previous = run.state
         controls = explicit_controls(run.input.text)
         language = requested_language(controls, previous.language)
@@ -635,7 +635,7 @@ class Runtime:
                 async with aclosing(self._rounds(run, agent)) as rounds:
                     async for event in rounds:  # closing the turn closes the model stream
                         yield event
-                if run.restarting:  # nothing said or done yet: answer again (D53, D58)
+                if run.restarting:  # nothing said or done yet: answer again
                     if run.switch_to is not None:
                         async for event in self._switch_in_turn(run):
                             yield event
@@ -669,8 +669,7 @@ class Runtime:
             self._analyze_later(self._signals, run)
 
     async def _rounds(self, run: _Turn, agent: Span) -> AsyncGenerator[RuntimeEvent, None]:
-        """The bounded tool loop. Stops early, with nothing said or run, when the analyzer asks
-        for the other language before Ana's first words (``run.switch_to``, D53)."""
+        """Run bounded tool rounds; stop without output if a signal requires a fresh prompt."""
         for round_index in range(self._limits.max_tool_rounds + 1):
             run.rounds += 1
             with agent.child("step", "chain", round=run.rounds) as step:
@@ -692,7 +691,7 @@ class Runtime:
                     return
 
     def _start_analysis(self, run: _Turn) -> None:
-        """An analyzer that can switch the language starts with the model, beside it (D53)."""
+        """An analyzer that can switch the language starts with the model, beside it."""
         analyzer = self._signals
         if analyzer is None or not analyzer.switches_language:
             return
@@ -705,7 +704,7 @@ class Runtime:
     async def _switch_due(self, run: _Turn) -> bool:
         """Once, before Ana's first words of the turn: whether the analyzer, given at most
         ``switch_wait_seconds`` more, asks for the other language. Once anything was said it is
-        too late; the verdict then switches the next turn (D52)."""
+        too late; the verdict then switches the next turn."""
         if run.gated or run.spoken or run.analysis is None:
             run.gated = True
             return False
@@ -719,7 +718,7 @@ class Runtime:
             return False
         target = signal.language_switch_to
         if target is None or target == run.state.language:
-            # No switch; a tone the prompt does not have yet restarts the round with it (D58).
+            # No switch; a tone the prompt does not have yet restarts the round with it.
             soft = signal.sentiment if signal.sentiment in SOFT_SENTIMENTS else None
             if soft is None or soft == run.sentiment:
                 return False
@@ -730,14 +729,14 @@ class Runtime:
         return True
 
     async def _words_for(self, language: Language) -> None:
-        """The fixed texts in ``language`` before anything is said in it (D63); once per
+        """The fixed texts in ``language`` before anything is said in it; once per
         process and language, nothing for Spanish and English."""
         if self._wording is not None:
             await self._wording.prepare(language)
 
     async def _switch_in_turn(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """The analyzer's switch, applied before Ana says anything: saved, then announced, so
-        the channel (speech recognition, the page) follows before the answer comes (D53)."""
+        the page follows before the answer comes."""
         language, run.switch_to = run.switch_to, None
         assert language is not None
         await self._words_for(language)
@@ -870,7 +869,7 @@ class Runtime:
         run.calls = []
         run.held = []
         start = len(run.spoken)  # what this round says is what run.spoken gains from here
-        held: list[str] = []  # complete sentences, said at the end of the stream (D59)
+        held: list[str] = []  # complete sentences, said at the end of the stream
         buffer = ""
         first = True
         with step.child("chat", "generation") as chat:
@@ -886,7 +885,7 @@ class Runtime:
                         complete, buffer = split_sentences(buffer)
                         held.extend(complete)
                         if run.restarting:
-                            break  # dropped: the turn is answered again (D53, D58)
+                            break  # dropped: the turn is answered again
                         if sum(map(len, held)) + len(buffer) > self._limits.max_answer_characters:
                             # A runaway generation: stop reading, keep what was said, drop the rest.
                             self._event(
@@ -916,7 +915,7 @@ class Runtime:
             if tail:
                 held.append(tail)
             if run.calls and not run.restarting:
-                # Said after the calls commit, or dropped when one is refused (D59).
+                # Said after the calls commit, or dropped when one is refused.
                 run.held = held
                 chat.set_content(output=" ".join(held))
             else:
@@ -929,7 +928,7 @@ class Runtime:
             )
 
     async def _say_held(self, run: _Turn, held: list[str]) -> AsyncIterator[RuntimeEvent]:
-        """Held sentences, said in order, unless the analyzer asks to answer again (D53)."""
+        """Held sentences, said in order, unless the analyzer asks to answer again."""
         for sentence in held:
             if await self._switch_due(run):
                 return
@@ -959,7 +958,7 @@ class Runtime:
         self, run: _Turn, chat: Span
     ) -> AsyncGenerator[ModelText | ToolCall | ModelUsage, None]:
         """One model round with the first-output bound. A round that says nothing in time is
-        abandoned and asked once more (spec §12: one bounded retry for safe generation;
+        abandoned and asked once more (one bounded retry for safe generation;
         nothing of it was spoken); a second miss fails the turn with ``timeout``."""
         bound = self._limits.llm_first_output_seconds
         for attempt in (1, 2):
@@ -1007,7 +1006,7 @@ class Runtime:
     def _estimate(self, run: _Turn, *, output_characters: int) -> None:
         """A generation that ended with no usage report (cut by a barge-in or the answer
         limit, silent, or failed) still cost tokens: they are estimated from its characters,
-        the prompt and tools it was sent and the text it streamed, and marked so (D44)."""
+        the prompt and tools it was sent and the text it streamed, and marked so."""
         input_characters = sum(len(m.content) for m in run.messages) + sum(
             len(schema.model_dump_json())
             for schema in _offered(self._tools.schemas(), run.withheld)
@@ -1048,7 +1047,7 @@ class Runtime:
                 yield event
             run.round_settled = writes_only and run.asked
         elif held:
-            # A question asked on a save that failed is never heard (D59).
+            # A question asked on a save that failed is never heard.
             self._event(run, "held_dropped", "INFO", sentences=len(held))
         for call, model_text in results:  # after the held words, so "already said" is true
             run.messages.append(
@@ -1105,9 +1104,9 @@ class Runtime:
     async def _plain_answer(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """A plain yes, no or carry-on to the pending read-back is resolved here, through the
         same tools and domain rules as the model's call, so a model that forgets
-        ``confirm_field`` can no longer leave it pending (D35). Where the read-back stands
+        ``confirm_field`` can no longer leave it pending. Where the read-back stands
         decides the tool (``readback.answer_call``): one heard to the end is answered, one the
-        candidate cut goes to the review (D39). Anything else is the model's."""
+        candidate cut goes to the review. Anything else is the model's."""
         ui = run.input.ui_answer
         answer = ui.answer if ui is not None else answer_to_readback(run.input.text)
         pending = run.state.pending_confirmation
@@ -1122,7 +1121,7 @@ class Runtime:
         run.answered = run.outcome.model_text
 
     async def _slot_choice(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
-        """The candidate's answer to the slot offer, decided by ``slot_answer`` (D41) and run
+        """The candidate's answer to the slot offer, decided by ``slot_answer`` and run
         here through the tools the model would call; a shortlist is saved and the model asks."""
         answer = slot_answer(
             run.state,
@@ -1143,7 +1142,7 @@ class Runtime:
             yield event
         if name == "list_interview_slots" and run.outcome.ok:
             # "El martes 27 a las diez": the day is offered now, and the same words may pick
-            # its slot. Once: a second miss is the model's (D56).
+            # its slot. Once: a second miss is the model's.
             again = slot_answer(
                 run.state,
                 run.input.text,
@@ -1175,7 +1174,7 @@ class Runtime:
 
     async def _farewell(self, run: _Turn) -> AsyncIterator[RuntimeEvent]:
         """A goodbye once the interview is booked ends the session here, through
-        ``end_session`` like the model's call, and the fixed goodbye is said (D46): a model
+        ``end_session`` like the model's call, and the fixed goodbye is said: a model
         that answers every goodbye with one of its own can no longer leave the session open."""
         if run.state.booking is None or not is_farewell(run.input.text):
             return
@@ -1230,7 +1229,7 @@ class Runtime:
         return journaled
 
     def _close_later(self, session_id: SessionId) -> None:
-        """After the terminal state is committed and announced: the stored export (D34)."""
+        """After the terminal state is committed and announced: the stored export."""
         if self._on_closed is None:
             return
 
@@ -1287,7 +1286,7 @@ def _analysis_usage(run: _Turn, analysis: SignalAnalysis) -> tuple[UsageRecord, 
 @dataclass
 class _Attempt:
     """What one model attempt streamed: whether the provider reported its usage, and the
-    characters of text, for the estimate when it did not (D44)."""
+    characters of text, for the estimate when it did not."""
 
     reported: bool = False
     output_characters: int = 0
@@ -1307,13 +1306,13 @@ _SPEAKS_RESULT = frozenset({"search_knowledge", "list_interview_slots"})
 def _nothing_left_to_do(run: _Turn) -> bool:
     """The question of the turn has been said and the round only repeated what was done or
     answered for the candidate, or its writes committed and the question held with them was
-    said (D59): nothing more can be voiced, so another round is only latency (KI-08, D44)."""
+    said: nothing more can be voiced, so another round is only latency."""
     return run.asked and (run.round_idle or run.round_settled)
 
 
 def _offered(schemas: tuple[ToolSchema, ...], withheld: set[str]) -> tuple[ToolSchema, ...]:
     """The tools the next round may call: all but those whose call this turn changed nothing,
-    so a model that repeats a done save has to answer in words (KI-08, D44)."""
+    so a model that repeats a done save has to answer in words."""
     return tuple(schema for schema in schemas if schema.name not in withheld)
 
 

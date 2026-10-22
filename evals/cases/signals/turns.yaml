@@ -5,8 +5,8 @@
 #   stay           plain message in the session language
 #   explicit       asks to change language with a request word ("en inglés, por favor")
 #   indirect       says they cannot follow the session language, without naming a request
-#   written_other  a whole message in the other language, with no request (D28 keeps the
-#                  session language here; this suite labels it a switch and reports it apart)
+#   written_other  a whole message in the other language, with no request (the runtime keeps
+#                  the session language; this suite labels it a switch and reports it apart)
 #   mention        names a language without asking for it, or refuses a switch
 #   borrowed       a borrowed word or two inside the session language
 # No case is a real conversation.

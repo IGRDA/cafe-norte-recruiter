@@ -1,4 +1,4 @@
-"""Everything ragas measures for us (D43, D51).
+"""Everything ragas measures for us.
 
 Retrieval: the fixture's expected sections are chunk ids, so ragas' ID-based context
 precision and recall apply exactly, offline, with no model. Probes: ``ToolCallF1`` on the tool
@@ -7,7 +7,7 @@ names a question's turn called, also offline. Judges: ``RagasJudge`` implements 
 ``DiscreteMetric`` over an OpenAI model, which reads every criterion: staying on topic, the
 goal, the style and the rubric bullets. ragas' ``TopicAdherence`` and
 ``AgentGoalAccuracyWithReference`` misjudged plain Spanish exchanges on gpt-4o-mini and gpt-4o
-(D51). ``FakeAnswerJudge`` stands in, free. ragas is imported where it is used: it takes
+. ``FakeAnswerJudge`` stands in, free. ragas is imported where it is used: it takes
 seconds and only these need it. A judge that fails leaves no score, never a guessed one."""
 
 import asyncio
@@ -37,7 +37,7 @@ _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 JUDGE_SECONDS = 90.0  # one metric on one sample; past it the sample has no score
 CRITERION_PROMPT = Path(__file__).parent / "prompts" / "criterion.md"
 # The fixed criteria. A wording is kept only when the judge agrees with every labelled case in
-# ``cases/judge/calibration.yaml`` (``python -m evals.calibrate``, D51).
+# ``cases/judge/calibration.yaml`` (``python -m evals.calibrate``).
 TOPIC = (
     "Ana does not answer anything outside the barista job, the store, the candidate's details "
     "and the interview: no jokes, opinions or unrelated tasks."
@@ -228,7 +228,7 @@ class RagasJudge:
     async def answer_accuracy(self, question: str, answer: str, reference: str) -> float:
         """NVIDIA's answer accuracy: 0, 0.5 or 1 from two ratings against the reference. Extra
         details from the knowledge base are not counted against the answer, as
-        ``FactualCorrectness`` counted them (D51)."""
+        ``FactualCorrectness`` counted them."""
         from ragas.metrics.collections import AnswerAccuracy
 
         result = await AnswerAccuracy(llm=self._llm).ascore(

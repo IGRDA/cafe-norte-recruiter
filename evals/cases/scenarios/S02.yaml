@@ -4,7 +4,7 @@ config_id: arganzuela_barista_v1
 language: en
 today: "2026-10-20"
 # S01 in English at the other store, with a pay question mid-collection: the query goes to the
-# knowledge base in Spanish (D26), the answer and every system sentence come back in English.
+# knowledge base in Spanish, the answer and every system sentence come back in English.
 scripted_turns:
   - "Yes, now is fine."
   - "I'm Lucy Martin, and yes, I'm interested."
@@ -110,7 +110,7 @@ live_checks:
   - name: booking_present
   - name: no_fabricated_confirmed_values
   - name: no_cross_store_sources
-# What a good run achieves, and the tool trajectory every good run shows (D51).
+# What a good run achieves, and the tool trajectory every good run shows.
 goal: "In English throughout, the pay question is answered from the Arganzuela offer and the brief is confirmed."
 reference_tools:
   in_order: [update_candidate, present_confirmation, confirm_brief, end_session]

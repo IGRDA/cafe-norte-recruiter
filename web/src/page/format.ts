@@ -8,9 +8,10 @@ import type {
   VersionStamp,
 } from "../api/contracts";
 
-type Field = CandidateRecord[keyof Omit<CandidateRecord, "revision" | "notes">];
+type CandidateField = keyof Omit<CandidateRecord, "revision" | "notes">;
+type Field = CandidateRecord[CandidateField];
 
-export const FIELDS: readonly (readonly [keyof CandidateRecord, string])[] = [
+const FIELDS: readonly (readonly [CandidateField, string])[] = [
   ["name", "Nombre"],
   ["interest", "Interés"],
   ["work_authorization", "Permiso de trabajo"],
@@ -43,7 +44,7 @@ export const TERMINAL: ReadonlySet<StateUpdated["lifecycle"]> = new Set([
   "failed",
 ]);
 
-export function fieldText(field: Field | undefined): string {
+function fieldText(field: Field | undefined): string {
   if (!field) return "—";
   if (field.status === "captured" || field.status === "confirmed") {
     const value = Array.isArray(field.value) ? field.value.join(", ") : String(field.value);
@@ -58,7 +59,7 @@ export function candidateRows(update: StateUpdated | null): Row[] {
   const candidate = update?.candidate;
   const rows: Row[] = FIELDS.map(([key, label]) => [
     label,
-    fieldText(candidate?.[key] as Field | undefined),
+    fieldText(candidate?.[key]),
   ]);
   rows.push(["Notas", candidate?.notes.length ? candidate.notes.join(" · ") : "—"]);
   rows.push(["Revisión", String(update?.revision ?? 0)]);

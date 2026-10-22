@@ -17,7 +17,7 @@ from cafe_norte.persistence.postgres.support import (
     writing,
 )
 
-# With a generation, the write also needs a live lease of that generation: the fence of D32.
+# With a generation, the write also needs a live lease of that generation.
 FENCE = (
     "and (%(generation)s::integer is null or exists (select 1 from leases l "
     "where l.session_id = sessions.session_id and l.generation = %(generation)s "

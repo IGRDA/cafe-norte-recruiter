@@ -1,4 +1,4 @@
-"""The read-back behaviour matrix (D39), on fakes only: every kind of read-back x where its
+"""The read-back behaviour matrix, on fakes only: every kind of read-back x where its
 saying is cut x what the candidate says first x how they go on. A small policy model follows
 the prompt's read-back rules from the facts it is given, so no row needs a script of its own.
 
@@ -73,7 +73,7 @@ SETUP: dict[Kind, tuple[tuple[str, ToolCall | None], ...]] = {
     "brief": (("Ya está todo.", present_brief()),),
     "slot": (
         ("Sí, quiero entrevista.", offer_call("2026-10-23")),
-        ("El viernes a las diez y media.", None),  # the runtime reads that slot back (D41)
+        ("El viernes a las diez y media.", None),  # the runtime reads that slot back
     ),
 }
 CORRECTION: dict[Kind, tuple[str, ToolCall | None]] = {
@@ -138,7 +138,7 @@ class Policy:
 
 
 def expected(kind: Kind, cut: bool, reply: Reply, follow: FollowUp) -> Outcome:
-    """What the row's path should end in: the oracle, written from D39's rules."""
+    """Expected assurance for the read-back path exercised by this row."""
     if reply == "no" and kind != "slot":
         return "rejected"  # a no rejects a read-back, heard or not; a slot's no is the model's
     if reply == "correction" or not cut:
@@ -146,7 +146,7 @@ def expected(kind: Kind, cut: bool, reply: Reply, follow: FollowUp) -> Outcome:
     one_part = len(review_parts(READ_BACK[kind], "es")) == 1
     if reply == "unrelated":  # presented again: straight to its first part, heard
         return "reviewed" if follow == "go_over" or one_part else "waived"
-    if one_part:  # no offer (D59): only a carry-on waives it; a yes says it again once and
+    if one_part:  # no offer: only a carry-on waives it; a yes says it again once and
         return "waived" if reply == "carry_on" else "reviewed"  # the next answer confirms it
     return "reviewed" if follow == "go_over" else "waived"
 

@@ -1,4 +1,4 @@
-"""A bot in a room nobody joins ends the call after a short wait (D55), instead of holding a
+"""A bot in a room nobody joins ends the call after a short wait, instead of holding a
 voice place until Pipecat's five-minute idle timeout: the morning's refusals of 22 October."""
 
 import asyncio

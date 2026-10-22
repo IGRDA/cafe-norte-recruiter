@@ -20,7 +20,7 @@ import type {
 export type Fetch = typeof fetch;
 export type Language = CreateSessionRequest["language"];
 
-// The codes Ana answers in (D63), for reading ?lang= before the server has listed them. A
+// The codes Ana answers in, for reading ?lang= before the server has listed them. A
 // record keyed by the union makes the compiler fail when the API adds or drops one.
 const LANGUAGE_CODES: Record<Language, true> = {
   es: true, en: true, fr: true, pt: true, it: true, de: true, ro: true, ar: true, zh: true, uk: true,
@@ -65,8 +65,6 @@ export function createClient(fetcher: Fetch) {
     remove: (sessionId: string) => send<null>(fetcher, `/api/sessions/${sessionId}`, "DELETE", undefined, 204),
   };
 }
-
-export type Client = ReturnType<typeof createClient>;
 
 // EventSource only delivers the event names it listens for. A record keyed by the payload union
 // makes the compiler fail when the server adds an event the page does not listen for.

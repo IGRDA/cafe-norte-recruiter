@@ -3,13 +3,9 @@ title: The slot choice of the second hosted call, replayed with a model that nev
 config_id: chamberi_barista_v1
 language: es
 today: "2026-10-20"
-# What went wrong live (KI-06): three slots were offered; "El viernes." made the model list
-# again, "El viernes." again got a plain question, "Exacto, sí." a reservation with nothing
-# read back and then a read-back of a slot id that does not exist; nothing was booked. The
-# runtime now matches the words against the offer (D41): line 8 names a day not offered, so
-# the runtime offers Friday's two slots; line 9 fits both, so the model asks which; line 10
-# is the model's, and its slips are refused; line 11 picks one, which the runtime reads back;
-# line 12's yes books it.
+# The runtime matches slot choices against the offer, even if the model fails to present one.
+# Line 8 requests another day; line 9 fits two slots and needs clarification. Invalid model
+# calls on line 10 are refused; line 11 selects a slot for readback and line 12 confirms it.
 scripted_turns:
   - "Sí, me viene bien."
   - "Me llamo Lucía Marín, sí me interesa el puesto."

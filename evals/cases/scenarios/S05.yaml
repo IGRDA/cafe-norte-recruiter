@@ -56,7 +56,7 @@ live_checks:
     args: { lifecycle: completed }
   - name: no_fabricated_confirmed_values
   - name: no_cross_store_sources
-# What a good run achieves, and the tool trajectory every good run shows (D51).
+# What a good run achieves, and the tool trajectory every good run shows.
 goal: "The hours question is answered from the Chamberí offer and the interview carries on collecting details."
 reference_tools:
   anywhere: [search_knowledge, update_candidate]

@@ -2,11 +2,11 @@
 
 ``Daily in → Deepgram → SpeechTap → user aggregator → InboundBridge → ElevenLabs → Daily out →
 PlaybackTap``, watched by ``UsageObserver``: what the call used of each provider is measured and
-recorded when the pipeline ends (D44).
+recorded when the pipeline ends.
 Pipecat 1.13's ``LLMUserAggregator`` owns Silero VAD, the VAD start strategy (which interrupts
 the bot), the speech-timeout stop strategy that waits for a transcript, and segment joining; it
 emits the finished user message, which the bridge turns into one runtime turn. No smart-turn
-model and no Pipecat LLM (D01, D22)."""
+model and no Pipecat LLM."""
 
 import asyncio
 import logging
@@ -64,17 +64,16 @@ log = logging.getLogger(__name__)
 JOIN_TIMEOUT_SECONDS = 15.0
 # After the bot joins, the page joins at once; a candidate still missing after this never
 # connected (a closed tab, a blocked page). Ending the call frees its voice place instead of
-# holding it until Pipecat's five-minute idle timeout (D55).
+# holding it until Pipecat's five-minute idle timeout.
 CANDIDATE_JOIN_SECONDS = 30.0
-# A turn that sounds unfinished waits this long for more words (smart turn, D49); one that
+# A turn that sounds unfinished waits this long for more words (smart turn); one that
 # sounds finished ends after FINISHED_TURN_SILENCE_SECONDS, up from Pipecat's 0.2 s, which cut
-# a candidate taking a breath mid-sentence (D57). While Ana speaks, BARGE_IN_WORDS words cut her.
+# a candidate taking a breath mid-sentence. While Ana speaks, BARGE_IN_WORDS words cut her.
 UNFINISHED_TURN_SILENCE_SECONDS = 2.0
 FINISHED_TURN_SILENCE_SECONDS = 0.5
 BARGE_IN_WORDS = 2
-# Recognition hears every language at once (D64): the session language is only what Ana
-# answers in. Locked to the session language (D35), a switch to English turned the candidate's
-# Spanish into "Oh, c correcto" (22 October). The voice is the one Spanish voice (D47).
+# Recognition is multilingual regardless of the reply language; changing the reply
+# language must not prevent recognition of the candidate's next utterance.
 STT_LANGUAGE = "multi"
 
 
@@ -84,7 +83,7 @@ def stt_settings() -> DeepgramSTTSettings:
 
 
 def tts_settings(voice_id: str) -> ElevenLabsHttpTTSSettings:
-    """v4 Turbo over HTTP, one request per sentence (D48). Chosen by listening: the same
+    """v4 Turbo over HTTP, one request per sentence. Chosen by listening: the same
     intonation across sentences and messages, loosened so it does not sound read. v4 ignores
     ``speed``, so none is set."""
     return ElevenLabsHttpTTSSettings(
@@ -94,15 +93,15 @@ def tts_settings(voice_id: str) -> ElevenLabsHttpTTSSettings:
 
 def vad_params() -> VADParams:
     """Silero's defaults but the silence that ends speech: what the smart-turn model then judges
-    as finished or not (D57)."""
+    as finished or not."""
     return VADParams(stop_secs=FINISHED_TURN_SILENCE_SECONDS)
 
 
 def user_turn_strategies() -> UserTurnStrategies:
-    """A turn starts on words, so a soft "sí" VAD misses still counts (D35) and a cough or an
-    "mhm" over Ana does not cut her: while she speaks it takes ``BARGE_IN_WORDS`` words (D57).
+    """A turn starts on words, so a soft "sí" VAD misses still counts and a cough or an
+    "mhm" over Ana does not cut her: while she speaks it takes ``BARGE_IN_WORDS`` words.
     It ends when the bundled smart-turn model hears a finished sentence and the final
-    transcript is in, or after ``UNFINISHED_TURN_SILENCE_SECONDS`` of silence (D49). One
+    transcript is in, or after ``UNFINISHED_TURN_SILENCE_SECONDS`` of silence. One
     analyzer per call: it keeps the call's audio."""
     return UserTurnStrategies(
         start=[MinWordsUserTurnStartStrategy(min_words=BARGE_IN_WORDS, enable_interruptions=True)],
@@ -119,7 +118,7 @@ def user_turn_strategies() -> UserTurnStrategies:
 
 def pipeline_params() -> PipelineParams:
     """Usage metrics on: Deepgram's seconds and ElevenLabs' characters reach the meter only
-    as usage reports (D44). Latency metrics stay off."""
+    as usage reports. Latency metrics stay off."""
     return PipelineParams(enable_metrics=False, enable_usage_metrics=True)
 
 

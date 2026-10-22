@@ -14,7 +14,7 @@ variable "image_digest" {
 variable "public_hostname" {
   type        = string
   default     = ""
-  description = "A free DNS name with an A record on the static address, e.g. cafenorte-recruiting.duckdns.org (D60). Empty serves only the sslip.io name."
+  description = "A free DNS name with an A record on the static address, e.g. cafenorte-recruiting.duckdns.org. Empty serves only the sslip.io name."
 }
 variable "db_tier" {
   type        = string
@@ -28,7 +28,7 @@ variable "db_name" {
 variable "db_user" {
   type        = string
   default     = "cafe_norte"
-  description = "One built-in user owns the schema and serves the app (D33); roles split later."
+  description = "One built-in user owns the schema and serves the app; roles split later."
 }
 variable "db_password_version" {
   type        = number
@@ -49,13 +49,13 @@ variable "model" {
 variable "elevenlabs_voice_id" {
   type        = string
   default     = "uQw4jpKzMLrZuo0RLPS9"
-  description = "Ana's ElevenLabs voice, Spanish and English alike (D47)."
+  description = "Ana's ElevenLabs voice, Spanish and English alike."
 }
 
 variable "enable_database" {
   type        = bool
   default     = true
-  description = "Cloud SQL and the Auth Proxy on the VM (D33); false keeps the memory store."
+  description = "Cloud SQL and the Auth Proxy on the VM; false keeps the memory store."
 }
 
 variable "machine_type" {
@@ -67,11 +67,11 @@ variable "machine_type" {
 variable "signal_model" {
   type        = string
   default     = "openrouter/typesafe/jev-1.14"
-  description = "CAFE_NORTE_SIGNAL_MODEL for the hosted demo: Jev reads sentiment and the language switch beside the turn (D52); fictional data only. Empty turns the analyzer off."
+  description = "CAFE_NORTE_SIGNAL_MODEL for the hosted demo: Jev reads sentiment and the language switch beside the turn; fictional data only. Empty turns the analyzer off."
 }
 
 variable "langfuse_base_url" {
   type        = string
   default     = "https://cloud.langfuse.com"
-  description = "Langfuse host for traces (EU cloud, D05); the keys are secrets, not variables."
+  description = "Langfuse host for traces (EU cloud); the keys are secrets, not variables."
 }

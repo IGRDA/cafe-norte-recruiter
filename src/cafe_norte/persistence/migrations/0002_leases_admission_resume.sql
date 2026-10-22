@@ -1,5 +1,5 @@
 -- 0002: session ownership leases, voice admission rows and private resume tokens
--- (persistence stage, PR2). Everything cascades from the session it belongs to.
+-- Everything cascades from the session it belongs to.
 
 -- One live lease per session. A claim by another owner succeeds only once expires_at has
 -- passed; every claim increments generation, and a write fenced on an older generation fails.

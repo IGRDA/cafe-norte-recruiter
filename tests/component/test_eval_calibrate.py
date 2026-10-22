@@ -1,4 +1,4 @@
-"""Judge calibration (D51): labelled cases, the agreement per criterion, every miss named."""
+"""Judge calibration: labelled cases, the agreement per criterion, every miss named."""
 
 import pytest
 from evals.calibrate import calibrate, criterion, load_calibration, main, render

@@ -1,5 +1,5 @@
 """The next sentence's request goes out before the previous audio has finished, with the
-sentences before it as context (D59). Pipecat's parser is not run here: the hosted demo is
+sentences before it as context. Pipecat's parser is not run here: the hosted demo is
 where the audio is heard."""
 
 import asyncio

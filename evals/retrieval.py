@@ -1,9 +1,7 @@
-"""The retrieval suite: the fixture's questions through a retriever, scored without a model.
+"""Score retrieval without a model: section recall, store isolation and latency.
 
-Recall@3 counts a hit when any expected section is among the returned chunks; leakage is a
-returned chunk outside the configuration's documents. Unsupported questions are reported with
-what came back: stage 1 has no relevance floor, so abstention is the prompt's job and is
-measured by the scenario judge, not here."""
+Unsupported questions report what survived the relevance floor. Whether Ana abstains is
+measured by scenario/probe checks, not inferred from retrieval rank."""
 
 import json
 import statistics
@@ -77,8 +75,10 @@ async def run_retrieval(
 
 
 def write_report(report: RetrievalReport, directory: Path) -> Path:
-    """``<model>-kb<version>.json``: one committed file per retriever configuration, so a rerun
-    shows its diff."""
+    """Write ``<model>-kb<version>.json``; reruns replace that configuration's report.
+
+    New reports are ignored until explicitly promoted to tracked baselines.
+    """
     directory.mkdir(parents=True, exist_ok=True)
     model = report.embedding_model.split("/")[-1]
     path = directory / f"{model}-kb{report.kb_version}.json"
@@ -90,7 +90,7 @@ def write_report(report: RetrievalReport, directory: Path) -> Path:
     return path
 
 
-# ---- the model's own queries, replayed (D54) -----------------------------------------------------
+# ---- the model's own queries, replayed -----------------------------------------------------
 
 
 def recorded_queries(exports: Path) -> dict[str, tuple[tuple[str, ...], ...]]:

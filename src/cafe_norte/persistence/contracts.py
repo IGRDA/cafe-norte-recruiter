@@ -59,14 +59,6 @@ class Lease(Frozen):
     expires_at: datetime
 
 
-class SummaryJob(Frozen):
-    session_id: SessionId
-    status: Literal["pending", "running", "done", "failed"]
-    attempts: int
-    claimed_by: str | None
-    updated_at: datetime
-
-
 class Transaction(Protocol):
     """A unit of work. Repositories accept it so one commit can cover several writes."""
 
@@ -89,7 +81,7 @@ class Sessions(Protocol):
         lease_generation: int | None = None,
     ) -> None:
         """Conditional update on ``candidate.revision``; with ``lease_generation`` also on a
-        live lease of that generation (the fence of D32); raises ``conflict`` otherwise."""
+        live lease of that generation; raises ``conflict`` otherwise."""
         ...
 
     async def next_seq(
@@ -102,13 +94,13 @@ class Sessions(Protocol):
     async def delete(self, session_id: SessionId) -> None: ...
     async def expired(self, before: datetime, limit: int) -> tuple[SessionId, ...]: ...
     async def count_created_since(self, since: datetime) -> int:
-        """Sessions created at or after ``since`` that still exist: the daily ceiling (D65)."""
+        """Count sessions created at or after ``since`` that still exist."""
         ...
 
 
 class Turns(Protocol):
     async def append(self, tx: Transaction, turn: TurnRecord) -> None:
-        """Unique on ``(session_id, input_id)``: a resubmitted input is a ``conflict``."""
+        """Unique on ``(session_id, input_id, role)``; a duplicate raises ``conflict``."""
         ...
 
     async def recent(self, session_id: SessionId, limit: int) -> tuple[TurnRecord, ...]: ...
@@ -163,16 +155,29 @@ class Calendar(Protocol):
 
 
 class Leases(Protocol):
+    """Fence turn writes with a monotonically increasing generation.
+
+    A turn claims once and releases on exit; its deadline must fit within the lease TTL.
+    """
+
     async def claim(self, session_id: SessionId, owner: str, ttl_seconds: int) -> Lease | None:
-        """Succeeds when no live lease exists; increments ``generation``."""
+        """Claim an existing session if unowned, expired or held by this owner.
+
+        Every successful claim increments generation, including the same owner's reclaim.
+        Return None for a missing session or another owner's live lease.
+        """
         ...
 
-    async def renew(self, lease: Lease, ttl_seconds: int) -> Lease | None: ...
-    async def release(self, lease: Lease) -> None: ...
+    async def release(self, lease: Lease) -> None:
+        """Expire the current generation; releasing a stale lease does nothing."""
+        ...
 
 
 class Admission(Protocol):
-    """Bounded voice capacity and spend reservation, enforced across containers."""
+    """Reserve voice capacity; Postgres serializes admission across containers.
+
+    Reacquiring an active session is idempotent. Spend is recorded, not a budget gate.
+    """
 
     async def acquire(
         self, session_id: SessionId, *, max_active: int, reserve_eur: float
@@ -182,12 +187,6 @@ class Admission(Protocol):
         """At startup: release every place this instance still holds. They belong to calls
         of the process that ran before, which a restart ended without releasing them."""
         ...
-
-
-class SummaryJobs(Protocol):
-    async def enqueue(self, tx: Transaction, session_id: SessionId) -> None: ...
-    async def claim_next(self, owner: str, *, max_attempts: int) -> SummaryJob | None: ...
-    async def finish(self, job: SummaryJob, *, ok: bool) -> None: ...
 
 
 class ResumeTokens(Protocol):
@@ -219,13 +218,18 @@ class Store(Protocol):
     @property
     def admission(self) -> Admission: ...
     @property
-    def summary_jobs(self) -> SummaryJobs: ...
-    @property
     def resume_tokens(self) -> ResumeTokens: ...
     @property
     def exports(self) -> Exports: ...
 
-    def transaction(self) -> AbstractAsyncContextManager[Transaction]: ...
+    def transaction(self) -> AbstractAsyncContextManager[Transaction]:
+        """Commit on normal exit unless already committed; roll back on an exception.
+
+        Pass the yielded transaction only to repositories of this store. Announce a state
+        change only after leaving this context successfully.
+        """
+        ...
+
     async def open(self) -> None:
         """Connect and apply pending migrations; idempotent."""
         ...

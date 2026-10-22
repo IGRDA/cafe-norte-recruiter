@@ -5,7 +5,7 @@ language: es
 today: "2026-10-20"
 # What went wrong live: "Desde enero del año que viene" was saved as 2027-01-01 and read back
 # as "el viernes 1 de enero de 2027", a day the candidate never said; he said yes to it. The
-# day is now refused (D58): line 4's first call is rejected, the model sends the month, and
+# day is now refused: line 4's first call is rejected, the model sends the month, and
 # the read-back says "en enero de 2027".
 scripted_turns:
   - "Sí, me viene bien."

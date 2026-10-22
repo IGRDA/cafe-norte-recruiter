@@ -1,5 +1,5 @@
 """The opt-in signal analyzers: a backed verdict is a signal, anything else is none; a decision
-model's answers count above their thresholds (D52)."""
+model's answers count above their thresholds."""
 
 import pytest
 
@@ -88,7 +88,7 @@ async def test_a_verdict_reports_the_tokens_it_cost_whether_or_not_it_is_a_signa
 # ---- freshness -----------------------------------------------------------------------------------
 
 
-# ---- the decision-model analyzer (D52) -----------------------------------------------------------
+# ---- the decision-model analyzer -----------------------------------------------------------
 
 
 def decision(sentiment: str, p_sentiment: float, p_switch: float, *, to: str = "en") -> Decision:
@@ -138,7 +138,7 @@ async def test_a_switch_above_the_threshold_is_suggested_with_the_message_as_evi
 
 
 async def test_the_probabilities_travel_with_the_verdict() -> None:
-    """The page shows them as they arrive (D62); the verdict is still what the runtime uses."""
+    """The page shows them as they arrive; the verdict is still what the runtime uses."""
     analysis, _ = await decide(decision("frustrated", 0.45, 0.25), text="Vale.")
     assert analysis.signal is not None and analysis.signal.probabilities is not None
     assert analysis.signal.sentiment == "neutral"  # below the threshold, as before
@@ -166,8 +166,7 @@ async def test_below_the_thresholds_nothing_is_suggested() -> None:
 
 
 async def test_the_top_language_is_any_of_the_ten_and_other_never_switches() -> None:
-    """D63: the question names the language; a session can move to French at 0.7, and an
-    unlisted language keeps the session's."""
+    """A supported target can switch at the threshold; an unlisted language cannot."""
     french, _ = await decide(decision("neutral", 1.0, 0.9, to="fr"), text="Je ne parle pas.")
     assert french.signal is not None and french.signal.language_switch_to == "fr"
     unsure, _ = await decide(decision("neutral", 1.0, 0.6, to="fr"), text="Un peu.")

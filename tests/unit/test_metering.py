@@ -1,4 +1,4 @@
-"""What one call used of the speech providers, as measured (D44). Pure: times are arguments."""
+"""What one call used of the speech providers, as measured. Pure: times are arguments."""
 
 from datetime import UTC, datetime, timedelta
 

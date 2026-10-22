@@ -1,4 +1,4 @@
-"""What a candidate's words say about which interview slot they mean (D41). Pure."""
+"""What a candidate's words say about which interview slot they mean. Pure."""
 
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
@@ -317,8 +317,7 @@ def test_no_slot_words_or_a_refusal_is_not_a_choice(text: str) -> None:
     ],
 )
 def test_a_question_that_happens_to_hold_a_slot_word_is_not_a_choice(text: str) -> None:
-    """Only an answer all about the slot is the runtime's (as a plain yes is, D35); anything
-    more is the model's, which can answer it."""
+    """Only an answer entirely about the offered slot is resolved without the model."""
     assert choose(text, OFFER) == NotAChoice()
 
 

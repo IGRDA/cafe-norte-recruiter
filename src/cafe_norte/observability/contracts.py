@@ -109,8 +109,8 @@ def token_usage(
 ) -> tuple[UsageRecord, ...]:
     """A model call's tokens as records keyed ``<model_id>:input`` and ``:output``, and
     ``:input_cached`` for the part of the input read from the provider's cache, which the
-    input then excludes (D58). The configured model id prices them: a provider echoes a dated
-    snapshot id instead (D36)."""
+    input then excludes. The configured model id prices them: a provider echoes a dated
+    snapshot id instead."""
     parts = [("input", input_tokens - cached), ("output", output_tokens)]
     if cached:
         parts.insert(1, ("input_cached", cached))
@@ -179,7 +179,7 @@ class StructuredEvent(Frozen):
 ObservationKind = Literal["span", "agent", "chain", "generation", "tool", "retriever"]
 SpanValue = str | int | float | bool
 
-# The trace of a turn is named by its root span: a stable name, never a value (D36).
+# The trace of a turn is named by its root span: a stable name, never a value.
 ROOT_SPAN_NAME = "handle-candidate-turn"
 
 

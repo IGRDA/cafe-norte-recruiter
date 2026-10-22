@@ -1,4 +1,4 @@
-"""Virtual time for code that takes a clock and a sleep (D50): no test waits on the wall clock."""
+"""Virtual time for code that takes a clock and a sleep: no test waits on the wall clock."""
 
 import asyncio
 import heapq

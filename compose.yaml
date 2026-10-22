@@ -1,7 +1,7 @@
 # Local Postgres with the same major version as Cloud SQL, so booking and lease tests exercise
 # the same semantics as deployment. `make db-up` waits for the health check.
 # One project name for every checkout and worktree: they share one database container instead
-# of each trying to bind 5432 (D64, `make preview` and `make preflight` from a worktree).
+# of each trying to bind 5432 during `make preview` and `make preflight`.
 name: cafe-norte-recruiter-orbio
 
 services:

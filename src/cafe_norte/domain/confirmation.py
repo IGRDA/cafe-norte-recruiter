@@ -124,7 +124,7 @@ def advance_review(
         return Err("same_turn")
     if stage is None and parts == 1:
         # One sentence has nothing to go over in parts: a yes says it again once, a carry-on
-        # waives it; no offer in between (D59: a cut date took three yeses).
+        # waives it; no offer in between.
         if answer == "affirm":
             return Ok(_say_part(pending, ReviewInParts(part=0, parts=1, turn_id=turn_id)))
         return Ok(pending.model_copy(update={"review": ReviewWaived(turn_id=turn_id)}))
@@ -140,8 +140,7 @@ def advance_review(
 def start_parts(
     state: SessionState, turn_id: TurnId, *, parts: int
 ) -> Result[Confirmation, ConfirmationRefusal]:
-    """A read-back that was cut and is presented again is gone over in parts instead of being
-    read the same way twice (D35 read it whole and was cut again). Only once."""
+    """Offer a cut read-back in parts once, without repeating its whole presentation."""
     opened = _open(state, turn_id)
     if isinstance(opened, Err):
         return opened

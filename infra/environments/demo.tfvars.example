@@ -2,5 +2,5 @@ project_id      = "cafe-norte-demo"
 region          = "europe-west1"
 image_digest    = "europe-west1-docker.pkg.dev/cafe-norte-demo/app/cafe-norte@sha256:replace"
 demo_end_date   = "2026-11-10"
-public_hostname = "cafenorte-recruiting.duckdns.org" # free A record on the static address (D60); "" for sslip.io only
-enable_database = true # Cloud SQL through the Auth Proxy (D33); false keeps the memory store
+public_hostname = "cafenorte-recruiting.duckdns.org" # free A record on the static address; "" for sslip.io only
+enable_database = true # Cloud SQL through the Auth Proxy; false keeps the memory store

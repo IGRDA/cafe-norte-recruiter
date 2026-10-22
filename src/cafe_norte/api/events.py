@@ -1,4 +1,8 @@
-"""Server-Sent Events encoding and replay."""
+"""Ordered session events over SSE, paired with POST for candidate turns.
+
+Sequence ids support reconnect/replay using the same cookie authentication as the API.
+The channel needs server push and acknowledged commands, not a bidirectional socket.
+"""
 
 import asyncio
 from collections.abc import AsyncGenerator
@@ -38,8 +42,10 @@ async def stream(
     after_seq: int,
     heartbeat_seconds: float = HEARTBEAT_SECONDS,
 ) -> AsyncGenerator[bytes, None]:
-    """Persisted events after ``after_seq``, then live ones; heartbeat comments keep Cloud Run's
-    600-second timeout from idling the connection."""
+    """Replay persisted events after after_seq, then follow live commits in sequence order.
+
+    Idle streams emit heartbeat comments. Closing the generator cancels its store reader.
+    """
     queue: asyncio.Queue[EventRecord] = asyncio.Queue()
 
     async def pump() -> None:

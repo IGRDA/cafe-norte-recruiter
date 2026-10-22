@@ -6,9 +6,9 @@ today: "2026-10-20"
 # Line 8: Ana starts reading the interview back and the candidate speaks over her after the
 # first sentence (`faults`), so the question "¿Te la reservo?" was never heard. Line 9 is a
 # yes: it cannot authorize the booking, `reserve_interview` is refused, and the runtime routes
-# it to the one offer to go over it (D39). Line 10 accepts; the slot is said again as its one
+# it to the one offer to go over it. Line 10 accepts; the slot is said again as its one
 # part. Line 11 answers the part that was heard, and only that books.
-# Line 8 is the runtime's: it reads the first slot back itself (D41) and the candidate cuts it
+# Line 8 is the runtime's: it reads the first slot back itself and the candidate cuts it
 # after one sentence, so the model is never called and the line has no script.
 scripted_turns:
   - "Sí, me viene bien."
@@ -58,7 +58,7 @@ fake_script:
     - say: ""
   - []
   # The yes cut the slot read-back: one sentence has no offer and no parts, so the runtime
-  # says it again once; what the model adds is dropped, the question being asked (D59).
+  # says it again once; what the model adds is dropped, the question being asked.
   - - say: "Perdona, me has contestado antes de acabar."
   # Heard to the end this time: the plain yes books it through the runtime; the model says so.
   - - say: "Reservada la entrevista el martes 20 de octubre a las 17:00; es una reserva simulada, sin cita real."

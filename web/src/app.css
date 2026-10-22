@@ -72,7 +72,7 @@ dd { margin: 0; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 button, select, .composer input, .access input { min-height: 44px; }
 .reviewer > summary, .review summary { padding: 4px 0; }
-/* Live signals (D62): low-key, under the composer, two columns from 560px. */
+/* Live signals: low-key, under the composer, two columns from 560px. */
 .signals { margin-top: 12px; padding-top: 8px; border-top: 1px dotted var(--line); font-size: 0.8rem; color: var(--muted); }
 .signals-head { margin: 0 0 4px; }
 .signals-body { display: grid; gap: 4px 16px; grid-template-columns: 1fr; }

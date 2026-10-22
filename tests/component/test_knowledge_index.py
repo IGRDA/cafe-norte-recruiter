@@ -7,7 +7,7 @@ import pytest
 
 from cafe_norte.knowledge.bm25 import BM25, tokenize
 from cafe_norte.knowledge.fake import FakeEmbedder
-from cafe_norte.knowledge.index import build_index, index_from_documents, load_index, load_manifest
+from cafe_norte.knowledge.index import build_index, index_from_documents, load_index
 from cafe_norte.knowledge.loader import load_documents
 from tests.support import ROOT
 
@@ -67,8 +67,8 @@ async def test_artifact_round_trips_and_refuses_a_mismatch(tmp_path: Path) -> No
         "manifest.json",
         "vectors.json",
     ]
-    assert load_manifest(tmp_path, kb_version="1") == manifest
     loaded = load_index(tmp_path, kb_version="1")
+    assert loaded.manifest == manifest
     assert loaded == await index_from_documents(documents, FakeEmbedder(), kb_version="1")
     (tmp_path / "1" / "vectors.json").write_text("[]")
     with pytest.raises(ValueError, match="disagree"):

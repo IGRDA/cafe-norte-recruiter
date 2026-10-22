@@ -1,4 +1,4 @@
-"""Plain answers to a read-back, resolved by the runtime (D35)."""
+"""Plain answers to a read-back, resolved by the runtime."""
 
 from typing import Literal
 
@@ -119,9 +119,9 @@ async def test_a_button_for_another_read_back_changes_nothing() -> None:
 
 
 async def test_the_button_on_a_read_back_the_voice_has_not_finished_says_it_again() -> None:
-    """A page only mirrors the call (D39): pressing Sí on a card whose read-back was cut is a
-    yes to what was not heard, like a spoken one. It no longer counts as reading it (D38). A
-    one-sentence read-back has no offer: it is said again once (D59)."""
+    """A page only mirrors the call: pressing Sí on a card whose read-back was cut is a
+    yes to what was not heard, like a spoken one. It no longer counts as reading it. A
+    one-sentence read-back has no offer: it is said again once."""
     h = with_date_read_back(says("Perdona. ¿Lo repasamos o seguimos?"))
     await h.open_session()
     await readback_pending(h)

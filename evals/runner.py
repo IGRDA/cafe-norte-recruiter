@@ -1,9 +1,8 @@
-"""Load scenarios, replay them against the real runtime with the fake model, score, report;
-and the CLI for every suite.
+"""Evaluation CLI and deterministic scenario replay.
 
-Fake mode is the CI gate: no network, no credentials, under a second per scenario. Live mode
-and the comparison drive the public API with a simulated candidate (``evals/live_runs.py``,
-D43) and spend only with ``--yes``; the retrieval suite runs the 41 questions."""
+Fake scenarios exercise the real runtime offline. Live scenarios and comparisons drive
+the HTTP API with a simulated candidate. Paid modes estimate spend and require --yes.
+Use --help for suite options and --list for the current scenario inventory."""
 
 import argparse
 import asyncio
@@ -65,12 +64,12 @@ CONFIG_DIR = ROOT / "config"
 KB_DIR = ROOT / "kb"
 RETRIEVAL_RESULTS = ROOT / "evals" / "results" / "retrieval"
 LIVE_RESULTS = ROOT / "evals" / "results" / "live"
-DEFAULT_MODEL = "openai/gpt-4.1"  # what the hosted demo runs (D49)
+DEFAULT_MODEL = "openai/gpt-4.1"  # what the hosted demo runs
 COMPARISON_CASES = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
-COMPARISON_RESULTS = ROOT / "evals" / "results" / "comparison"  # committed (.gitignore)
-COMPARISON_MODELS = ("openai/gpt-4.1", "openai/gpt-4o-mini")  # hosted and previous (D49)
+COMPARISON_RESULTS = ROOT / "evals" / "results" / "comparison"
+COMPARISON_MODELS = ("openai/gpt-4.1", "openai/gpt-4o-mini")  # hosted and previous
 COMPARISON_REPEAT = 2
-SCORECARD_JUDGE = "openai/gpt-4o"  # D51: 18/18 on the calibration set; gpt-4o-mini wobbled on goals
+SCORECARD_JUDGE = "openai/gpt-4o"  # checked against cases/judge/calibration.yaml
 
 _FAKE_INDEX: dict[str, Index] = {}
 
@@ -317,9 +316,6 @@ def main(argv: list[str] | None = None, *, committed: Path = COMPARISON_RESULTS)
         return comparison_main(args, committed=committed)
     if args.suite == "signals":
         return signals_main(args)
-    if args.suite != "scenarios" or args.mode != "fake":
-        print(f"{args.suite} in {args.mode} mode is not available yet (later stage).")
-        return 2
     try:
         scenarios = load_scenarios(only=args.only)
     except ValueError as error:
@@ -389,8 +385,10 @@ def comparison_plan(models: Sequence[str], *, repeat: int) -> list[Planned]:
 
 
 def comparison_main(args: argparse.Namespace, *, committed: Path = COMPARISON_RESULTS) -> int:
-    """Spec §13: the six cases through each model, ``COMPARISON_REPEAT`` times, on loopback;
-    the results are also written to ``committed``."""
+    """Run the comparison cases through each model on loopback and save the results.
+
+    ``COMPARISON_REPEAT`` sets the default repetitions; ``committed`` is the baseline directory.
+    """
     plan = comparison_plan(
         args.models or COMPARISON_MODELS, repeat=args.repeat or COMPARISON_REPEAT
     )
@@ -443,7 +441,7 @@ def _retriever(mode: str) -> HybridRetriever:
 
 
 def replay_main(mode: str, folder: Path) -> int:
-    """The model's recorded queries of a live scorecard through today's retriever (D54)."""
+    """The model's recorded queries of a live scorecard through today's retriever."""
     retriever = _retriever(mode)
     configurations = load_configurations(CONFIG_DIR)
     recorded = recorded_queries(folder / "probe-exports")
@@ -483,7 +481,7 @@ def retrieval_main(mode: str, only: Sequence[str], out: Path, *, ragas: bool = F
 def scorecard_main(args: argparse.Namespace) -> int:
     """Fake: tiers 0 and 1 over every fake scenario and the retrieval fixture, free and offline,
     the numbers ``make check`` gates on. Live: the scenarios with ``live_checks`` and every
-    knowledge-base question as a probe against ``--model``, judged by ragas (D51)."""
+    knowledge-base question as a probe against ``--model``, judged by ragas."""
     retrieval = retrieval_report(args.retriever, ragas=True)
     if args.rescore:
         return scorecard_live.rescore(

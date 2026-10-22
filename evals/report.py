@@ -16,16 +16,16 @@ from evals.contracts import Report, RunRecord
 GROUNDING_CHECKS = frozenset(
     {"sources_shown_on_any_turn", "sources_shown_for_policy_answer", "no_cross_store_sources"}
 )
-EXTRACTION_TARGET = 0.95  # spec §13: exact normalized supplied facts
+EXTRACTION_TARGET = 0.95  # exact normalized supplied facts
 
 
 _DECISION = [
     "## Decision rule",
     "",
-    "Same prompt, tools, KB and configuration for every model (spec §13). Prefer the cheaper "
+    "Same prompt, tools, KB and configuration for every model. Prefer the cheaper "
     "or faster model only if it preserves the required correctness: runs passed, extraction "
     "target, no fabricated field and grounding at least as good as the other model's. The "
-    "owner decides and records the decision in docs/DECISIONS.md.",
+    "owner reviews the comparison before changing the configured model.",
     "",
 ]
 
@@ -60,7 +60,7 @@ class Score(Frozen):
         return f"{shown} (n={self.n}{f', {self.missing} unscored' if self.missing else ''})"
 
 
-JUDGED = ("goal_accuracy", "rubric", "style", "topic_adherence")  # D51, report only
+JUDGED = ("goal_accuracy", "rubric", "style", "topic_adherence")  # report only
 
 
 class ModelSummary(Frozen):
@@ -96,7 +96,7 @@ class GroupRow(Frozen):
 class Summary(Frozen):
     models: tuple[ModelSummary, ...]
     cases: tuple[CaseRow, ...]
-    groups: tuple[GroupRow, ...]  # spec §13: by configuration and language
+    groups: tuple[GroupRow, ...]  # by configuration and language
     misses: tuple[str, ...]
 
 
@@ -137,7 +137,7 @@ def render_markdown(report: Report, *, generated_at: datetime) -> str:
         )
     lines += [
         "",
-        f"Targets (spec §13): extraction ≥ {round(EXTRACTION_TARGET * 100)} % exact on supplied "
+        f"Targets: extraction ≥ {round(EXTRACTION_TARGET * 100)} % exact on supplied "
         "facts and zero fabricated confirmed fields. A miss of either is a miss, whatever the "
         "other numbers say. Latency is the runner's clock over HTTP, not the voice path. "
         "Samples are small: no number here is a production percentile.",
@@ -239,7 +239,7 @@ def _judge_section(runs: Sequence[RunRecord], summary: Summary) -> list[str]:
     return [
         "## Judges",
         "",
-        f"A secondary signal, never pass/fail (D06, D51); ragas over `{', '.join(judges)}`. "
+        f"A secondary signal, never pass/fail; ragas over `{', '.join(judges)}`. "
         "Each a mean of pass (1) or fail (0) per run; the rubric, the share of its bullets held.",
         "",
         "| Model | Goal achieved | Rubric bullets | Style | On topic "

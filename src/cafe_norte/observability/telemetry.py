@@ -1,6 +1,6 @@
 """OpenTelemetry export to Langfuse: one trace per turn, spans for the model rounds, the tools
 and the store writes. Without both Langfuse keys nothing is traced and events still go to
-stdout (D36)."""
+stdout."""
 
 import asyncio
 import base64
@@ -37,10 +37,10 @@ from cafe_norte.observability.cost import estimate, load_prices
 from cafe_norte.observability.events import StdoutTelemetry
 from cafe_norte.observability.redaction import redact
 
-DEFAULT_BASE_URL = "https://cloud.langfuse.com"  # Langfuse Cloud EU (D05)
+DEFAULT_BASE_URL = "https://cloud.langfuse.com"  # Langfuse Cloud EU
 DEFAULT_ENVIRONMENT = "development"
 
-# Limits (docs/architecture.md): a slow Langfuse never holds the app up.
+# Bounded export prevents a slow trace backend from holding up the app.
 FLUSH_TIMEOUT_MS = 5_000  # bound on the flush at shutdown
 EXPORT_TIMEOUT_MS = 5_000  # one export request
 MAX_QUEUE_SPANS = 2_048  # spans kept while exporting; beyond it the oldest are dropped
@@ -199,7 +199,7 @@ class _OtelSpan:
     ) -> None:
         self._span.set_attribute(f"{_OBSERVATION}model.name", model_id)
         # Langfuse's buckets do not overlap: OpenAI's prompt tokens include the cached ones, so
-        # "input" is what was not cached (D58).
+        # "input" is what was not cached.
         buckets = {"input": input_tokens - cached_input_tokens}
         if cached_input_tokens:
             buckets["input_cached_tokens"] = cached_input_tokens

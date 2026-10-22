@@ -88,7 +88,7 @@
     },
     "AssistantText": {
       "additionalProperties": false,
-      "description": "A sentence or clause ready for display and TTS. ``spoken_form`` has dates, times, money\nand phone numbers normalized for speech; ``text`` keeps canonical values.",
+      "description": "A sentence or clause for display (``text``) and TTS (``spoken_form``).\n\nThe runtime currently supplies the same canonical sentence for both.",
       "properties": {
         "type": {
           "const": "assistant_text",
@@ -1162,7 +1162,7 @@
     },
     "LanguageOption": {
       "additionalProperties": false,
-      "description": "A language Ana answers in, as the page lists it (D63).",
+      "description": "A language Ana answers in, as the page lists it.",
       "properties": {
         "code": {
           "enum": [
@@ -1760,7 +1760,7 @@
     },
     "SignalProbabilities": {
       "additionalProperties": false,
-      "description": "What a decision model gave each option (D52), shown on the page as it arrives (D62).\nAdvisory: the verdict in ``Signal`` is what the runtime acts on.",
+      "description": "What a decision model gave each option, shown on the page as it arrives.\nAdvisory: the verdict in ``Signal`` is what the runtime acts on.",
       "properties": {
         "sentiment": {
           "additionalProperties": {
@@ -1792,7 +1792,7 @@
     },
     "SignalRecorded": {
       "additionalProperties": false,
-      "description": "The asynchronous classifier's verdict on one user turn, journaled after that turn\nended. Advisory: the reviewer panel and the export show it; it never scores anyone.",
+      "description": "A classifier's verdict attached to one user turn; it may arrive after the turn ends.\n\nAdvisory: the reviewer panel and the export show it; it never scores anyone.",
       "properties": {
         "type": {
           "const": "signal_recorded",
@@ -1812,7 +1812,7 @@
     },
     "SlotOffer": {
       "additionalProperties": false,
-      "description": "The slots Ana last offered, in the order she said them, and the ones an ambiguous answer\nleft in question (D41). The runtime matches the candidate's choice against it.",
+      "description": "The slots Ana last offered, in the order she said them, and the ones an ambiguous answer\nleft in question. The runtime matches the candidate's choice against it.",
       "properties": {
         "slots": {
           "items": {

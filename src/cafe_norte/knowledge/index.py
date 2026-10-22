@@ -65,7 +65,3 @@ def load_index(out: Path, *, kb_version: str) -> Index:
     if manifest.chunk_count != len(chunks) or (vectors is not None and len(vectors) != len(chunks)):
         raise ValueError(f"{directory}: manifest and files disagree")
     return Index(manifest=manifest, chunks=chunks, vectors=vectors)
-
-
-def load_manifest(out: Path, *, kb_version: str) -> IndexManifest:
-    return IndexManifest.model_validate_json((out / kb_version / MANIFEST).read_text())

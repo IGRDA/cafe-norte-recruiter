@@ -1,8 +1,9 @@
-"""Request ceilings for the hosted demo (D65): wrong-code guesses and session starts per client
-IP, and sessions per day whoever asks. They bound what the shared access code can spend.
+"""Request ceilings for the hosted demo: access attempts and session starts per client IP,
+and sessions per day across clients. The default app enables them when an access code is set.
 
 The per-IP counters live in process memory: one container serves the demo, and a restart only
-forgives. The daily count is read from the store, so it survives restarts."""
+forgives. The daily count includes only sessions still in the store and survives restarts.
+It is checked before creation without a shared lock, so concurrent starts can exceed it."""
 
 from collections import deque
 from collections.abc import Mapping

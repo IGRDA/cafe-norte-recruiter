@@ -1,5 +1,5 @@
 """OpenRouter's Decisions API adapter over a scripted transport: the request it sends, the
-decision it returns, and every failure as a ``ModelError`` with a stable code (D52)."""
+decision it returns, and every failure as a ``ModelError`` with a stable code."""
 
 import json
 from datetime import UTC, datetime, timedelta

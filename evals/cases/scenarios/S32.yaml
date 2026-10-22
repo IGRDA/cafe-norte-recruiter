@@ -5,7 +5,7 @@ language: es
 today: "2026-10-20"
 # What went wrong live: "No, muchas gracias. ¿Tienes alguna otra oferta?" was answered with
 # the goodbye, and Ana hung up. end_session now refuses while the turn's message asks
-# something (D59): line 7's close is refused, the model answers, and line 8 closes.
+# something: line 7's close is refused, the model answers, and line 8 closes.
 scripted_turns:
   - "Sí, me viene bien."
   - "Me llamo Lucía Marín, sí me interesa el puesto."

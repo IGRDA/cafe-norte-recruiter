@@ -60,6 +60,11 @@
   they survive; an open page reconnects and a candidate reopens the conversation with the
   private link shown when it started (valid 7 days). A turn in flight during the reset is lost
   and the page says so.
+- **"No hay plazas libres" right after a deploy**: before D55 a reset left the cut calls'
+  places held for 600 s. Now the new process releases them at startup (`admission: released N
+  voice places held before the restart` in the logs). A call whose candidate never joins ends
+  after 30 s. To see the places: `select session_id, owner, acquired_at, released_at from
+  admission order by acquired_at desc limit 10` (journal command above).
 - **Overload**: at most two voice sessions per instance (`CAFE_NORTE_MAX_VOICE_SESSIONS`);
   a third gets `busy`. Lower it to one in `infra/app/main.tf` (`plain_env`) and redeploy.
 - **Costs**: one `e2-small` plus a static address (≈ 15 EUR/month) and Cloud SQL `db-f1-micro` with a 10 GB HDD (≈ 8 EUR/month) are the standing cost; budget alerts at 15/24/30 EUR;

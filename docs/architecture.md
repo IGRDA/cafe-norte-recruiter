@@ -67,6 +67,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Coverage floor | 80% of the package |
 | Voice: filler while a tool runs | after 1.5 s in which the candidate heard nothing (D40) |
 | Voice: bot join timeout | 15 s |
+| Voice: wait for the candidate after the bot joins | 30 s, then the call ends and its place is released (D55) |
 | Voice: end of the candidate's turn | when the smart-turn model hears a finished sentence (0.2 s of VAD silence, then the final transcript); 2.0 s of silence when it sounds unfinished (D49). A transcript can start a turn when VAD misses it (D35) |
 | Voice: a cut answer joined to the next words | when none of the cut turn's answer was heard (the filler aside) and the next transcript comes within 5 s of it (D44) |
 | Voice: speech recognition language | the session's (`es` or `en`), switched with the session |
@@ -127,7 +128,7 @@ partial (D44). The schema is `examples/session_export.schema.json`, the fictiona
 | Migrations | forward-only SQL files, applied at startup under one advisory lock |
 | Resume link validity | 7 days, reusable until then |
 | Session lease per turn | 60 s; a stale generation cannot write |
-| Voice admission row counts for | 600 s after acquire unless released |
+| Voice admission row counts for | 600 s after acquire unless released; at startup an instance releases the rows it still held (D55) |
 | Retention | 7 days (`CAFE_NORTE_RETENTION_DAYS`); purge at startup and hourly, 100 sessions per round, under one maintenance lock |
 
 ## Who sees what

@@ -175,6 +175,10 @@ class Admission(Protocol):
         self, session_id: SessionId, *, max_active: int, reserve_eur: float
     ) -> bool: ...
     async def release(self, session_id: SessionId, *, actual_eur: float) -> None: ...
+    async def release_left_over(self) -> int:
+        """At startup: release every place this instance still holds. They belong to calls
+        of the process that ran before, which a restart ended without releasing them."""
+        ...
 
 
 class SummaryJobs(Protocol):

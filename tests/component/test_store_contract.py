@@ -346,6 +346,23 @@ async def test_at_most_max_active_voice_sessions_and_release_frees_a_place(store
     await admission.release(SessionId("never"), actual_eur=0.0)  # unknown: no error
 
 
+async def test_places_held_before_a_restart_are_released_at_startup(store: Store) -> None:
+    """A deploy resets the VM mid-call: the calls never release their places. The new process
+    releases what this instance still held, so the next call is not refused as busy."""
+    a, b, c = SessionId("a"), SessionId("b"), SessionId("c")
+    for session_id in (a, b, c):
+        await store.sessions.create(session_state(session_id), access_hash="")
+    assert await store.admission.acquire(a, max_active=2, reserve_eur=0.5)
+    assert await store.admission.acquire(b, max_active=2, reserve_eur=0.5)
+    assert not await store.admission.acquire(c, max_active=2, reserve_eur=0.5)
+
+    assert await store.admission.release_left_over() == 2
+
+    assert await store.admission.acquire(c, max_active=2, reserve_eur=0.5)
+    assert await store.admission.release_left_over() == 1
+    assert await store.admission.release_left_over() == 0
+
+
 async def test_concurrent_admissions_never_exceed_the_cap(store: Store) -> None:
     ids = [SessionId(f"s{i}") for i in range(6)]
     for session_id in ids:

@@ -64,6 +64,10 @@ from cafe_norte.voice.session import VoiceRuntime, VoiceSession
 log = logging.getLogger(__name__)
 
 JOIN_TIMEOUT_SECONDS = 15.0
+# After the bot joins, the page joins at once; a candidate still missing after this never
+# connected (a closed tab, a blocked page). Ending the call frees its voice place instead of
+# holding it until Pipecat's five-minute idle timeout (D55).
+CANDIDATE_JOIN_SECONDS = 30.0
 # A turn that sounds unfinished waits this long for more words; one that sounds finished ends
 # on the final transcript (smart turn, D49). The fixed 1.0 s of D35 is gone.
 UNFINISHED_TURN_SILENCE_SECONDS = 2.0
@@ -131,6 +135,28 @@ def user_side(
     return SpeechTap(session), turns, InboundBridge(session)
 
 
+async def end_unless_joined(
+    joined: asyncio.Event,
+    end: Callable[[], Awaitable[None]],
+    *,
+    seconds: float,
+    sleep: Callable[[float], Awaitable[None]],
+) -> bool:
+    """Wait ``seconds`` for the candidate; if they have not joined, ``end`` the call. True when
+    it ended it."""
+    arrived = asyncio.ensure_future(joined.wait())
+    deadline = asyncio.ensure_future(sleep(seconds))
+    try:
+        await asyncio.wait({arrived, deadline}, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        arrived.cancel()
+        deadline.cancel()
+    if joined.is_set():
+        return False
+    await end()
+    return True
+
+
 class PipecatVoiceController:
     """Implements ``VoiceSessionController``: one Pipecat task per session inside this
     container. Provider connections are per call; nothing is warmed; ``stop`` or SIGTERM
@@ -145,8 +171,10 @@ class PipecatVoiceController:
         voice_id: str,
         texts: Mapping[Language, VoiceTexts],
         clock: Callable[[], datetime] | None = None,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         self._runtime = runtime
+        self._sleep = sleep
         self._deepgram_api_key = deepgram_api_key
         self._elevenlabs_api_key = elevenlabs_api_key
         self._voice_id = voice_id
@@ -173,11 +201,29 @@ class PipecatVoiceController:
             detail = live.error or "voice pipeline failed to start"
             await self.stop(session_id, reason="start_failed")
             raise ServiceError(f"daily: {detail}", code="provider_unavailable")
+        live.watch = asyncio.create_task(
+            end_unless_joined(
+                live.candidate_joined,
+                lambda: self._nobody_came(session_id, live),
+                seconds=CANDIDATE_JOIN_SECONDS,
+                sleep=self._sleep,
+            )
+        )
+
+    async def _nobody_came(self, session_id: SessionId, live: "_Live") -> None:
+        log.info(
+            "voice: no candidate joined within %.0f s session=%s",
+            CANDIDATE_JOIN_SECONDS,
+            session_id,
+        )
+        await live.pipeline_task.cancel()
 
     async def stop(self, session_id: SessionId, *, reason: str) -> None:
         live = self._sessions.pop(session_id, None)
         if live is None:
             return
+        if live.watch is not None:
+            live.watch.cancel()
         await live.session.close()
         await live.pipeline_task.cancel()
         if live.task is not None:
@@ -204,6 +250,8 @@ class PipecatVoiceController:
 
     def _forget(self, session_id: SessionId, live: "_Live") -> None:
         """The pipeline ended for any reason: the session is no longer running here."""
+        if live.watch is not None:
+            live.watch.cancel()
         if self._sessions.get(session_id) is live:
             self._sessions.pop(session_id, None)
 
@@ -294,6 +342,7 @@ class PipecatVoiceController:
             live.joined.set()
 
         async def on_first_participant_joined(_transport: object, _participant: object) -> None:
+            live.candidate_joined.set()
             meter.entered("candidate", self._now())
             await session.joined()
 
@@ -336,5 +385,7 @@ class _Live:
         self.meter = meter
         self.http = http
         self.joined = asyncio.Event()
+        self.candidate_joined = asyncio.Event()
         self.error: str | None = None
         self.task: asyncio.Task[None] | None = None
+        self.watch: asyncio.Task[bool] | None = None  # ends the call if nobody joins

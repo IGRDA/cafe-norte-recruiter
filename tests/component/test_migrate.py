@@ -13,6 +13,7 @@ MIGRATIONS = (
     "0001_initial.sql",
     "0002_leases_admission_resume.sql",
     "0003_exports_and_cascades.sql",
+    "0004_admission_owner.sql",
 )
 TABLES = {
     "sessions",

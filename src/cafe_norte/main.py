@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from cafe_norte.api.access import AccessGate, gate_from_env
 from cafe_norte.api.boundary import HttpBoundary
 from cafe_norte.api.contracts import ErrorResponse, LanguageOption, SignalsMode
+from cafe_norte.api.limits import RequestLimits
 from cafe_norte.api.routes import TurnTasks, build_router
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import ConversationRuntime, SignalAnalyzer
@@ -71,6 +72,7 @@ STATUS: dict[ErrorCode, int] = {
     "not_found": 404,
     "conflict": 409,
     "limit_exceeded": 429,
+    "rate_limited": 429,
     "session_ended": 409,
     "internal_error": 500,
 }
@@ -99,6 +101,7 @@ def create_app(
     retention_interval_seconds: float = 3600.0,
     estimate: Estimator | None = None,
     flush: Callable[[], None] | None = None,
+    request_limits: RequestLimits | None = None,
 ) -> FastAPI:
     """Compose typed collaborators into the HTTP app.
 
@@ -149,6 +152,7 @@ def create_app(
             max_voice_sessions=max_voice_sessions,
             session_seconds=session_seconds,
             estimate=estimate,
+            request_limits=request_limits,
         )
     )
 
@@ -203,6 +207,12 @@ def _languages() -> tuple[LanguageOption, ...]:
     )
 
 
+def _request_limits(env: Mapping[str, str], gate: AccessGate) -> RequestLimits | None:
+    """The ceilings guard what the shared code opens; with no code there is nothing to guard
+    (local runs and the loopback evals start many sessions from one address)."""
+    return RequestLimits.from_env(env) if gate.requires_code else None
+
+
 def create_default_app(
     env: Mapping[str, str] | None = None,
     *,
@@ -245,11 +255,12 @@ def create_default_app(
     voice: VoiceSessionController | None = None
     if voice_mode == "pipecat":
         rooms, voice = _hosted_voice(env, runtime)
+    gate = gate_from_env(env)
     return create_app(
         runtime=runtime,
         store=store,
         configurations=configurations,
-        gate=gate_from_env(env),
+        gate=gate,
         versions=process,
         web_dir=Path(env.get("CAFE_NORTE_WEB_DIR", "web/dist")),  # `npm run build`
         voice_mode=voice_mode,
@@ -264,6 +275,7 @@ def create_default_app(
         retention_days=int(env.get("CAFE_NORTE_RETENTION_DAYS", "7")),
         estimate=estimate,
         flush=flush,
+        request_limits=_request_limits(env, gate),
     )
 
 

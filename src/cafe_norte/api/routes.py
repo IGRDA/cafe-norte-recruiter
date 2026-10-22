@@ -1,9 +1,10 @@
 """Routes from ports."""
 
 import asyncio
+import time
 import uuid
 from collections.abc import Coroutine
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Request, Response, status
@@ -28,6 +29,7 @@ from cafe_norte.api.contracts import (
     VoiceStartResponse,
     VoiceTimingReport,
 )
+from cafe_norte.api.limits import RequestLimits, SlidingWindow
 from cafe_norte.conversation.contracts import ConversationRuntime, TurnInput, UiAnswer
 from cafe_norte.domain.contracts import ConfigId, SessionId, SessionState, StoreConfiguration
 from cafe_norte.errors import ServiceError
@@ -80,15 +82,27 @@ def build_router(
     max_voice_sessions: int = 2,
     session_seconds: float = 480.0,
     estimate: Estimator | None = None,
+    request_limits: RequestLimits | None = None,
 ) -> APIRouter:
     """Expose session operations through injected runtime and storage ports.
 
     Session routes require the owner's signed cookie; the shared access code only permits
     creation. Accepted turns run asynchronously and report completion on the SSE stream.
     Voice endpoints return provider_unavailable unless both room and voice ports are bound.
+    Without request_limits, code attempts and session starts are not rate-limited.
     """
     router = APIRouter()
     hosted_voice = voice_mode == "pipecat" and rooms is not None and voice is not None
+    guesses = starts = None
+    if request_limits is not None:
+        guesses = SlidingWindow(limit=request_limits.access_attempts_per_minute, seconds=60)
+        starts = SlidingWindow(limit=request_limits.session_starts_per_hour, seconds=3600)
+
+    def within(window: SlidingWindow | None, request: Request) -> None:
+        """Keyed on the client IP; behind Caddy, uvicorn takes it from X-Forwarded-For."""
+        client = request.client.host if request.client else "unknown"
+        if window is not None and not window.hit(client, now=time.monotonic()):
+            raise ServiceError("too many requests from one client", code="rate_limited")
 
     def owner(request: Request, session_id: str) -> SessionId:
         found = gate.session_from_cookie(request.cookies.get(SESSION_COOKIE))
@@ -118,8 +132,10 @@ def build_router(
         )
 
     @router.post("/api/access", status_code=status.HTTP_204_NO_CONTENT)
-    async def access(body: AccessRequest, response: Response) -> Response:
-        """The shared demo code opens session creation for this browser."""
+    async def access(body: AccessRequest, request: Request) -> Response:
+        """The shared demo code opens session creation for this browser. Every attempt counts
+        against the client's guesses per minute, the right code included."""
+        within(guesses, request)
         if not gate.check_code(body.code):
             raise ServiceError("wrong access code", code="unauthorized")
         response = Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -201,6 +217,12 @@ def build_router(
         configuration = configurations.get(body.config_id)
         if configuration is None:
             raise ServiceError("unknown configuration", code="not_found")
+        within(starts, request)
+        if request_limits is not None:
+            # Read then create, not atomic: two racing starts can pass one over the ceiling.
+            day = datetime.now(UTC) - timedelta(days=1)
+            if await store.sessions.count_created_since(day) >= request_limits.sessions_per_day:
+                raise ServiceError("sessions per day reached", code="busy")
         session_id = SessionId(uuid.uuid4().hex)
         state = SessionState(
             session_id=session_id,

@@ -16,9 +16,9 @@ concurrency:
   group: deploy-demo
   cancel-in-progress: false
 
+# Only the deploy job may mint a GCP credential; the check job installs npm and uv packages.
 permissions:
   contents: read
-  id-token: write
 
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -48,6 +48,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: demo
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2

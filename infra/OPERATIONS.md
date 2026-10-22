@@ -62,6 +62,10 @@ update the source, verification date and version together when refreshing prices
   and ordered `events` journal show what the candidate received.
 - Voice capacity is controlled by `CAFE_NORTE_MAX_VOICE_SESSIONS`. Startup releases that
   instance's abandoned admission rows; room expiry and admission TTL recover crashed calls.
+- When an access code is set, [RequestLimits](../src/cafe_norte/api/limits.py) configures code
+  attempts and session starts per IP, plus the daily session ceiling. It documents the
+  environment overrides. Restarts clear per-IP counters; deleting sessions reduces the daily
+  count, and concurrent starts can exceed that ceiling because checking and creation are separate.
 - Before `demo_end_date`, run `PROJECT_ID=... BUCKET=... scripts/teardown.sh`. It prompts through
   Terraform, destroys the app/database and removes images. It does not drain active calls or
   retain database backups. Bootstrap/state are kept unless explicitly retired separately.

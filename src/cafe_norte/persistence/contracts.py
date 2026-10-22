@@ -93,6 +93,9 @@ class Sessions(Protocol):
 
     async def delete(self, session_id: SessionId) -> None: ...
     async def expired(self, before: datetime, limit: int) -> tuple[SessionId, ...]: ...
+    async def count_created_since(self, since: datetime) -> int:
+        """Count sessions created at or after ``since`` that still exist."""
+        ...
 
 
 class Turns(Protocol):

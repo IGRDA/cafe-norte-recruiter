@@ -41,6 +41,7 @@ export function createRunner(ports: Ports, dispatch: Dispatch): Runner {
         dispatch({
           type: "booted",
           voiceOffered: runtime?.ok === true && runtime.body.voice === "pipecat",
+          signalsMode: runtime?.ok ? runtime.body.signals : "off",
           stores: stores?.ok ? stores.body : [],
         });
         return;

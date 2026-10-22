@@ -34,7 +34,7 @@ function setup({ needsCode = false, code = null as string | null } = {}) {
     const url = String(input);
     const method = init?.method ?? "GET";
     if (init?.body) posted.push({ url, body: JSON.parse(String(init.body)) });
-    if (url === "/api/runtime") return json(200, { voice: "off", config_ids: ["chamberi"], access_required: needsCode, commit_sha: "x" });
+    if (url === "/api/runtime") return json(200, { voice: "off", signals: "jev", config_ids: ["chamberi"], access_required: needsCode, commit_sha: "x" });
     if (url === "/api/configurations") return json(200, [STORE]);
     if (url === "/api/access") {
       open = (init?.body && JSON.parse(String(init.body)).code === "1234") || false;
@@ -115,6 +115,32 @@ describe("App", () => {
     expect(document.documentElement.lang).toBe("es");
     stream.emit(1, { ...pendingBrief(), language: "en" });
     expect(document.documentElement.lang).toBe("en");
+  });
+
+  it("shows the latest message's tone and language probabilities as they arrive", async () => {
+    const { stream } = setup();
+    await screen.findByText("Conectada.");
+    expect(screen.getByText("Aparecerán con tu primer mensaje.")).toBeInTheDocument();
+    stream.emit(1, { type: "turn_started", turn_id: "t1", language: "es", text: "esto es lentísimo" });
+    expect(screen.getByText("Leyendo tu último mensaje…")).toBeInTheDocument();
+    stream.emit(2, {
+      type: "signal_recorded",
+      signal: {
+        turn_id: "t1",
+        sentiment: "frustrated",
+        explicit_human_request: false,
+        explicit_stop: false,
+        language_switch_to: null,
+        evidence_text: "esto es lentísimo",
+        probabilities: {
+          sentiment: { neutral: 0.1, positive: 0, frustrated: 0.86, uncertain: 0.04 },
+          language: { keep: 0.97, switch: 0.03 },
+        },
+      },
+    });
+    expect(screen.getByRole("meter", { name: "frustrado" })).toHaveAttribute("value", "0.86");
+    expect(screen.getByRole("meter", { name: "mantener" })).toHaveAttribute("value", "0.97");
+    expect(screen.getByText("86 %")).toBeInTheDocument();
   });
 
   it("has no accessibility violations axe can find", async () => {

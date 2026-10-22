@@ -2,7 +2,7 @@
 // The page's rules, without a browser: each case is (state, actions) → (state, effects).
 import { describe, expect, it } from "vitest";
 import type { SessionState } from "../api/contracts";
-import { active, booted, event, pendingBrief, run, STORE, stateUpdated, VERSIONS } from "./fixtures";
+import { active, booted, event, pendingBrief, run, signal, STORE, stateUpdated, userTurn, VERSIONS } from "./fixtures";
 import {
   canAnswer,
   canDelete,
@@ -11,7 +11,11 @@ import {
   canTalk,
   exportHref,
   initial,
+  latestSignal,
   MAX_REVIEW_ENTRIES,
+  MAX_SIGNAL_POINTS,
+  signalStatus,
+  signalTrend,
   showAccess,
   storeName,
   talkPressed,
@@ -22,6 +26,7 @@ describe("boot", () => {
     const { state, effects } = run(initial({ store: "chamberi", language: "en", resumeToken: null, code: null }), {
       type: "booted",
       voiceOffered: false,
+      signalsMode: "off",
       stores: [STORE],
     });
     expect(state.page).toBe("loading");
@@ -39,6 +44,7 @@ describe("boot", () => {
     const { state, effects } = run(initial({ store: null, language: "es", resumeToken: null, code: null }), {
       type: "booted",
       voiceOffered: false,
+      signalsMode: "off",
       stores: [],
     });
     expect(state.page).toBe("failed");
@@ -50,6 +56,7 @@ describe("boot", () => {
     const { effects } = run(initial({ store: null, language: "es", resumeToken: "tok", code: null }), {
       type: "booted",
       voiceOffered: false,
+      signalsMode: "off",
       stores: [STORE],
     });
     expect(effects).toEqual([{ type: "clear-fragment" }, { type: "resume", token: "tok" }]);
@@ -59,6 +66,7 @@ describe("boot", () => {
     const start = run(initial({ store: "chamberi", language: "es", resumeToken: "tok", code: null }), {
       type: "booted",
       voiceOffered: false,
+      signalsMode: "off",
       stores: [STORE],
     }).state;
     const { state, effects } = run(start, { type: "resume-failed" });
@@ -70,6 +78,7 @@ describe("boot", () => {
     const resuming = run(initial({ store: null, language: "es", resumeToken: "tok", code: null }), {
       type: "booted",
       voiceOffered: false,
+      signalsMode: "off",
       stores: [STORE],
     }).state;
     const resumed = run(resuming, { type: "resumed", sessionId: "s9" });
@@ -128,6 +137,7 @@ describe("access link (#code=)", () => {
     run(initial({ store: "chamberi", language: "es", resumeToken, code: "1234" }), {
       type: "booted",
       voiceOffered: false,
+      signalsMode: "off",
       stores: [STORE],
     });
 
@@ -400,5 +410,46 @@ describe("lifecycle", () => {
     expect(state.resumeUrl).toBeNull();
     expect(canDelete(state)).toBe(false);
     expect(exportHref(state)).toBeNull();
+  });
+});
+
+describe("signals (D62)", () => {
+  it("waits for the verdict on the latest message, then shows it", () => {
+    expect(signalStatus(active())).toBe("idle");
+    const waiting = run(active(), userTurn("t1")).state;
+    expect(signalStatus(waiting)).toBe("waiting");
+    const ready = run(waiting, signal("t1", 0.8)).state;
+    expect(signalStatus(ready)).toBe("ready");
+    expect(latestSignal(ready)?.probabilities?.sentiment.frustrated).toBe(0.8);
+    expect(signalStatus(run(ready, userTurn("t2")).state)).toBe("waiting");
+  });
+
+  it("Ana's opening turn has no candidate words, so nothing is awaited", () => {
+    const { state } = run(active(), userTurn("t0", ""));
+    expect(signalStatus(state)).toBe("idle");
+  });
+
+  it("a second verdict for the same message replaces the first", () => {
+    const { state } = run(active(), signal("t1", 0.2), signal("t1", 0.9));
+    expect(state.signals).toHaveLength(1);
+    expect(latestSignal(state)?.probabilities?.sentiment.frustrated).toBe(0.9);
+  });
+
+  it("keeps a trend of the last twelve messages, oldest first", () => {
+    const actions = Array.from({ length: MAX_SIGNAL_POINTS + 3 }, (_, i) => signal(`t${i}`, i / 100, 0.5));
+    const { state } = run(active(), ...actions);
+    expect(state.signals).toHaveLength(MAX_SIGNAL_POINTS);
+    expect(signalTrend(state, "frustrated")[0]).toBe(0.03);
+    expect(signalTrend(state, "switch").every((p) => p === 0.5)).toBe(true);
+  });
+
+  it("a label-only verdict is shown without bars and leaves no trend point", () => {
+    const { state } = run(active(), userTurn("t1"), signal("t1", 0, 0, { probabilities: null }));
+    expect(signalStatus(state)).toBe("ready");
+    expect(signalTrend(state, "frustrated")).toEqual([]);
+  });
+
+  it("says when no classifier runs", () => {
+    expect(signalStatus({ ...active(), signalsMode: "off" })).toBe("off");
   });
 });

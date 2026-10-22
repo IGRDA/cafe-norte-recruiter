@@ -82,6 +82,7 @@ export interface VoiceTimingReport {
  */
 export interface RuntimeInfo {
   voice: "off" | "pipecat";
+  signals: "off" | "labels" | "jev";
   config_ids: string[];
   access_required: boolean;
   commit_sha: string;
@@ -614,6 +615,22 @@ export interface Signal {
   explicit_stop: boolean;
   language_switch_to: ("es" | "en") | null;
   evidence_text: string;
+  probabilities: SignalProbabilities | null;
+}
+/**
+ * What a decision model gave each option (D52), shown on the page as it arrives (D62).
+ * Advisory: the verdict in ``Signal`` is what the runtime acts on.
+ *
+ * This interface was referenced by `BrowserContracts`'s JSON-Schema
+ * via the `definition` "SignalProbabilities".
+ */
+export interface SignalProbabilities {
+  sentiment: {
+    [k: string]: number;
+  };
+  language: {
+    [k: string]: number;
+  };
 }
 /**
  * This interface was referenced by `BrowserContracts`'s JSON-Schema

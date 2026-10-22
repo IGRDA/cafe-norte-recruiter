@@ -21,6 +21,7 @@ from cafe_norte.api.contracts import (
     ResumeResponse,
     RuntimeInfo,
     SessionSnapshotResponse,
+    SignalsMode,
     TurnAccepted,
     TurnRequest,
     VoiceStartResponse,
@@ -73,6 +74,7 @@ def build_router(
     versions: ProcessVersions,
     tasks: TurnTasks,
     voice_mode: VoiceMode = "off",
+    signals_mode: SignalsMode = "off",
     max_voice_sessions: int = 2,
     session_seconds: float = 480.0,
     estimate: Estimator | None = None,
@@ -101,6 +103,7 @@ def build_router(
     async def runtime_info() -> RuntimeInfo:
         return RuntimeInfo(
             voice=voice_mode,
+            signals=signals_mode,
             config_ids=tuple(configurations),
             access_required=gate.requires_code,
             commit_sha=versions.commit_sha,

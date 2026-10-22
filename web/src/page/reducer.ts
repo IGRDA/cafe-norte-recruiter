@@ -6,7 +6,9 @@ import type {
   ConfigurationSummary,
   CreateSessionResponse,
   SessionEvent,
+  RuntimeInfo,
   SessionSnapshotResponse,
+  Signal,
   SourcesShown,
   StateUpdated,
   VersionStamp,
@@ -37,6 +39,16 @@ export interface Bubble {
   sentences: string[];
 }
 
+/** The classifier's reading of one candidate message (D62): advisory, never a hiring input. */
+export interface SignalPoint {
+  turnId: string;
+  sentiment: Signal["sentiment"];
+  probabilities: Signal["probabilities"]; // null from a label-only classifier
+  switchTo: Signal["language_switch_to"];
+}
+
+export type SignalsMode = RuntimeInfo["signals"];
+
 /** One collapsed reviewer entry per turn and one for the session itself. */
 export interface ReviewEntry {
   key: string; // turn id, or "session"
@@ -53,6 +65,7 @@ export interface State {
   // shared access code (D60), checked before anything else.
   requested: { store: string | null; language: Language; resumeToken: string | null; code: string | null };
   voiceOffered: boolean;
+  signalsMode: SignalsMode;
   stores: ConfigurationSummary[];
   chooser: { store: string; language: Language };
   sessionId: string | null;
@@ -71,9 +84,12 @@ export interface State {
   sources: SourcesShown | null;
   reviews: ReviewEntry[];
   turnCount: number;
+  signals: SignalPoint[]; // the last MAX_SIGNAL_POINTS candidate messages
+  lastUserTurn: string | null; // the latest turn that carried candidate words
 }
 
 export const MAX_REVIEW_ENTRIES = 40;
+export const MAX_SIGNAL_POINTS = 12;
 const GATE = "Introduce el código de acceso de la demostración.";
 
 export function initial(requested: State["requested"]): State {
@@ -83,6 +99,7 @@ export function initial(requested: State["requested"]): State {
     access: "idle",
     requested,
     voiceOffered: false,
+    signalsMode: "off",
     stores: [],
     chooser: { store: requested.store ?? "", language: requested.language },
     sessionId: null,
@@ -101,6 +118,8 @@ export function initial(requested: State["requested"]): State {
     sources: null,
     reviews: [],
     turnCount: 0,
+    signals: [],
+    lastUserTurn: null,
   };
 }
 
@@ -108,7 +127,7 @@ export function initial(requested: State["requested"]): State {
 
 export type Action =
   // Boot
-  | { type: "booted"; voiceOffered: boolean; stores: ConfigurationSummary[] }
+  | { type: "booted"; voiceOffered: boolean; signalsMode: SignalsMode; stores: ConfigurationSummary[] }
   // Access
   | { type: "code-submitted"; code: string }
   | { type: "access-granted" }
@@ -192,6 +211,7 @@ export function reduce(state: State, action: Action, exec: Exec): State {
       const next: State = {
         ...state,
         voiceOffered: action.voiceOffered,
+        signalsMode: action.signalsMode,
         stores: action.stores,
         chooser: { ...state.chooser, store: state.chooser.store || action.stores[0]?.config_id || "" },
       };
@@ -452,7 +472,11 @@ function received(state: State, event: SessionEvent, exec: Exec): State {
         ? [{ id: `${turnId}:user`, role: "user", sentences: [payload.text] }]
         : [];
       bubbles.push({ id: payload.turn_id, role: "assistant", sentences: [] });
-      state = labelReview({ ...state, turnCount }, turnId, `Turno ${turnCount}`);
+      state = labelReview(
+        { ...state, turnCount, lastUserTurn: payload.text ? payload.turn_id : state.lastUserTurn },
+        turnId,
+        `Turno ${turnCount}`,
+      );
       state = { ...state, transcript: [...state.transcript, ...bubbles] };
       return isLive(state) ? { ...state, status: "Ana está pensando…" } : state;
     }
@@ -472,7 +496,18 @@ function received(state: State, event: SessionEvent, exec: Exec): State {
     case "signal_recorded": {
       const { signal } = payload;
       const evidence = signal.evidence_text ? ` («${signal.evidence_text}»)` : "";
-      return review(state, `señal del turno: ${signal.sentiment}${evidence}`, turnId);
+      const point: SignalPoint = {
+        turnId: signal.turn_id,
+        sentiment: signal.sentiment,
+        probabilities: signal.probabilities,
+        switchTo: signal.language_switch_to,
+      };
+      const signals = [...state.signals.filter((s) => s.turnId !== point.turnId), point];
+      return review(
+        { ...state, signals: signals.slice(-MAX_SIGNAL_POINTS) },
+        `señal del turno: ${signal.sentiment}${evidence}`,
+        turnId,
+      );
     }
     case "tool_started":
       return review(state, `herramienta ${payload.name}(${payload.arguments}) → iniciada`, turnId);
@@ -586,4 +621,24 @@ export function storeName(state: State): string {
 
 export function startLabel(state: State): string {
   return state.sessionId ? "Nueva conversación" : "Empezar";
+}
+
+export function latestSignal(state: State): SignalPoint | null {
+  return state.signals.at(-1) ?? null;
+}
+
+/** off: no classifier runs; idle: nothing said yet; waiting: the latest message has no
+ * verdict yet (a late or failed call never gets one); ready: the latest message's is shown. */
+export function signalStatus(state: State): "off" | "idle" | "waiting" | "ready" {
+  if (state.signalsMode === "off") return "off";
+  if (!state.lastUserTurn) return "idle";
+  return state.signals.some((s) => s.turnId === state.lastUserTurn) ? "ready" : "waiting";
+}
+
+/** One value per recorded message, oldest first: p(frustrated) or p(switch). */
+export function signalTrend(state: State, option: "frustrated" | "switch"): number[] {
+  return state.signals.flatMap((s) => {
+    if (!s.probabilities) return [];
+    return [option === "switch" ? s.probabilities.language.switch : s.probabilities.sentiment.frustrated];
+  });
 }

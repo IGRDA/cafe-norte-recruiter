@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from cafe_norte.conversation import prompts
 from cafe_norte.conversation.contracts import SignalAnalysis
-from cafe_norte.domain.contracts import Sentiment, Signal, TurnId
+from cafe_norte.domain.contracts import Sentiment, Signal, SignalProbabilities, TurnId
 from cafe_norte.domain.numbers import plain
 from cafe_norte.errors import Language, ServiceError
 from cafe_norte.model.contracts import (
@@ -478,6 +478,18 @@ class DecisionSignalAnalyzer:
             explicit_stop="stop" in controls,
             language_switch_to=None if asked == language else asked,
             evidence_text=text if sentiment != "neutral" or asked != language else "",
+            probabilities=SignalProbabilities(
+                sentiment={
+                    label: p
+                    for label, p in decision.answers["sentiment"].probabilities.items()
+                    if label in SENTIMENTS
+                },
+                language={
+                    option: p
+                    for option, p in decision.answers["language"].probabilities.items()
+                    if option in ("keep", "switch")
+                },
+            ),
         )
         return SignalAnalysis(signal=signal, usage=usage, model_id=model_id)
 

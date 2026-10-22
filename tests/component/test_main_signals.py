@@ -7,9 +7,11 @@ from cafe_norte.main import _signals
 
 
 def test_the_classifier_is_off_unless_a_signal_model_is_set() -> None:
-    assert _signals({}) is None
-    analyzer = _signals({"CAFE_NORTE_SIGNAL_MODEL": "openai/gpt-4o-mini", "OPENAI_API_KEY": "x"})
-    assert isinstance(analyzer, ModelSignalAnalyzer)
+    assert _signals({}) == (None, "off")
+    analyzer, mode = _signals(
+        {"CAFE_NORTE_SIGNAL_MODEL": "openai/gpt-4o-mini", "OPENAI_API_KEY": "x"}
+    )
+    assert isinstance(analyzer, ModelSignalAnalyzer) and mode == "labels"
 
 
 def test_a_signal_model_without_its_key_is_refused_at_startup() -> None:
@@ -18,9 +20,9 @@ def test_a_signal_model_without_its_key_is_refused_at_startup() -> None:
 
 
 def test_an_openrouter_selector_builds_the_decision_analyzer() -> None:
-    analyzer = _signals(
+    analyzer, mode = _signals(
         {"CAFE_NORTE_SIGNAL_MODEL": "openrouter/typesafe/jev-1.14", "OPENROUTER_API_KEY": "x"}
     )
-    assert isinstance(analyzer, DecisionSignalAnalyzer)
+    assert isinstance(analyzer, DecisionSignalAnalyzer) and mode == "jev"
     with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
         _signals({"CAFE_NORTE_SIGNAL_MODEL": "openrouter/typesafe/jev-1.14"})

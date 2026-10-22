@@ -1,5 +1,5 @@
 // Test builders for contract values; only what a reducer test needs to vary is a parameter.
-import type { ConfigurationSummary, SessionEvent, StateUpdated, VersionStamp } from "../api/contracts";
+import type { ConfigurationSummary, SessionEvent, Signal, StateUpdated, VersionStamp } from "../api/contracts";
 import { initial, reduce, type Action, type Effect, type State } from "./reducer";
 
 export const STORE: ConfigurationSummary = {
@@ -34,6 +34,7 @@ export function booted(store: string | null = "chamberi"): State {
   return run(initial({ store, language: "es", resumeToken: null, code: null }), {
     type: "booted",
     voiceOffered: true,
+    signalsMode: "jev",
     stores: [STORE],
   }).state;
 }
@@ -99,4 +100,30 @@ export function pendingBrief(revision = 3): StateUpdated {
       source: "model",
     },
   });
+}
+
+export function signal(turnId: string, frustrated: number, switching = 0.1, overrides: Partial<Signal> = {}): Action {
+  return event(
+    {
+      type: "signal_recorded",
+      signal: {
+        turn_id: turnId,
+        sentiment: frustrated >= 0.5 ? "frustrated" : "neutral",
+        explicit_human_request: false,
+        explicit_stop: false,
+        language_switch_to: null,
+        evidence_text: "",
+        probabilities: {
+          sentiment: { neutral: 1 - frustrated, positive: 0, frustrated, uncertain: 0 },
+          language: { keep: 1 - switching, switch: switching },
+        },
+        ...overrides,
+      },
+    },
+    turnId,
+  );
+}
+
+export function userTurn(turnId: string, text = "Hola"): Action {
+  return event({ type: "turn_started", turn_id: turnId, language: "es", text }, turnId);
 }

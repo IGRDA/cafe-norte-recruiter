@@ -1284,6 +1284,14 @@
           ],
           "type": "string"
         },
+        "signals": {
+          "enum": [
+            "off",
+            "labels",
+            "jev"
+          ],
+          "type": "string"
+        },
         "config_ids": {
           "items": {
             "type": "string"
@@ -1299,6 +1307,7 @@
       },
       "required": [
         "voice",
+        "signals",
         "config_ids",
         "access_required",
         "commit_sha"
@@ -1634,6 +1643,17 @@
         },
         "evidence_text": {
           "type": "string"
+        },
+        "probabilities": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalProbabilities"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -1642,9 +1662,48 @@
         "explicit_human_request",
         "explicit_stop",
         "language_switch_to",
-        "evidence_text"
+        "evidence_text",
+        "probabilities"
       ],
       "title": "Signal",
+      "type": "object"
+    },
+    "SignalProbabilities": {
+      "additionalProperties": false,
+      "description": "What a decision model gave each option (D52), shown on the page as it arrives (D62).\nAdvisory: the verdict in ``Signal`` is what the runtime acts on.",
+      "properties": {
+        "sentiment": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "enum": [
+              "neutral",
+              "positive",
+              "frustrated",
+              "uncertain"
+            ]
+          },
+          "type": "object"
+        },
+        "language": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "enum": [
+              "keep",
+              "switch"
+            ]
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "sentiment",
+        "language"
+      ],
+      "title": "SignalProbabilities",
       "type": "object"
     },
     "SignalRecorded": {

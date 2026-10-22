@@ -36,12 +36,12 @@ function setup(responses: Record<string, Response | Error>) {
 describe("effect runner", () => {
   it("boots with hosted voice and the stores", async () => {
     const { runner, actions, settled } = setup({
-      "GET /api/runtime": reply(200, { voice: "pipecat", config_ids: [], access_required: true, commit_sha: "x" }),
+      "GET /api/runtime": reply(200, { voice: "pipecat", signals: "jev", config_ids: [], access_required: true, commit_sha: "x" }),
       "GET /api/configurations": reply(200, [{ config_id: "chamberi" }]),
     });
     runner.run({ type: "load-boot" });
     await settled();
-    expect(actions).toEqual([{ type: "booted", voiceOffered: true, stores: [{ config_id: "chamberi" }] }]);
+    expect(actions).toEqual([{ type: "booted", voiceOffered: true, signalsMode: "jev", stores: [{ config_id: "chamberi" }] }]);
   });
 
   it("a 401 on session creation asks for the code", async () => {

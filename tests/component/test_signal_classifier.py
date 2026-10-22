@@ -136,6 +136,27 @@ async def test_a_switch_above_the_threshold_is_suggested_with_the_message_as_evi
     assert analysis.usage is not None and analysis.usage.input_tokens == 320
 
 
+async def test_the_probabilities_travel_with_the_verdict() -> None:
+    """The page shows them as they arrive (D62); the verdict is still what the runtime uses."""
+    analysis, _ = await decide(decision("frustrated", 0.45, 0.25), text="Vale.")
+    assert analysis.signal is not None and analysis.signal.probabilities is not None
+    assert analysis.signal.sentiment == "neutral"  # below the threshold, as before
+    assert analysis.signal.probabilities.sentiment["frustrated"] == 0.45
+    assert analysis.signal.probabilities.language == {"keep": 0.75, "switch": 0.25}
+
+
+def test_a_signal_journaled_before_the_probabilities_still_loads() -> None:
+    old = {
+        "turn_id": "t1",
+        "sentiment": "neutral",
+        "explicit_human_request": False,
+        "explicit_stop": False,
+        "language_switch_to": None,
+        "evidence_text": "",
+    }
+    assert Signal.model_validate(old).probabilities is None
+
+
 async def test_below_the_thresholds_nothing_is_suggested() -> None:
     analysis, _ = await decide(decision("frustrated", 0.45, 0.6), text="Vale.")
     assert analysis.signal is not None

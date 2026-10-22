@@ -1297,6 +1297,17 @@
         "evidence_text": {
           "title": "Evidence Text",
           "type": "string"
+        },
+        "probabilities": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalProbabilities"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -1308,6 +1319,46 @@
         "evidence_text"
       ],
       "title": "Signal",
+      "type": "object"
+    },
+    "SignalProbabilities": {
+      "additionalProperties": false,
+      "description": "What a decision model gave each option (D52), shown on the page as it arrives (D62).\nAdvisory: the verdict in ``Signal`` is what the runtime acts on.",
+      "properties": {
+        "sentiment": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "enum": [
+              "neutral",
+              "positive",
+              "frustrated",
+              "uncertain"
+            ]
+          },
+          "title": "Sentiment",
+          "type": "object"
+        },
+        "language": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "enum": [
+              "keep",
+              "switch"
+            ]
+          },
+          "title": "Language",
+          "type": "object"
+        }
+      },
+      "required": [
+        "sentiment",
+        "language"
+      ],
+      "title": "SignalProbabilities",
       "type": "object"
     },
     "SlotTarget": {

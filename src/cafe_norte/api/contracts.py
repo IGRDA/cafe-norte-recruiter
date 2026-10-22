@@ -20,6 +20,9 @@ from cafe_norte.observability.contracts import VersionStamp
 from cafe_norte.persistence.contracts import TurnRecord
 from cafe_norte.voice.contracts import VoiceMode, VoiceStatus
 
+# The asynchronous classifier (D30, D52): none, a label-only model, or Jev with probabilities.
+SignalsMode = Literal["off", "labels", "jev"]
+
 
 class Frozen(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -42,6 +45,7 @@ class RuntimeInfo(Frozen):
     commit this process runs, which the deploy waits for."""
 
     voice: VoiceMode
+    signals: SignalsMode  # which classifier reads each message; the page says when none does
     config_ids: tuple[ConfigId, ...]
     access_required: bool
     commit_sha: str

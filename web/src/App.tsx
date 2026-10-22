@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import { Composer } from "./components/Composer";
 import { Header } from "./components/Header";
 import { Panel } from "./components/Panel";
+import { Signals } from "./components/Signals";
 import { Transcript } from "./components/Transcript";
 import type { Ports } from "./page/effects";
-import type { State } from "./page/reducer";
+import { latestSignal, signalStatus, signalTrend, type State } from "./page/reducer";
 import { usePage } from "./page/usePage";
 
 interface Props {
@@ -25,6 +26,13 @@ export function App({ requested, ports }: Props) {
         <section className="conversation" aria-label="Conversación con Ana">
           <Transcript bubbles={state.transcript} />
           <Composer state={state} dispatch={dispatch} />
+          <Signals
+            mode={state.signalsMode}
+            status={signalStatus(state)}
+            latest={latestSignal(state)}
+            frustrated={signalTrend(state, "frustrated")}
+            switching={signalTrend(state, "switch")}
+          />
           {state.error && (
             <p className="error" role="alert">
               {state.error}

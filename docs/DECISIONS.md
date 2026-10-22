@@ -2251,3 +2251,27 @@ the logic in one pure reducer whose effects are data; XState.
 as `uv sync` does. The Postgres and smoke jobs stay Python-only. Behaviour is a port: the same
 API, the same texts, the same SSE handling; a failed voice join now returns to text instead of
 leaving **Parar** pressed.
+
+## D62 · The classifier's probabilities reach the page, as a quiet strip under the composer
+
+_Added 22 October 2026._
+
+**Context.** Jev (D52) gives every candidate message a probability per tone and for keeping or
+switching language, but only the thresholded labels were kept, in the reviewer panel. Seeing
+the numbers move per message shows what the runtime is reading and why it switched, or not.
+
+**Decisions.**
+- `Signal.probabilities` (`SignalProbabilities`: `sentiment` and `language` keep/switch) is
+  copied from Jev's answers. Optional with a default: journals and exports written before it
+  still load, so the export `schema_version` stays "1". The label-only classifier leaves it
+  empty. Thresholds and decisions are unchanged.
+- `GET /api/runtime` says which classifier runs (`signals: off | labels | jev`), so the page
+  can say "no classifier" instead of looking broken.
+- The page shows the latest message's bars (four tones, keep/switch) and a trend of
+  p(frustrated) and p(switch) over the last 12 messages, under the composer so it is visible on
+  a phone. Native `<meter>` elements: no inline style for the CSP, and screen readers read the
+  values. Not a live region: it would talk over Ana.
+- Advisory, as D30 and D52: it describes the words of one message, never the person, and no
+  decision reads it.
+
+**Consequences.** The SSE event and the export carry a few more numbers per message.

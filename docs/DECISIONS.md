@@ -1519,3 +1519,55 @@ sentence instead of one open socket. v4 speaks more slowly than Flash, and no se
 that. A candidate who talks over the goodbye ends the call; they can resume with the private
 link.
 
+---
+
+## D49 · gpt-4.1 for its first token; the end of a turn is heard, not timed
+
+_Added 22 October 2026, from the Langfuse traces of a local voice call and a live comparison._
+
+**Context.** After D48, the time from the end of the candidate's answer to Ana's first word was
+about 4 s. The traces of a 16-turn local call put the server's part at 0.9–5.1 s per turn. Our
+code before the model took 1–44 ms and the tools 0–17 ms. The rest was gpt-4o-mini waiting
+for its first token: 0.6–4.8 s in round 1 (usually a tool call) and 0.55–1.0 s in round 2,
+where Ana's words are written. Two rounds ran in 11 of the 16 turns. Outside the traces, the
+turn also waited a fixed 1.0 s of silence (D35) and about 0.2 s of TTS.
+
+**Decisions.**
+- **The model is `openai/gpt-4.1`** (hosted default and `.env.example`). Chosen with the
+  comparison suite, one repetition of the six cases per candidate, the same prompt, tools,
+  KB and simulator:
+
+  | Model | Cases passed | Facts | First token p50 / p90 / max | Rounds a run | € a run |
+  | --- | --- | --- | --- | --- | --- |
+  | gpt-4o-mini (9 runs) | 2/9 | 35/51 | 1030 / 2336 / 5417 ms | ~37 | ~0.07 |
+  | **gpt-4.1** | 3/6 | 33/34 | **706 / 903 / 1212 ms** | ~25 | 0.21 |
+  | gpt-5.4-mini (`reasoning_effort: none`) | 3/6 | 33/34 | 754 / 971 / 2009 ms | ~26 | 0.09 |
+  | gpt-5.4 (`reasoning_effort: none`) | 2/6 | 32/34 | 969 / 1230 / 2486 ms | ~24 | 0.26 |
+
+  gpt-4.1 was the fastest and the steadiest, and it tied for the best quality. It also needs a
+  third fewer rounds than gpt-4o-mini, so the gain per turn is larger than per round. Price:
+  $2 / 1M input and $8 / 1M output tokens.
+- **The end of a turn is heard.** The stop strategy is Pipecat's `TurnAnalyzerUserTurnStopStrategy`
+  with the bundled smart-turn v3 model (ONNX on the CPU, about 35 ms per utterance, 0.15 s to
+  load per call; no extra dependency). A turn that sounds finished ends after 0.2 s of VAD
+  silence and the final transcript. One that sounds unfinished waits up to 2.0 s for more
+  words, so D35's "Tengo dudas sobre… dónde…" stays one turn.
+
+**Rejected.**
+- gpt-5.4-mini: as good as gpt-4.1 at less than half the cost, but slower at the tail (2.0 s
+  max), and Chat Completions only allows tools with `reasoning_effort: none`, which needs an
+  adapter option nothing else uses.
+- One model round instead of two (Ana's words in the tool-call round, spoken after the save
+  commits). It would save another 0.6–1.0 s on most turns, but it changes the "nothing announced
+  before it is persisted" path. Measured first; it stays the next lever.
+
+**Not solved by the model.** Three checks failed for every candidate: C2
+`sources_shown_on_any_turn`, C3 `brief_language` / `language_of_last_assistant_turn`, and C6
+`review_flag_present`. Because they fail the same way on four models, they point at the prompt,
+the runtime or the cases. They are follow-ups.
+
+**Consequences we accept.** About three times gpt-4o-mini's cost per conversation (about €0.21
+instead of €0.07). The comparison is one repetition per case: representative, not
+significant. Smart turn adds CPU on the shared-core VM per call. A finished sentence ends the
+turn sooner, so a candidate who pauses after a complete sentence and then goes on starts a new
+turn.

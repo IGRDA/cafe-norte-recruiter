@@ -59,10 +59,10 @@ CONFIG_DIR = ROOT / "config"
 KB_DIR = ROOT / "kb"
 RETRIEVAL_RESULTS = ROOT / "evals" / "results" / "retrieval"
 LIVE_RESULTS = ROOT / "evals" / "results" / "live"
-DEFAULT_MODEL = "openai/gpt-4o-mini"  # what the hosted demo runs
+DEFAULT_MODEL = "openai/gpt-4.1"  # what the hosted demo runs (D49)
 COMPARISON_CASES = ROOT / "evals" / "cases" / "comparison" / "cases.yaml"
 COMPARISON_RESULTS = ROOT / "evals" / "results" / "comparison"  # committed (.gitignore)
-COMPARISON_MODELS = ("openai/gpt-4o-mini", "openai/gpt-4o")  # D43: the hosted model's choice
+COMPARISON_MODELS = ("openai/gpt-4.1", "openai/gpt-4o-mini")  # hosted and previous (D49)
 COMPARISON_REPEAT = 2
 
 _FAKE_INDEX: dict[str, Index] = {}

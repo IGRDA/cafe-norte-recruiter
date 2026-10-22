@@ -14,6 +14,8 @@ from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 
 import aiohttp
+from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
+from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADAnalyzer
 from pipecat.frames.frames import STTUpdateSettingsFrame
@@ -32,8 +34,8 @@ from pipecat.turns.user_start.transcription_user_turn_start_strategy import (
     TranscriptionUserTurnStartStrategy,
 )
 from pipecat.turns.user_start.vad_user_turn_start_strategy import VADUserTurnStartStrategy
-from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import (
-    SpeechTimeoutUserTurnStopStrategy,
+from pipecat.turns.user_stop.turn_analyzer_user_turn_stop_strategy import (
+    TurnAnalyzerUserTurnStopStrategy,
 )
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from pipecat.workers.runner import WorkerRunner
@@ -62,7 +64,9 @@ from cafe_norte.voice.session import VoiceRuntime, VoiceSession
 log = logging.getLogger(__name__)
 
 JOIN_TIMEOUT_SECONDS = 15.0
-USER_SPEECH_TIMEOUT_SECONDS = 1.0  # a pause inside a sentence does not end the turn (D35)
+# A turn that sounds unfinished waits this long for more words; one that sounds finished ends
+# on the final transcript (smart turn, D49). The fixed 1.0 s of D35 is gone.
+UNFINISHED_TURN_SILENCE_SECONDS = 2.0
 STT_LANGUAGES: dict[Language, PipecatLanguage] = {
     "es": PipecatLanguage.ES,
     "en": PipecatLanguage.EN,
@@ -87,15 +91,20 @@ def tts_settings(voice_id: str) -> ElevenLabsHttpTTSSettings:
 
 def user_turn_strategies() -> UserTurnStrategies:
     """A turn starts on VAD or, when VAD misses a soft answer, on a transcript (Pipecat's own
-    default pair); it ends after a full second of silence once the transcript is in."""
+    default pair). It ends when the bundled smart-turn model hears a finished sentence and the
+    final transcript is in, or after ``UNFINISHED_TURN_SILENCE_SECONDS`` of silence (D49). One
+    analyzer per call: it keeps the call's audio."""
     return UserTurnStrategies(
         start=[
             VADUserTurnStartStrategy(enable_interruptions=True),
             TranscriptionUserTurnStartStrategy(),
         ],
         stop=[
-            SpeechTimeoutUserTurnStopStrategy(
-                user_speech_timeout=USER_SPEECH_TIMEOUT_SECONDS, wait_for_transcript=True
+            TurnAnalyzerUserTurnStopStrategy(
+                turn_analyzer=LocalSmartTurnAnalyzerV3(
+                    params=SmartTurnParams(stop_secs=UNFINISHED_TURN_SILENCE_SECONDS)
+                ),
+                wait_for_transcript=True,
             )
         ],
     )

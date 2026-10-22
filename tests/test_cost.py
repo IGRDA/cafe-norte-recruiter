@@ -78,6 +78,8 @@ def test_shipped_table_prices_every_provider_in_use() -> None:
     assert priced >= {
         ("llm_tokens", "gpt-4o-mini:input"),
         ("llm_tokens", "gpt-4o-mini:output"),
+        ("llm_tokens", "gpt-4.1:input"),
+        ("llm_tokens", "gpt-4.1:output"),
         ("stt_seconds", "nova-3"),
         ("tts_characters", TTS_MODEL),
         ("media_participant_minutes", "daily"),

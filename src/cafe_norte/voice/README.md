@@ -1,7 +1,7 @@
 # `voice`: Pipecat as the shell, not the brain
 
 `Daily in → Deepgram → SpeechTap → user aggregator → InboundBridge → ElevenLabs (HTTP) → Daily out → PlaybackTap`.
-Pipecat 1.13's `LLMUserAggregator` owns VAD, turn end, segment joining and interruptions and
+Pipecat 1.13's `LLMUserAggregator` owns VAD, turn end (the bundled smart-turn v3 model, D49), segment joining and interruptions and
 emits the finished user message; everything voice *decides* lives in `VoiceSession`, plain
 Python with no Pipecat import (D22).
 

@@ -26,6 +26,17 @@ prices:
     unit_detail: "gpt-4o:output"
     usd_per_unit: 0.00001
     source: https://developers.openai.com/api/docs/models/gpt-4o
+  # https://developers.openai.com/api/docs/pricing : gpt-4.1, standard tier: $2 / 1M in, $8 / 1M out
+  # (verified 2026-10-22). The voice model since D49; cached input ($0.50 / 1M) is priced at the
+  # full rate, as for gpt-4o-mini.
+  - kind: llm_tokens
+    unit_detail: "gpt-4.1:input"
+    usd_per_unit: 0.000002
+    source: https://developers.openai.com/api/docs/pricing
+  - kind: llm_tokens
+    unit_detail: "gpt-4.1:output"
+    usd_per_unit: 0.000008
+    source: https://developers.openai.com/api/docs/pricing
   # Deepgram nova-3 streaming, monolingual (D35: STT runs in the session language).
   # List price $0.0077 / min. The page shows a limited-time $0.0048 / min; we keep the list
   # price so the estimate stays conservative when the promotion ends.

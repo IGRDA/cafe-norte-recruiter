@@ -37,7 +37,7 @@ variable "demo_end_date" {
 
 variable "model" {
   type        = string
-  default     = "openai/gpt-4o-mini"
+  default     = "openai/gpt-4.1"
   description = "CAFE_NORTE_MODEL for the hosted demo; Groq's free tier is too small for a shared URL."
 }
 

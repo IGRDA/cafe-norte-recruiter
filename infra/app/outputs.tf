@@ -1,6 +1,6 @@
 output "service_url" {
   value       = "https://${local.public_host}"
-  description = "Caddy terminates TLS on a free sslip.io hostname derived from the static IP."
+  description = "The named host when public_hostname is set, else the sslip.io name; Caddy serves both with TLS."
 }
 
 output "instance" {

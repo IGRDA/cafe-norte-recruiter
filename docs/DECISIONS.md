@@ -2182,3 +2182,31 @@ D56–D58 and the feedback on them. One entry per fix, in the order they landed.
   frames are untouched. Live, short sentences gapped: the next request only started once the
   previous audio had finished downloading (KI-23). Whether the gaps are gone is heard on the
   hosted demo; if not, the next place is the output transport's buffer reset per sentence.
+
+## D60 · A named URL on DuckDNS, and a link that carries the access code
+
+_Added 22 October 2026, to share the hosted demo by a name instead of an address._
+
+**Context.** D24 serves the demo on `https://<ip-with-dashes>.sslip.io`: free, but it reads as
+an address, and every visitor types the shared access code by hand.
+
+**Options.** A registered domain (about 10 EUR a year); a free DuckDNS subdomain; a vanity
+redirect on `*.vercel.app` to the sslip.io name; no change. Cloud Run's `*.run.app` is ruled
+out by D24 (voice needs a routable NIC).
+
+**Decisions.**
+- **DuckDNS, with sslip.io kept.** `public_hostname` (e.g. `cafenorte-recruiting.duckdns.org`, an A record
+  on the static address) is the shared URL and the `service_url` output; Caddy serves it and the
+  sslip.io name from one Caddyfile, one certificate each. It is DNS only: the page, the stream
+  and the API go straight to the VM as before, and voice media still flows through Daily. If
+  DuckDNS stops resolving, the sslip.io URL still works. The address is static, so no updater
+  runs. Empty keeps D24 exactly. CI reads it from the `PUBLIC_HOSTNAME` repository variable.
+- **The code travels in the fragment.** `https://<host>/?store=…&lang=…#code=…` opens the page
+  past the gate: the page posts the code to `POST /api/access` once and removes the fragment
+  from the address bar, as the resume link does (D34). A fragment never reaches the server,
+  its logs or a Referer; a query string would. The form stays for a wrong or missing code. This
+  is the same shared code as before (luzia's `/#code=`), not user authentication.
+
+**Consequences.** A third-party DNS provider in the path of the shared link; a wrong
+`public_hostname` fails the deploy's smoke check, which uses the named URL. Anyone with the link
+has the code, as anyone told the code had before.

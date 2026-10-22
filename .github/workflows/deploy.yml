@@ -68,6 +68,7 @@ jobs:
           TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
           TF_VAR_region: ${{ vars.GCP_REGION }}
           TF_VAR_demo_end_date: ${{ vars.DEMO_END_DATE }}
+          TF_VAR_public_hostname: ${{ vars.PUBLIC_HOSTNAME }}
       # The instance only reads its image metadata at boot (startup.sh); a reset is the deploy.
       - run: gcloud compute instances reset "$SERVICE" --zone "$REGION-b" --project "$PROJECT_ID" --quiet
       - run: |

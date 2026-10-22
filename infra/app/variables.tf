@@ -11,6 +11,11 @@ variable "image_digest" {
   type        = string
   description = "Full image reference with digest, e.g. europe-west1-docker.pkg.dev/p/r/app@sha256:..."
 }
+variable "public_hostname" {
+  type        = string
+  default     = ""
+  description = "A free DNS name with an A record on the static address, e.g. cafenorte-recruiting.duckdns.org (D60). Empty serves only the sslip.io name."
+}
 variable "db_tier" {
   type        = string
   default     = "db-f1-micro"

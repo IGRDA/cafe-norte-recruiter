@@ -40,7 +40,8 @@ stores, the pay, the candidates. No real hiring decision is made or suggested.
   lines, a reviewer panel on the page, and the versions of configuration, prompt, knowledge
   base, schema, model and commit on every session (D36, D42).
 - **Hosted** on one Compute Engine VM behind a shared access code, with Cloud SQL through the
-  Auth Proxy, all in Terraform (D23, D24, D33). The hosted model is `openai/gpt-4.1` (D49).
+  Auth Proxy, all in Terraform (D23, D24, D33), on a free DuckDNS name with the sslip.io name
+  as a fallback (D60). The hosted model is `openai/gpt-4.1` (D49).
 
 ## What is simulated or still open
 

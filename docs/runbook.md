@@ -2,7 +2,10 @@
 
 ## Hosted demo (one Compute Engine VM, project `cafe-norte-orbio`, D24)
 
-- **URL**: the `service_url` output of `infra/app` (`https://<ip-with-dashes>.sslip.io`).
+- **URL**: the `service_url` output of `infra/app`: `https://<public_hostname>` (DuckDNS, D60),
+  or `https://<ip-with-dashes>.sslip.io`, which always answers too. The DuckDNS record is an A
+  record on the static address, set once at duckdns.org; CI reads the name from the
+  `PUBLIC_HOSTNAME` repository variable.
 - **Deploy**: push to `main`; `deploy.yml` builds, pushes, applies with the digest, resets the
   instance, waits for `/health/ready` and runs `scripts/smoke.py`. By hand: `make infra-init`,
   `make infra-plan`, `make infra-apply` with `-var image_digest=…`, then

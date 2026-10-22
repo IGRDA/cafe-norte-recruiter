@@ -316,3 +316,107 @@ class CandidateSimulator(Protocol):
     def model_id(self) -> str: ...
 
     async def reply(self, persona: Persona, cue: Cue, transcript: Transcript) -> str: ...
+
+
+# ---- signals suite: sentiment and reply language, offline ----------------------------------------
+
+LanguageKind = Literal["stay", "explicit", "indirect", "written_other", "mention", "borrowed"]
+SignalSystem = Literal["regex", "production", "llm", "jev"]
+
+
+class SignalCase(Frozen):
+    """One synthetic candidate turn with its labels (``cases/signals/turns.yaml``)."""
+
+    id: str
+    session_language: Language
+    ana: str = ""  # what Ana said just before
+    text: str
+    sentiment: Sentiment
+    reply_language: Language  # the language Ana should answer the next turn in
+    kind: LanguageKind  # why the language label is what it is
+
+    @property
+    def switch(self) -> bool:
+        return self.reply_language != self.session_language
+
+
+class SignalPrediction(Frozen):
+    """One system's answer to one case on one repetition. A question the system does not
+    answer is ``None``; probabilities only from a system that reports them."""
+
+    case_id: str
+    system: SignalSystem
+    repetition: int
+    sentiment: Sentiment | None = None
+    sentiment_probabilities: dict[str, float] = {}
+    reply_language: Language | None = None
+    language_probabilities: dict[str, float] = {}
+    milliseconds: int
+    cost_eur: float | None = None  # None: free (regex) or unknown
+    error: str | None = None
+
+
+class Ratio(Frozen):
+    """``k`` of ``n``: every rate in a report says what it counts."""
+
+    k: int
+    n: int
+
+    @property
+    def rate(self) -> float | None:
+        return self.k / self.n if self.n else None
+
+    def __str__(self) -> str:
+        return f"{self.k}/{self.n} ({self.k / self.n:.0%})" if self.n else "–"
+
+
+class ThresholdRow(Frozen):
+    """Acting only when the probability reaches ``threshold``: what is caught and what is not."""
+
+    threshold: float
+    caught: Ratio  # cases that should trigger, triggered
+    false_alarms: Ratio  # cases that should not trigger, triggered
+
+
+class SentimentScores(Frozen):
+    accuracy: Ratio
+    macro_f1: float
+    recall: dict[str, Ratio]  # per label: cases of that label predicted as it
+    precision: dict[str, Ratio]  # per label: predictions of that label that were right
+    # What reaches the prompt (``SOFT_SENTIMENTS``): frustrated or uncertain, either one.
+    actionable_precision: Ratio
+    actionable_recall: Ratio
+    confusion: dict[str, dict[str, int]]  # expected → predicted → count
+    brier: float | None = None  # multi-class Brier score; probabilities only
+    sweep: tuple[ThresholdRow, ...] = ()  # actionable when p(frustrated or uncertain) ≥ t
+
+
+class LanguageScores(Frozen):
+    accuracy: Ratio
+    false_switches: Ratio  # over stay, mention and borrowed cases
+    missed_requests: Ratio  # over explicit and indirect cases
+    by_kind: dict[str, Ratio]  # accuracy per ``LanguageKind``
+    brier: float | None = None
+    sweep: tuple[ThresholdRow, ...] = ()  # switch when p(other language) ≥ t; requests only
+
+
+class SystemSummary(Frozen):
+    system: SignalSystem
+    model: str
+    calls: int
+    errors: Ratio  # scored as the runtime's fallback: neutral, session language
+    sentiment: SentimentScores | None
+    language: LanguageScores | None
+    stable: Ratio | None  # cases whose answers agree across repetitions
+    p50_ms: int | None
+    p95_ms: int | None
+    eur_per_1000_turns: float | None
+
+
+class SignalsReport(Frozen):
+    generated_at: str
+    cases: int
+    repeat: int
+    prompt_version: str
+    systems: tuple[SystemSummary, ...]
+    predictions: tuple[SignalPrediction, ...]

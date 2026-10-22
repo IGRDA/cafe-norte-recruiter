@@ -1,0 +1,158 @@
+# Synthetic candidate turns for the signals suite (evals/signals.py). Written by hand for the
+# experiment, labelled by construction: `sentiment` is the tone of `text` alone, and
+# `reply_language` the language Ana should answer the next turn in. `ana` is the sentence
+# Ana said just before. `kind` says why the language label is what it is:
+#   stay           plain message in the session language
+#   explicit       asks to change language with a request word ("en inglés, por favor")
+#   indirect       says they cannot follow the session language, without naming a request
+#   written_other  a whole message in the other language, with no request (D28 keeps the
+#                  session language here; this suite labels it a switch and reports it apart)
+#   mention        names a language without asking for it, or refuses a switch
+#   borrowed       a borrowed word or two inside the session language
+# No case is a real conversation.
+
+# ---- Spanish session: plain answers ------------------------------------------------------------
+- {id: es-01, session_language: es, ana: "¿Cómo te llamas?", text: "Me llamo Lucía Fernández.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-02, session_language: es, ana: "¿Qué días de la semana puedes trabajar?", text: "De lunes a viernes, por las mañanas.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-03, session_language: es, ana: "¿Tienes permiso de trabajo en España?", text: "No, ahora mismo no lo tengo.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-04, session_language: es, ana: "¿Cuándo podrías empezar?", text: "A partir del 3 de noviembre.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-05, session_language: es, ana: "¿Me dejas un teléfono de contacto?", text: "Seis uno dos, tres cuatro cinco, seis siete ocho.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-06, session_language: es, ana: "¿Tienes experiencia en hostelería?", text: "Dos años de camarera en un bar de Lavapiés.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-07, session_language: es, ana: "¿Quieres que busquemos un hueco para la entrevista?", text: "Sí, el jueves por la tarde si puede ser.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-08, session_language: es, ana: "¿Tienes alguna pregunta sobre el puesto?", text: "¿Cuánto se cobra la hora?", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-09, session_language: es, ana: "¿Tienes alguna pregunta sobre el puesto?", text: "¿Hay que llevar uniforme propio?", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-10, session_language: es, ana: "¿Me dejas un teléfono de contacto?", text: "Prefiero no dar mi teléfono.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-11, session_language: es, ana: "¿Cuántas horas a la semana buscas?", text: "Unas veinte horas.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-12, session_language: es, ana: "¿Qué días puedes trabajar?", text: "si de lunes a jueves", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-13, session_language: es, ana: "¿Tienes alguna otra pregunta?", text: "No, no tengo más preguntas.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-14, session_language: es, ana: "Te leo el resumen. ¿Está todo bien?", text: "Está todo correcto.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-15, session_language: es, ana: "Tu teléfono es el 612 345 678. ¿Es correcto?", text: "No, está mal, es el 699 112 334.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-16, session_language: es, ana: "¿Tienes alguna pregunta sobre el puesto?", text: "¿Dónde está la tienda exactamente?", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-17, session_language: es, ana: "¿Quieres seguir con el proceso?", text: "No, gracias, al final no me interesa.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-18, session_language: es, ana: "¿Qué turnos prefieres?", text: "Lo siento, tengo que irme ya.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-19, session_language: es, ana: "¿Tienes experiencia en hostelería?", text: "No tengo experiencia.", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-20, session_language: es, ana: "¿Tienes alguna pregunta?", text: "¿Me puedes pasar con una persona?", sentiment: neutral, reply_language: es, kind: stay}
+- {id: es-21, session_language: es, ana: "¿Cuándo podrías empezar?", text: "vale", sentiment: neutral, reply_language: es, kind: stay}
+
+# ---- Spanish session: positive ------------------------------------------------------------------
+- {id: es-22, session_language: es, ana: "Te he reservado el martes a las diez.", text: "¡Genial, muchas gracias!", sentiment: positive, reply_language: es, kind: stay}
+- {id: es-23, session_language: es, ana: "¿Qué te atrae del puesto?", text: "Me encanta la idea de trabajar en una cafetería, de verdad.", sentiment: positive, reply_language: es, kind: stay}
+- {id: es-24, session_language: es, ana: "Tengo el martes a las diez o el jueves a las cinco.", text: "¡Perfecto! El martes me viene fenomenal.", sentiment: positive, reply_language: es, kind: stay}
+- {id: es-25, session_language: es, ana: "El puesto es de veinte horas por las mañanas.", text: "Qué bien, justo lo que buscaba.", sentiment: positive, reply_language: es, kind: stay}
+- {id: es-26, session_language: es, ana: "¿Tienes alguna otra pregunta?", text: "Muchas gracias por la información, eres muy amable.", sentiment: positive, reply_language: es, kind: stay}
+- {id: es-27, session_language: es, ana: "¿Quieres que busquemos un hueco para la entrevista?", text: "¡Sí! Me hace muchísima ilusión.", sentiment: positive, reply_language: es, kind: stay}
+- {id: es-28, session_language: es, ana: "La formación es pagada y dura una semana.", text: "Ah, ¡qué guay! Me encaja perfecto.", sentiment: positive, reply_language: es, kind: stay}
+
+# ---- Spanish session: frustrated ----------------------------------------------------------------
+- {id: es-29, session_language: es, ana: "¿En qué turno prefieres trabajar?", text: "Ya te lo he dicho antes, por las mañanas.", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-30, session_language: es, ana: "¿Cuántas horas a la semana buscas?", text: "Esto es muy lento, ¿podemos ir al grano?", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-31, session_language: es, ana: "¿Qué días puedes trabajar?", text: "Genial, otra vez la misma pregunta.", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-32, session_language: es, ana: "Entonces el jueves a las cinco, ¿verdad?", text: "No me estás entendiendo, he dicho martes, no jueves.", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-33, session_language: es, ana: "¿Tienes permiso de trabajo en España?", text: "Uf, cuántas preguntas.", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-34, session_language: es, ana: "¿Me dejas un teléfono de contacto?", text: "¿Otra vez? Es la tercera vez que te doy el teléfono.", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-35, session_language: es, ana: "¿Cuándo podrías empezar?", text: "Me estoy cansando de repetirlo todo.", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-36, session_language: es, ana: "No tengo esa información, lo siento.", text: "Pues vaya, para qué sirves entonces.", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-37, session_language: es, ana: "¿Entonces el jueves?", text: "que no que es el martes", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-38, session_language: es, ana: "No tengo esa información, lo siento.", text: "Quiero hablar con una persona, esto no funciona.", sentiment: frustrated, reply_language: es, kind: stay}
+- {id: es-39, session_language: es, ana: "Perdona, ¿me lo repites?", text: "Déjalo, es imposible hablar contigo.", sentiment: frustrated, reply_language: es, kind: stay}
+
+# ---- Spanish session: uncertain -----------------------------------------------------------------
+- {id: es-40, session_language: es, ana: "¿Cuándo podrías empezar?", text: "Pues... no sé, quizá en noviembre.", sentiment: uncertain, reply_language: es, kind: stay}
+- {id: es-41, session_language: es, ana: "¿Tienes permiso de trabajo en España?", text: "No estoy seguro de si mi permiso vale para esto.", sentiment: uncertain, reply_language: es, kind: stay}
+- {id: es-42, session_language: es, ana: "¿Cuál es tu disponibilidad?", text: "Mmm, ¿a qué te refieres con disponibilidad?", sentiment: uncertain, reply_language: es, kind: stay}
+- {id: es-43, session_language: es, ana: "¿Tienes el carné de manipulador de alimentos?", text: "Creo que sí, pero tendría que mirarlo.", sentiment: uncertain, reply_language: es, kind: stay}
+- {id: es-44, session_language: es, ana: "¿Tienes experiencia en hostelería?", text: "No sé qué poner, nunca he trabajado de esto.", sentiment: uncertain, reply_language: es, kind: stay}
+- {id: es-45, session_language: es, ana: "¿Cuántas horas a la semana buscas?", text: "¿Tengo que decir las horas exactas o más o menos?", sentiment: uncertain, reply_language: es, kind: stay}
+- {id: es-46, session_language: es, ana: "¿Qué turnos prefieres?", text: "Igual por las tardes... o no, depende de la uni.", sentiment: uncertain, reply_language: es, kind: stay}
+- {id: es-47, session_language: es, ana: "¿Cuándo podrías empezar?", text: "La verdad es que no lo tengo claro.", sentiment: uncertain, reply_language: es, kind: stay}
+- {id: es-48, session_language: es, ana: "¿Qué días puedes trabajar?", text: "Eh... ¿perdona? No te he oído bien.", sentiment: uncertain, reply_language: es, kind: stay}
+
+# ---- Spanish session: the candidate wants English -----------------------------------------------
+- {id: es-49, session_language: es, ana: "¿Cómo te llamas?", text: "¿Podemos hablar en inglés, por favor?", sentiment: neutral, reply_language: en, kind: explicit}
+- {id: es-50, session_language: es, ana: "¿Cómo te llamas?", text: "Can we switch to English?", sentiment: neutral, reply_language: en, kind: explicit}
+- {id: es-51, session_language: es, ana: "¿Qué días puedes trabajar?", text: "English, please.", sentiment: neutral, reply_language: en, kind: explicit}
+- {id: es-52, session_language: es, ana: "¿Qué días puedes trabajar?", text: "Prefiero seguir en inglés si no te importa.", sentiment: neutral, reply_language: en, kind: explicit}
+- {id: es-53, session_language: es, ana: "El sueldo es de 9,50 euros la hora.", text: "¿Me lo puedes decir en inglés?", sentiment: neutral, reply_language: en, kind: explicit}
+- {id: es-54, session_language: es, ana: "¿Qué días puedes trabajar?", text: "I already told you I don't speak Spanish! English please.", sentiment: frustrated, reply_language: en, kind: explicit}
+- {id: es-55, session_language: es, ana: "Tengo el martes a las diez.", text: "¡Genial! ¿Lo podemos hacer en inglés?", sentiment: positive, reply_language: en, kind: explicit}
+- {id: es-56, session_language: es, ana: "¿Cómo te llamas?", text: "Sorry, my Spanish is not very good.", sentiment: neutral, reply_language: en, kind: indirect}
+- {id: es-57, session_language: es, ana: "¿Tienes permiso de trabajo en España?", text: "I don't understand, I only speak English.", sentiment: uncertain, reply_language: en, kind: indirect}
+- {id: es-58, session_language: es, ana: "¿Cómo te llamas?", text: "Perdona, no hablo bien español, soy de Londres.", sentiment: neutral, reply_language: en, kind: indirect}
+- {id: es-59, session_language: es, ana: "¿Qué turnos prefieres?", text: "Mi español es muy malo, ¿hablas inglés?", sentiment: neutral, reply_language: en, kind: indirect}
+- {id: es-60, session_language: es, ana: "¿Cuál es tu disponibilidad?", text: "Is there any chance we could do this in English? I'm struggling a bit.", sentiment: uncertain, reply_language: en, kind: indirect}
+- {id: es-61, session_language: es, ana: "¿Cuál es tu disponibilidad?", text: "No entiendo bien el español, lo siento.", sentiment: uncertain, reply_language: en, kind: indirect}
+- {id: es-62, session_language: es, ana: "¿Qué días puedes trabajar?", text: "Monday to Friday, mornings only.", sentiment: neutral, reply_language: en, kind: written_other}
+- {id: es-63, session_language: es, ana: "¿Cómo te llamas?", text: "My name is Tom Baker.", sentiment: neutral, reply_language: en, kind: written_other}
+- {id: es-64, session_language: es, ana: "¿Cuándo podrías empezar?", text: "I can start next Monday.", sentiment: neutral, reply_language: en, kind: written_other}
+- {id: es-65, session_language: es, ana: "¿Tienes alguna pregunta sobre el puesto?", text: "How much is the hourly pay?", sentiment: neutral, reply_language: en, kind: written_other}
+- {id: es-66, session_language: es, ana: "¿Me dejas un teléfono de contacto?", text: "This is taking forever.", sentiment: frustrated, reply_language: en, kind: written_other}
+
+# ---- Spanish session: traps that must not switch ------------------------------------------------
+- {id: es-67, session_language: es, ana: "¿Tienes alguna pregunta sobre el puesto?", text: "¿Hace falta saber inglés para el puesto?", sentiment: neutral, reply_language: es, kind: mention}
+- {id: es-68, session_language: es, ana: "¿Tienes experiencia?", text: "Estudié inglés en Irlanda dos años.", sentiment: neutral, reply_language: es, kind: mention}
+- {id: es-69, session_language: es, ana: "¿Algo más que quieras contarme?", text: "Hablo inglés y español, por si os sirve.", sentiment: neutral, reply_language: es, kind: mention}
+- {id: es-70, session_language: es, ana: "¿Tienes alguna pregunta?", text: "¿Los clientes son turistas que hablan inglés?", sentiment: neutral, reply_language: es, kind: mention}
+- {id: es-71, session_language: es, ana: "¿Algo más que quieras contarme?", text: "Mi madre es inglesa, pero yo prefiero hablar en español.", sentiment: neutral, reply_language: es, kind: mention}
+- {id: es-72, session_language: es, ana: "Si lo prefieres, podemos seguir en inglés.", text: "No hace falta que me hables en inglés, entiendo bien.", sentiment: neutral, reply_language: es, kind: mention}
+- {id: es-73, session_language: es, ana: "Si lo prefieres, podemos seguir en inglés.", text: "No, en inglés no, sigue en español.", sentiment: neutral, reply_language: es, kind: mention}
+- {id: es-74, session_language: es, ana: "Te he reservado el martes a las diez.", text: "Ok, perfecto.", sentiment: neutral, reply_language: es, kind: borrowed}
+- {id: es-75, session_language: es, ana: "¿Tienes alguna otra pregunta?", text: "Vale, thanks.", sentiment: neutral, reply_language: es, kind: borrowed}
+- {id: es-76, session_language: es, ana: "Tengo el jueves a las cinco.", text: "Sí, cool, me vale el jueves.", sentiment: neutral, reply_language: es, kind: borrowed}
+- {id: es-77, session_language: es, ana: "¿Tienes experiencia en hostelería?", text: "Trabajé de barista en un coffee shop en Londres.", sentiment: neutral, reply_language: es, kind: borrowed}
+- {id: es-78, session_language: es, ana: "Tu teléfono es el 612 334 555. ¿Es correcto?", text: "Sorry, me he equivocado, es el 612 334 556.", sentiment: neutral, reply_language: es, kind: borrowed}
+- {id: es-79, session_language: es, ana: "Te leo el resumen.", text: "Ok ok, sigue.", sentiment: neutral, reply_language: es, kind: borrowed}
+- {id: es-80, session_language: es, ana: "¿Dónde has trabajado antes?", text: "En Starbucks, un año de part-time.", sentiment: neutral, reply_language: es, kind: borrowed}
+
+# ---- English session: plain answers ------------------------------------------------------------
+- {id: en-01, session_language: en, ana: "What's your name?", text: "I'm Daniel Ortiz.", sentiment: neutral, reply_language: en, kind: stay}
+- {id: en-02, session_language: en, ana: "Which days can you work?", text: "Weekends and Wednesday evenings.", sentiment: neutral, reply_language: en, kind: stay}
+- {id: en-03, session_language: en, ana: "Do you have a work permit in Spain?", text: "Yes, I have an EU passport.", sentiment: neutral, reply_language: en, kind: stay}
+- {id: en-04, session_language: en, ana: "When could you start?", text: "From the first of December.", sentiment: neutral, reply_language: en, kind: stay}
+- {id: en-05, session_language: en, ana: "Do you have any experience?", text: "None really, this would be my first job.", sentiment: neutral, reply_language: en, kind: stay}
+- {id: en-06, session_language: en, ana: "Do you have any questions?", text: "Where exactly is the store?", sentiment: neutral, reply_language: en, kind: stay}
+- {id: en-07, session_language: en, ana: "Here is the summary. Is it all correct?", text: "Yes, that's all correct.", sentiment: neutral, reply_language: en, kind: stay}
+- {id: en-08, session_language: en, ana: "Could you give me a contact phone number?", text: "No thanks, I'd rather not share my phone.", sentiment: neutral, reply_language: en, kind: stay}
+- {id: en-09, session_language: en, ana: "Do you have any questions?", text: "Can I talk to a real person?", sentiment: neutral, reply_language: en, kind: stay}
+- {id: en-10, session_language: en, ana: "Would you like to book an interview?", text: "no not right now", sentiment: neutral, reply_language: en, kind: stay}
+
+# ---- English session: positive ------------------------------------------------------------------
+- {id: en-11, session_language: en, ana: "I have Tuesday at ten.", text: "Awesome, that sounds perfect!", sentiment: positive, reply_language: en, kind: stay}
+- {id: en-12, session_language: en, ana: "You're all set.", text: "Thank you so much, this was really easy.", sentiment: positive, reply_language: en, kind: stay}
+- {id: en-13, session_language: en, ana: "I have Thursday at five.", text: "I'd love that, Thursday works great.", sentiment: positive, reply_language: en, kind: stay}
+- {id: en-14, session_language: en, ana: "Your interview is booked for Tuesday.", text: "Brilliant, see you Tuesday!", sentiment: positive, reply_language: en, kind: stay}
+- {id: en-15, session_language: en, ana: "Training is paid and lasts a week.", text: "Perfect, thanks a lot!", sentiment: positive, reply_language: en, kind: stay}
+
+# ---- English session: frustrated ----------------------------------------------------------------
+- {id: en-16, session_language: en, ana: "Which shift do you prefer?", text: "I already told you, mornings.", sentiment: frustrated, reply_language: en, kind: stay}
+- {id: en-17, session_language: en, ana: "Which days can you work?", text: "Why do you keep asking the same thing?", sentiment: frustrated, reply_language: en, kind: stay}
+- {id: en-18, session_language: en, ana: "How many hours a week are you looking for?", text: "This is so slow, can we just book it?", sentiment: frustrated, reply_language: en, kind: stay}
+- {id: en-19, session_language: en, ana: "Could you give me your phone number?", text: "Seriously? That's the third time.", sentiment: frustrated, reply_language: en, kind: stay}
+- {id: en-20, session_language: en, ana: "So Thursday at five?", text: "You're not listening, I said Tuesday, not Thursday.", sentiment: frustrated, reply_language: en, kind: stay}
+- {id: en-21, session_language: en, ana: "When could you start?", text: "Oh great, another question.", sentiment: frustrated, reply_language: en, kind: stay}
+
+# ---- English session: uncertain -----------------------------------------------------------------
+- {id: en-22, session_language: en, ana: "When could you start?", text: "Hmm, I'm not sure, maybe next month?", sentiment: uncertain, reply_language: en, kind: stay}
+- {id: en-23, session_language: en, ana: "What's your availability?", text: "I don't really know what you mean by availability.", sentiment: uncertain, reply_language: en, kind: stay}
+- {id: en-24, session_language: en, ana: "Can you work weekends?", text: "I think so, but I'd have to check with my current job.", sentiment: uncertain, reply_language: en, kind: stay}
+- {id: en-25, session_language: en, ana: "Do you have a work permit in Spain?", text: "Not sure whether my student visa counts.", sentiment: uncertain, reply_language: en, kind: stay}
+
+# ---- English session: the candidate wants Spanish -----------------------------------------------
+- {id: en-26, session_language: en, ana: "What's your name?", text: "Can we continue in Spanish, please?", sentiment: neutral, reply_language: es, kind: explicit}
+- {id: en-27, session_language: en, ana: "Which days can you work?", text: "¿Podemos seguir en español?", sentiment: neutral, reply_language: es, kind: explicit}
+- {id: en-28, session_language: en, ana: "Which days can you work?", text: "En castellano, por favor.", sentiment: neutral, reply_language: es, kind: explicit}
+- {id: en-29, session_language: en, ana: "Do you have a work permit in Spain?", text: "¡Que no te entiendo! Háblame en español.", sentiment: frustrated, reply_language: es, kind: explicit}
+- {id: en-30, session_language: en, ana: "What's your name?", text: "Actually I'm Spanish, it's easier for me in Spanish.", sentiment: neutral, reply_language: es, kind: indirect}
+- {id: en-31, session_language: en, ana: "When could you start?", text: "Perdona, es que no entiendo mucho inglés.", sentiment: uncertain, reply_language: es, kind: indirect}
+- {id: en-32, session_language: en, ana: "Which days can you work?", text: "Los fines de semana, sobre todo los sábados.", sentiment: neutral, reply_language: es, kind: written_other}
+- {id: en-33, session_language: en, ana: "What's your name?", text: "Me llamo Ana García.", sentiment: neutral, reply_language: es, kind: written_other}
+- {id: en-34, session_language: en, ana: "Do you have any questions?", text: "¿Cuánto se paga la hora?", sentiment: neutral, reply_language: es, kind: written_other}
+
+# ---- English session: traps that must not switch ------------------------------------------------
+- {id: en-35, session_language: en, ana: "Do you have any questions?", text: "Do I need to speak Spanish for this job?", sentiment: neutral, reply_language: en, kind: mention}
+- {id: en-36, session_language: en, ana: "Do you have any experience?", text: "I studied Spanish in Valencia for a year.", sentiment: neutral, reply_language: en, kind: mention}
+- {id: en-37, session_language: en, ana: "Anything else you'd like to tell me?", text: "My Spanish is okay but English is easier for me.", sentiment: neutral, reply_language: en, kind: mention}
+- {id: en-38, session_language: en, ana: "We can switch to Spanish if you prefer.", text: "No need to switch to Spanish, English is fine.", sentiment: neutral, reply_language: en, kind: mention}
+- {id: en-39, session_language: en, ana: "I have Thursday at five.", text: "Vale, sounds good.", sentiment: neutral, reply_language: en, kind: borrowed}
+- {id: en-40, session_language: en, ana: "Thursday at five, is that right?", text: "Sí, Thursday works.", sentiment: neutral, reply_language: en, kind: borrowed}
+- {id: en-41, session_language: en, ana: "Anything else?", text: "Gracias, that's everything.", sentiment: neutral, reply_language: en, kind: borrowed}
+- {id: en-42, session_language: en, ana: "Do you have any experience?", text: "I worked at a cafetería in Madrid for two years.", sentiment: neutral, reply_language: en, kind: borrowed}

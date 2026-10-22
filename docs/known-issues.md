@@ -25,6 +25,7 @@ the session never paused during the call; no model round timed out.
 | KI-06 | Choosing an interview slot loops and never books | High | `test_ki06_…`, S20 | **fixed (D41)** |
 | KI-07 | A hesitation splits the answer and the first part is lost silently | Medium | `test_ki07_…` | **fixed (D44)** |
 | KI-08 | Wasted model rounds add latency | Low | `test_ki08_…` (two) | **fixed (D44)** |
+| KI-09 | A mention or a refusal of a language switches it; a frustrated request does not | Medium | `test_ki09_…` (four), the signals suite | open: the D28 pattern list |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -158,3 +159,19 @@ the session never paused during the call; no model round timed out.
   round ends the loop. A tool whose call changed nothing is not offered again that turn, so the
   next round has to speak. With a round modelled at 0.75 s, a save repeated twice goes from 4
   rounds and 3.0 s to the first sentence to 3 rounds and 2.3 s (`test_ki08_…`, two).
+
+## KI-09 · A mention or a refusal of a language switches it; a frustrated request does not
+
+- **Found by** the signals suite on synthetic turns (22 October 2026), not in a call.
+- **What happens.** `explicit_controls` reads "Do I need to speak Spanish for this job?" and
+  "No need to switch to Spanish, English is fine." in an English session as a request for
+  Spanish, and "No hace falta que me hables en inglés, entiendo bien." as a request for
+  English. "I already told you I don't speak Spanish! English please." matches both languages,
+  so nothing switches. Over 122 cases × 2 the regex makes 6/190 false switches and misses
+  12/38 requests, 10 of them indirect ("Sorry, my Spanish is not very good.").
+- **Cause.** "speak Spanish" and "switch to Spanish" are request phrases with no request word
+  around them; "no need" and "no hace falta que" are not negations in the pattern list; "don't
+  speak Spanish" is read as a request for Spanish.
+- **Fix proposed.** Decided by the Jev experiment: more anchored phrases and negations, or a
+  classifier beside the turn (`evals/signals.py`).
+

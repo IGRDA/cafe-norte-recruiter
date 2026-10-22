@@ -11,11 +11,16 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator
 from datetime import datetime
+from typing import Literal
 
 import pytest
 
 from cafe_norte.conversation.contracts import AssistantText, TurnFailed
-from cafe_norte.conversation.signals import answer_to_readback
+from cafe_norte.conversation.signals import (
+    answer_to_readback,
+    explicit_controls,
+    requested_language,
+)
 from cafe_norte.domain.confirmation import assurance
 from cafe_norte.domain.contracts import TurnId
 from cafe_norte.model.contracts import ModelEvent, ModelMessage, ModelText, ToolCall, ToolSchema
@@ -220,3 +225,19 @@ async def test_ki08_a_confirm_in_the_turn_of_the_read_back_ends_the_turn() -> No
     await h.open_session()
     await h.run("El 2 de noviembre")
     assert len(h.model.calls) == 2
+
+
+@pytest.mark.xfail(strict=True, reason="KI-09: open")
+@pytest.mark.parametrize(
+    ("text", "session", "expected"),
+    [
+        ("Do I need to speak Spanish for this job?", "en", "en"),
+        ("No need to switch to Spanish, English is fine.", "en", "en"),
+        ("No hace falta que me hables en inglés, entiendo bien.", "es", "es"),
+        ("I already told you I don't speak Spanish! English please.", "es", "en"),
+    ],
+)
+def test_ki09_a_mention_or_refusal_keeps_the_language_and_a_request_switches_it(
+    text: str, session: Literal["es", "en"], expected: str
+) -> None:
+    assert requested_language(explicit_controls(text), session) == expected

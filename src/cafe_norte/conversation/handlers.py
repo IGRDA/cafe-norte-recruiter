@@ -519,6 +519,13 @@ class PresentConfirmationHandler(_Handler):
                 return self._refuse(
                     f"nothing_to_read_back:{field_name}", f"{field_name} has no value yet."
                 )
+            if getattr(state.candidate, field_name).status == "confirmed":
+                return self._refuse(
+                    f"already_confirmed:{field_name}",
+                    f"{field_name} is already confirmed; it is not read back again. "
+                    f"{_next_question(state)}",
+                    idle=True,
+                )
             target = FieldTarget(field=field_name, revision=revision)
             text = field_readback(field_name, value, state.language)
         else:
@@ -582,11 +589,13 @@ class _ConfirmHandler(_Handler):
             )
         result = confirmation.respond(state, arguments.answer, context.turn_id)
         if isinstance(result, Err):
+            answered = pending.status if pending is not None else "answered"
             advice = {
                 "same_turn": SAME_TURN,
-                "nothing_pending": "Continue.",
                 "not_delivered": NOT_HEARD,
-            }.get(result.error, "Present it again.")
+                # Saying it again was the order that read a confirmed date twice (D58).
+                "already_answered": f"It is already {answered}. {_next_question(state)}",
+            }.get(result.error, f"Continue. {_next_question(state)}")
             return self._refuse(
                 f"confirmation_refused:{result.error}",
                 f"No {self.kind} read-back can be answered now ({result.error}). {advice}",
@@ -807,7 +816,9 @@ class ReserveInterviewHandler(_InterviewHandler):
             )
         answered = confirmation.respond(state, "affirm", context.turn_id)
         if isinstance(answered, Err):
-            advice = self.ADVICE.get(answered.error, "Present the slot again.")
+            advice = self.ADVICE.get(
+                answered.error, f"Nothing was reserved. {_next_question(state)}"
+            )
             return self._refuse(
                 f"confirmation_refused:{answered.error}",
                 advice,
@@ -818,7 +829,9 @@ class ReserveInterviewHandler(_InterviewHandler):
             return self._refuse("booking_refused:slot_unavailable", NEXT_STEP["slots"])
         allowed = reservation_allowed(state, slot, answered.value, now=context.now)
         if isinstance(allowed, Err):
-            advice = self.ADVICE.get(allowed.error, "Present the slot again.")
+            advice = self.ADVICE.get(
+                allowed.error, f"Nothing was reserved. {_next_question(state)}"
+            )
             return self._refuse(f"booking_refused:{allowed.error}", advice)
         key = idempotency_key(state, answered.value)
         try:

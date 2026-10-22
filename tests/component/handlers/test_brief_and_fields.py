@@ -320,3 +320,23 @@ async def test_not_interested_stops_with_that_outcome() -> None:
 
 def test_tool_outcome_spoken_defaults_to_nothing() -> None:
     assert ToolOutcome(ok=True, model_text="x", summary="y").spoken == ""
+
+
+async def test_a_confirmed_field_is_not_read_back_again() -> None:
+    """Iñaki's call: "That's right." confirmed the date; the model then called confirm_field
+    again, was told "Present it again", and the date was read back a second time."""
+    w = await World(full_record()).open()
+    await w.present(
+        context(), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    await w.deliver()
+    await w.confirm_field(context("t2"), args("confirm_field", answer="affirm"))
+    twice = await w.confirm_field(context("t2"), args("confirm_field", answer="affirm"))
+    assert not twice.ok and twice.summary == "confirmation_refused:already_answered"
+    assert "Present it again" not in twice.model_text
+    assert "already confirmed" in twice.model_text
+    again = await w.present(
+        context("t2"), args("present_confirmation", target="field", field="earliest_start_date")
+    )
+    assert not again.ok and again.summary == "already_confirmed:earliest_start_date"
+    assert again.spoken == "" and "already confirmed" in again.model_text

@@ -2044,3 +2044,8 @@ the v2 observations API), after D56 and D57. One entry per fix, in the order the
     refusals per tool.
   - Timeouts and real failures stay `ERROR`. Live, 13 of 51 turns were `ERROR`, every one a
     barge-in, and 44 of 89 `update_candidate` calls were refused with nothing to count them by.
+- **A confirmed field is not read back again.** `present_confirmation(field)` on a confirmed
+  field is refused ("already confirmed; it is not read back again", then the next step). A
+  second `confirm_field` hears "It is already confirmed" plus the next step, instead of
+  "Present it again", the order that read Iñaki's start date twice. The other defaults of the
+  kind ("Present the slot again") now say that nothing was reserved, and give the next step.

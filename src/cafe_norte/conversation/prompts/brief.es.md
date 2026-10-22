@@ -1,4 +1,4 @@
-# Brief and read-back sentences (ana_v16, es)
+# Brief and read-back sentences (ana_v17, es)
 
 One `key: sentence` per line; `#` lines and blank lines are ignored. `{value}` is filled by
 `conversation/brief.py`. `brief.en.md` has exactly the same keys.

@@ -9,7 +9,7 @@ spec means by "code-enforced validation": the LLM proposes, these functions deci
 | `contracts.py` | Identifiers, enums, the `FieldState` sum type, `CandidateRecord`, patches, confirmations and their `Review` stage, booking, slots, lifecycle, outcome, review flags, `StoreConfiguration`, `SessionState` |
 | `result.py` | `Ok[T] | Err[E]`: how domain functions refuse without raising |
 | `fields.py` | Transitions of one field: `capture`, `confirm`, `mark_unknown`, `decline`, `value_of` |
-| `candidate.py` | Validating and applying a patch to the whole record; which fields are still unfinished. The brief's sentences are candidate-facing text, so rendering lives in `conversation/brief.py` |
+| `candidate.py` | Validating and applying a patch to the whole record; which fields are still unfinished; `said_in`, whether evidence is the candidate's own words and which message it is (D46). The brief's sentences are candidate-facing text, so rendering lives in `conversation/brief.py` |
 | `confirmation.py` | Presenting a pending confirmation, interpreting a response against it, and the review of a read-back that was cut (`advance_review`, `start_parts`, `ready_to_confirm`, `assurance`, D39) |
 | `booking.py` | The five conditions a reservation needs (`reservation_allowed`), the slot half of them (`slot_offerable`) and the server-generated `idempotency_key` |
 | `calendar.py` | `interview_slots`: the simulated calendar as a deterministic rule over a store's shifts and `interview_times` (D29) |

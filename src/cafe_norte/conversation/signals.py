@@ -131,6 +131,30 @@ def _negated(before: str) -> bool:
     return not _NEGATIONS.isdisjoint(before.split()[-_NEGATION_WINDOW:])
 
 
+# ---- a farewell (D46) ----------------------------------------------------------------------------
+
+_FAREWELLS = (
+    "adios", "hasta luego", "hasta pronto", "hasta manana", "hasta la proxima", "nos vemos",
+    "chao", "chau", "goodbye", "bye", "see you", "take care",
+    "gracias", "thank you", "thanks",  # thanks alone, once nothing is left, is the close
+)  # fmt: skip
+# Words that leave something still to do: a farewell with one of them is the model's to read.
+_STILL_TO_DO = frozenset(
+    "pero espera cambiar cambio otra otro cancelar mover duda pregunta "
+    "but wait change another cancel move actually question".split()
+)
+
+
+def is_farewell(text: str) -> bool:
+    """The candidate is closing: a goodbye or thanks, with no question and nothing still to
+    change ("adiós, pero ¿puedo cambiar la hora?" is not one). Only read once the interview is
+    booked, when thanks means the candidate is done. Pure; both languages."""
+    if "?" in text:
+        return False
+    words = " ".join(_clauses(text))
+    return _without(words, _FAREWELLS)[1] and _STILL_TO_DO.isdisjoint(words.split())
+
+
 # ---- plain answers to a read-back ----------------------------------------------------------------
 
 ReadbackAnswer = Literal["affirm", "deny", "skip"]

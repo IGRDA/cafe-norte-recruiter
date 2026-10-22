@@ -625,7 +625,7 @@ async def test_a_question_before_the_tool_call_silences_the_round_after_it() -> 
         ]
     )
     await h.open_session()
-    events = await h.run("Hola")
+    events = await h.run("Soy Lucía.")
     assert [e.text for e in events if isinstance(e, AssistantText)] == ["¿Cómo te llamas?"]
     assert any(isinstance(e, StateUpdated) for e in events)  # the tool call still ran
 
@@ -1704,6 +1704,32 @@ async def test_a_yes_with_the_slot_restated_reserves_it() -> None:
     events = await h.run("Exacto, sí, el martes a las cinco.", "in-3")
     assert tools_started(events) == ["reserve_interview"]
     assert await booking_of(h) == TUE_17
+
+
+async def test_a_farewell_after_the_booking_completes_the_session_without_the_model() -> None:
+    """Live S01/S02 (22 October 2026): after booking, the model said goodbye back to every
+    goodbye and never called end_session, so the session stayed active (D46)."""
+    h = with_slots_offered(says(""), says("Reservado."))
+    await slots_offered(h)
+    await h.run("El primero.", "in-2")
+    await h.run("Sí.", "in-3")
+    assert await booking_of(h) == TUE_17
+    calls = len(h.model.calls)
+    events = await h.run("¡Hasta luego, Ana!", "in-4")
+    assert tools_started(events) == ["end_session"]
+    state = await h.store.sessions.get(SESSION)
+    assert state is not None
+    assert (state.lifecycle, state.outcome) == ("completed", "reserved")
+    said = " ".join(e.text for e in events if isinstance(e, AssistantText))
+    assert said == prompts.table("controls", "es")["goodbye"]
+    assert len(h.model.calls) == calls  # the model is not asked
+
+
+async def test_a_farewell_before_any_booking_is_the_models() -> None:
+    h = Harness([says("¿Seguro? Aún no hemos reservado la entrevista.")])
+    await h.open_session()
+    events = await h.run("Adiós.")
+    assert tools_started(events) == [] and len(h.model.calls) == 1
 
 
 async def test_the_slot_restated_without_a_yes_is_not_a_booking() -> None:

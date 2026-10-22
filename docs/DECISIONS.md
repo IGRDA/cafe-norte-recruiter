@@ -1403,3 +1403,49 @@ other. Keeping a mode nobody verifies costs a test matrix and a page surface for
 **Consequences we accept.** There is no free local voice: speaking to Ana locally needs the
 Daily, Deepgram and ElevenLabs keys (`make voice-smoke`, `.env.example`). The text channel is
 unchanged and remains the offline path; CI never needed browser speech.
+
+---
+
+## D46 · The live release gate: evidence is the candidate's words, a goodbye after booking ends the session
+
+_Added 22 October 2026, after the first paid live runs of S01 and S02 (D43) on gpt-4o-mini._
+
+**Context.** Fixed in #28: the simulator did not know the date, and "I can do …" around a slot
+was not taken as a choice. After that, S01 and S02 still failed in every run. Three causes,
+all in the conversation, none in the scripts:
+- The model saved facts with `evidence_text` it had stitched from several messages, and once
+  with words the candidate never said ("no tengo experiencia previa"). `update_candidate`
+  took any text, so `no_fabricated_confirmed_values` failed in every run.
+- After booking, the model answered each goodbye with a goodbye of its own and never called
+  `end_session`. The session stayed active until the 24-line cap, and the outcome was
+  `incomplete` (or `human_followup_requested`) instead of `reserved`.
+- The simulator still miscounted weekdays ("lunes 23 de octubre", a Friday), and a few
+  phrasings around a slot ("I can make it at …", "ya he confirmado la reserva para …") were
+  left to the model, which looped on slot ids.
+
+**Decisions.**
+- **Evidence is what the candidate said.** `domain.candidate.said_in` splits the cited words
+  into clauses. Each clause must appear, as whole words, in one of the candidate's last
+  `HISTORY_TURNS` messages (case, accents and punctuation aside). The evidence kept is the
+  latest such message, whole, with its own turn id. Before, the model's text was kept with the
+  current turn. If any clause was never said, the save is refused (`evidence_not_said`), and
+  the model is told not to ask the candidate to repeat but to call again once per message.
+  Rejected: refusing every evidence that spans two messages. On a live run the model re-sent
+  batches of facts, every one of them was refused, and the turn ran out of tool rounds.
+- **A goodbye after booking ends the session.** Once a booking exists, a message that is only
+  a goodbye or thanks (`signals.is_farewell`: no question mark, none of "pero", "cambiar",
+  "wait", "change"…) goes to `end_session(candidate_done)` through the runtime, like D35's plain
+  answers. The fixed `goodbye` line from `controls.<lang>.md` is said, and the model is not
+  asked. The outcome is `reserved`. Before a booking, a goodbye stays the model's.
+- **The simulator gets the day.** Each relative date fact goes in with the day it means, and
+  more words count as talk around a slot choice (`make it`, `book`, `confirm`, `reserva`,
+  `confirmado`).
+- Prompt `ana_v17` (the new `goodbye` control line).
+
+**Measured.** S01 and S02 live, gpt-4o-mini, two runs each: 0/2 on `main` after #27, and 4/4
+with these changes (`evals/results/live/20261022T073513Z-scenarios`, not committed).
+
+**Consequences we accept.** Evidence for a fact can point at a later message than the one that
+first stated it, when the model batches. Thanks alone after booking ends the call, so a
+candidate who thanks and then wants to ask something must start a new session. A model that
+rewrites the candidate's words (a translation, a summary) is refused until it quotes them.

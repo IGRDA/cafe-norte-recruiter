@@ -6,6 +6,7 @@ from cafe_norte.domain.candidate import (
     apply_patch,
     changed_fields,
     ready_for_brief,
+    said_in,
     unfinished_fields,
     validate_patch,
 )
@@ -112,3 +113,41 @@ def test_hours_need_their_number_in_the_candidates_words() -> None:
     assert refused.error.reason == "not_in_evidence"
     said = validate_patch(invented, CONFIG, TODAY, evidence_text="Por la mañana, unas 35 horas")
     assert isinstance(said, Ok)
+
+
+# ---- evidence is the candidate's own words (D46) -------------------------------------------------
+
+SAID = (
+    (TurnId("t1"), "Me llamo Lucía Marín."),
+    (TurnId("t2"), "Sí, tengo permiso de trabajo."),
+    (TurnId("t3"), "Puedo lunes y jueves."),
+)
+
+
+def test_evidence_found_in_one_message_is_that_whole_message() -> None:
+    assert said_in("lucia marin", SAID) == (TurnId("t1"), "Me llamo Lucía Marín.")
+    assert said_in("Puedo lunes y jueves.", SAID) == (TurnId("t3"), "Puedo lunes y jueves.")
+
+
+def test_the_latest_message_that_holds_it_wins() -> None:
+    said = (*SAID, (TurnId("t4"), "Perdona: me llamo Lucía Marín Sanz."))
+    assert said_in("me llamo Lucía Marín", said) == (TurnId("t4"), said[-1][1])
+
+
+def test_sentences_from_several_messages_are_evidence_kept_as_the_latest_message() -> None:
+    """The model batches facts and joins the messages they came from; every sentence was said,
+    so the save stands, and the evidence kept is one whole message (a live S02 run of
+    22 October 2026 ran out of tool rounds while each batch was refused)."""
+    stitched = "Me llamo Lucía Marín. Sí, tengo permiso de trabajo."
+    assert said_in(stitched, SAID) == (TurnId("t2"), "Sí, tengo permiso de trabajo.")
+    commas = "Me llamo Lucía Marín, tengo permiso de trabajo, puedo lunes y jueves"
+    assert said_in(commas, SAID) == (TurnId("t3"), "Puedo lunes y jueves.")
+
+
+def test_words_never_said_are_not_evidence() -> None:
+    """Live S01 (22 October 2026): the model cited "no tengo experiencia previa", which the
+    candidate never said."""
+    assert said_in("no tengo experiencia previa", SAID) is None
+    assert said_in("Me llamo Lucía Marín. No tengo experiencia previa.", SAID) is None
+    assert said_in("Marí", SAID) is None  # whole words only
+    assert said_in(" ¿? ", SAID) is None

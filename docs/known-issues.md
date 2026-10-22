@@ -37,6 +37,7 @@ the session never paused during the call; no model round timed out.
 | KI-18 | A question during the read-back review is taken as a yes; the answer comes three turns late | Medium | `test_a_question_during_the_review_…` | **fixed (D58)** |
 | KI-19 | "Muchas gracias" inside a longer sentence ends the call at once | High | `test_thanks_beside_other_words_…` | **fixed (D59)** |
 | KI-20 | A question in the closing line is answered with the goodbye | High | S32, `test_a_question_in_the_closing_line_…` | **fixed (D59)** |
+| KI-21 | A correction after the summary has the whole summary read again | Medium | `test_a_correction_after_the_brief_reads_back_only_what_changed` | **fixed (D59)** |
 
 ## KI-01 · "Está todo bien" is not taken as a yes
 
@@ -264,3 +265,6 @@ reproductions named in the table are the tests that went red first.
 - **KI-20.** "No, muchas gracias. ¿Tienes alguna otra oferta?" with the brief confirmed: the
   model saved "no quiere entrevista", called `end_session`, and said goodbye; the question was
   never answered. Fixed in D59: `end_session` refuses while the message asks something.
+- **KI-21.** "Sí, pero mi nombre es Princesa Rosmugalda" after the summary: the name was
+  saved and the whole summary read again from "Te resumo lo que tengo", then cut, then the
+  review offer. Fixed in D59: only the changed sentence and the closing question.

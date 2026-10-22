@@ -2133,3 +2133,10 @@ D56–D58 and the feedback on them. One entry per fix, in the order they landed.
   dicho que tienes permiso de trabajo." (and the English pair), so a short statement read aloud
   cannot sound like the question it answers. Iñaki heard "te interesa el puesto" as Ana asking
   again.
+- **A correction reads back only what changed.** When the brief is presented again after a
+  correction (its last read-back invalidated or confirmed), `render_brief_changes` says the
+  sentences that differ from that read-back plus "¿Es todo correcto?": "Te llamas Princesa
+  Rosmugalda. ¿Es todo correcto?". The confirmation still binds the whole brief at its new
+  revision, and the review in parts works on the short text. The first presentation, and one
+  where everything changed, are the whole brief. Live, the full summary was read twice in a row
+  (KI-21).

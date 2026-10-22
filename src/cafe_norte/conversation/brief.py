@@ -65,6 +65,28 @@ def render_brief(
     return " ".join(parts)
 
 
+def render_brief_changes(
+    record: CandidateRecord,
+    configuration: StoreConfiguration,
+    language: Language,
+    *,
+    since: str,
+) -> str | None:
+    """The brief's sentences that are not in ``since`` (the brief as it was last read back),
+    with the closing question: what a correction changed, said once instead of the whole
+    brief again (D59). ``None`` when nothing or everything changed."""
+    from cafe_norte.conversation.prompt import sentences  # prompt imports this module
+
+    t = _texts(language)
+    now = sentences(render_brief(record, configuration, language))
+    before = set(sentences(since))
+    facts = [s for s in now if s not in (t["intro"], t["question"])]
+    changed = [s for s in facts if s not in before]
+    if not changed or len(changed) == len(facts):
+        return None
+    return " ".join([*changed, t["question"]])
+
+
 def field_readback(field: ReadbackField, value: object, language: Language) -> str:
     t = _texts(language)
     shown = _phone(str(value)) if field == "contact_phone" else _start(value, t)

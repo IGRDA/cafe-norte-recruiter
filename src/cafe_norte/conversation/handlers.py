@@ -16,6 +16,7 @@ from cafe_norte.conversation.brief import (
     ReadbackField,
     field_readback,
     render_brief,
+    render_brief_changes,
     slot_readback,
     slot_time,
 )
@@ -489,6 +490,17 @@ class PresentConfirmationHandler(_Handler):
             text = render_brief(
                 state.candidate, configuration, state.language, followup=has_followup(state)
             )
+            previous = state.pending_confirmation
+            if (
+                previous is not None
+                and isinstance(previous.target, BriefTarget)
+                and previous.status != "pending"
+            ):
+                # A correction: say what changed, not the whole brief again (D59).
+                changed = render_brief_changes(
+                    state.candidate, configuration, state.language, since=previous.presentation_text
+                )
+                text = changed or text
         elif arguments.target == "slot":
             if not _brief_confirmed(state):
                 return self._refuse(

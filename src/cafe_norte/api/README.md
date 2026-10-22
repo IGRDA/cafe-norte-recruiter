@@ -28,7 +28,7 @@ headers locally and hosted.
 | `routes.py` | `build_router(...)` from ports |
 | `access.py` | Demo code, cookies, resume token hashing, same-origin checks |
 | `events.py` | SSE encoding and replay |
-| `boundary.py` | `HttpBoundary`: 64 KiB body limit (413), CSP, `Referrer-Policy`, `X-Content-Type-Options`, frame denial on every response, installed by the app factory (D38) |
+| `boundary.py` | `HttpBoundary`: 64 KiB body limit (413), CSP (`'unsafe-eval'` only for Daily's call machine), `Referrer-Policy`, `X-Content-Type-Options`, frame denial on every response, installed by the app factory (D38) |
 
 Implemented today: `POST /api/sessions` (the reply carries the version stamp), `GET /api/sessions/{id}` (typed snapshot with `last_seq`), `POST …/confirmations/{confirmation_id}` (202; 404 if not the pending read-back, 409 if answered or the revision moved; D38), `POST …/end` (204, idempotent), `POST …/turns` (202, the turn runs in the background
 and its events are journaled by the runtime), `GET …/events`, `GET /api/configurations`,

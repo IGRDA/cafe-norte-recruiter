@@ -33,6 +33,15 @@ def test_every_response_carries_the_security_headers(client: TestClient, path: s
     assert "frame-ancestors 'none'" in policy
 
 
+def test_the_page_may_load_dailys_call_machine(client: TestClient) -> None:
+    """The hosted call: daily-js runs its call machine with Function(), which default-src
+    'self' blocked, so no browser could join a room. Inline scripts stay blocked."""
+    policy = client.get("/").headers["content-security-policy"]
+    script_src = next(d for d in policy.split("; ") if d.startswith("script-src "))
+    assert script_src.split()[1:] == ["'self'", "'unsafe-eval'"]
+    assert "https://*.daily.co" in policy  # the bundle is fetched, so connect-src carries it
+
+
 def test_error_responses_carry_them_too(client: TestClient) -> None:
     response = client.post("/api/sessions", json={"nonsense": True})
     assert response.status_code == 422

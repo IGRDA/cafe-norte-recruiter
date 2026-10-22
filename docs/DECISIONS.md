@@ -1010,6 +1010,10 @@ endpoint and a hardened boundary.
   `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`.
   A body over 64 KiB is refused with 413, declared or streamed. Validation errors carry a fixed
   message and never the input.
+  _Amended 22 October 2026:_ `script-src 'self' 'unsafe-eval'`. daily-js fetches its call
+  machine from `c.daily.co` and runs it with `Function()`. Under `default-src 'self'` that was
+  blocked, and no browser could join a room. The scripted Daily bot that verified hosted voice
+  ignores the CSP, so the failure went unnoticed. Inline scripts stay blocked.
 
 **Consequences we accept.** A new conversation is a page load. A button answer to a read-back
 the voice has not finished saying counts as read. The browser speech mode (D22) stays until a

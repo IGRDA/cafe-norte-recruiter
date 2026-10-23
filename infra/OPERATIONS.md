@@ -1,5 +1,9 @@
 # Infrastructure operations
 
+Hosted-operation helpers live in `scripts/ops/`: `bootstrap.sh`, `set_secrets.py`,
+`smoke.py` and `teardown.sh`. Run the commands below from the repository root;
+`make smoke` also runs the smoke check locally or against `SMOKE_URL`.
+
 Terraform owns two stacks: `bootstrap/` creates the state bucket, GitHub workload identity,
 deployer and billing budget; `app/` creates the image registry, runtime identity, secrets,
 Compute Engine VM and Cloud SQL. Requires Terraform ≥1.11, gcloud Application Default
@@ -8,12 +12,12 @@ ignored `.tfvars` and `.backend.hcl` counterparts. `make infra-check` validates 
 
 ## Bootstrap and deploy
 
-1. Run `scripts/bootstrap.sh` with `PROJECT_ID`, `BUCKET`, `REPO` (`owner/name`),
+1. Run `scripts/ops/bootstrap.sh` with `PROJECT_ID`, `BUCKET`, `REPO` (`owner/name`),
    `BILLING_ACCOUNT` and optionally `REGION`. It migrates the initial local state into GCS.
 2. Run `make infra-init`. On first setup, create `google_artifact_registry_repository.app`
    with a targeted apply, build/push the Docker image, then create
    `google_secret_manager_secret.keys` with a targeted apply. Supply the image digest in
-   `demo.tfvars`; upload provider/access/cookie secrets with `scripts/set_secrets.py` before
+   `demo.tfvars`; upload provider/access/cookie secrets with `scripts/ops/set_secrets.py` before
    the full `make infra-plan` and `make infra-apply`.
 3. Configure GitHub variables `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_ARTIFACT_REPOSITORY`,
    `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_DEPLOYER_SERVICE_ACCOUNT`, `TF_STATE_BUCKET`,
@@ -36,7 +40,7 @@ address; the `<ip-with-dashes>.sslip.io` hostname remains available. Share the a
 
 ## Secrets and data
 
-Use `uv run python scripts/set_secrets.py --project <project> --only <NAME> ...`, then reset
+Use `uv run python scripts/ops/set_secrets.py --project <project> --only <NAME> ...`, then reset
 the instance. `--only` avoids overwriting hosted secrets with unrelated values from a local
 `.env`. Rotate the database password by increasing Terraform's `db_password_version`; the
 password uses ephemeral/write-only values and is absent from state.
@@ -71,6 +75,6 @@ update the source, verification date and version together when refreshing prices
   attempts and session starts per IP, plus the daily session ceiling. It documents the
   environment overrides. Restarts clear per-IP counters; deleting sessions reduces the daily
   count, and concurrent starts can exceed that ceiling because checking and creation are separate.
-- Before `demo_end_date`, run `PROJECT_ID=... BUCKET=... scripts/teardown.sh`. It prompts through
+- Before `demo_end_date`, run `PROJECT_ID=... BUCKET=... scripts/ops/teardown.sh`. It prompts through
   Terraform, destroys the app/database and removes images. It does not drain active calls or
   retain database backups. Bootstrap/state are kept unless explicitly retired separately.

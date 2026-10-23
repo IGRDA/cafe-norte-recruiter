@@ -6,8 +6,8 @@ it is the only place raw transcripts can be seen. ``InboundBridge`` sits after t
 (which owns VAD, turn end, segment joining and interruptions) and before TTS: the aggregated
 user message becomes one turn for the session, interruptions go to the session, raw transcripts
 never reach TTS. ``PlaybackTap`` sits after the output transport, where ``TTSStoppedFrame``
-arrives once the audio has actually played. Pipecat is imported here and in ``pipeline.py``
-only."""
+arrives after output transport playback. This is a server-side playback observation, not a
+browser acknowledgement of each word."""
 
 from typing import Protocol
 

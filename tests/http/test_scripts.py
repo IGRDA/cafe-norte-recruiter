@@ -3,7 +3,7 @@
 import httpx
 import pytest
 from fastapi import FastAPI
-from scripts import set_secrets, smoke
+from scripts.ops import set_secrets, smoke
 
 from cafe_norte.model.contracts import ModelFinished, ModelText
 from cafe_norte.model.fake import FakeModel

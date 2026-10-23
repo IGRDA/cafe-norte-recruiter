@@ -1,7 +1,7 @@
 INFRA_APP := infra/app
 INFRA_BOOTSTRAP := infra/bootstrap
 
-.PHONY: setup check preview preflight web-check web-build web-dev lint typecheck test test-unit test-component test-http test-e2e quality test-db db-up db-down run migrate build-index export-schema \
+.PHONY: setup check preview preflight web-check web-build web-dev lint typecheck test test-unit test-component test-http test-e2e quality test-db db-up db-down run migrate build-index export-schema diagrams \
         evals evals-retrieval compare evals-signals smoke voice-smoke infra-check infra-init infra-plan infra-apply
 
 # Locked install with every extra; CI and local use the same command.
@@ -84,6 +84,11 @@ export-schema:
 	uv run python scripts/export_schema.py
 	npm --prefix web run types
 
+# Regenerate the six architecture SVGs from the Mermaid blocks in Markdown.
+# Optional: ARGS="--puppeteer-config <file>" to use an existing Chrome installation.
+diagrams:
+	uv run python scripts/render_diagrams.py $(ARGS)
+
 # Paid modes estimate first and require --yes. All suites share environment loading.
 evals-retrieval: EVAL_SUITE = --suite retrieval
 compare: EVAL_SUITE = --suite comparison
@@ -92,7 +97,7 @@ evals evals-retrieval compare evals-signals:
 	set -a; [ -f .env ] && . ./.env; set +a; uv run python -m evals.run $(EVAL_SUITE) $(ARGS)
 
 smoke:
-	uv run python scripts/smoke.py $${SMOKE_URL:-http://localhost:8000}
+	uv run python scripts/ops/smoke.py $${SMOKE_URL:-http://localhost:8000}
 
 # Manual, paid: hosted voice from the laptop. Needs the Daily, Deepgram and ElevenLabs keys in .env.
 voice-smoke:

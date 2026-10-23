@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time bootstrap: state bucket + CI identity, applied with local state because the bucket
 # does not exist yet, then the state is migrated into that bucket.
-# Usage: PROJECT_ID=cafe-norte-orbio BUCKET=cafe-norte-orbio-tfstate REPO=IGRDA/cafe-norte-recruiter scripts/bootstrap.sh
+# Usage: PROJECT_ID=cafe-norte-orbio BUCKET=cafe-norte-orbio-tfstate REPO=IGRDA/cafe-norte-recruiter scripts/ops/bootstrap.sh
 set -euo pipefail
 : "${PROJECT_ID:?set PROJECT_ID}"
 : "${BUCKET:?set BUCKET (globally unique state bucket name)}"

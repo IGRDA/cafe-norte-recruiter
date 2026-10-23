@@ -255,10 +255,11 @@ class Runtime:
     """One turn at a time per session. Every event is journaled to ``store.events`` before it is
     yielded, so the channel's stream and a later replay are the same data.
 
-    Explicit stop and human requests are matched before the model runs; the signal analyzer,
-    when configured, classifies each user turn after it finished and its verdict shapes only
-    the next turn. A second malformed tool call in one turn ends it with ``invalid_response``;
-    closing or cancelling ``run_turn`` mid-stream stores what was said as an interrupted turn."""
+    Explicit controls are detected before the model runs. A language-switching analyzer runs
+    alongside generation and can change language or tone before the first output; late
+    verdicts guide the next turn. Signals are journaled asynchronously after turn completion.
+    Malformed tool calls spend the bounded repair budget. Closing or cancelling ``run_turn``
+    mid-stream stores what was said as an interrupted turn."""
 
     def __init__(
         self,

@@ -315,8 +315,11 @@ def build_router(
 
     @router.get("/api/sessions/{session_id}")
     async def get_session(session_id: str, request: Request) -> SessionSnapshotResponse:
-        """The owner's consistent snapshot; after a reload the page rebuilds from it and then
-        follows the stream from ``last_seq``."""
+        """The owner's consistent snapshot, including its journal watermark ``last_seq``.
+
+        The current page uses snapshot metadata and rebuilds the conversation by replaying
+        events from zero. A reconnect of the same EventSource uses Last-Event-ID instead.
+        """
         sid = owner(request, session_id)
         state = await store.sessions.get(sid)
         if state is None:

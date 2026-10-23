@@ -1,1 +1,4 @@
-"""Operational scripts; a package so tests can import them under one name."""
+"""Repository tools, normally invoked through Make targets.
+
+Hosted-operation helpers live in ``ops``; their usage is in ``infra/OPERATIONS.md``.
+"""

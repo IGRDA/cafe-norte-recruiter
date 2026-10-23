@@ -1,12 +1,12 @@
-"""Pipeline assembly for one session. Pipecat is imported here and in ``bridge.py`` only.
+"""Pipeline assembly for one session, including the Daily, STT and HTTP TTS adapters.
 
 ``Daily in → Deepgram → SpeechTap → user aggregator → InboundBridge → ElevenLabs → Daily out →
 PlaybackTap``, watched by ``UsageObserver``: what the call used of each provider is measured and
 recorded when the pipeline ends.
-Pipecat 1.13's ``LLMUserAggregator`` owns Silero VAD, the VAD start strategy (which interrupts
-the bot), the speech-timeout stop strategy that waits for a transcript, and segment joining; it
-emits the finished user message, which the bridge turns into one runtime turn. No smart-turn
-model and no Pipecat LLM."""
+Pipecat 1.13's ``LLMUserAggregator`` owns Silero VAD, word-based turn start, local Smart Turn
+v3 end detection with transcript waiting, and segment joining. It emits the finished user
+message, which the bridge turns into one runtime turn. The conversation runtime owns the LLM.
+Daily carries WebRTC audio; Deepgram STT uses WSS; ElevenLabs v4 TTS uses HTTPS streaming."""
 
 import asyncio
 import logging

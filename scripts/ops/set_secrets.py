@@ -1,6 +1,6 @@
 """Create Secret Manager versions for provider keys from the environment; never via Terraform.
 
-    set -a; . ./.env; set +a; uv run python scripts/set_secrets.py --project cafe-norte-orbio
+    set -a; . ./.env; set +a; uv run python scripts/ops/set_secrets.py --project cafe-norte-orbio
 
 Only names present in the environment are written; values travel on gcloud's stdin, never
 on the command line or in output. ``--dry-run`` prints the names it would write. ``--only``

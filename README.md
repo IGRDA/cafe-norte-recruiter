@@ -26,19 +26,47 @@ voice providers and database there. Provider calls are paid. For browser develop
 
 ## How it works
 
-Text and voice share one conversation runtime. It uses domain rules to update the candidate
-record, saves changes, then announces them. [main.py](src/cafe_norte/main.py) connects the
-runtime to storage, retrieval, model and speech providers.
+Text and voice share one conversation runtime. It applies domain rules, saves candidate
+facts and bookings, and streams updates back to the browser.
 
-| Start here | Responsibility |
-| --- | --- |
-| [Domain](src/cafe_norte/domain/contracts.py) | Candidate facts, confirmations and booking rules |
-| [Conversation](src/cafe_norte/conversation/contracts.py) | Turn processing and events shared by text and voice |
-| [Persistence](src/cafe_norte/persistence/contracts.py) | Transactions, session ownership, event replay and exports |
-| [Browser](web/src/page/reducer.ts) | Page state and user interactions |
+![System overview: browser commands and voice share one conversation runtime](docs/assets/diagrams/overview.svg)
 
-Public types and their contract comments describe each module's promises. The browser's API
-types are generated from Python declarations with `make export-schema`.
+<details>
+<summary>Mermaid source</summary>
+
+```mermaid
+flowchart TB
+    subgraph CLIENT["BROWSER · web/src"]
+        Page["<b>React page</b><br/>Type a message · speak · confirm"]
+    end
+    subgraph SERVER["APPLICATION · src/cafe_norte"]
+        API["<b>HTTP API</b><br/>POST commands · GET events"]
+        Voice["<b>Pipecat + VoiceSession</b><br/>Finalized speech → TurnInput"]
+        Runtime["<b>ConversationRuntime</b><br/>run_turn(input) → events"]
+        Services["<b>Model + tool handlers</b><br/>Retrieval + domain rules"]
+        Store["<b>Store interface</b><br/>Memory / Postgres adapter"]
+    end
+    Page -->|HTTP JSON| API
+    API -.->|SSE updates| Page
+    Page <-->|WebRTC via Daily| Voice
+    API -->|TurnInput| Runtime
+    Voice -->|TurnInput| Runtime
+    Runtime -->|typed calls| Services
+    Runtime -->|turns and events| Store
+    API -->|snapshots and SSE journal| Store
+    Services -->|tool writes| Store
+    classDef ui fill:#eff6ff,stroke:#7396bf,color:#172b42
+    classDef core fill:#eaf6f2,stroke:#5c9b8c,color:#183d35
+    classDef data fill:#fff7e8,stroke:#d2af66,color:#645025
+    class Page,API,Voice ui
+    class Runtime,Services core
+    class Store data
+```
+
+</details>
+
+See the [architecture guide](docs/architecture.md) for module interfaces, communication
+protocols, text and voice sequences, and database relationships.
 
 ## Check and evaluate
 

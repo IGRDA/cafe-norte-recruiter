@@ -49,7 +49,7 @@ resource "google_project_iam_member" "runtime_logs" {
   member  = "serviceAccount:${google_service_account.runtime.email}"
 }
 
-# Secrets exist by name; versions are added by scripts/set_secrets.py, never by Terraform.
+# Secrets exist by name; versions are added by scripts/ops/set_secrets.py, never by Terraform.
 resource "google_secret_manager_secret" "keys" {
   for_each  = toset(local.secret_names)
   secret_id = each.value

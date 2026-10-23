@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Destroy the app and images, retaining bootstrap/state. Active calls are interrupted.
-# Usage: PROJECT_ID=cafe-norte-orbio BUCKET=cafe-norte-orbio-tfstate scripts/teardown.sh
+# Usage: PROJECT_ID=cafe-norte-orbio BUCKET=cafe-norte-orbio-tfstate scripts/ops/teardown.sh
 set -euo pipefail
 : "${PROJECT_ID:?set PROJECT_ID}"
 : "${BUCKET:?set BUCKET}"

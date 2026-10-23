@@ -1,4 +1,4 @@
-# Run once with local Application Default Credentials (scripts/bootstrap.sh). Creates the
+# Run once with local Application Default Credentials (scripts/ops/bootstrap.sh). Creates the
 # Terraform state bucket, the GitHub Workload Identity Federation pool and provider restricted
 # to this repository's main branch, and the deployer service account CI impersonates. No keys.
 

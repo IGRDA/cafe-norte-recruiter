@@ -15,7 +15,7 @@ resource "google_sql_database_instance" "db" {
   name                = "${var.service_name}-db"
   database_version    = "POSTGRES_16"
   region              = var.region
-  deletion_protection = false # the demo is torn down by scripts/teardown.sh
+  deletion_protection = false # the demo is torn down by scripts/ops/teardown.sh
 
   settings {
     tier              = var.db_tier

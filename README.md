@@ -2,32 +2,33 @@
 
 # Café Norte
 
-Ana is a recruiting assistant you can speak or type to. She collects candidate details,
-answers questions about a café role, confirms what she heard, and books a simulated interview.
-Each session produces an export with the facts, transcript, sources and usage.
+Ana is a voice and text recruiting assistant for the fictional Café Norte: she collects and
+validates candidate details, answers questions about the role, and books a simulated interview.
+Each conversation produces a JSON summary with candidate details, transcript and sources;
+Ana makes no hiring decisions.
 
-This is a demo: the company and calendar are fictional, and Ana makes no hiring decisions.
-Spanish and English have reviewed texts and evaluation cases. Eight additional languages
-are supported through model translation; their conversation quality has not been evaluated.
-
-## Run locally
+## Setup
 
 Install [uv](https://docs.astral.sh/uv/) and Node 24. uv supplies Python 3.12 if needed.
 
 ```sh
 make setup        # install locked dependencies
 make run          # build the browser app and serve http://localhost:8000
+make check        # lint, types, offline tests and coverage
 ```
 
-With no `.env`, the app runs offline with a fake model, memory storage and text input.
-For real conversations, copy [.env.example](.env.example) to `.env` and configure the model,
-voice providers and database there. Provider calls are paid. For browser development,
-`make web-dev` serves Vite on port 5173 alongside the API on port 8000.
+Without configuration, the app uses a fake model, in-memory storage and text input.
+For live model and voice providers, copy [.env.example](.env.example) to `.env` and fill in
+the relevant settings and API keys; provider calls may incur charges.
 
-## How it works
+See the [Makefile](Makefile) for development, database and evaluation commands.
 
-Text and voice share one conversation runtime. It applies domain rules, saves candidate
-facts and bookings, and streams updates back to the browser.
+## System architecture
+
+A React frontend connects to a Python/FastAPI backend, where text and voice share one
+conversation engine for model calls, retrieval, validation and booking.
+Pipecat handles voice through Daily, Deepgram and ElevenLabs; session data lives in memory
+locally or Postgres when configured.
 
 ![System overview: browser commands and voice share one conversation runtime](docs/assets/diagrams/overview.svg)
 
@@ -65,32 +66,49 @@ flowchart TB
 
 </details>
 
-See the [architecture guide](docs/architecture.md) for module interfaces, communication
-protocols, text and voice sequences, and database relationships.
+See the [architecture guide](docs/architecture.md) for detailed diagrams and protocols,
+and [infrastructure operations](infra/OPERATIONS.md) for deployment and recovery.
 
-## Check and evaluate
+## Key design decisions
 
-```sh
-make check        # Python and TypeScript checks, offline tests and coverage
-make test-db      # shared contracts and integration tests on Postgres; requires Docker
-make infra-check  # Terraform formatting and validation; requires Terraform ≥1.11
-make evals ARGS="--help"
-```
+- **Shared engine, validated tools:** One conversation engine keeps text and voice consistent.
+  Typed tools validate candidate details and require confirmation before booking.
+- **HTTP/SSE and WebRTC:** HTTP commands and replayable SSE events keep text chat and UI
+  updates simple; Daily WebRTC handles interactive audio.
+- **In-memory retrieval:** A small, fixed knowledge base needs only a lightweight BM25/vector
+  index, avoiding a separate vector database to operate. A larger or frequently updated corpus
+  would justify a dedicated search service.
+- **VM hosting:** Daily's native WebRTC connection failed in the tested Cloud Run setup, so
+  the demo uses Compute Engine with Cloud SQL. This gives network control at the cost of
+  managing a VM.
 
-Evaluations cover conversation scenarios, retrieval, signals and model comparisons.
-`make compare` estimates cost; paid runs require `--yes`. Selected baselines stay tracked in
-`evals/results/`. New output is ignored until explicitly promoted with `git add -f <report>`.
+## Bonus features
 
-Before merging, run `make preflight` for offline, Postgres and live regressions, then
-`make preview` for the owner's voice call with real providers.
+- **RAG:** Hybrid retrieval combines BM25 keyword search with NumPy cosine similarity over
+  a precomputed embedding matrix, merging their rankings through reciprocal rank fusion.
+  Ragas evaluates retrieval precision and recall.
+- **Sentiment analysis:** The optional Jev classifier scores sentiment,
+  including frustration, and language choices asynchronously alongside reply generation.
+  The runtime waits up to 0.5 seconds extra before first output: early results can adjust
+  the reply, while late results inform the next turn.
+- **Multi-turn memory:** Ana remembers the current session through recent messages and saved
+  candidate facts, shared across text and voice. Postgres preserves that session across restarts.
+- **Multiple languages:** Spanish and English have reviewed wording and conversation evaluations;
+  eight more languages use model translation without equivalent quality coverage. Explicit
+  requests and the optional Jev classifier support language switching during a conversation.
+- **Langfuse tracing:** Langfuse groups turn traces by session, showing model
+  and tool calls, latency, token usage and estimated model costs.
 
-## Hosting
+## Potential improvements
 
-The demo runs on one Compute Engine VM with Cloud SQL. Daily's native WebRTC transport needs
-a routable network interface that the tested Cloud Run deployment did not provide. Text uses
-HTTP POST plus SSE: input IDs make retries safe, and event sequences support replay without
-a bidirectional WebSocket connection.
+Ranked by expected value:
 
-A shared access code and request limits guard the hosted demo. See
-[infrastructure operations](infra/OPERATIONS.md) for deployment, limits, secrets, recovery and
-teardown.
+1. **Reliability and scaling:** Load test concurrent calls to find capacity limits. Scale the
+   database and run more service instances on VMs behind a load balancer or on Kubernetes.
+2. **Reusable interview backend:** Generalize the backend for candidate screening before a
+   human interview, with configurable prompts, fields, rules and knowledge bases for any role
+   or business.
+3. **Real calendar booking:** Connect Calendly or a calendar provider for live availability
+   and confirmed interview bookings, with no duplicate reservations.
+4. **Telephone calls:** Add Twilio or a similar telephony adapter so candidates can call a
+   phone number and use the same conversation engine.

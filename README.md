@@ -84,9 +84,9 @@ and [infrastructure operations](infra/OPERATIONS.md) for deployment and recovery
 
 ## Bonus features
 
-- **RAG:** Answers use company, role and shop Markdown, filtered by shop and returned with
-  source references. The hosted build combines BM25 keyword search with local multilingual
-  embeddings; local defaults use BM25 alone.
+- **RAG:** Hybrid retrieval combines BM25 keyword search with NumPy cosine similarity over
+  a precomputed embedding matrix, merging their rankings through reciprocal rank fusion.
+  Ragas evaluates retrieval precision and recall.
 - **Sentiment analysis:** The optional Jev classifier scores sentiment,
   including frustration, and language choices asynchronously alongside reply generation.
   The runtime waits up to 0.5 seconds extra before first output: early results can adjust
@@ -95,7 +95,7 @@ and [infrastructure operations](infra/OPERATIONS.md) for deployment and recovery
   candidate facts, shared across text and voice. Postgres preserves that session across restarts.
 - **Multiple languages:** Spanish and English have reviewed wording and conversation evaluations;
   eight more languages use model translation without equivalent quality coverage. Explicit
-  requests and the optional parallel analyzer support language switching during a conversation.
+  requests and the optional Jev classifier support language switching during a conversation.
 - **Langfuse tracing:** Langfuse groups turn traces by session, showing model
   and tool calls, latency, token usage and estimated model costs.
 
@@ -103,12 +103,12 @@ and [infrastructure operations](infra/OPERATIONS.md) for deployment and recovery
 
 Ranked by expected value:
 
-1. **Reliability and scaling:** Load-test concurrent calls, then add durable turn queues and
-   independently scalable voice workers. Drain active calls during deployments to avoid
-   interrupting interviews.
-2. **Real calendar booking:** Connect Calendly or a calendar provider for live availability
-   and confirmed interview bookings, with retries that cannot duplicate reservations.
-3. **Reusable recruiters:** Extract company identity, candidate fields, prompts and scheduling
-   rules into a configurable recruiter template, building on the existing shop configurations.
+1. **Reliability and scaling:** Load test concurrent calls to find capacity limits. Scale the
+   database and run more service instances on VMs behind a load balancer or on Kubernetes.
+2. **Reusable interview backend:** Generalize the backend for candidate screening before a
+   human interview, with configurable prompts, fields, rules and knowledge bases for any role
+   or business.
+3. **Real calendar booking:** Connect Calendly or a calendar provider for live availability
+   and confirmed interview bookings, with no duplicate reservations.
 4. **Telephone calls:** Add Twilio or a similar telephony adapter so candidates can call a
    phone number and use the same conversation engine.

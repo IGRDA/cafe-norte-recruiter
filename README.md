@@ -101,8 +101,6 @@ and [infrastructure operations](infra/OPERATIONS.md) for deployment and recovery
 
 ## Potential improvements
 
-Ranked by expected value:
-
 1. **Reliability and scaling:** Load test concurrent calls to find capacity limits. Scale the
    database and run more service instances on VMs behind a load balancer or on Kubernetes.
 2. **Reusable interview backend:** Generalize the backend for candidate screening before a

@@ -87,14 +87,17 @@ and [infrastructure operations](infra/OPERATIONS.md) for deployment and recovery
 - **RAG:** Answers use company, role and shop Markdown, filtered by shop and returned with
   source references. The hosted build combines BM25 keyword search with local multilingual
   embeddings; local defaults use BM25 alone.
-- **Sentiment analysis:** The optional decision model detects frustration and language requests
-  asynchronously alongside reply generation. The runtime waits up to 0.5 seconds extra before
-  first output: early results can adjust the reply, while late results inform the next turn.
-- **Multi-turn memory:** Recent turns and structured candidate facts maintain context across
-  text and voice; Postgres also preserves sessions across restarts.
+- **Sentiment analysis:** The optional Jev classifier scores sentiment,
+  including frustration, and language choices asynchronously alongside reply generation.
+  The runtime waits up to 0.5 seconds extra before first output: early results can adjust
+  the reply, while late results inform the next turn.
+- **Multi-turn memory:** Ana remembers the current session through recent messages and saved
+  candidate facts, shared across text and voice. Postgres preserves that session across restarts.
 - **Multiple languages:** Spanish and English have reviewed wording and conversation evaluations;
   eight more languages use model translation without equivalent quality coverage. Explicit
   requests and the optional parallel analyzer support language switching during a conversation.
+- **Langfuse tracing:** Langfuse groups turn traces by session, showing model
+  and tool calls, latency, token usage and estimated model costs.
 
 ## Potential improvements
 

@@ -66,8 +66,7 @@ flowchart TB
 
 </details>
 
-See the [architecture guide](docs/architecture.md) for detailed diagrams and protocols,
-and [infrastructure operations](infra/OPERATIONS.md) for deployment and recovery.
+See the [architecture guide](docs/architecture.md) for detailed diagrams and protocols.
 
 ## Key design decisions
 

@@ -1,4 +1,4 @@
-# Local environments, secrets, caches, generated artifacts and Terraform state stay out of Git.
+# Local environments, secrets, caches, and generated artifacts stay out of Git.
 .venv/
 __pycache__/
 *.pyc
@@ -15,14 +15,9 @@ data/
 # Selected baselines stay tracked; promote new ones explicitly with git add -f.
 evals/results/
 kb/index/
-infra/**/.terraform/
 *.tfstate
 *.tfstate.*
 *.tfplan
-*.tfvars
-!*.tfvars.example
-*.backend.hcl
-!*.backend.hcl.example
 .DS_Store
 .trees/
 .prompts/

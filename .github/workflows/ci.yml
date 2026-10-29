@@ -56,13 +56,3 @@ jobs:
       - run: uv run pytest -m postgres
         env:
           CAFE_NORTE_TEST_DATABASE_URL: postgresql://cafe:cafe@localhost:5432/cafe_norte_test
-
-  infra:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "~1.12"
-      - run: make infra-check

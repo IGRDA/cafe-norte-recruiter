@@ -108,4 +108,4 @@ only_mutate = [
     "src/cafe_norte/observability/cost.py",
 ]
 tests_dir = ["tests/unit/"]
-also_copy = ["tests/", "evals/", "scripts/", "config/", "kb/", "infra/", "web/", ".env.example"]
+also_copy = ["tests/", "evals/", "scripts/", "config/", "kb/", "web/", ".env.example"]

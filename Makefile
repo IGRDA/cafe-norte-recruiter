@@ -1,8 +1,5 @@
-INFRA_APP := infra/app
-INFRA_BOOTSTRAP := infra/bootstrap
-
 .PHONY: setup check preview preflight web-check web-build web-dev lint typecheck test test-unit test-component test-http test-e2e quality test-db db-up db-down run migrate build-index export-schema diagrams \
-        evals evals-retrieval compare evals-signals smoke voice-smoke infra-check infra-init infra-plan infra-apply
+        evals evals-retrieval compare evals-signals voice-smoke
 
 # Locked install with every extra; CI and local use the same command.
 setup:
@@ -96,26 +93,6 @@ evals-signals: EVAL_SUITE = --suite signals
 evals evals-retrieval compare evals-signals:
 	set -a; [ -f .env ] && . ./.env; set +a; uv run python -m evals.run $(EVAL_SUITE) $(ARGS)
 
-smoke:
-	uv run python scripts/ops/smoke.py $${SMOKE_URL:-http://localhost:8000}
-
 # Manual, paid: hosted voice from the laptop. Needs the Daily, Deepgram and ElevenLabs keys in .env.
 voice-smoke:
 	CAFE_NORTE_VOICE=pipecat uv run uvicorn cafe_norte.main:create_default_app --factory --port 8000 --env-file .env
-
-infra-check:
-	terraform -chdir=$(INFRA_BOOTSTRAP) fmt -check -recursive
-	terraform -chdir=$(INFRA_APP) fmt -check -recursive
-	terraform -chdir=$(INFRA_BOOTSTRAP) init -backend=false -input=false >/dev/null
-	terraform -chdir=$(INFRA_BOOTSTRAP) validate
-	terraform -chdir=$(INFRA_APP) init -backend=false -input=false >/dev/null
-	terraform -chdir=$(INFRA_APP) validate
-
-infra-init:
-	terraform -chdir=$(INFRA_APP) init -input=false -backend-config=../environments/demo.backend.hcl
-
-infra-plan:
-	terraform -chdir=$(INFRA_APP) plan -input=false -var-file=../environments/demo.tfvars
-
-infra-apply:
-	terraform -chdir=$(INFRA_APP) apply -input=false -var-file=../environments/demo.tfvars

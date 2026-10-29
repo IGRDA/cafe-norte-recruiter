@@ -436,7 +436,6 @@ The SVG is the visible preview; the adjacent Mermaid block is its editable sourc
 Commit both together. When behavior changes, update the relevant source and explanation,
 regenerate, and inspect the result; rendering does not verify the diagram against the code.
 
-For configuration and execution, see the [README](../README.md). For hosting, see
-[infrastructure operations](../infra/OPERATIONS.md). The choice of module, sequence and ER
+For configuration and execution, see the [README](../README.md). The choice of module, sequence and ER
 views follows the useful distinctions in the
 [Gleek diagram guide](https://www.gleek.io/blog/diagram-for-developers).

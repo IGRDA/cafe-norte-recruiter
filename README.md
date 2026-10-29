@@ -66,8 +66,7 @@ flowchart TB
 
 </details>
 
-See the [architecture guide](docs/architecture.md) for detailed diagrams and protocols,
-and [infrastructure operations](infra/OPERATIONS.md) for deployment and recovery.
+See the [architecture guide](docs/architecture.md) for detailed diagrams and protocols.
 
 ## Key design decisions
 
@@ -79,8 +78,8 @@ and [infrastructure operations](infra/OPERATIONS.md) for deployment and recovery
   index, avoiding a separate vector database to operate. A larger or frequently updated corpus
   would justify a dedicated search service.
 - **VM hosting:** Daily's native WebRTC connection failed in the tested Cloud Run setup, so
-  the demo uses Compute Engine with Cloud SQL. This gives network control at the cost of
-  managing a VM.
+  the hosted demo ran on Compute Engine with Cloud SQL. That demo is retired and its
+  infrastructure removed; the app now runs locally.
 
 ## Bonus features
 

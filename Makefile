@@ -93,6 +93,6 @@ evals-signals: EVAL_SUITE = --suite signals
 evals evals-retrieval compare evals-signals:
 	set -a; [ -f .env ] && . ./.env; set +a; uv run python -m evals.run $(EVAL_SUITE) $(ARGS)
 
-# Manual, paid: real voice from the laptop. Needs the Daily, Deepgram and ElevenLabs keys in .env.
+# Manual, paid: hosted voice from the laptop. Needs the Daily, Deepgram and ElevenLabs keys in .env.
 voice-smoke:
 	CAFE_NORTE_VOICE=pipecat uv run uvicorn cafe_norte.main:create_default_app --factory --port 8000 --env-file .env

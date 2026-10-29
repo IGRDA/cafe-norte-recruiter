@@ -171,7 +171,7 @@ def create_app(
 
     if web_dir is not None and not web_dir.is_dir():
         # The page is built (`make web-build`); the API, the evals and the tests run
-        # without it. The image always builds it.
+        # without it. The image always builds it, and the deploy's smoke check asks for "/".
         log.warning("no page at %s: run `make web-build`; serving the API only", web_dir)
     elif web_dir is not None:
         app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")

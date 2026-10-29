@@ -78,8 +78,8 @@ See the [architecture guide](docs/architecture.md) for detailed diagrams and pro
   index, avoiding a separate vector database to operate. A larger or frequently updated corpus
   would justify a dedicated search service.
 - **VM hosting:** Daily's native WebRTC connection failed in the tested Cloud Run setup, so
-  the hosted demo ran on Compute Engine with Cloud SQL. That demo is retired and its
-  infrastructure removed; the app now runs locally.
+  the demo uses Compute Engine with Cloud SQL. This gives network control at the cost of
+  managing a VM.
 
 ## Bonus features
 
